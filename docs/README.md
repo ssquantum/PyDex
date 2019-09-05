@@ -1,4 +1,28 @@
-﻿**** Version 1.3 ****
+﻿PyDex
+Version 0.0
+
+A master script manages the independent modules:
+	• Starts up the camera to receive acquisition triggers from Dexter
+	• Queues up experiments
+	• Sets multirun
+	• In a sequence:
+		○ The master script synchronising the Dexter run #
+		○ Initiates the camera acquisition (for several images, initiate several different signals)
+		○ Dexter triggers the camera to take an image (or several images if re-imaging)
+		○ The camera manager sends a signal with the image array to the image saver and to the image analysis
+		○ Image analysis processes the image, image saver saves the image (separate threads)
+
+Included modules:
+	• queue - creates sequences to be sent to Dexter
+	• ancam - controls the Andor camera
+	• savim - saves image files
+	• saia1 - does image analysis
+	• monit - monitoring channels during an experiment
+
+
+
+SAIA1 - image analysis
+**** Version 1.3 ****
 Produces histograms for an image containing a either single atom or none.
 **** ****
 
