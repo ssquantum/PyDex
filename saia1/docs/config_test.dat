@@ -1,0 +1,6 @@
+// list of required directories for SAIA
+image storage path	--C:\Users\qgtx64\DocumentsCDrive\QSUM\Training\test
+log file path		--C:\Users\qgtx64\DocumentsCDrive\QSUM\Training\test
+dexter sync file		--C:\Users\qgtx64\DocumentsCDrive\QSUM\Training\currentfile.txt
+image read path	--C:\Users\qgtx64\DocumentsCDrive\QSUM\Training\test\CameraIm
+results path		--C:\Users\qgtx64\DocumentsCDrive\QSUM\Training\test

@@ -1,0 +1,6 @@
+// list of required directories for SAIA
+image storage path	--C:\Users\Lab\Documents\atom_images
+log file path		--C:\Users\Lab\Documents\atom_images\Logs
+dexter sync file	--Y:\currentfile.txt
+image read path		--C:\Users\Lab\Documents\atom_images\data
+results path		--Z:\Tweezer\Experimental Results

@@ -1,0 +1,17 @@
+setPointT    = -20
+coolerMode   = 1
+shutterMode  = 1
+outamp       = 0
+hsspeed      = 2
+vsspeed      = 4
+preampgain   = 3
+EMgain       = 1
+hstart       = 1
+hend         = 512
+vstart       = 1
+vend         = 512
+readmode     = 4
+acqumode     = 1
+triggerMode  = 7
+fastTrigger  = 0
+verbosity    = 0
