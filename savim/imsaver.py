@@ -69,7 +69,7 @@ class event_handler(QThread):
         try:
             with open(config_file, 'r') as config_file:
                 config_data = config_file.read().split("\n")
-        except FileNotFoundError:
+        except (FileNotFoundError, OSError):
             print("config.dat file not found. This file is required for directory references.")
             return {'Image Storage Path: ':'', 'Dexter Sync File: ':'','Results Path: ':''}
         for row in config_data:
@@ -87,14 +87,14 @@ class event_handler(QThread):
     def print_dirs(dict_items):
         """Return a string containing information on the paths used
         dict_items should be the dirs_dict {key:value} dictionary."""
-        outstr = '// list of required directories for SAIA\n'
+        outstr = '// list of required directories:\n'
         for key, value in dict_items:
             outstr += key + '\n' + value + '\n'
         return outstr
         
     def save_config(self, config_file='./config/config.dat'):
         """Write the directories currently in use into a new config file."""
-        outstr = '// list of required directories for SAIA\n'
+        outstr = '// list of required directories:\n'
         for key, value in [d for d in self.dirs_dict.values()]:
             outstr += key + '\t = ' + value + '\n'
         with open(config_file, 'w+') as config_file:

@@ -58,13 +58,14 @@ class reim_window(main_window):
         self.adjust_UI() # adjust widgets from main_window
 
         # Make instances of SAIA that watch different directories
-        self.mw0 = main_window(results_path=results_path, name='0')
-        # don't ask the user to confirm on close since it runs in background
-        self.mw0.closeEvent = self.closeAndContinue
-        self.mw0.setWindowTitle('0 - Single Atom Image Analyser -')
-        self.mw1 = main_window(results_path=results_path, name='1')
-        self.mw1.closeEvent = self.closeAndContinue
-        self.mw1.setWindowTitle('1 - After Single Atom Image Analyser -')
+        self.mws = []
+        for i in range(2):
+            self.mws.append(main_window(
+                    results_path=results_path, name=str(i)))
+            # don't ask the user to confirm on close, run in background
+            self.mws[i].closeEvent = self.closeAndContinue
+            self.mws[i].setWindowTitle(
+                        str(i) + ' - Single Atom Image Analyser -')
         
     def adjust_UI(self):
         """Edit the widgets created by main_window"""
@@ -72,7 +73,7 @@ class reim_window(main_window):
         self.setWindowTitle('Master Single Atom Re-Image Analyser')
 
         menubar = self.menuBar()
-        # redisplay mw1, mw2 instances of SAIA if they were closed
+        # redisplay mwsinstances of SAIA if they were closed
         setting_menu = menubar.addMenu('Windows')
         show_win = QAction('Show Windows', self) 
         show_win.triggered.connect(self.show_windows)
@@ -89,8 +90,8 @@ class reim_window(main_window):
         """Take the histogram from the 'after' images where the 'before' images
         contained an atom"""
         t2 = 0
-        ih1 = self.mw0.image_handler
-        ih2 = self.mw1.image_handler
+        ih1 = self.mws[0].image_handler
+        ih2 = self.mws[1].image_handler
         atom = (ih1.counts // ih1.thresh).astype(bool)
         idxs = [i for i, val in enumerate(ih2.files) if any(val == j for j in ih1.files[atom])]
         # take the after images when the before images contained atoms
@@ -116,7 +117,7 @@ class reim_window(main_window):
         # display the name of the most recent file
         if self.image_handler.im_num > 0:
             self.recent_label.setText('Just processed image '
-                        + self.mw1.image_handler.files[self.mw1.image_handler.im_num-1])
+                        + self.mws[1].image_handler.files[self.mws[1].image_handler.im_num-1])
         self.plot_current_hist(self.image_handler.hist_and_thresh) # update the displayed plot
         self.plot_time = time.time() - t2
 
@@ -129,7 +130,7 @@ class reim_window(main_window):
         # display the name of the most recent file
         if self.image_handler.im_num > 0:
             self.recent_label.setText('Just processed image '
-                        + self.mw1.image_handler.files[self.mw1.image_handler.im_num-1])
+                        + self.mws[1].image_handler.files[self.mws[1].image_handler.im_num-1])
         self.plot_current_hist(self.image_handler.histogram) # update the displayed plot
         self.plot_time = time.time() - t2
 
@@ -144,25 +145,27 @@ class reim_window(main_window):
         histogram binning."""
         if self.mr['v'] < np.size(self.mr['var list']):
             if self.mr['o'] == self.mr['# omit'] - 1 and self.mr['h'] == 0:
-                for obj in [self, self.mw0, self.mw1]:
+                for obj in [self, self.mws[0], self.mws[1]]:
                     obj.image_handler.reset_arrays() # remove omitted files
             if self.mr['o'] < self.mr['# omit']: # don't process, just copy
-                for obj in [self, self.mw0, self.mw1]:
+                for obj in [self, self.mws[0], self.mws[1]]:
                     obj.mr['o'] += 1 # increment counter
                 self.recent_label.setText('Just processed image '
-                    + self.mw1.image_handler.files[self.mw1.image_handler.im_num-1])
+                    + self.mws[1].image_handler.files[
+                            self.mws[1].image_handler.im_num-1])
             elif self.mr['h'] < self.mr['# hist']: # add to histogram
                 t2 = self.get_histogram() # update the histogram
                 # display the name of the most recent file
                 self.recent_label.setText('Just processed image '
-                        + self.mw1.image_handler.files[self.mw1.image_handler.im_num-1])
-                self.plot_current_hist(self.image_handler.hist_and_thresh) # update the displayed plot
+                        + self.mws[1].image_handler.files[
+                            self.mws[1].image_handler.im_num-1])
+                self.plot_current_hist(self.image_handler.hist_and_thresh) 
                 self.plot_time = time.time() - t2
-                for obj in [self, self.mw0, self.mw1]:
+                for obj in [self, self.mws[0], self.mws[1]]:
                     obj.mr['h'] += 1 # increment counter
 
             if self.mr['o'] == self.mr['# omit'] and self.mr['h'] == self.mr['# hist']:
-                for obj in [self.mw1, self.mw0, self]:
+                for obj in [self.mws[1], self.mws[0], self]:
                     obj.mr['o'], obj.mr['h'] = 0, 0 # reset counters
                     obj.var_edit.setText(str(obj.mr['var list'][obj.mr['v']])) # set user variable
                     self.get_histogram()    # update the survival histogram
@@ -178,11 +181,11 @@ class reim_window(main_window):
                             + '_' + str(obj.mr['v']) + '.csv', 
                         confirm=False)# save histogram
                     obj.mr['v'] += 1 # increment counter
-                for obj in [self.mw1, self.mw0, self]:
+                for obj in [self.mws[1], self.mws[0], self]:
                     obj.image_handler.reset_arrays() # clear histogram once data processing is done
                 
         if self.mr['v'] == np.size(self.mr['var list']):
-            for obj in [self.mw1, self.mw0, self]:
+            for obj in [self.mws[1], self.mws[0], self]:
                 obj.save_varplot(
                     save_file_name=os.path.join(
                         obj.multirun_save_dir.text(), obj.name+obj.mr['prefix']) 
@@ -197,7 +200,7 @@ class reim_window(main_window):
                 obj.mr['prefix'] = str(obj.mr['measure']) # suggest new measure as file prefix
                 obj.measure_edit.setText(obj.mr['prefix'])
 
-        for obj in [self, self.mw0, self.mw1]:
+        for obj in [self, self.mws[0], self.mws[1]]:
             obj.multirun_progress.setText( # update progress label
                 'User variable: %s, omit %s of %s files, %s of %s histogram files, %.3g%% complete'%(
                     obj.mr['var list'][obj.mr['v']], obj.mr['o'], obj.mr['# omit'],
@@ -219,7 +222,7 @@ class reim_window(main_window):
             elif 'PyQt5' in sys.modules:
                 file_name, _ = QFileDialog.getOpenFileName(
                     self, 'Select A File', default_path, 'Images (*.asc);;all (*)')
-            for obj in [self, self.mw0, self.mw1]:
+            for obj in [self, self.mws[0], self.mws[1]]:
                 obj.image_handler.set_pic_size(file_name) # sets image handler's pic size
                 obj.pic_size_edit.setText(str(self.image_handler.pic_size)) # update loaded value
                 obj.pic_size_label.setText(str(self.image_handler.pic_size)) # update loaded value
@@ -237,7 +240,7 @@ class reim_window(main_window):
                 file_name, _ = QFileDialog.getOpenFileName(
                     self, 'Select A File', default_path, 'Images (*.asc);;all (*)')
             # get pic size from this image in case the user forgot to set it
-            for obj in [self, self.mw0, self.mw1]:
+            for obj in [self, self.mws[0], self.mws[1]]:
                 obj.image_handler.set_pic_size(file_name) # sets image handler's pic size
                 obj.pic_size_edit.setText(str(self.image_handler.pic_size)) # update loaded value
                 obj.pic_size_label.setText(str(self.image_handler.pic_size)) # update loaded value
@@ -265,19 +268,19 @@ class reim_window(main_window):
         if reply == QMessageBox.Cancel:
             return 0
         elif reply == QMessageBox.Yes:
-            for obj in [self, self.mw0, self.mw1]:
+            for obj in [self, self.mws[0], self.mws[1]]:
                 obj.save_hist_data()  # prompt user for file name then save
                 obj.image_handler.reset_arrays() # get rid of old data
                 obj.hist_canvas.clear() # remove old histogram from display
         elif reply == QMessageBox.No:
-            for obj in [self, self.mw0, self.mw1]:
+            for obj in [self, self.mws[0], self.mws[1]]:
                 obj.image_handler.reset_arrays() # get rid of old data
                 obj.hist_canvas.clear() # remove old histogram from display
 
     def load_from_csv(self, trigger=None):
         """Prompt the user to select a csv file to load histogram data from.
         It must have the specific layout that the image_handler saves in.
-        Since the master calculates the histogram from data in mw1 and mw2, 
+        Since the master calculates the histogram from data in mws, 
         these must be updated appropriately"""
         default_path = self.get_default_path() 
         if self.check_reset():
@@ -289,13 +292,13 @@ class reim_window(main_window):
                 elif 'PyQt5' in sys.modules:
                     file_name, _ = QFileDialog.getOpenFileName(
                         self, 'Select A File', default_path, 'csv(*.csv);;all (*)')
-                for obj in [self, self.mw0, self.mw1]:
+                for obj in [self, self.mws[0], self.mws[1]]:
                     obj.image_handler.load_from_csv(file_name)
                 if self.image_handler.counts:
-                    # make fake data for mw1 so that all files in mw2 are included
-                    self.mw0.image_handler.counts[:self.image_handler.im_num] = np.zeros(
+                    # make fake data for mws[0] so that all files in mws[1] are included
+                    self.mws[0].image_handler.counts[:self.image_handler.im_num] = np.zeros(
                         self.image_handler.im_num) + max(self.image_handler.counts)
-                    self.mw0.image_handler.atom = np.ones(self.image_handler.im_num)
+                    self.mws[0].image_handler.atom = np.ones(self.image_handler.im_num)
                 self.update_stats()
             except OSError:
                 pass # user cancelled - file not found
@@ -307,7 +310,7 @@ class reim_window(main_window):
         user variable and assign it in the temp_vals of the histo_handler"""
         self.histo_handler.temp_vals['User variable'] = self.var_edit.text()
         self.stat_labels['User variable'].setText(self.var_edit.text())
-        for obj in [self.mw0, self.mw1]: # copy across to the SAIA instances
+        for obj in [self.mws[0], self.mws[1]]: # copy across to the SAIA instances
             obj.var_edit.setText(self.var_edit.text())
             obj.set_user_var()
 
@@ -317,17 +320,17 @@ class reim_window(main_window):
         if text:
             self.image_handler.pic_size = int(text)
             self.pic_size_label.setText(str(self.image_handler.pic_size))
-            for obj in [self.mw0, self.mw1]:
+            for obj in [self.mws[0], self.mws[1]]:
                 obj.pic_size_edit.setText(text)
             
     def CCD_stat_edit(self):
         """Update the values used for the EMCCD bias offset and readout noise"""
         if self.bias_offset_edit.text(): # check the label isn't empty
-            for obj in [self, self.mw0, self.mw1]: # copy across to the SAIA instances
+            for obj in [self, self.mws[0], self.mws[1]]: # copy across to the SAIA instances
                 obj.bias = float(self.bias_offset_edit.text())
                 obj.bias_offset_edit.setText(str(obj.bias))
         if self.read_noise_edit.text():
-            for obj in [self, self.mw0, self.mw1]: 
+            for obj in [self, self.mws[0], self.mws[1]]: 
                 obj.Nr = float(self.read_noise_edit.text())
                 obj.read_noise_edit.setText(str(obj.Nr))
 
@@ -339,7 +342,7 @@ class reim_window(main_window):
         started, do nothing."""
         if not self.multirun_switch.isChecked():
             new_var = list(map(float, [v for v in self.entry_edit.text().split(',') if v]))
-            for obj in [self, self.mw0, self.mw1]:
+            for obj in [self, self.mws[0], self.mws[1]]:
                 if np.size(new_var) == 1: # just entered a single variable
                     obj.mr['var list'].append(new_var[0])
                     # empty the text edit so that it's quicker to enter a new variable
@@ -357,7 +360,7 @@ class reim_window(main_window):
         """Reset the list of user variables to be used in the multi-run.
         If the multi-run is already running, don't do anything"""
         if not self.multirun_switch.isChecked():
-            for obj in [self, self.mw0, self.mw1]:
+            for obj in [self, self.mws[0], self.mws[1]]:
                 obj.mr['var list'] = []
                 obj.multirun_vars.setText('')
 
@@ -377,7 +380,7 @@ class reim_window(main_window):
             l = 2*min([xc, yc])  # can't have the boundary go off the edge
         if int(l) == 0:
             l = 1 # can't have zero width
-        for obj in [self, self.mw0, self.mw1]:
+        for obj in [self, self.mws[0], self.mws[1]]:
             obj.image_handler.set_roi(dimensions=list(map(int, [xc, yc, l])))
             obj.xc_label.setText('ROI x_c = '+str(xc)) 
             obj.yc_label.setText('ROI y_c = '+str(yc))
@@ -395,7 +398,7 @@ class reim_window(main_window):
         if reply == QMessageBox.Cancel:
             return 0
         elif reply == QMessageBox.Yes:
-            for obj in [self, self.mw0, self.mw1]:
+            for obj in [self, self.mws[0], self.mws[1]]:
                 obj.image_handler.reset_arrays() # gets rid of old data
         return 1
 
@@ -405,7 +408,7 @@ class reim_window(main_window):
         default_path = self.get_default_path()
         try:
             dir_path = QFileDialog.getExistingDirectory(self, "Select Directory", default_path)
-            for obj in [self, self.mw0, self.mw1]:
+            for obj in [self, self.mws[0], self.mws[1]]:
                 obj.multirun_save_dir.setText(dir_path)
         except OSError:
             pass # user cancelled - file not found
@@ -414,15 +417,15 @@ class reim_window(main_window):
 
     def swap_signals(self):
         """Disconnect the image_handler process signal from the event
-        and (re)connect the update plot. The master will trigger on events from
-        mw1."""
-        self.mw1.swap_signals() # disconnects then reconnects mw1 slots
+        and (re)connect the update plot. The master will trigger on events 
+        from mws[1]."""
+        self.mws[1].swap_signals() # disconnects then reconnects mws[1] slots
         if self.thresh_toggle.isChecked():
-            self.mw1.event_im.connect(self.get_histogram)
-            self.mw1.event_im.connect(self.update_plot_only)
+            self.mws[1].event_im.connect(self.get_histogram)
+            self.mws[1].event_im.connect(self.update_plot_only)
         elif not self.thresh_toggle.isChecked():
-            self.mw1.event_im.connect(self.get_histogram)
-            self.mw1.event_im.connect(self.update_plot)
+            self.mws[1].event_im.connect(self.get_histogram)
+            self.mws[1].event_im.connect(self.update_plot)
 
     def set_bins(self, action=None):
         """Check which of the bin action menu bar options is checked.
@@ -436,12 +439,12 @@ class reim_window(main_window):
         the histogram."""
         if not self.multirun_switch.isChecked(): # don't interrupt multirun
             if self.bin_actions[1].isChecked(): # manual
-                for obj in [self.mw0, self.mw1, self]: # copy across to the SAIA instances
+                for obj in [self.mws[0], self.mws[1], self]: # copy across to the SAIA instances
                     obj.swap_signals() # won't do anything if dir_watcher isn't running
                     obj.bins_text_edit('reset') # also updates threshold unless user sets it
 
             elif self.bin_actions[0].isChecked(): # automatic
-                for obj in [self.mw0, self.mw1, self]:
+                for obj in [self.mws[0], self.mws[1], self]:
                     obj.swap_signals()  # disconnect image handler, reconnect plot
                     obj.image_handler.bin_array = []
                     if obj.thresh_toggle.isChecked():
@@ -449,7 +452,7 @@ class reim_window(main_window):
                     else:
                         obj.plot_current_hist(obj.image_handler.hist_and_thresh)
             elif self.bin_actions[2].isChecked() or self.bin_actions[3].isChecked(): # No Display or No Update
-                for obj in [self.mw0, self.mw1]:
+                for obj in [self.mws[0], self.mws[1]]:
                     try: # disconnect all slots
                         obj.event_im.disconnect()
                     except Exception: pass # if it's already been disconnected 
@@ -458,14 +461,14 @@ class reim_window(main_window):
                     # just process the image
                     if obj.bin_actions[2].isChecked():
                         obj.event_im.connect(obj.image_handler.process)
-                        if obj is self.mw1:
+                        if obj is self.mws[1]:
                             obj.event_im.connect(self.get_histogram)
     
     def set_thresh(self, toggle):
         """If the toggle is true, the user supplies the threshold value and it is
         kept constant using the image_handler.histogram() function. Otherwise,
         update the threshold with image_handler.hist_and_thresh()"""
-        for obj in [self.mw0, self.mw1]:
+        for obj in [self.mws[0], self.mws[1]]:
             obj.thresh_toggle.setChecked(toggle)
             obj.set_thresh(toggle)
 
@@ -475,10 +478,10 @@ class reim_window(main_window):
         the multi-run, save the current histogram, save the measure file, then
         return to normal operation of the dir_watcher"""
         if toggle and np.size(self.mr['var list']) > 0:
-            self.mw0.measure_edit.setText(self.measure_edit.text() + '_0')
-            self.mw1.measure_edit.setText(self.measure_edit.text() + '_1')
+            self.mws[0].measure_edit.setText(self.measure_edit.text() + '_0')
+            self.mws[1].measure_edit.setText(self.measure_edit.text() + '_1')
             self.check_reset() # clear histograms
-            for obj in [self, self.mw0, self.mw1]:
+            for obj in [self, self.mws[0], self.mws[1]]:
                 try: # disconnect all slots
                     obj.event_im.disconnect() 
                 except Exception: pass # already disconnected
@@ -501,10 +504,10 @@ class reim_window(main_window):
                         self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
                         self.mr['h'], self.mr['# hist']))
                 
-            # connect self to mw1 signal so that it responds to images coming in
-            self.mw1.event_im.connect(self.multirun_step)
+            # connect self to mws[1] signal so that it responds to images coming in
+            self.mws[1].event_im.connect(self.multirun_step)
         else: # cancel the multi-run
-            for obj in [self, self.mw0, self.mw1]:
+            for obj in [self, self.mws[0], self.mws[1]]:
                 obj.set_bins() # reconnect the dir_watcher
                 obj.multirun_switch.setText('Start') # reset button text
                 obj.multirun_switch.setChecked(False)# keep consistentency
@@ -520,14 +523,14 @@ class reim_window(main_window):
         """If the button is clicked, resume the multi-run where it was left off.
         If the multirun is already running, do nothing."""
         if not self.multirun_switch.isChecked(): 
-            for obj in [self.mw0, self.mw1]:
+            for obj in [self.mws[0], self.mws[1]]:
                 obj.multirun_switch.setChecked(True)
                 obj.multirun_switch.setText('Abort')
                 try: # disconnect all slots
                     obj.event_im.disconnect() 
                 except Exception: pass # already disconnected
                 obj.event_im.connect(obj.update_plot)
-            self.mw1.event_im.connect(self.multirun_step)
+            self.mws[1].event_im.connect(self.multirun_step)
             self.multirun_switch.setChecked(True)
             self.multirun_switch.setText('Abort')
 
@@ -539,10 +542,10 @@ class reim_window(main_window):
         h = 900
         o = 50
         self.setGeometry(10, o, 10+w/3, h+o)
-        self.mw0.setGeometry(10+w/3, o, 10+w/3, h+o)
-        self.mw0.show()
-        self.mw1.setGeometry(10+2*w/3, o, 10+w/3, h+o)
-        self.mw1.show()
+        self.mws[0].setGeometry(10+w/3, o, 10+w/3, h+o)
+        self.mws[0].show()
+        self.mws[1].setGeometry(10+2*w/3, o, 10+w/3, h+o)
+        self.mws[1].show()
 
     def closeAndContinue(self, event):
         """A close event for the SAIA instances that keeps the dir
@@ -551,7 +554,7 @@ class reim_window(main_window):
 
     def closeEvent(self, event):
         """Close all active main windows"""
-        for obj in [self.mw0, self.mw1]:
+        for obj in [self.mws[0], self.mws[1]]:
             obj.close() # close the window
         event.accept() # close this main window
         
