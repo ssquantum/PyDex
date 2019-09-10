@@ -52,11 +52,13 @@ class main_window(QMainWindow):
      - The fitCurve module stores common functions for curve fitting.
     This GUI was produced with help from http://zetcode.com/gui/pyqt5/.
     Keyword arguments:
-    results_path -- directory to save log file and results to."""
+    results_path -- directory to save log file and results to.
+    name         -- an ID for this window, prepended to saved files."""
     event_im = pyqtSignal(np.ndarray)
 
-    def __init__(self, results_path='./'):
+    def __init__(self, results_path='./', name=''):
         super().__init__()
+        self.name = name  # name is displayed in the window title
         self.bias = 697   # bias off set from EMCCD
         self.Nr   = 8.8   # read-out noise from EMCCD
         self.image_handler = ih.image_handler() # class to process images
@@ -85,7 +87,7 @@ class main_window(QMainWindow):
 
         # log is saved in a dated subdirectory and the file name also has the date
         self.log_file_name = os.path.join(results_path, 
-                   'log'+self.date[0]+self.date[1]+self.date[3]+'.dat')  
+                   self.name+'log'+self.date[0]+self.date[1]+self.date[3]+'.dat')  
         # write the header to the log file
         if not os.path.isfile(self.log_file_name): # don't overwrite if it already exists
             with open(self.log_file_name, 'w+') as f:
@@ -505,7 +507,7 @@ class main_window(QMainWindow):
 
         #### choose main window position and dimensions: (xpos,ypos,width,height)
         self.setGeometry(100, 100, 850, 700)
-        self.setWindowTitle('Single Atom Image Analyser')
+        self.setWindowTitle(self.name+' - Single Atom Image Analyser -')
         self.setWindowIcon(QIcon('docs/tempicon.png'))
         
     #### #### user input functions #### #### 
@@ -1076,14 +1078,19 @@ class main_window(QMainWindow):
                 except Exception: pass # if it's already been disconnected 
 
                 # set the text of the most recent file
-                # self.event_im.connect(self.recent_label.setText) # might need a better label
+                self.event_im.connect(self.show_recent_file) # might need a better label
                 # just process the image
                 if self.bin_actions[2].isChecked():
                     self.event_im.connect(self.image_handler.process)
                 
             
     #### #### canvas functions #### #### 
-        
+
+    def show_recent_file(self, im=0):
+        """Display the file ID of the last processed file"""
+        self.recent_label.setText('Most recent image: '
+                            + str(self.image_handler.fid))
+
     def plot_current_hist(self, hist_function):
         """Reset the plot to show the current data stored in the image handler.
         hist_function is used to make the histogram and allows the toggling of
@@ -1112,7 +1119,7 @@ class main_window(QMainWindow):
         self.int_time = t2 - t1
         # display the name of the most recent file
         self.recent_label.setText('Just processed image '
-            + self.image_handler.files[self.image_handler.im_num-1])
+                            + str(self.image_handler.fid))
         self.plot_current_hist(self.image_handler.hist_and_thresh) # update the displayed plot
         self.plot_time = time.time() - t2
 
@@ -1127,7 +1134,7 @@ class main_window(QMainWindow):
         self.int_time = t2 - t1
         # display the name of the most recent file
         self.recent_label.setText('Just processed image '
-            + self.image_handler.files[self.image_handler.im_num-1])
+                            + str(self.image_handler.fid))
         self.plot_current_hist(self.image_handler.histogram) # update the displayed plot
         self.plot_time = time.time() - t2
 
@@ -1151,7 +1158,7 @@ class main_window(QMainWindow):
                 self.int_time = t2 - t1
                 # display the name of the most recent file
                 self.recent_label.setText('Just processed image '
-                    + self.image_handler.files[self.image_handler.im_num-1])
+                            + str(self.image_handler.fid))
                 self.plot_current_hist(self.image_handler.hist_and_thresh) # update the displayed plot
                 self.plot_time = time.time() - t2
                 self.mr['h'] += 1 # increment counter
@@ -1168,7 +1175,7 @@ class main_window(QMainWindow):
                         self.mr['prefix'] + '_' + str(self.mr['v']) + '.csv')
                 self.save_hist_data(
                     save_file_name=os.path.join(
-                        self.multirun_save_dir.text(), self.mr['prefix']) 
+                        self.multirun_save_dir.text(), self.name + self.mr['prefix']) 
                             + '_' + str(self.mr['v']) + '.csv', 
                     confirm=False)# save histogram
                 self.image_handler.reset_arrays() # clear histogram
@@ -1177,7 +1184,7 @@ class main_window(QMainWindow):
         if self.mr['v'] == np.size(self.mr['var list']):
             self.save_varplot(
                 save_file_name=os.path.join(
-                    self.multirun_save_dir.text(), self.mr['prefix']) 
+                    self.multirun_save_dir.text(), self.name + self.mr['prefix']) 
                         + '.dat', 
                 confirm=False)# save measure file
             # reconnect previous signals
@@ -1367,7 +1374,7 @@ class main_window(QMainWindow):
                         self, 'Select Files', default_path, 'Images(*.asc);;all (*)')
                 for file_name in file_list:
                     try:
-                        im_vals = self.image_handler.process(file_name)
+                        im_vals = self.image_handler.load_full_im(file_name)
                         self.image_handler.process(im_vals)
                         self.recent_label.setText(
                             'Just processed: '+os.path.basename(file_name)) # only updates at end of loop
@@ -1405,7 +1412,8 @@ class main_window(QMainWindow):
                             range(int(minmax[0]), int(minmax[1]))))] 
             for file_name in file_list:
                 try:
-                    self.image_handler.process(file_name)
+                    im_vals = self.image_handler.load_full_im(file_name)
+                    self.image_handler.process(im_vals)
                     self.recent_label.setText(
                         'Just processed: '+os.path.basename(file_name)) # only updates at end of loop
                 except:

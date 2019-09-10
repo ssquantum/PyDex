@@ -30,9 +30,11 @@ except ImportError:
 # change directory to this file's location
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 sys.path.append(r'./saia1')
-from saia1.main import main_window  # image analysis
+from saia1.main import main_window # image analysis
+from saia1.reimage import reim_window # analysis for survival probability
 sys.path.append(r'./ancam')
 from ancam.cameraHandler import camera # manages Andor camera
+from savim.imsaver import event_handler # saves images
 
 class Master(QMainWindow):
     """A manager to synchronise and control experiment modules.
@@ -44,22 +46,29 @@ class Master(QMainWindow):
     This master module will define the run number. It must confirm that
     each Dexter sequence has run successfully in order to stay synchronised.
     """
+    im_save    = pyqtSignal(np.ndarray) # send an incoming image to saver
+    im_analyse = [pyqtSignal(np.ndarray)] # send an incoming image to analysis
+
     def __init__(self):
         super().__init__()
         self.init_UI()
         self.cam = camera(config_file='./ancam/AndorCam_config.dat') # Andor camera
-        self.cam.AcquireEnd2.connect(self.update_fid) # sync the image analysis run number
-        self.cam.Finished.connect(self.reset_acquire_buttons)
-        self.cam.verbosity = True # for debugging
-        self.mw = main_window('./saia1/config/config.dat') # image analysis
-        self.mw.setGeometry(100, 250, 850, 700)
-        self.mw.event_im = self.cam.AcquireEnd1 # signal receiving image array
-        self.mw.swap_signals() # connect slots to the signal
-        self.mw.show()
+        self.cam.AcquireEnd.connect(self.synchronise) # sync the image analysis run number
+        # self.cam.verbosity = True # for debugging
+        self.sv = event_handler('./config/config.dat') # image saver
+        self.im_save.connect(self.sv.respond)
+        self.mw = [main_window(self.sv.dirs_dict['Results Path: '] +
+            r'\%s\%s\%s'%(self.sv.date[3],self.sv.date[2],self.sv.date[0]))] # image analysis
+        self.mw[0].setGeometry(100, 250, 850, 700)
+        self.mw[0].event_im = self.im_analyse # assign signal receiving image array
+        self.mw[0].swap_signals() # connect slots to the signal
+        self.mw[0].show()
         
         self.status_label.setText('Initialised')
 
-        self._n = 0 # run synchronisation number
+        self._n = 0 # [Py]DExTer file number
+        self._m = 1 # number of images per experimental sequence
+        self._k = 0 # number of images processed
         
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
             default_text='', validator=0):
@@ -84,9 +93,9 @@ class Master(QMainWindow):
         self.setCentralWidget(self.centre_widget)
         
         #### validators for user input ####
-        reg_exp = QRegExp(r'([0-9]+(\.[0-9]+)?,?)+')
-        comma_validator = QRegExpValidator(reg_exp) # floats and commas
-        double_validator = QDoubleValidator() # floats
+        # reg_exp = QRegExp(r'([0-9]+(\.[0-9]+)?,?)+')
+        # comma_validator = QRegExpValidator(reg_exp) # floats and commas
+        # double_validator = QDoubleValidator() # floats
         int_validator = QIntValidator()       # integers
         
         #### menubar at top gives options ####
@@ -103,23 +112,67 @@ class Master(QMainWindow):
         #### status of the master program ####
         self.status_label = QLabel('Initiating...', self)
         self.centre_widget.layout.addWidget(self.status_label, 0,0, 1,1)
+
+        _, self.num_im_per_seq_edit = self.make_label_edit('Number of images per sequence:', 
+            self.centre_widget.layout, position=[1,0, 1,1],
+            default_text='1', validator=int_validator) # signal connected with lock_imnum_button
+        self.num_im_per_seq_edit.setReadOnly(True)
+        self.lock_imnum_button = QPushButton('Lock', self, checkable=True)
+        self.lock_imnum_button.setChecked()
+        self.lock_imnum_button.clicked[bool].connect(self.lock_num_im_per_seq)
+        self.lock_imnum_button.resize(self.lock_imnum_button.sizeHint())
+        self.centre_widget.layout.addWidget(self.lock_imnum_button, 1,2, 1,1)
         
         self.acquire_button = QPushButton('Start acquisition', self, 
                                                         checkable=True)
         self.acquire_button.clicked[bool].connect(self.start_acquisitions)
         self.acquire_button.resize(self.acquire_button.sizeHint())
-        self.centre_widget.layout.addWidget(self.acquire_button, 1,0, 1,1)
+        self.centre_widget.layout.addWidget(self.acquire_button, 2,0, 1,1)
         
-                
         #### choose main window position and dimensions: (xpos,ypos,width,height)
         self.setGeometry(50, 50, 800, 150)
         self.setWindowTitle('PyDex Master')
         # self.setWindowIcon(QIcon('docs/tempicon.png'))
+
+    def lock_num_im_per_seq(self, toggle):
+        """The number of images per sequence is locked unless this button is 
+        toggled. This prevents the user from accidentally resetting the 
+        image analyser."""
+        if toggle:
+            self.num_im_per_seq_edit.setReadOnly(True)
+            self.num_im_per_seq_edit.editingFinished.disconnect()
+        else:
+            self.num_im_per_seq_edit.setReadOnly(False)
+            self.num_im_per_seq_edit.editingFinished.connect(self.reset_analyser)
+
+    def reset_analyser(self):
+        """Create an instance of saia1 for each image that will be taken in 
+        the sequence."""
+        self._m = int(self.num_im_per_seq_edit.text())
+        for mw in self.mw:
+            mw.close()
+        if self._m == 2: # calculates survival probability
+            self.im_analyse = [pyqtSignal(np.ndarray)]*self._m
+            self.mw = [reim_window(self.sv.dirs_dict['Results Path: '] +
+                    r'\%s\%s\%s'%(self.sv.date[3],self.sv.date[2],self.sv.date[0]))]
+            self.mw[0].mw0.event_im = self.im_analyse[0]
+            self.mw[0].mw1.event_im = self.im_analyse[1]
+            self.mw[0].swap_signals() # reconnects slots for mw1 and the main window
+            self.mw[0].mw0.swap_signals() # reconnects slots for mw0
+        else:
+            self.im_analyse, self.mw = [], []
+            for i in range(self._m):
+                self.im_analyse.append(pyqtSignal(np.ndarray))
+                self.mw.append(main_window(self.sv.dirs_dict['Results Path: '] +
+                    r'\%s\%s\%s'%(self.sv.date[3],self.sv.date[2],self.sv.date[0])))
+                self.mw[i].event_im = self.im_analyse[i] # assign signal
+                self.mw[i].swap_signals() # connect signal
         
     def show_window(self):
         """Make the selected window pop up"""
         if self.sender().text() == 'Image Analyser':
-            self.mw.show()
+            for mw in self.mw:
+                mw.show()
         elif self.sender().text() == 'Camera Status':
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Information)
@@ -131,16 +184,26 @@ class Master(QMainWindow):
         elif self.sender().text() == 'Monitoring':
             pass
 
-    def update_fid(self, im=0):
-        """Update the image analysis module's next file ID number
-        so that it stays synchronised."""
-        self.mw.image_handler.fid = self._n
-        
-    def reset_acquire_buttons(self, success=0):
-        """Once the camera has finished taken the set number of acquisitions
-        reset the acquire buttons so that the user can see it's finished."""
-        self.acquire_button.setEnabled(True)
-        self.status_label.setText('Idle'  if success else 'Acquisition failed')
+    def synchronise(self, im=0):
+        """Update the Dexter file number in all associated modules,
+        then send the image array to be saved and analysed."""
+        self.sv.dfn = str(self._n) # Dexter file number
+        self.sv.imn = str(self._k % self._m) # number of image in sequence
+        self.im_save.emit(im)
+        for mw in self.mw:
+            mw.image_handler.fid = self._n
+        self.im_analyse[self._k % self._m].emit(im)
+        self._k += 1 # another image was taken
+        if self._k % self._m == 0: # took all of the images in a sequence
+            self._n += 1
+
+    def reset_dates(self):
+        """Make sure that the dates in the image saving and analysis 
+        programs are correct."""
+        self.sv.date = time.strftime(
+                "%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
+        for mw in self.mw:
+            mw.date = self.sv.date
 
     def start_acquisitions(self, toggle):
         """Take the number of acquisitions stated in the num_acquisitions
@@ -157,7 +220,8 @@ class Master(QMainWindow):
     def closeEvent(self, event):
         """Proper shut down procedure"""
         self.cam.SafeShutdown()
-        self.mw.close()
+        for mw in self.mw:
+            mw.close()
         event.accept()
         
 ####    ####    ####    #### 

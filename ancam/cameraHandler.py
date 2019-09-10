@@ -28,8 +28,7 @@ class camera(QThread):
     connected to the signal AcquisitionEvent which is emitted when
     an acquisition is completed or aborted, or temperature updates."""
     AcquisitionEvent = win32event.CreateEvent(None, 0, 0, 'Acquisition')
-    AcquireEnd1 = pyqtSignal(np.ndarray) # send to image analysis 
-    AcquireEnd2 = pyqtSignal(np.ndarray) # send to image saving
+    AcquireEnd = pyqtSignal(np.ndarray) # send to image analysis 
     Finished = pyqtSignal(int) # emit when the acquisition thread finishes
 
     def __init__(self, config_file="./AndorCam_config.dat"):
@@ -245,8 +244,7 @@ class camera(QThread):
             im = self.AF.GetAcquiredData(
                 self.AF.ROIwidth, self.AF.ROIheight, self.AF.kscans)
             self.lastImage = im
-            self.AcquireEnd1.emit(im[0]) 
-            self.AcquireEnd2.emit(im[0]) 
+            self.AcquireEnd.emit(im[0]) 
             if self.AF.verbosity:
                 self.PlotAcquisition(im)
            
@@ -264,8 +262,7 @@ class camera(QThread):
                     self.AF.ROIwidth, self.AF.ROIheight, self.AF.kscans)
                 self.t1 = time.time() 
                 if self.lastImage.any(): # sometimes last image is empty
-                    self.AcquireEnd1.emit(self.lastImage[0]) # emit signals
-                    self.AcquireEnd2.emit(self.lastImage[0])
+                    self.AcquireEnd.emit(self.lastImage[0]) # emit signals
             # reset windows signal to trigger the next acquisition
             self.AcquisitionEvent = win32event.CreateEvent(None, 
                                                 0, 0, 'Acquisition')

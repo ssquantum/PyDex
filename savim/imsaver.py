@@ -21,9 +21,10 @@ except ImportError:
 class event_handler(QThread):
     """Save the image array that is passed through a signal to a file.
     
-    The event handler responds to a signal by saving the array to a file,
-    produces a synchronised label for it, copies it to a new directory, 
-    and then emits a signal to confirm the saving has finished.
+    The event handler responds to a signal saving the image array 
+    to a new directory, and then emits a signal to confirm the 
+    saving has finished.The Dexter file number and image number 
+    should be synced externally.
     Use a config file to load the directories.
     Wait for events and process them with the event_handler.
     Keyword arguments:
@@ -33,20 +34,22 @@ class event_handler(QThread):
                 be written to.
         dexter_sync_file_name -- absolute path to DExTer currentfile.txt
     """
-    event_path = pyqtSignal(str)
-    new_im     = pyqtSignal(np.ndarray)
+    event_path = pyqtSignal(str)        # the name of the saved file
+    new_im     = pyqtSignal(np.ndarray) # the new incoming image array
             
     def __init__(self, config_file='./config/config.dat'):
         super().__init__()
-        self.dfn = ""              # dexter file number
-        self.last_event_path = ""  # last event processed 
-        self.init_t = time.time()  # time of initiation: use to test how long it takes to realise an event is started
-        self.event_t = 0           # time taken to process the last event
-        self.end_t = time.time()   # time at end of event
-        self.idle_t  = 0           # time between events
-        self.write_t = 0           # time taken to watch a file being written
+        self.dfn     = "0"         # dexter file number
+        self.imn     = "0"         # ID # for when there are several images in a sequence
         self.nfn     = 0           # number to append to file so as not to overwrite
         self.species = 'Cs-133'    # atomic species to label files with
+        self.last_event_path = ""  # last event processed 
+        self.t0      = 0           # time at start of event
+        self.init_t  = time.time() # time of initiation: use to test how long it takes to realise an event is started
+        self.event_t = 0           # time taken to process the last event
+        self.end_t   = time.time() # time at end of event
+        self.idle_t  = 0           # time between events
+        self.write_t = 0           # time taken to watch a file being written
         # load paths used from config.dat
         self.dirs_dict = self.get_dirs(config_file) # handy dict contains them all
         self.image_storage_path = self.dirs_dict['Image Storage Path: ']
@@ -68,14 +71,17 @@ class event_handler(QThread):
                 config_data = config_file.read().split("\n")
         except FileNotFoundError:
             print("config.dat file not found. This file is required for directory references.")
-            return {'Image Storage Path: ':'', 'Dexter Sync File: ':''}
+            return {'Image Storage Path: ':'', 'Dexter Sync File: ':'','Results Path: ':''}
         for row in config_data:
             if "image storage path" in row:
                 image_storage_path = row.split('=')[-1] # where image files are saved
             elif "dexter sync file" in row:
-                dexter_sync_file_name = row.split('=')[-1]   # where the txt from Dexter with the latest file # is saved
+                dexter_sync_file_name = row.split('=')[-1] # where the txt from Dexter with the latest file # is saved
+            elif "results path" in row:
+                results_path = row.split('=')[-1]   # where csv files and histograms will be saved
         return {'Image Storage Path: ':image_storage_path,
-                'Dexter Sync File: ':dexter_sync_file_name}
+                'Dexter Sync File: ':dexter_sync_file_name,
+                'Results Path: ':results_path}
         
     @staticmethod
     def print_dirs(dict_items):
@@ -102,36 +108,20 @@ class event_handler(QThread):
             last_file_size = os.path.getsize(file_name)
             time.sleep(dt) # deliberately add pause so we don't loop too many times
             
-    def sync_dexter(self, dt=1e-3):
-        """Get the Dexter file number from the dexter_sync_file_name file
-        Check if the file is empty (usually means it's being written)
-        and wait until it's finished being written to"""
-        new_dfn = '' # sometimes Dexter hasn't finished writing to file, we should wait til it has.
-        while new_dfn == '': # note: this usually takes about 10 ms.
-            with open(self.dexter_sync_file_name, 'r') as sync_file:
-                new_dfn = sync_file.read()
-            if new_dfn != '':
-                if self.dfn != str(int(new_dfn)):
-                    self.dfn = str(int(new_dfn))
-                else: # sometimes Dexter hasn't updated the file number yet
-                    self.dfn = str(int(new_dfn)+1)
-                break
-            time.sleep(dt) # deliberately add pause so we don't loop too many times
-    
     def respond(self, im_array):
         """On a new image signal being emitted, save it to a file with a 
         synced label into the image storage dir"""
-        t0 = time.time()
-        self.idle_t = t0 - self.end_t   # duration between end of last event and start of current event
-        # get Dexter file number  
-        self.sync_dexter()
+        self.t0 = time.time()
+        self.idle_t = self.t0 - self.end_t   # duration between end of last event and start of current event
         # copy file with labeling: [species]_[date]_[Dexter file #]
         new_file_name = os.path.join(self.image_storage_path, self.species
-            )+'_'+self.date[0]+self.date[1]+self.date[3]+'_'+self.dfn+'.asc'
+            )+'_'+self.date[0]+self.date[1]+self.date[3]+'_'.join(
+                    [self.dfn, self.imn])+'.asc'
         self.write_t = time.time()
         if os.path.isfile(new_file_name): # don't overwrite files
             new_file_name = os.path.join(self.image_storage_path, 
-                self.species) +'_'+self.date[0]+self.date[1]+self.date[3]+'_'+self.dfn+'_'+str(self.nfn) + '.asc'
+                self.species)+'_'+self.date[0]+self.date[1]+self.date[3]+'_'.join(
+                    [self.dfn, self.imn,str(self.nfn)]) + '.asc'
             self.nfn += 1 # always a unique number
         out_arr = np.empty((im_array.shape[0],im_array.shape[1]+1))
         out_arr[:,1:] = im_array
@@ -142,7 +132,7 @@ class event_handler(QThread):
         self.last_event_path = new_file_name  # update last event path
         self.event_path.emit(new_file_name)  # emit signal
         self.end_t = time.time()       # time at end of current event
-        self.event_t = self.end_t - t0 # duration of event
+        self.event_t = self.end_t - self.t0 # duration of event
     
     def run(self):
         pass

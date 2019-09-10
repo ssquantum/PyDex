@@ -150,7 +150,7 @@ class image_handler:
         self.std_count[self.im_num] = np.sqrt(np.sum((not_roi[not_roi>0]-self.mean_count[self.im_num])**2) / (N - 1))
         # sum of counts in the ROI of the image gives the signal
         self.counts[self.im_num] = np.sum(self.im_vals) # / np.size(self.im_vals) # mean
-        self.files[self.im_num] = self.fid  # file ID number should be updated at each event
+        self.files[self.im_num] = str(self.fid)  # file ID number should be updated at each event
         # the pixel value at the centre of the ROI
         self.mid_count[self.im_num] = full_im[self.xc, self.yc]
         # position of the (first) max intensity pixel
