@@ -32,7 +32,6 @@ except ImportError:
         QAction, QMainWindow, QLabel, QInputDialog)
 import imageHandler as ih # process images to build up a histogram
 import histoHandler as hh # collect data from histograms together
-import directoryWatcher as dw # use watchdog to get file creation events
 import fitCurve as fc   # custom class to get best fit parameters using curve_fit
           
 ####    ####    ####    ####
@@ -97,9 +96,8 @@ class main_window(QMainWindow):
 
     def init_UI(self):
         """Create all of the widget objects required"""
-        # grid layout: central main plot, params above, dir watcher status at bottom
         self.centre_widget = QWidget()
-        self.tabs = QTabWidget()                   # make tabs for each main display 
+        self.tabs = QTabWidget()       # make tabs for each main display 
         self.centre_widget.layout = QVBoxLayout()
         self.centre_widget.layout.addWidget(self.tabs)
         self.centre_widget.setLayout(self.centre_widget.layout)
@@ -1002,7 +1000,7 @@ class main_window(QMainWindow):
         """Initiate the multi-run: omit N files, save a histogram of M files, and
         repeat for the user variables in the list. If the button is pressed during
         the multi-run, save the current histogram, save the measure file, then
-        return to normal operation of the dir_watcher"""
+        return to normal operation"""
         if toggle and np.size(self.mr['var list']) > 0:
             self.check_reset()
             self.plot_current_hist(self.image_handler.histogram)
@@ -1023,7 +1021,7 @@ class main_window(QMainWindow):
                     self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
                     self.mr['h'], self.mr['# hist']))
         else: # cancel the multi-run
-            self.set_bins() # reconnect the dir_watcher
+            self.set_bins() # reconnect the signal
             self.multirun_switch.setText('Start') # reset button text
             self.multirun_progress.setText(       # update progress label
                 'Stopped at - User variable: %s, omit %s of %s files, %s of %s histogram files, %.3g%% complete'%(
@@ -1044,7 +1042,7 @@ class main_window(QMainWindow):
             self.event_im.connect(self.multirun_step)
 
     def swap_signals(self):
-        """Disconnect the image_handler process signal from the dir_watcher event
+        """Disconnect the image_handler process signal from the signal
         and (re)connect the update plot"""
         try: # disconnect all slots
             self.event_im.disconnect() 
@@ -1114,7 +1112,7 @@ class main_window(QMainWindow):
         self.int_time = t2 - t1
         # display the name of the most recent file
         self.recent_label.setText('Just processed image '
-            + self.image_handler.files[self.image_handler.im_num])
+            + self.image_handler.files[self.image_handler.im_num-1])
         self.plot_current_hist(self.image_handler.hist_and_thresh) # update the displayed plot
         self.plot_time = time.time() - t2
 
@@ -1129,7 +1127,7 @@ class main_window(QMainWindow):
         self.int_time = t2 - t1
         # display the name of the most recent file
         self.recent_label.setText('Just processed image '
-            + self.image_handler.files[self.image_handler.im_num])
+            + self.image_handler.files[self.image_handler.im_num-1])
         self.plot_current_hist(self.image_handler.histogram) # update the displayed plot
         self.plot_time = time.time() - t2
 
@@ -1143,7 +1141,7 @@ class main_window(QMainWindow):
         if self.mr['v'] < np.size(self.mr['var list']):
             if self.mr['o'] < self.mr['# omit']: # don't process, just copy
                 self.recent_label.setText('Just omitted image '
-                    + self.image_handler.files[self.image_handler.im_num])
+                    + self.image_handler.files[self.image_handler.im_num-1])
                 self.mr['o'] += 1 # increment counter
             elif self.mr['h'] < self.mr['# hist']: # add to histogram
                 # add the count to the histogram
@@ -1153,7 +1151,7 @@ class main_window(QMainWindow):
                 self.int_time = t2 - t1
                 # display the name of the most recent file
                 self.recent_label.setText('Just processed image '
-                    + self.image_handler.files[self.image_handler.im_num])
+                    + self.image_handler.files[self.image_handler.im_num-1])
                 self.plot_current_hist(self.image_handler.hist_and_thresh) # update the displayed plot
                 self.plot_time = time.time() - t2
                 self.mr['h'] += 1 # increment counter
@@ -1182,10 +1180,10 @@ class main_window(QMainWindow):
                     self.multirun_save_dir.text(), self.mr['prefix']) 
                         + '.dat', 
                 confirm=False)# save measure file
-            # reconnect previous signals to dir_watcher
+            # reconnect previous signals
             self.multirun_switch.setChecked(False) # reset multi-run button
             self.multirun_switch.setText('Start')  # reset multi-run button text
-            self.set_bins() # reconnects dir_watcher with given histogram binning settings
+            self.set_bins() # reconnects signal with given histogram binning settings
             self.mr['o'], self.mr['h'], self.mr['v'] = 0, 0, 0 # reset counters
             self.mr['measure'] += 1 # completed a measure successfully
             self.mr['prefix'] = str(self.mr['measure']) # suggest new measure as file prefix
@@ -1216,10 +1214,9 @@ class main_window(QMainWindow):
     #### #### save and load data functions #### ####
 
     def get_default_path(self, default_path=''):
-        """If the directory watcher is active, set its results path attribute as the
-        default path when a file browser is opened.
-        default_path: set the default path if the directory watcher isn't running"""
-        return os.path.dirname(self.log_file_name)
+        """Get a default path for saving/loading images
+        default_path: set the default path if the function doesn't find one."""
+        return os.path.dirname(self.log_file_name) if self.log_file_name else default_path
 
 
     def load_im_size(self):
@@ -1382,39 +1379,40 @@ class main_window(QMainWindow):
             except OSError:
                 pass # user cancelled - file not found
 
-    # def load_from_file_nums(self, trigger=None):
-    #     """Prompt the user to enter a range of image file numbers.
-    #     Use these to select the image files from the current image storage path.
-    #     Sequentially process the images then update the histogram"""
-    #     default_range = ''
-    #     if self.image_handler.im_num > 0: # defualt load all files in folder
-    #         default_range = '0 - ' + str(self.image_handler.im_num)
-    #     text, ok = QInputDialog.getText( # user inputs the range
-    #         self, 'Choose file numbers to load from','Range of file numbers: ',
-    #         text=default_range)
-    #     if ok and text and self.dir_watcher: # if user cancels or empty text, do nothing
-    #         for file_range in text.split(','):
-    #             minmax = file_range.split('-')
-    #             if np.size(minmax) == 1: # only entered one file number
-    #                 file_list = [
-    #                     os.path.join(self.dir_watcher.image_storage_path, self.dir_watcher.event_handler.species)
-    #                     + '_' + self.dir_watcher.event_handler.date + '_' + minmax[0].replace(' ','') + '.asc']
-    #             if np.size(minmax) == 2:
-    #                 file_list = [
-    #                     os.path.join(self.dir_watcher.image_storage_path, self.dir_watcher.event_handler.species)
-    #                     + '_' + self.dir_watcher.event_handler.date + '_' + dfn + '.asc' for dfn in list(map(str, 
-    #                         range(int(minmax[0]), int(minmax[1]))))] 
-    #         for file_name in file_list:
-    #             try:
-    #                 im_vals = self.image_handler.load_full_im(file_name)
-    #                 self.image_handler.process(im_vals)
-    #                 self.recent_label.setText(
-    #                     'Just processed: '+os.path.basename(file_name)) # only updates at end of loop
-    #             except:
-    #                 print("\n WARNING: failed to load "+file_name) # probably file size was wrong
-    #         self.update_stats()
-    #         if self.recent_label.text == 'Processing files...':
-    #             self.recent_label.setText('Finished Processing')
+    def load_from_file_nums(self, trigger=None, species='Cs-133'):
+        """Prompt the user to enter a range of image file numbers.
+        Use these to select the image files from the current image storage path.
+        Sequentially process the images then update the histogram"""
+        default_range = ''
+        image_storage_path = self.path_label['Image Storage Path: '].text() + '\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])  
+        date = self.date[0]+self.date[1]+self.date[3]
+        if self.image_handler.im_num > 0: # defualt load all files in folder
+            default_range = '0 - ' + str(self.image_handler.im_num)
+        text, ok = QInputDialog.getText( # user inputs the range
+            self, 'Choose file numbers to load from','Range of file numbers: ',
+            text=default_range)
+        if ok and text and image_storage_path: # if user cancels or empty text, do nothing
+            for file_range in text.split(','):
+                minmax = file_range.split('-')
+                if np.size(minmax) == 1: # only entered one file number
+                    file_list = [
+                        os.path.join(image_storage_path, species)
+                        + '_' + date + '_' + minmax[0].replace(' ','') + '.asc']
+                if np.size(minmax) == 2:
+                    file_list = [
+                        os.path.join(image_storage_path, species)
+                        + '_' + date + '_' + dfn + '.asc' for dfn in list(map(str, 
+                            range(int(minmax[0]), int(minmax[1]))))] 
+            for file_name in file_list:
+                try:
+                    self.image_handler.process(file_name)
+                    self.recent_label.setText(
+                        'Just processed: '+os.path.basename(file_name)) # only updates at end of loop
+                except:
+                    print("\n WARNING: failed to load "+file_name) # probably file size was wrong
+            self.update_stats()
+            if self.recent_label.text == 'Processing files...':
+                self.recent_label.setText('Finished Processing')
 
     def load_from_csv(self, trigger=None):
         """Prompt the user to select a csv file to load histogram data from.
@@ -1486,7 +1484,7 @@ class main_window(QMainWindow):
         
     #### #### UI management functions #### #### 
 
-    def closeEvent(self, event, confirm=True):
+    def closeEvent(self, event, confirm=False):
         """Prompt user to save data on closing
         Keyword arguments:
         event   -- the PyQt closeEvent

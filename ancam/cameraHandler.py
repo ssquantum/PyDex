@@ -15,9 +15,9 @@ import win32event
 from AndorFunctions import Andor, ERROR_CODE # Import iXon control functions.
 
 try:
-    from PyQt4.QtCore import QThread, pyqtSignal, QEvent, pyqtSlot
+    from PyQt4.QtCore import QThread, pyqtSignal, QEvent, pyqtSlot, QObject
 except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal, QEvent, pyqtSlot
+    from PyQt5.QtCore import QThread, pyqtSignal, QEvent, pyqtSlot, QObject
 
 class camera(QThread):
     """Inherits the basic Andor camera functions and build more 
@@ -30,12 +30,19 @@ class camera(QThread):
     AcquisitionEvent = win32event.CreateEvent(None, 0, 0, 'Acquisition')
     AcquireEnd1 = pyqtSignal(np.ndarray) # send to image analysis 
     AcquireEnd2 = pyqtSignal(np.ndarray) # send to image saving
+    Finished = pyqtSignal(int) # emit when the acquisition thread finishes
 
     def __init__(self, config_file="./AndorCam_config.dat"):
-        super().__init__()           # Initialise the parent classes
-        self.AF = Andor()            # functions for Andor camera
-        self.AF.verbosity   = False  # Set True for debugging
-        self.AF.connected   = False
+        super().__init__()         # Initialise the parent classes
+        self.AF = Andor()          # functions for Andor camera
+        self.AF.verbosity = False  # Set True for debugging
+        self.AF.connected = False
+        
+        self.t0 = time.time()  # time at start of acquisition
+        self.t1 = 0  # time time just after get acquisition
+        self.t2 = time.time()  # time after emitting signals
+        
+        self.timeout      = 5e3 # number of milliseconds to wait for acquire
         
         if self.AF.OS == "Windows" and self.AF.architecture == "64bit":
             self.CameraConnect()
@@ -238,26 +245,62 @@ class camera(QThread):
             im = self.AF.GetAcquiredData(
                 self.AF.ROIwidth, self.AF.ROIheight, self.AF.kscans)
             self.lastImage = im
-            self.AcquireEnd1.emit(im) 
-            self.AcquireEnd2.emit(im) 
-            if self.AF.verbose:
+            self.AcquireEnd1.emit(im[0]) 
+            self.AcquireEnd2.emit(im[0]) 
+            if self.AF.verbosity:
                 self.PlotAcquisition(im)
-                
-    def TakeAcquisitions(self, n=1, timeout=5e3):
+           
+    # run method is called when the thread is started     
+    def run(self):
+        """Start an Acquisition and wait for a signal to abort"""
+        self.idle_time = time.time() - self.t2 # time since last acquisition
+        self.AF.StartAcquisition()
+        while self.AF.GetStatus() == 'DRV_ACQUIRING':
+            self.t0 = time.time() 
+            result = win32event.WaitForSingleObject(
+                            self.AcquisitionEvent, win32event.INFINITE)
+            if result == win32event.WAIT_OBJECT_0: # get image
+                self.lastImage = self.AF.GetOldestImage(
+                    self.AF.ROIwidth, self.AF.ROIheight, self.AF.kscans)
+                self.t1 = time.time() 
+                if self.lastImage.any(): # sometimes last image is empty
+                    self.AcquireEnd1.emit(self.lastImage[0]) # emit signals
+                    self.AcquireEnd2.emit(self.lastImage[0])
+            # reset windows signal to trigger the next acquisition
+            self.AcquisitionEvent = win32event.CreateEvent(None, 
+                                                0, 0, 'Acquisition')
+            self.AF.SetDriverEvent(int(self.AcquisitionEvent))                    
+            self.t2 = time.time()
+    
+    def TakeAcquisitions(self, n=1):
         """Taking a series of n acquisitions sequentially.
         Assuming external mode, the camera will wait for an external trigger
-        to take an acquisition.
-        Keyword arguments:
-            n       -- number of acquisitions to take
-            timeout -- time to wait for an acquisition in ms"""
-        for i in range(n):
+        to take an acquisition."""
+        for i in range():
             self.AF.StartAcquisition()
             result = win32event.WaitForSingleObject(
-                            self.AcquisitionEvent, timeout)
+                            self.AcquisitionEvent, self.timeout)
             if result == win32event.WAIT_OBJECT_0:
                 self.Acquire()
             elif result == win32event.WAIT_TIMEOUT and self.verbosity:
                 print('Acquisition timeout ', i)
+        self.Finished.emit(1)
+        
+    def PrintTimes(self, unit="s"):
+        """Display the times measured for functions"""
+        scale = 1
+        if unit == "ms" or unit == "milliseconds":
+            scale *= 1e3
+        elif unit == "us" or unit == "microseconds":
+            scale *= 1e6
+        else:
+            unit = "s"
+        print("Last idle time between acquisitions: %.4g "%(
+                self.idle_time*scale)+unit)
+        print("Last time taken to acquire image: %.4g "%(
+                (self.t1 - self.t0)*scale)+unit)
+        print("Last time taken to emit signals: %.4g "%(
+                (self.t2 - self.t1)*scale)+unit)
 
     def PlotAcquisition(self, images):
         """Display the list of images in separate subplots"""
@@ -268,7 +311,6 @@ class camera(QThread):
             axi.imshow(images[i])
             axi.title.set_text('F frame' +str(i+1))   
             plt.show()
-            print(1)
 
     def SafeShutdown(self):
         """Shut down the camera after closing the internal shutter
@@ -290,6 +332,7 @@ if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.realpath(__file__))) 
     iXon = camera()
     iXon.verbosity = True
+    iXon.timeout = 20e3
     iXon.CheckCurrentSettings()
-    iXon.TakeAcquisitions(1)
+    iXon.run()
     iXon.SafeShutdown()

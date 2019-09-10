@@ -1,0 +1,3 @@
+// list of required directories for SAIA
+image storage path	=Z:\Tweezer\Code\Python 3.5\PyDex\savim
+dexter sync file	=Z:\Tweezer\Code\Python 3.5\PyDex\savim\currentfile.txt
