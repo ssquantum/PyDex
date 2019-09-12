@@ -53,7 +53,7 @@ class reim_window(main_window):
         1: tacitly initiate the directoryWatcher.
         2: pop-up window asks the user if they want to initiate.
     """
-    def __init__(self, results_path='./', name=''):
+    def __init__(self, results_path='.', name=''):
         super().__init__(results_path=results_path, name=name)
         self.adjust_UI() # adjust widgets from main_window
 
@@ -66,6 +66,8 @@ class reim_window(main_window):
             self.mws[i].closeEvent = self.closeAndContinue
             self.mws[i].setWindowTitle(
                         str(i) + ' - Single Atom Image Analyser -')
+        # connect signals. Must not override main_window.set_bins()
+        self.set_bins_reim() 
         
     def adjust_UI(self):
         """Edit the widgets created by main_window"""
@@ -194,7 +196,7 @@ class reim_window(main_window):
                 # reconnect previous signals to dir_watcher
                 obj.multirun_switch.setChecked(False) # reset multi-run button
                 obj.multirun_switch.setText('Start')  # reset multi-run button text
-                obj.set_bins() # reconnects dir_watcher with given histogram binning settings
+                obj.set_bins_reim() # reconnects dir_watcher with given histogram binning settings
                 obj.mr['o'], obj.mr['h'], obj.mr['v'] = 0, 0, 0 # reset counters
                 obj.mr['measure'] += 1 # completed a measure successfully
                 obj.mr['prefix'] = str(obj.mr['measure']) # suggest new measure as file prefix
@@ -415,10 +417,12 @@ class reim_window(main_window):
 
     #### #### toggle functions #### #### 
 
-    def swap_signals(self):
+    def swap_reim_signal(self):
         """Disconnect the image_handler process signal from the event
         and (re)connect the update plot. The master will trigger on events 
-        from mws[1]."""
+        from mws[1]. This function must not override 
+        main_window.swap_signals() otherwise there will be compatability 
+        issues."""
         self.mws[1].swap_signals() # disconnects then reconnects mws[1] slots
         if self.thresh_toggle.isChecked():
             self.mws[1].event_im.connect(self.get_histogram)
@@ -427,25 +431,33 @@ class reim_window(main_window):
             self.mws[1].event_im.connect(self.get_histogram)
             self.mws[1].event_im.connect(self.update_plot)
 
-    def set_bins(self, action=None):
+    def set_bins_reim(self, action=None):
         """Check which of the bin action menu bar options is checked.
         If the toggle is Automatic, use automatic histogram binning.
         If the toggle is Manual, read in values from the line edit 
         widgets.
-        If the toggle is No Display, disconnect the dir watcher new event signal
-        from the plot update. Still processes files but doesn't show on histogram
-        If the toggle is No Update, disconnect the dir watcher new event signal
-        from the image handler entirely. Files are copied but not processed for
-        the histogram."""
+        If the toggle is No Display, disconnect the dir watcher new event 
+        signal from the plot update. Still processes files but doesn't show 
+        on histogram.
+        If the toggle is No Update, disconnect the dir watcher new event 
+        signal from the image handler entirely. Files are copied but not 
+        processed for the histogram.
+        This function must not override main_window.set_bins() otherwise
+        there will be compatability issues."""
         if not self.multirun_switch.isChecked(): # don't interrupt multirun
             if self.bin_actions[1].isChecked(): # manual
-                for obj in [self.mws[0], self.mws[1], self]: # copy across to the SAIA instances
+                for obj in [self.mws[0], self.mws[1]]: # copy across to the SAIA instances
                     obj.swap_signals() # won't do anything if dir_watcher isn't running
                     obj.bins_text_edit('reset') # also updates threshold unless user sets it
+                self.swap_reim_signal()
+                self.bins_text_edit('reset')
 
             elif self.bin_actions[0].isChecked(): # automatic
                 for obj in [self.mws[0], self.mws[1], self]:
-                    obj.swap_signals()  # disconnect image handler, reconnect plot
+                    if obj == self:
+                        obj.swap_reim_signal()
+                    else: # disconnect image handler, reconnect plot
+                        obj.swap_signals()  
                     obj.image_handler.bin_array = []
                     if obj.thresh_toggle.isChecked():
                         obj.plot_current_hist(obj.image_handler.histogram)
@@ -508,7 +520,7 @@ class reim_window(main_window):
             self.mws[1].event_im.connect(self.multirun_step)
         else: # cancel the multi-run
             for obj in [self, self.mws[0], self.mws[1]]:
-                obj.set_bins() # reconnect the dir_watcher
+                obj.set_bins_reim() # reconnect the dir_watcher
                 obj.multirun_switch.setText('Start') # reset button text
                 obj.multirun_switch.setChecked(False)# keep consistentency
                 if np.size(self.mr['var list']) > 0:

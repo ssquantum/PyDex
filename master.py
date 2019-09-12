@@ -46,19 +46,25 @@ class Master(QMainWindow):
     This master module will define the run number. It must confirm that
     each Dexter sequence has run successfully in order to stay synchronised.
     Keyword arguments:
-    pop_up  -- 0: initiate a single instance of saia1
-               1: open a dialog asking the user which image analyser to use
+    pop_up       -- 0: initiate a single instance of saia1
+                    1: open a dialog asking the user which image analyser
+    ancam_config -- path to the config file giving Andor camera settings
+    save_config  -- path to the config file giving directories to save 
+                    images, log files, and results.
     """
     im_save    = pyqtSignal(np.ndarray) # send an incoming image to saver
 
-    def __init__(self, pop_up=1):
+    def __init__(self, pop_up=1, 
+            ancam_config='./ancam/ExExposure_config.dat',
+            save_config='./config/config.dat'):
         super().__init__()
         self.init_UI()
-        self.cam = camera(config_file='./ancam/AndorCam_config.dat') # Andor camera
+        self.cam = camera(config_file=ancam_config) # Andor camera
         self.cam.AcquireEnd.connect(self.synchronise) # sync the image analysis run number
         # self.cam.verbosity = True # for debugging
-        self.sv = event_handler('./config/config.dat') # image saver
+        self.sv = event_handler(save_config) # image saver
         self.im_save.connect(self.sv.respond)
+        # choose which image analyser to use from number images in sequence
         if pop_up:
             m, ok = QInputDialog.getInt( # user chooses image analyser
                 self, 'Initiate Image Analyser(s)',
@@ -67,10 +73,7 @@ class Master(QMainWindow):
         else:
             m = 0
         if m == 0:
-            self.mw = [reim_window(self.sv.dirs_dict['Results Path: '] +
-                r'\%s\%s\%s'%(self.sv.date[3], 
-                                self.sv.date[2], 
-                                self.sv.date[0]))]
+            self.mw = [reim_window(self.sv.dirs_dict['Results Path: '])]
             self.mw[0].setGeometry(100, 250, 850, 700)
             self.mw[0].show()
             self._m = 2 # number of images per experimental sequence
@@ -78,11 +81,8 @@ class Master(QMainWindow):
             self._m = m # number of images per experimental sequence
             self.mw = []
             for i in range(m):
-                self.mw.append(main_window(self.sv.dirs_dict['Results Path: ']
-                    + r'\%s\%s\%s'%(self.sv.date[3],
-                                    self.sv.date[2],
-                                    self.sv.date[0])),
-                    name=str(i))
+                self.mw.append(main_window(self.sv.dirs_dict['Results Path: '],
+                            name=str(i)))
                 self.mw[i].show()
         
         self.status_label.setText('Initialised')
@@ -177,21 +177,28 @@ class Master(QMainWindow):
 
     def synchronise(self, im=0):
         """Update the Dexter file number in all associated modules,
-        then send the image array to be saved and analysed."""
+        then send the image array to be saved and analysed.
+        Temporarily incrementing the image number after every acquisition
+        and then using this to define the Dx run #, but we should define
+        the Dx run # from the start of the sequence."""
         self.sv.dfn = str(self._n) # Dexter file number
-        self.sv.imn = str(self._k % self._m) # number of image in sequence
+        imn = self._k % self._m # ID number of image in sequence
+        self.sv.imn = str(imn) 
         self.im_save.emit(im)
-        for mw in self.mw:
-            mw.image_handler.fid = self._n
         if self._m != 2:
-            self.mw[self._k % self._m].event_im.emit(im)
+            self.mw[imn].image_handler.fid = self._n
+            self.mw[imn].event_im.emit(im)
         else: # survival probability uses a master window
-            self.mw[0].mws[self._k % self._m].event_im.emit(im)
+            self.mw[0].image_handler.fid = self._n
+            self.mw[0].mws[imn].image_handler.fid = self._n
+            self.mw[0].mws[imn].event_im.emit(im)
         self._k += 1 # another image was taken
         if self._k % self._m == 0: # took all of the images in a sequence
             self._n += 1
-            self.Dx_label.setText('Dx #: '+str(self._n))
-
+            self.Dx_label.setText('Dx #: '+str(self._n)
+                        + ', Im #: ' + str(imn)
+                        + '\nTotal images taken: ' + str(self._k))
+                        
     def reset_dates(self):
         """Make sure that the dates in the image saving and analysis 
         programs are correct."""

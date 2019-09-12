@@ -37,6 +37,7 @@ class camera(QThread):
         self.AF.verbosity = False  # Set True for debugging
         self.AF.connected = False
         
+        self.idle_time = 0     # time between acquisitions
         self.t0 = time.time()  # time at start of acquisition
         self.t1 = 0  # time time just after get acquisition
         self.t2 = time.time()  # time after emitting signals
@@ -88,8 +89,8 @@ class camera(QThread):
         
     def ApplySettings(self, setPointT=-20, coolerMode=1, shutterMode=2, 
             outamp=0, hsspeed=2, vsspeed=4, preampgain=3, EMgain=1, 
-            ROI=None, readmode=4, acqumode=1, triggerMode=7,
-            fastTrigger=0, verbosity=False):
+            ROI=None, cropMode=0, readmode=4, acqumode=5, triggerMode=7,
+            frameTransf=0, fastTrigger=0, expTime=70e-6, verbosity=False):
         """Apply user settings.
         Keyword arguments:
         setPointT   -- temperature set point in degrees Celsius. 
@@ -117,6 +118,9 @@ class camera(QThread):
         EMgain      -- electron-multiplying gain factor.
         ROI         -- Region of Interest on the CCD. A tuple of form:
                         (xmin, xmax, ymin, ymax).
+        cropMode    -- reduce the active area of the CCD to improve 
+                        throughput.
+                        0: off        1: on
         readmode    -- 4: imaging readout mode
         acqumode    -- Camera acquisition mode
                         1: Single Scan
@@ -129,28 +133,44 @@ class camera(QThread):
                         1: External
                         6: External Start
                         7: External Exposure (Bulb)
-                        9: External FVB EM (only valid for EM Newton models in FVB mode)	
+                        9: External FVB EM (only valid for EM Newton models)
                         10: Software Trigger
                         12: External Charge Shifting
+        frameTransf -- enable/disable frame transfer mode (not compatible
+                        with external exposure mode).
+                        0: off        1: on        
         fastTrigger -- enable/disable fast external triggering
-                        0: off
-                        1: on
+                        0: off        1: on
+        expTime     -- exposure time when not in external exposure trigger
+                        mode. Units: seconds.
         verbosity   -- True for debugging info."""
-        self.AF.SetTemperature(setPointT)
-        self.AF.CoolerON()
-        self.AF.SetCoolerMode(coolerMode)
-        self.AF.SetShutter(1, shutterMode)    
-        self.AF.SetHSSpeed(outamp, hsspeed) 
-        self.AF.SetVSSpeed(vsspeed)   
-        self.AF.SetPreAmpGain(preampgain)
-        self.AF.SetEMCCDGain(EMgain) 
+        errors = []
+        errors.append(self.AF.SetTemperature(setPointT))
+        errors.append(self.AF.CoolerON())
+        errors.append(self.AF.SetCoolerMode(coolerMode))
+        errors.append(self.AF.SetShutter(1, shutterMode))
+        errors.append(self.AF.SetHSSpeed(outamp, hsspeed)) 
+        errors.append(self.AF.SetVSSpeed(vsspeed))
+        errors.append(self.AF.SetPreAmpGain(preampgain))
+        errors.append(self.AF.SetEMCCDGain(EMgain))
         self.AF.ROI = ROI 
-        self.SetROI(self.AF.ROI)
-        self.AF.SetReadMode(readmode)
-        self.AF.SetAcquisitionMode(acqumode)
-        self.AF.SetTriggerMode(triggerMode)
-        self.AF.SetFastExtTrigger(fastTrigger) 
+        errors.append(self.SetROI(self.AF.ROI, cropMode=cropMode))
+        errors.append(self.AF.SetReadMode(readmode))
+        errors.append(self.AF.SetAcquisitionMode(acqumode))
+        errors.append(self.AF.SetTriggerMode(triggerMode))
+        errors.append(self.AF.SetFastExtTrigger(fastTrigger))
+        errors.append(self.AF.SetFrameTransferMode(frameTransf))
+        errors.append(self.AF.SetExposureTime(expTime))
+        errors.append(self.AF.GetAcquisitionTimings())
+        if abs(expTime - self.AF.exposure)/self.AF.exposure > 0.01:
+            print("WARNING: Tried to set exposure time %.3g s"%expTime + 
+                " but acquisition settings require min. exposure time " +
+                "%.3g s."%self.Af.exposure)
         self.AF.verbosity = verbosity
+        check_success = [e != 'DRV_SUCCESS' for e in errors]
+        if any(check_success):
+            print("WARNING: Didn't get DRV_SUCCESS for setting " + 
+                str(check_success.index(True)))
 
     def ApplySettingsFromConfig(self, config_file="./AndorCam_config.dat"):
         """Read in a configuration file and apply camera settings from it.
@@ -167,38 +187,63 @@ class camera(QThread):
 
         cvals = []
         for row in config_data:
-            cvals.append(int(row.split('=')[-1]))
-
-        self.AF.SetTemperature(cvals[0])
-        self.AF.CoolerON()
-        self.AF.SetCoolerMode(cvals[1])
-        self.AF.SetShutter(1, cvals[2])    
-        self.AF.SetHSSpeed(cvals[3], cvals[4]) 
-        self.AF.SetVSSpeed(cvals[5])   
-        self.AF.SetPreAmpGain(cvals[6])
-        self.AF.SetEMCCDGain(cvals[7])
-        self.AF.ROI = (cvals[8], cvals[9], cvals[10], cvals[11]) 
-        self.SetROI(self.AF.ROI)
-        self.AF.SetReadMode(cvals[12])
-        self.AF.SetAcquisitionMode(cvals[13])
-        self.AF.SetTriggerMode(cvals[14])
-        self.AF.SetFastExtTrigger(cvals[15]) 
-        self.AF.verbosity = bool(cvals[16])
+            if row[:2] != '18':
+                cvals.append(int(row.split('=')[-1]))
+            else: # exposure time is a float
+                cvals.append(float(row.split('=')[-1]))
+                
+        errors = []
+        errors.append(self.AF.SetTemperature(cvals[0]))
+        errors.append(self.AF.CoolerON())
+        errors.append(self.AF.SetCoolerMode(cvals[1]))
+        errors.append(self.AF.SetShutter(1, cvals[2]))    
+        errors.append(self.AF.SetHSSpeed(cvals[3], cvals[4])) 
+        errors.append(self.AF.SetVSSpeed(cvals[5]))   
+        errors.append(self.AF.SetPreAmpGain(cvals[6]))
+        errors.append(self.AF.SetEMCCDGain(cvals[7]))
+        self.AF.ROI = (cvals[8], cvals[9], cvals[10], cvals[11])
+        errors.append(self.SetROI(self.AF.ROI, cropMode=cvals[12]))
+        errors.append(self.AF.SetReadMode(cvals[13]))
+        errors.append(self.AF.SetAcquisitionMode(cvals[14]))
+        errors.append(self.AF.SetTriggerMode(cvals[15]))
+        errors.append(self.AF.SetFrameTransferMode(cvals[16]))
+        errors.append(self.AF.SetFastExtTrigger(cvals[17]))
+        errors.append(self.AF.SetExposureTime(cvals[18]))
+        errors.append(self.AF.GetAcquisitionTimings())
+        if abs(cvals[18] - self.AF.exposure)/self.AF.exposure > 0.01:
+            print("WARNING: Tried to set exposure time %.3g s"%cvals[18] + 
+                " but acquisition settings require min. exposure time " +
+                "%.3g s."%self.Af.exposure)
+        self.AF.verbosity = bool(cvals[19])
         self.AF.kscans = 1
+        check_success = [e != 'DRV_SUCCESS' for e in errors]
+        if any(check_success):
+            print("WARNING: Didn't get DRV_SUCCESS for setting " + 
+                str(check_success.index(True)))
 
-    def SetROI(self, ROI):
-        """Specify an ROI on the camera to image. If none specified, use the entire CCD.
+    def SetROI(self, ROI, cropMode=0):
+        """Specify an ROI on the camera to image. If none specified, use 
+        the entire CCD. 
            Parameters:
-               - ROI: A tuple of the form (hstart, hend, vstart, vend)"""
+               - ROI: A tuple of the form (hstart, hend, vstart, vend)
+               - cropMode: reduce the effective area of the CCD by cropping.
+                        0: off         1: on
+        """
+        error = ''
         if ROI == None:
             hstart,hend,vstart,vend = (
                 1, self.AF.DetectorWidth, 1, self.AF.DetectorHeight)
         else:
             hstart,hend,vstart,vend = ROI
-        self.AF.SetImage(1,1,hstart,hend,vstart,vend)
-        
         self.AF.ROIwidth = hend - hstart + 1
-        self.AF.ROIheight = vend - vstart + 1    
+        self.AF.ROIheight = vend - vstart + 1
+        if cropMode:
+            error = self.AF.SetIsolatedCropModeEx(
+                cropMode, self.AF.ROIheight, self.AF.ROIwidth, 
+                1, 1, hstart, vstart)
+        else:
+            error = self.AF.SetImage(1,1,hstart,hend,vstart,vend)
+        return error
             
     def CheckCurrentSettings(self):
         """Check what the camera is currently set to."""
@@ -253,6 +298,7 @@ class camera(QThread):
         """Start an Acquisition and wait for a signal to abort"""
         self.idle_time = time.time() - self.t2 # time since last acquisition
         self.AF.StartAcquisition()
+        # i = 0
         while self.AF.GetStatus() == 'DRV_ACQUIRING':
             self.t0 = time.time() 
             result = win32event.WaitForSingleObject(
@@ -268,6 +314,8 @@ class camera(QThread):
                                                 0, 0, 'Acquisition')
             self.AF.SetDriverEvent(int(self.AcquisitionEvent))                    
             self.t2 = time.time()
+            # print(i, end=' ')
+            # i += 1
     
     def TakeAcquisitions(self, n=1):
         """Taking a series of n acquisitions sequentially.

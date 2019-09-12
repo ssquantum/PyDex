@@ -56,7 +56,7 @@ class main_window(QMainWindow):
     name         -- an ID for this window, prepended to saved files."""
     event_im = pyqtSignal(np.ndarray)
 
-    def __init__(self, results_path='./', name=''):
+    def __init__(self, results_path='.', name=''):
         super().__init__()
         self.name = name  # name is displayed in the window title
         self.bias = 697   # bias off set from EMCCD
@@ -72,17 +72,18 @@ class main_window(QMainWindow):
         self.t0 = time.time() # time of initiation
         self.int_time = 0     # time taken to process an image
         self.plot_time = 0    # time taken to plot the graph
+        self.set_bins() # connect signals
 
-    def init_log(self, results_path='./'):
+    def init_log(self, results_path='.'):
         """Create a directory for today's date as a subdirectory in the log file path
         then write the header to the log file path defined in config.dat"""
         # make subdirectory if it doesn't already exist
         results_path = os.path.join(results_path, 
-                    '/%s/%s/%s'%(self.date[3],self.date[2],self.date[0]))
+                    r'%s\%s\%s'%(self.date[3],self.date[2],self.date[0]))
         try:
             os.makedirs(results_path, exist_ok=True)
         except PermissionError:  # couldn't access the path, start a log file here
-            results_path = './%s/%s/%s'%(self.date[3],self.date[2],self.date[0])
+            results_path = r'.\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])
             os.makedirs(results_path, exist_ok=True)
 
         # log is saved in a dated subdirectory and the file name also has the date
@@ -157,6 +158,7 @@ class main_window(QMainWindow):
                 checked=action_label=='Automatic')) # default is auto
             bin_menu.addAction(self.bin_actions[-1])
             bin_options.addAction(self.bin_actions[-1])
+        self.bin_actions[0].setChecked(True) # make sure default is auto
         bin_options.setExclusive(True) # only one option checked at a time
         bin_options.triggered.connect(self.set_bins) # connect the signal
         hist_menu.addMenu(bin_menu)
@@ -1451,7 +1453,8 @@ class main_window(QMainWindow):
                 file_name, _ = QFileDialog.getOpenFileName(
                     self, 'Select A File', default_path, 'Images (*.asc);;all (*)')
             if file_name:  # avoid crash if the user cancelled
-                self.update_im(file_name)
+                im_vals = self.image_handler.load_full_im(file_name)
+                self.update_im(im_vals)
         except OSError:
             pass # user cancelled - file not found
 

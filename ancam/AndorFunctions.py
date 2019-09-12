@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 21/08/2019 Vincent Brooks
   * Python library of functions for controlling the Andor iXon 897 Ultra imaging camera.
@@ -455,7 +456,8 @@ class Andor:
 
     def SendSoftwareTrigger(self):
         """This function sends an event to the camera to take an acquisition 
-           when in Software Trigger mode. """
+           when in Software Trigger mode. [Doesn't work with iXon Ultra].
+           """
         error = self.dll.SendSoftwareTrigger()
         self.verbose(error, sys._getframe().f_code.co_name)
         return error 
@@ -562,50 +564,169 @@ class Andor:
         cdriverEvent = c_void_p(driverEvent)
         error = self.dll.SetDriverEvent(cdriverEvent)
         return (error)
+        
+    def SetIsolatedCropMode(
+            self, active, cropheight, cropwidth, vbin, hbin):
+        """Reduce the dimensions of the CCD by excluding some rows or 
+        columns to achieve higher throughput. Operate in either Full 
+        Vertical Binning or Imaging read modes. Note: It is important to 
+        ensure that no light falls on the excluded region otherwise 
+        the acquired data will be corrupted.
+        Inputs:
+          active - Crop mode active:
+            1 - Crop mode is ON.
+            0 - Crop mode is OFF.
+          cropheight - The selected crop height. 
+            This value must be between 1 and the CCD height.
+          cropwidth - The selected crop width. 
+            This value must be between 1 and the CCD width.
+          vbin - The selected vertical binning.
+          hbin - The selected horizontal binning."""
+        cactive = c_int(active)
+        ccropheight = c_int(cropheight)
+        ccropwidth = c_int(cropwidth)
+        cvbin = c_int(vbin)
+        chbin = c_int(hbin)
+        error = self.dll.SetIsolatedCropMode(
+                cactive, ccropheight, ccropwidth, cvbin, chbin)
+        return (error)
 
-"""(an incomplete) Dictionary of what each error code means. 
+    def SetIsolatedCropModeEx(
+        self, active, cropheight, cropwidth, 
+        vbin, hbin, cropleft, cropbottom):
+        """*** Returns DRV_NOT_AVAILABLE for iXon Ultra 11783 ***
+        Reduces the dimensions of the CCD by excluding some rows or 
+        columns to achieve higher throughput. Can only be used in Image 
+        readout mode with the EM output amplifier. Note: It is important to 
+        ensure that no light falls on the excluded region otherwise the 
+        acquired data will be corrupted.
+        The following centralized regions of interest are recommended 
+        to achieve the fastest possible frame rates:
+        (ROI, Crop Left Start Position, Crop Right Position, Crop Bottom 
+        Start Position, Crop Top Position)
+        (32 x 32, 241, 272, 240, 271)
+        (64 x 64, 219, 282, 224, 287)
+        (96 x 96, 209, 304, 208, 303)
+        (128 x 128, 189, 316, 192, 319)
+        (256 x 256, 123, 378, 128, 383)
+        (496 x 4, 8, 503, 254, 257)
+        (496 x 16, 8, 503, 249, 262)
+        Inputs:
+            active - Crop mode active.:
+                1 - Crop mode is ON.
+                0 - Crop mode is OFF.
+            cropheight - The selected crop height. 
+                This value must be between 1 and the CCD height.
+            cropwidth - The selected crop width. 
+                This value must be between 1 and the CCD width.
+            vbin - vbinThe selected vertical binning.
+            hbin - hbinThe selected horizontal binning.
+            cropleft - The selected crop left start position
+            cropbottom - The selected crop bottom start position"""
+        cactive = c_int(active)
+        ccropheight = c_int(cropheight)
+        ccropwidth = c_int(cropwidth)
+        cvbin = c_int(vbin)
+        chbin = c_int(hbin)
+        ccropleft = c_int(cropleft)
+        ccropbottom = c_int(cropbottom)
+        error = self.dll.SetIsolatedCropModeEx(cactive, ccropheight, ccropwidth, cvbin, chbin, ccropleft, ccropbottom)
+        return (error)
+    
+    def SetIsolatedCropModeType(self, mode):
+        """Set the method by which data is transferred in isolated crop 
+        mode. The default method is High Speed where multiple frames may be 
+        stored in the storage area of the sensor before they are read out.  
+        In Low Latency mode, each cropped frame is read out as it happens. 
+        Inputs:
+            mode - 0 – High Speed.  1 – Low Latency."""
+        cmode = c_int(mode)
+        error = self.dll.SetIsolatedCropModeType(cmode)
+        return (error)
+
+"""Dictionary of what each error code means. 
    Full list can be found in SDK manual."""
 ERROR_CODE = {
-    20001: "DRV_ERROR_CODES",
-    20002: "DRV_SUCCESS",
-    20003: "DRV_VXNOTINSTALLED",
-    20006: "DRV_ERROR_FILELOAD",
-    20007: "DRV_ERROR_VXD_INIT",
-    20010: "DRV_ERROR_PAGELOCK",
-    20011: "DRV_ERROR_PAGE_UNLOCK",
-    20013: "DRV_ERROR_ACK",
-    20024: "DRV_NO_NEW_DATA",
-    20026: "DRV_SPOOLERROR",
-    20034: "DRV_TEMP_OFF",
-    20035: "DRV_TEMP_NOT_STABILIZED",
-    20036: "DRV_TEMP_STABILIZED",
-    20037: "DRV_TEMP_NOT_REACHED",
-    20038: "DRV_TEMP_OUT_RANGE",
-    20039: "DRV_TEMP_NOT_SUPPORTED",
-    20040: "DRV_TEMP_DRIFT",
-    20050: "DRV_COF_NOTLOADED",
-    20053: "DRV_FLEXERROR",
-    20066: "DRV_P1INVALID",
-    20067: "DRV_P2INVALID",
-    20068: "DRV_P3INVALID",
-    20069: "DRV_P4INVALID",
-    20070: "DRV_INIERROR",
-    20071: "DRV_COERROR",
-    20072: "DRV_ACQUIRING",
-    20073: "DRV_IDLE",
-    20074: "DRV_TEMPCYCLE",
-    20075: "DRV_NOT_INITIALIZED",
-    20076: "DRV_P5INVALID",
-    20077: "DRV_P6INVALID",
-    20078: "DRV_INVALID_MODE",
-    20083: "P7_INVALID",
-    20089: "DRV_USBERROR",
-    20091: "DRV_NOT_SUPPORTED",
-    20095: "DRV_INVALID_TRIGGER_MODE",
-    20099: "DRV_BINNING_ERROR",
-    20990: "DRV_NOCAMERA",
-    20991: "DRV_NOT_SUPPORTED",
-    20992: "DRV_NOT_AVAILABLE"
+        20001: "DRV_ERROR_CODES",
+        20002: "DRV_SUCCESS",
+        20003: "DRV_VXDNOTINSTALLED",
+        20004: "DRV_ERROR_SCAN",
+        20005: "DRV_ERROR_CHECK_SUM",
+        20006: "DRV_ERROR_FILELOAD",
+        20007: "DRV_UNKNOWN_FUNCTION",
+        20008: "DRV_ERROR_VXD_INIT",
+        20009: "DRV_ERROR_ADDRESS",
+        20010: "DRV_ERROR_PAGELOCK",
+        20011: "DRV_ERROR_PAGE_UNLOCK",
+        20012: "DRV_ERROR_BOARDTEST",
+        20013: "DRV_ERROR_ACK",
+        20014: "DRV_ERROR_UP_FIFO",
+        20015: "DRV_ERROR_PATTERN",
+        20017: "DRV_ACQUISITION_ERRORS",
+        20018: "DRV_ACQ_BUFFER",
+        20019: "DRV_ACQ_DOWNFIFO_FULL",
+        20020: "DRV_PROC_UNKNOWN_INSTRUCTION",
+        20021: "DRV_ILLEGAL_OP_CODE",
+        20022: "DRV_KINETIC_TIME_NOT_MET",
+        20023: "DRV_ACCUM_TIME_NOT_MET",
+        20024: "DRV_NO_NEW_DATA",
+        20026: "DRV_SPOOLERROR",
+        20033: "DRV_TEMPERATURE_CODES",
+        20034: "DRV_TEMPERATURE_OFF",
+        20035: "DRV_TEMPERATURE_NOT_STABILIZED",
+        20036: "DRV_TEMPERATURE_STABILIZED",
+        20037: "DRV_TEMPERATURE_NOT_REACHED",
+        20038: "DRV_TEMPERATURE_OUT_RANGE",
+        20039: "DRV_TEMPERATURE_NOT_SUPPORTED",
+        20040: "DRV_TEMPERATURE_DRIFT",
+        20049: "DRV_GENERAL_ERRORS",
+        20050: "DRV_INVALID_AUX",
+        20051: "DRV_COF_NOTLOADED",
+        20052: "DRV_FPGAPROG",
+        20053: "DRV_FLEXERROR",
+        20054: "DRV_GPIBERROR",
+        20064: "DRV_DATATYPE",
+        20065: "DRV_DRIVER_ERRORS",
+        20066: "DRV_P1INVALID",
+        20067: "DRV_P2INVALID",
+        20068: "DRV_P3INVALID",
+        20069: "DRV_P4INVALID",
+        20070: "DRV_INIERROR",
+        20071: "DRV_COFERROR",
+        20072: "DRV_ACQUIRING",
+        20073: "DRV_IDLE",
+        20074: "DRV_TEMPCYCLE",
+        20075: "DRV_NOT_INITIALIZED",
+        20076: "DRV_P5INVALID",
+        20077: "DRV_P6INVALID",
+        20078: "DRV_INVALID_MODE",
+        20079: "DRV_INVALID_FILTER",
+        20080: "DRV_I2CERRORS",
+        20081: "DRV_DRV_I2CDEVNOTFOUND",
+        20082: "DRV_I2CTIMEOUT",
+        20083: "DRV_P7INVALID",
+        20089: "DRV_USBERROR",
+        20090: "DRV_IOCERROR",
+        20091: "DRV_NOT_SUPPORTED",
+        20093: "DRV_USB_INTERRUPT_ENDPOINT_ERROR",
+        20094: "DRV_RANDOM_TRACK_ERROR",
+        20095: "DRV_INVALID_TRIGGER_MODE",
+        20096: "DRV_LOAD_FIRMWARE_ERROR",
+        20097: "DRV_DIVIDE_BY_ZERO_ERROR",
+        20098: "DRV_INVALID_RINGEXPOSURES",
+        20099: "DRV_BINNING_ERROR",
+        20100: "DRV_INVALID_AMPLIFIER",
+        20115: "DRV_ERROR_MAP",
+        20116: "DRV_ERROR_UNMAP",
+        20117: "DRV_ERROR_MDL",
+        20118: "DRV_ERROR_UNMDL",
+        20119: "DRV_ERROR_BUFFSIZE",
+        20121: "DRV_ERROR_NOHANDLE",
+        20130: "DRV_GATING_NOT_AVAILABLE",
+        20131: "DRV_FPGA_VOLTAGE_ERROR",
+        20990: "DRV_ERROR_NOCAMERA",
+        20991: "DRV_NOT_SUPPORTED",
+        20992: "DRV_NOT_AVAILABLE"
 }
 
 if __name__ == '__main__':
@@ -658,15 +779,3 @@ if __name__ == '__main__':
     
     
     #a.ShutDown()
-
-
-
-
-
-
-
-
-
-
-
-

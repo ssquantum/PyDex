@@ -114,19 +114,21 @@ class event_handler(QThread):
         self.t0 = time.time()
         self.idle_t = self.t0 - self.end_t   # duration between end of last event and start of current event
         # copy file with labeling: [species]_[date]_[Dexter file #]
-        new_file_name = os.path.join(self.image_storage_path, self.species
-            )+'_'+self.date[0]+self.date[1]+self.date[3]+'_'.join(
-                    [self.dfn, self.imn])+'.asc'
+        new_file_name = os.path.join(self.image_storage_path, 
+                '_'.join([self.species, 
+                        self.date[0]+self.date[1]+self.date[3], 
+                        self.dfn, self.imn]) + '.asc')
         self.write_t = time.time()
         if os.path.isfile(new_file_name): # don't overwrite files
             new_file_name = os.path.join(self.image_storage_path, 
-                self.species)+'_'+self.date[0]+self.date[1]+self.date[3]+'_'.join(
-                    [self.dfn, self.imn,str(self.nfn)]) + '.asc'
+                '_'.join([self.species, 
+                        self.date[0]+self.date[1]+self.date[3], 
+                        self.dfn, self.imn, str(self.nfn)]) + '.asc')
             self.nfn += 1 # always a unique number
         out_arr = np.empty((im_array.shape[0],im_array.shape[1]+1))
         out_arr[:,1:] = im_array
         out_arr[:,0]  = np.arange(im_array.shape[0])
-        np.savetxt(new_file_name, out_arr, fmt='%s', delimiter=',')
+        np.savetxt(new_file_name, out_arr, fmt='%s', delimiter=' ')
 
         self.write_t = time.time() - self.write_t
         self.last_event_path = new_file_name  # update last event path
