@@ -145,23 +145,24 @@ class camera(QThread):
                         mode. Units: seconds.
         verbosity   -- True for debugging info."""
         errors = []
-        errors.append(self.AF.SetTemperature(setPointT))
-        errors.append(self.AF.CoolerON())
-        errors.append(self.AF.SetCoolerMode(coolerMode))
-        errors.append(self.AF.SetShutter(1, shutterMode))
-        errors.append(self.AF.SetHSSpeed(outamp, hsspeed)) 
-        errors.append(self.AF.SetVSSpeed(vsspeed))
-        errors.append(self.AF.SetPreAmpGain(preampgain))
-        errors.append(self.AF.SetEMCCDGain(EMgain))
+        errors.append(ERROR_CODE[self.AF.CoolerON()])
+        errors.append(ERROR_CODE[self.AF.SetCoolerMode(coolerMode)])
+        errors.append(ERROR_CODE[self.AF.SetTemperature(setPointT)])
+        errors.append(ERROR_CODE[self.AF.SetShutter(1, shutterMode)])
+        errors.append(ERROR_CODE[self.AF.SetHSSpeed(outamp, hsspeed)]) 
+        errors.append(ERROR_CODE[self.AF.SetVSSpeed(vsspeed)])
+        errors.append(ERROR_CODE[self.AF.SetPreAmpGain(preampgain)])
+        errors.append(ERROR_CODE[self.AF.SetEMCCDGain(EMgain)])
         self.AF.ROI = ROI 
-        errors.append(self.SetROI(self.AF.ROI, cropMode=cropMode))
-        errors.append(self.AF.SetReadMode(readmode))
-        errors.append(self.AF.SetAcquisitionMode(acqumode))
-        errors.append(self.AF.SetTriggerMode(triggerMode))
-        errors.append(self.AF.SetFastExtTrigger(fastTrigger))
-        errors.append(self.AF.SetFrameTransferMode(frameTransf))
-        errors.append(self.AF.SetExposureTime(expTime))
-        errors.append(self.AF.GetAcquisitionTimings())
+        errors.append(ERROR_CODE[self.AF.SetReadMode(readmode)])
+        errors.append(ERROR_CODE[self.AF.SetAcquisitionMode(acqumode)])
+        errors.append(ERROR_CODE[self.AF.SetTriggerMode(triggerMode)])
+        errors.append(ERROR_CODE[self.AF.SetFastExtTrigger(fastTrigger)])
+        errors.append(ERROR_CODE[self.AF.SetFrameTransferMode(frameTransf)])
+        # crop mode requires frame transfer and external trigger modes
+        errors.append(ERROR_CODE[self.SetROI(self.AF.ROI, crop=cropMode)])
+        errors.append(ERROR_CODE[self.AF.SetExposureTime(expTime)])
+        errors.append(ERROR_CODE[self.AF.GetAcquisitionTimings()])
         if abs(expTime - self.AF.exposure)/self.AF.exposure > 0.01:
             print("WARNING: Tried to set exposure time %.3g s"%expTime + 
                 " but acquisition settings require min. exposure time " +
@@ -171,6 +172,7 @@ class camera(QThread):
         if any(check_success):
             print("WARNING: Didn't get DRV_SUCCESS for setting " + 
                 str(check_success.index(True)))
+        return check_success
 
     def ApplySettingsFromConfig(self, config_file="./AndorCam_config.dat"):
         """Read in a configuration file and apply camera settings from it.
@@ -193,23 +195,24 @@ class camera(QThread):
                 cvals.append(float(row.split('=')[-1]))
                 
         errors = []
-        errors.append(self.AF.SetTemperature(cvals[0]))
-        errors.append(self.AF.CoolerON())
-        errors.append(self.AF.SetCoolerMode(cvals[1]))
-        errors.append(self.AF.SetShutter(1, cvals[2]))    
-        errors.append(self.AF.SetHSSpeed(cvals[3], cvals[4])) 
-        errors.append(self.AF.SetVSSpeed(cvals[5]))   
-        errors.append(self.AF.SetPreAmpGain(cvals[6]))
-        errors.append(self.AF.SetEMCCDGain(cvals[7]))
+        errors.append(ERROR_CODE[self.AF.CoolerON()])
+        errors.append(ERROR_CODE[self.AF.SetTemperature(cvals[0])])
+        errors.append(ERROR_CODE[self.AF.SetCoolerMode(cvals[1])])
+        errors.append(ERROR_CODE[self.AF.SetShutter(1, cvals[2])])    
+        errors.append(ERROR_CODE[self.AF.SetHSSpeed(cvals[3], cvals[4])]) 
+        errors.append(ERROR_CODE[self.AF.SetVSSpeed(cvals[5])])   
+        errors.append(ERROR_CODE[self.AF.SetPreAmpGain(cvals[6])])
+        errors.append(ERROR_CODE[self.AF.SetEMCCDGain(cvals[7])])
         self.AF.ROI = (cvals[8], cvals[9], cvals[10], cvals[11])
-        errors.append(self.SetROI(self.AF.ROI, cropMode=cvals[12]))
-        errors.append(self.AF.SetReadMode(cvals[13]))
-        errors.append(self.AF.SetAcquisitionMode(cvals[14]))
-        errors.append(self.AF.SetTriggerMode(cvals[15]))
-        errors.append(self.AF.SetFrameTransferMode(cvals[16]))
-        errors.append(self.AF.SetFastExtTrigger(cvals[17]))
-        errors.append(self.AF.SetExposureTime(cvals[18]))
-        errors.append(self.AF.GetAcquisitionTimings())
+        errors.append(ERROR_CODE[self.AF.SetReadMode(cvals[13])])
+        errors.append(ERROR_CODE[self.AF.SetAcquisitionMode(cvals[14])])
+        errors.append(ERROR_CODE[self.AF.SetTriggerMode(cvals[15])])
+        errors.append(ERROR_CODE[self.AF.SetFrameTransferMode(cvals[16])])
+        errors.append(ERROR_CODE[self.AF.SetFastExtTrigger(cvals[17])])
+        # crop mode requires frame transfer and external trigger modes
+        errors.append(ERROR_CODE[self.SetROI(self.AF.ROI, crop=cvals[12])])
+        errors.append(ERROR_CODE[self.AF.SetExposureTime(cvals[18])])
+        errors.append(ERROR_CODE[self.AF.GetAcquisitionTimings()])
         if abs(cvals[18] - self.AF.exposure)/self.AF.exposure > 0.01:
             print("WARNING: Tried to set exposure time %.3g s"%cvals[18] + 
                 " but acquisition settings require min. exposure time " +
@@ -220,13 +223,14 @@ class camera(QThread):
         if any(check_success):
             print("WARNING: Didn't get DRV_SUCCESS for setting " + 
                 str(check_success.index(True)))
+        return check_success
 
-    def SetROI(self, ROI, cropMode=0):
+    def SetROI(self, ROI, crop=0):
         """Specify an ROI on the camera to image. If none specified, use 
         the entire CCD. 
            Parameters:
                - ROI: A tuple of the form (hstart, hend, vstart, vend)
-               - cropMode: reduce the effective area of the CCD by cropping.
+               - crop: reduce the effective area of the CCD by cropping.
                         0: off         1: on
         """
         error = ''
@@ -237,9 +241,9 @@ class camera(QThread):
             hstart,hend,vstart,vend = ROI
         self.AF.ROIwidth = hend - hstart + 1
         self.AF.ROIheight = vend - vstart + 1
-        if cropMode:
+        if crop:
             error = self.AF.SetIsolatedCropModeEx(
-                cropMode, self.AF.ROIheight, self.AF.ROIwidth, 
+                crop, self.AF.ROIheight, self.AF.ROIwidth, 
                 1, 1, hstart, vstart)
         else:
             error = self.AF.SetImage(1,1,hstart,hend,vstart,vend)
@@ -287,36 +291,12 @@ class camera(QThread):
         the camera."""
         if self.AF.GetStatus() == 'DRV_IDLE':
             im = self.AF.GetAcquiredData(
-                self.AF.ROIwidth, self.AF.ROIheight, self.AF.kscans)
+                    self.AF.ROIwidth, self.AF.ROIheight)
             self.lastImage = im
             self.AcquireEnd.emit(im[0]) 
             if self.AF.verbosity:
                 self.PlotAcquisition(im)
-           
-    # run method is called when the thread is started     
-    def run(self):
-        """Start an Acquisition and wait for a signal to abort"""
-        self.idle_time = time.time() - self.t2 # time since last acquisition
-        self.AF.StartAcquisition()
-        # i = 0
-        while self.AF.GetStatus() == 'DRV_ACQUIRING':
-            self.t0 = time.time() 
-            result = win32event.WaitForSingleObject(
-                            self.AcquisitionEvent, win32event.INFINITE)
-            if result == win32event.WAIT_OBJECT_0: # get image
-                self.lastImage = self.AF.GetOldestImage(
-                    self.AF.ROIwidth, self.AF.ROIheight, self.AF.kscans)
-                self.t1 = time.time() 
-                if self.lastImage.any(): # sometimes last image is empty
-                    self.AcquireEnd.emit(self.lastImage[0]) # emit signals
-            # reset windows signal to trigger the next acquisition
-            self.AcquisitionEvent = win32event.CreateEvent(None, 
-                                                0, 0, 'Acquisition')
-            self.AF.SetDriverEvent(int(self.AcquisitionEvent))                    
-            self.t2 = time.time()
-            # print(i, end=' ')
-            # i += 1
-    
+                
     def TakeAcquisitions(self, n=1):
         """Taking a series of n acquisitions sequentially.
         Assuming external mode, the camera will wait for an external trigger
@@ -330,6 +310,37 @@ class camera(QThread):
             elif result == win32event.WAIT_TIMEOUT and self.verbosity:
                 print('Acquisition timeout ', i)
         self.Finished.emit(1)
+        
+    def EmptyBuffer(self):
+        """Get all of the images currently stored in the camera buffer
+        that have not yet been retreived. The dimensions of the returned
+        array are: (# images, # kinetic scans, ROI width, ROI height)."""
+        istart, iend = self.AF.GetNumberNewImages()
+        if iend >= self.AF.GetSizeOfCircularBuffer():
+            print("WARNING: The camera buffer was full, some images",
+                " may have been overwritten")
+        return self.AF.GetImages(istart, iend, self.AF.ROIwidth,
+                                        self.AF.ROIheight)
+            
+    # run method is called when the thread is started     
+    def run(self):
+        """Start an Acquisition and wait for a signal to abort"""
+        self.idle_time = time.time() - self.t2 # time since last acquisition
+        self.AF.StartAcquisition()
+        # i = 0
+        while self.AF.GetStatus() == 'DRV_ACQUIRING':
+            self.t0 = time.time() 
+            result = win32event.WaitForSingleObject(
+                            self.AcquisitionEvent, win32event.INFINITE)
+            if result == win32event.WAIT_OBJECT_0: # get image
+                self.lastImage = self.AF.GetOldestImage(
+                        self.AF.ROIwidth, self.AF.ROIheight)
+                self.t1 = time.time() 
+                if self.lastImage.any(): # sometimes last image is empty
+                    self.AcquireEnd.emit(self.lastImage[0]) # emit signals
+            self.t2 = time.time()
+            # print(i, end=' ')
+            # i += 1
         
     def PrintTimes(self, unit="s"):
         """Display the times measured for functions"""
@@ -362,7 +373,7 @@ class camera(QThread):
         and the temperature controller. Wait until the temperature
         settles so that the heating rate isn't too high, then shut
         down."""
-        self.ApplySettings(coolerMode=0, shutterMode=2, EMgain=0)
+        self.ApplySettings(coolerMode=1, shutterMode=2, EMgain=1)
         # self.AF.CoolerOFF() # let temperatere stabilise to ambient
         # temp, _ = self.AF.GetTemperature()
         # while temp < -10: # wait until temp > -10 deg C

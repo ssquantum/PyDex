@@ -53,7 +53,7 @@ class image_handler:
         self.xc_list = np.zeros(self.n) # horizontal positions of max pixel
         self.yc_list = np.zeros(self.n) # vertical positions of max pixel
         self.atom = np.zeros(self.n)    # deduce presence of an atom by comparison with threshold
-        self.files = np.array(['']*(self.n)) # number ID of image
+        self.files = np.array(['']*(self.n), dtype='U32') # number ID of image
         self.peak_indexes = [0,0]       # indexes of peaks in histogram
         self.peak_heights = [0,0]       # heights of peaks in histogram
         self.peak_widths  = [0,0]       # widths of peaks in histogram

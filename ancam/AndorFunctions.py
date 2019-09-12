@@ -86,9 +86,8 @@ class Andor:
 
     def verbose(self, errorcode, function=''):
         """Set verbosity of camera error outputs"""
-        error = ERROR_CODE[errorcode]
         if self.verbosity:
-            print("[%s]: %s" %(function, error))
+            print("[%s]: %s" %(function, ERROR_CODE[errorcode]))
 
     def ShutDown(self):
         """This function will close the AndorMCD system down."""
@@ -326,14 +325,12 @@ class Andor:
         error = self.dll.GetNumberHSSpeeds(self.channel, self.outamp, byref(noHSSpeeds))
         self.noHSSpeeds = noHSSpeeds.value
         self.verbose(error, sys._getframe().f_code.co_name)
-        return ERROR_CODE[error]
+        return error
 
     def GetHSSpeed(self):
         """Get the possible horizontal shift speeds"""
         HSSpeed = c_float()
-
         self.HSSpeeds = []
-    
         for i in range(self.noHSSpeeds):
             self.dll.GetHSSpeed(self.channel, self.outamp, i, byref(HSSpeed))
             self.HSSpeeds.append(HSSpeed.value)
@@ -350,7 +347,7 @@ class Andor:
         error = self.dll.SetHSSpeed(itype,index)
         self.verbose(error, sys._getframe().f_code.co_name)
         self.hsspeed = index
-        return ERROR_CODE[error]
+        return error
 
     def GetNumberVSSpeeds(self):
         """Different models of camera have different numbers of vertical shift 
@@ -365,9 +362,7 @@ class Andor:
     def GetVSSpeed(self):
         """Given the number of VS speeds available, return the possible VS speeds."""
         VSSpeed = c_float()
-
         self.VSSpeeds = []
-
         for i in range(self.noVSSpeeds):
             self.dll.GetVSSpeed(i,byref(VSSpeed))
             self.VSSpeeds.append(VSSpeed.value)
@@ -469,7 +464,7 @@ class Andor:
         error = self.dll.IsTriggerModeAvailable(ciTriggerMode)
         self.verbose(error, sys._getframe().f_code.co_name)
 
-    def GetAcquiredData(self, dimx, dimy, numKinScans = 1):
+    def GetAcquiredData(self, dimx, dimy):
         """Retrieve the image at the end of a camera acquisition.
         Parameters: 
             - width of ROI (pixels)
@@ -484,10 +479,10 @@ class Andor:
         for i in range(len(cimage)):
             imageArray.append(cimage[i])
         imageArray = imageArray[:]
-        imageArray = np.reshape(imageArray, (numKinScans, dimx, dimy))
+        imageArray = np.reshape(imageArray, (self.kscans, dimx, dimy))
         return imageArray
 
-    def GetOldestImage(self, dimx, dimy, numKinScans = 1):
+    def GetOldestImage(self, dimx, dimy, numKinScans=1):
         """Retrieve the oldest stored image in the camera buffer 
         during a camera acquisition.
         Parameters: 
@@ -503,8 +498,62 @@ class Andor:
         for i in range(len(cimage)):
             imageArray.append(cimage[i])
         imageArray = imageArray[:]
-        imageArray = np.reshape(imageArray, (numKinScans, dimx, dimy))
+        imageArray = np.reshape(imageArray, (self.kscans, dimx, dimy))
         return imageArray
+
+    def GetImages(self, first, last, dimx, dimy):
+        """Update the data array with the specified series of images from the 
+        circular buffer. If the specified series is out of range (i.e. the 
+        images have been overwritten or have not yet been acquired then an error
+        will be returned.
+        Inputs:
+            first - index of first image in buffer to retrieve.
+            last - index of last image in buffer to retrieve.
+            dimx - number of pixels in horizontal direction.
+            dimy - number of pixels in vertical direction."""
+        dim = int(dimx*dimy *  self.kscans) 
+        cfirst = c_int(first)
+        clast = c_int(last)
+        carr = (c_int * dim * (last-first+1))()
+        csize = c_int(dim * (last-first+1))
+        cvalidfirst = c_int()
+        cvalidlast = c_int()
+        error = self.dll.GetImages(cfirst, clast, carr, csize, 
+                                byref(cvalidfirst), byref(cvalidlast))
+        self.verbose(error, sys._getframe().f_code.co_name)
+        
+        imageArray = []        
+        for i in range(len(carr)):
+            imageArray.append(carr[i])
+        imageArray = imageArray[:]
+        imageArray = np.reshape(imageArray, 
+                            ((last-first+1), self.kscans, dimx, dimy))
+        return imageArray
+        
+    def GetNumberAvailableImages(self):
+        """Return the number of available images in the circular buffer. 
+        This is the total number of images during an acquisition.
+        If any images are overwritten in the circular buffer they no 
+        longer can be retrieved and the information returned will treat 
+        overwritten images as not available."""
+        cfirst = c_int()
+        clast = c_int()
+        error = self.dll.GetNumberAvailableImages(byref(cfirst), byref(clast))
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return (cfirst.value, clast.value)
+        
+    def GetNumberNewImages(self):
+        """Return the number of new images (i.e. images which have not yet 
+        been retrieved) in the circular buffer. If any images are 
+        overwritten in the circular buffer they can no longer be retrieved 
+        and the information returned will treat overwritten images as 
+        having been retrieved."""
+        cfirst = c_int()
+        clast = c_int()
+        error = self.dll.GetNumberNewImages(byref(cfirst), byref(clast))
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return (cfirst.value, clast.value)
+
 
     def GetAcquisitionTimings(self):
         """Get the current timings that have been set.
@@ -516,18 +565,26 @@ class Andor:
         exposure   = c_float()
         accumulate = c_float()
         kinetic    = c_float()
-        error = self.dll.GetAcquisitionTimings(byref(exposure),byref(accumulate),byref(kinetic))
+        error = self.dll.GetAcquisitionTimings(
+                        byref(exposure),byref(accumulate),byref(kinetic))
         self.exposure = exposure.value
         self.accumulate = accumulate.value
         self.kinetic = kinetic.value
         self.verbose(error, sys._getframe().f_code.co_name)
         return error
+        
+    def GetSizeOfCircularBuffer(self):
+        """The maximum number of images the circular buffer can store based 
+        on the current acquisition settings."""
+        cindex = c_int()
+        error = self.dll.GetSizeOfCircularBuffer(byref(cindex))
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return cindex.value
 
     def SetNumberKinetics(self,numKinScans):
         """This function will set the number of scans (possibly accumulated 
            scans) to be taken during a single acquisition sequence. This will 
            only take effect if the acquisition mode is Kinetic Series."""
-        
         error = self.dll.SetNumberKinetics(numKinScans)
         self.verbose(error, sys._getframe().f_code.co_name)
         self.kscans = numKinScans
@@ -548,7 +605,7 @@ class Andor:
         cmode = c_int(mode)
         error = self.dll.SetFrameTransferMode(cmode)
         self.verbose(error, sys._getframe().f_code.co_name)
-        return (error)
+        return error
 
     def SetDriverEvent(self, driverEvent):
         """Pass a Win32 Event handle to the SDK.
@@ -563,7 +620,62 @@ class Andor:
         driverEvent - Win32 event handle."""
         cdriverEvent = c_void_p(driverEvent)
         error = self.dll.SetDriverEvent(cdriverEvent)
-        return (error)
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return error
+        
+    def SetAcqStatusEvent(self, statusEvent):
+        """Pass a Win32 Event handle to the driver to inform the user software 
+        that the camera has started exposing or that the camera has finished 
+        exposing. To determine what event has occurred call GetCameraEventStatus. 
+        This may give the user software an opportunity to perform other actions 
+        that will not affect the readout of the current acquisition. 
+        The SetPCIMode function must be called to enable/disable the events 
+        from the driver.
+        Inputs:
+            statusEvent - Win32 event handle."""
+        cstatusEvent = c_int(statusEvent)
+        error = self.dll.SetAcqStatusEvent(cstatusEvent)
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return error
+        
+    def SetPCIMode(self, mode, value):
+        """With the CCI23 card, events can be sent when the camera is 
+        starting to expose and when it has finished exposing. This function 
+        will control whether those events happen or not.
+        Inputs:
+            mode - currently must be set to 1
+            value - 0 to disable the events, 1 to enable"""
+        cmode = c_int(mode)
+        cvalue = c_int(value)
+        error = self.dll.SetPCIMode(cmode, cvalue)
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return error
+        
+    def SetCameraStatusEnable(self, Enable):
+        """Mask out certain types of acquisition status events. The default 
+        notifies on every type of event but this may cause missed events if 
+        different types of event occur very close together. The bits in the 
+        mask correspond to the following event types:
+            Use0 - Fire pulse down event
+            Use1 - Fire pulse up event
+        Set the corresponding bit to 0 to disable the event type and 1 to 
+        enable the event type.
+        Inputs:
+            Enable - bitmask with bits set for those events about which you 
+                        wish to be notified."""
+        cEnable = (Enable)
+        error = self.dll.SetCameraStatusEnable(cEnable)
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return error
+        
+    def GetCameraEventStatus(self):
+        """Return if the system is exposing or not.
+        WARNING - there is a bug with this function that causes crashes
+        on fast acquisitions in versions earlier than SDK 2.78.5"""
+        ccamStatus = ()
+        error = self.dll.GetCameraEventStatus(byref(ccamStatus))
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return ccamStatus.value
         
     def SetIsolatedCropMode(
             self, active, cropheight, cropwidth, vbin, hbin):
@@ -589,7 +701,8 @@ class Andor:
         chbin = c_int(hbin)
         error = self.dll.SetIsolatedCropMode(
                 cactive, ccropheight, ccropwidth, cvbin, chbin)
-        return (error)
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return error
 
     def SetIsolatedCropModeEx(
         self, active, cropheight, cropwidth, 
@@ -631,7 +744,8 @@ class Andor:
         ccropleft = c_int(cropleft)
         ccropbottom = c_int(cropbottom)
         error = self.dll.SetIsolatedCropModeEx(cactive, ccropheight, ccropwidth, cvbin, chbin, ccropleft, ccropbottom)
-        return (error)
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return error
     
     def SetIsolatedCropModeType(self, mode):
         """Set the method by which data is transferred in isolated crop 
@@ -642,6 +756,7 @@ class Andor:
             mode - 0 – High Speed.  1 – Low Latency."""
         cmode = c_int(mode)
         error = self.dll.SetIsolatedCropModeType(cmode)
+        self.verbose(error, sys._getframe().f_code.co_name)
         return (error)
 
 """Dictionary of what each error code means. 

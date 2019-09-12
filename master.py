@@ -60,9 +60,11 @@ class Master(QMainWindow):
         super().__init__()
         self.init_UI()
         self.cam = camera(config_file=ancam_config) # Andor camera
+        self.ancam_config = ancam_config
         self.cam.AcquireEnd.connect(self.synchronise) # sync the image analysis run number
         # self.cam.verbosity = True # for debugging
         self.sv = event_handler(save_config) # image saver
+        self.save_config = save_config
         self.im_save.connect(self.sv.respond)
         # choose which image analyser to use from number images in sequence
         if pop_up:
@@ -153,17 +155,23 @@ class Master(QMainWindow):
             for mw in self.mw:
                 mw.show()
         elif self.sender().text() == 'Camera Status':
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Information)
-            msg.setText(self.cam.AF.GetStatus())
-            msg.setStandardButtons(QMessageBox.Ok)
-            msg.exec_()
+            text, ok = QInputDialog.getText( 
+                self, 'Camera Status',
+                'Current state: ' + self.cam.AF.GetStatus() + '\n' +
+                'Choose a new config file: ',
+                text=self.ancam_config)
+            if text and ok and not self.acquire_button.isChecked():
+                check = self.cam.ApplySettingsFromConfig(text)
+                if not any(check):
+                    self.status_label.setText('Camera settings were reset.')
+                else:
+                    self.status_label.setText('Failed to update camera settings.')
         elif self.sender().text() == 'Image Saver':
             text, ok = QInputDialog.getText( 
                 self, 'Image Saver',
                 self.sv.print_dirs(self.sv.dirs_dict.items()) + 
                 '\nEnter the path to a config file to reset the image saver: ',
-                text='')
+                text=self.save_config)
             if text and ok:
                 self.im_save.disconnect()
                 self.sv = event_handler(text)
@@ -214,9 +222,14 @@ class Master(QMainWindow):
         will be disabled."""
         if toggle:            
             self.status_label.setText('Acquiring...')
+            self.acquire_button.setText('Stop acquisition')
             self.cam.start()
         else:
+            unprocessed_ims = self.cam.EmptyBuffer()
+            for im in unprocessed_ims:
+                self.synchronise(im)
             self.cam.AF.AbortAcquisition()
+            self.acquire_button.setText('Start acquisition')
             self.status_label.setText('Idle')
 
     def closeEvent(self, event):
