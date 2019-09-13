@@ -163,10 +163,10 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.SetROI(self.AF.ROI, crop=cropMode)])
         errors.append(ERROR_CODE[self.AF.SetExposureTime(expTime)])
         errors.append(ERROR_CODE[self.AF.GetAcquisitionTimings()])
-        if abs(expTime - self.AF.exposure)/self.AF.exposure > 0.01:
+        if abs(expTime - self.AF.exposure)/expTime > 0.01:
             print("WARNING: Tried to set exposure time %.3g s"%expTime + 
                 " but acquisition settings require min. exposure time " +
-                "%.3g s."%self.Af.exposure)
+                "%.3g s."%self.AF.exposure)
         self.AF.verbosity = verbosity
         check_success = [e != 'DRV_SUCCESS' for e in errors]
         if any(check_success):
@@ -174,7 +174,7 @@ class camera(QThread):
                 str(check_success.index(True)))
         return check_success
 
-    def ApplySettingsFromConfig(self, config_file="./AndorCam_config.dat"):
+    def ApplySettingsFromConfig(self, config_file="./ExExposure_config.dat"):
         """Read in a configuration file and apply camera settings from it.
         See the DocString for ApplySettings for descriptions of the 
         parameters.
@@ -206,6 +206,9 @@ class camera(QThread):
         self.AF.ROI = (cvals[8], cvals[9], cvals[10], cvals[11])
         errors.append(ERROR_CODE[self.AF.SetReadMode(cvals[13])])
         errors.append(ERROR_CODE[self.AF.SetAcquisitionMode(cvals[14])])
+        # if cvals[14] == 4 or cvals[16] == 1:
+        #     self.AF.SetNumberKinetics(1) # number of kinetic scans
+        #     self.AF.SetNumberAccumulations(1) # number of accumulations
         errors.append(ERROR_CODE[self.AF.SetTriggerMode(cvals[15])])
         errors.append(ERROR_CODE[self.AF.SetFrameTransferMode(cvals[16])])
         errors.append(ERROR_CODE[self.AF.SetFastExtTrigger(cvals[17])])
@@ -213,10 +216,10 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.SetROI(self.AF.ROI, crop=cvals[12])])
         errors.append(ERROR_CODE[self.AF.SetExposureTime(cvals[18])])
         errors.append(ERROR_CODE[self.AF.GetAcquisitionTimings()])
-        if abs(cvals[18] - self.AF.exposure)/self.AF.exposure > 0.01:
+        if abs(cvals[18] - self.AF.exposure)/cvals[18] > 0.01:
             print("WARNING: Tried to set exposure time %.3g s"%cvals[18] + 
                 " but acquisition settings require min. exposure time " +
-                "%.3g s."%self.Af.exposure)
+                "%.3g s."%self.AF.exposure)
         self.AF.verbosity = bool(cvals[19])
         self.AF.kscans = 1
         check_success = [e != 'DRV_SUCCESS' for e in errors]
@@ -225,13 +228,15 @@ class camera(QThread):
                 str(check_success.index(True)))
         return check_success
 
-    def SetROI(self, ROI, crop=0):
+    def SetROI(self, ROI, crop=0, slowcrop=0):
         """Specify an ROI on the camera to image. If none specified, use 
         the entire CCD. 
            Parameters:
                - ROI: A tuple of the form (hstart, hend, vstart, vend)
                - crop: reduce the effective area of the CCD by cropping.
                         0: off         1: on
+               - slowcrop: 0: speed up by storing multiple frames
+                           1: low latency by reading each frame as it happens
         """
         error = ''
         if ROI == None:
@@ -245,6 +250,7 @@ class camera(QThread):
             error = self.AF.SetIsolatedCropModeEx(
                 crop, self.AF.ROIheight, self.AF.ROIwidth, 
                 1, 1, hstart, vstart)
+            self.AF.SetIsolatedCropModeType(slowcrop)
         else:
             error = self.AF.SetImage(1,1,hstart,hend,vstart,vend)
         return error
@@ -316,11 +322,13 @@ class camera(QThread):
         that have not yet been retreived. The dimensions of the returned
         array are: (# images, # kinetic scans, ROI width, ROI height)."""
         istart, iend = self.AF.GetNumberNewImages()
-        if iend >= self.AF.GetSizeOfCircularBuffer():
-            print("WARNING: The camera buffer was full, some images",
-                " may have been overwritten")
-        return self.AF.GetImages(istart, iend, self.AF.ROIwidth,
-                                        self.AF.ROIheight)
+        if iend > istart:
+            if iend >= self.AF.GetSizeOfCircularBuffer():
+                print("WARNING: The camera buffer was full, some images",
+                    " may have been overwritten")
+            return self.AF.GetImages(istart, iend, self.AF.ROIwidth,
+                                            self.AF.ROIheight)
+        else: return []
             
     # run method is called when the thread is started     
     def run(self):
@@ -373,7 +381,9 @@ class camera(QThread):
         and the temperature controller. Wait until the temperature
         settles so that the heating rate isn't too high, then shut
         down."""
-        self.ApplySettings(coolerMode=1, shutterMode=2, EMgain=1)
+        self.AF.SetCoolerMode(1) # maintain temperature on shutdown
+        self.AF.SetShutter(1, 2) # close shutter
+        self.AF.SetEMCCDGain(1)  # reset EM gain
         # self.AF.CoolerOFF() # let temperatere stabilise to ambient
         # temp, _ = self.AF.GetTemperature()
         # while temp < -10: # wait until temp > -10 deg C

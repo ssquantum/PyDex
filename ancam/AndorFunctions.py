@@ -75,7 +75,8 @@ class Andor:
         self.vstart         = None      # Vertical pixel coordinate of acquisition region start
         self.vend           = None      # Vertical pixel coordinate of acquisition region end
         
-        self.kscans          = None      # Number of kinetic scans
+        self.kscans         = None      # Number of kinetic scans
+        self.accumulate     = None      # Number of accumulations to take (number of scans to add together)
 
     def Initialize(self):
         '''Initialize the Andor camera'''
@@ -581,11 +582,12 @@ class Andor:
         self.verbose(error, sys._getframe().f_code.co_name)
         return cindex.value
 
-    def SetNumberKinetics(self,numKinScans):
+    def SetNumberKinetics(self, numKinScans):
         """This function will set the number of scans (possibly accumulated 
            scans) to be taken during a single acquisition sequence. This will 
            only take effect if the acquisition mode is Kinetic Series."""
-        error = self.dll.SetNumberKinetics(numKinScans)
+        cnumscans = c_int(numKinScans)
+        error = self.dll.SetNumberKinetics(cnumscans)
         self.verbose(error, sys._getframe().f_code.co_name)
         self.kscans = numKinScans
         return error
@@ -597,7 +599,19 @@ class Andor:
         error = self.dll.SetKineticCycleTime(c_float(time))
         self.verbose(error, sys._getframe().f_code.co_name)
         return error
-
+        
+    def SetNumberAccumulations(self, number):
+        """Set the number of scans accumulated in memory. This will only 
+        take effect if the acquisition mode is either Accumulate or 
+        Kinetic Series.
+        Inputs:
+          number - number of scans to accumulate"""
+        cnumber = c_int(number)
+        error = self.dll.SetNumberAccumulations(cnumber)
+        self.verbose(error, sys._getframe().f_code.co_name)
+        self.accumulate = number
+        return error
+        
     def SetFrameTransferMode(self, mode):
         """ This function will set whether an acquisition will readout in Frame 
             Transfer Mode. If the acquisition mode is Single Scan or Fast Kinetics 
@@ -757,7 +771,46 @@ class Andor:
         cmode = c_int(mode)
         error = self.dll.SetIsolatedCropModeType(cmode)
         self.verbose(error, sys._getframe().f_code.co_name)
-        return (error)
+        return error
+        
+    def SetDMAParameters(self, MaxImagesPerDMA, SecondsPerDMA):
+        """To facilitate high image readout rates the controller card may 
+        wait for multiple images to be acquired before notifying the SDK 
+        that new data is available. Without this facility, there is a 
+        chance that hardware interrupts may be lost as the operating system 
+        does not have enough time to respond to each interrupt. The 
+        drawback to this is that you will not get the data for an image 
+        until all images for that interrupt have been acquired.
+        Inputs:
+            MaxImagesPerDMA - Override to the number of images per DMA if 
+                the calculated value is higher than this. (Default=0, ie. 
+                no override)
+            SecondsPerDMA - Minimum amount of time to elapse between 
+                interrrupts. (Default=0.03s)"""
+        cMaxImagesPerDMA = c_int(MaxImagesPerDMA)
+        cSecondsPerDMA = c_float(SecondsPerDMA)
+        error = self.dll.SetDMAParameters(cMaxImagesPerDMA, cSecondsPerDMA)
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return error
+        
+    def GetKeepCleanTime(self):
+        """Return the time to perform a keep clean cycle. Use after all the 
+        acquisitions settings have been set. The value returned is the 
+        actual time used in subsequent acquisitions."""
+        cKeepCleanTime = c_float()
+        error = self.dll.GetKeepCleanTime(byref(cKeepCleanTime))
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return cKeepCleanTime.value
+        
+    def GetReadOutTime(self):
+        """Return the time to readout data from a sensor. Use after all the 
+        acquisitions settings have been set. The value returned is the 
+        actual times used in subsequent acquisitions."""
+        cReadOutTime = c_float()
+        error = self.dll.GetReadOutTime(byref(cReadOutTime))
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return cReadOutTime.value
+
 
 """Dictionary of what each error code means. 
    Full list can be found in SDK manual."""

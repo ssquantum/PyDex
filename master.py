@@ -164,6 +164,7 @@ class Master(QMainWindow):
                 check = self.cam.ApplySettingsFromConfig(text)
                 if not any(check):
                     self.status_label.setText('Camera settings were reset.')
+                    self.ancam_config = text
                 else:
                     self.status_label.setText('Failed to update camera settings.')
         elif self.sender().text() == 'Image Saver':
@@ -178,6 +179,7 @@ class Master(QMainWindow):
                 if self.sv.image_storage_path:
                     self.status_label.setText('Image Saver was reset.')
                     self.im_save.connect(self.sv.respond)
+                    self.save_config = text
                 else:
                     self.status_label.setText('Failed to find config file.')
         elif self.sender().text() == 'Monitoring':
@@ -227,7 +229,8 @@ class Master(QMainWindow):
         else:
             unprocessed_ims = self.cam.EmptyBuffer()
             for im in unprocessed_ims:
-                self.synchronise(im)
+                # image dimensions: (# kscans, width pixels, height pixels)
+                self.synchronise(im[0]) 
             self.cam.AF.AbortAcquisition()
             self.acquire_button.setText('Start acquisition')
             self.status_label.setText('Idle')
