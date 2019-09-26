@@ -39,8 +39,8 @@ class Andor:
         super().__init__() # required for multiple inheritence
         self.OS = platform.system()
         self.architecture = platform.architecture()[0]
-
-        self.dll = cdll.LoadLibrary(name="C:\Program Files\Andor SDK\\atmcd64d")
+        # this takes absolute path, not relative:
+        self.dll = cdll.LoadLibrary("Z:\Tweezer\Code\Python 3.5\PyDex\\ancam\\atmcd64d")
     
         self.verbosity      = True      # Amount of information to display when debugging
         self.coolerStatus   = None       # Cooler on (1) or off (0)?
@@ -341,10 +341,11 @@ class Andor:
            shifted into the output node during the readout phase of an acquisition).
               itype: the output amplification setting of the system
               index: indices correspond to different horizontal shift speeds (MHz)
-                0: 17.0
-                1: 10.0
-                2:  5.0 
-                3:  1.0 """
+              index - EM mode shift speed - conventional mode shift speed
+                0:         17.0                         3.0
+                1:         10.0                         1.0
+                2:          5.0                         0.08
+                3:          1.0 """
         error = self.dll.SetHSSpeed(itype,index)
         self.verbose(error, sys._getframe().f_code.co_name)
         self.hsspeed = index
@@ -583,9 +584,9 @@ class Andor:
         return cindex.value
 
     def SetNumberKinetics(self, numKinScans):
-        """This function will set the number of scans (possibly accumulated 
-           scans) to be taken during a single acquisition sequence. This will 
-           only take effect if the acquisition mode is Kinetic Series."""
+        """This function will set the number of scans to be taken during a 
+        single acquisition sequence. This will only take effect if the 
+        acquisition mode is Kinetic Series."""
         cnumscans = c_int(numKinScans)
         error = self.dll.SetNumberKinetics(cnumscans)
         self.verbose(error, sys._getframe().f_code.co_name)
@@ -599,6 +600,45 @@ class Andor:
         error = self.dll.SetKineticCycleTime(c_float(time))
         self.verbose(error, sys._getframe().f_code.co_name)
         return error
+        
+    def SetFastKineticsEx(self, exposedRows, seriesLength, time, mode, 
+                                    hbin, vbin, offset):
+        """Set the parameters to be used when taking a fast kinetics 
+        acquisition.
+        Inputs:
+          exposedRows - sub-area height in rows.
+          seriesLength - number in series.
+          time - exposure time in seconds.
+          mode - binning mode (0 - FVB , 4 - Image).
+          hbin - horizontal binning.
+          vbin - vertical binning (only used when in image mode).
+          offset - offset of first row to be used in Fast Kinetics from 
+          the bottom of the CCD."""
+        cexposedRows = c_int(exposedRows)
+        cseriesLength = c_int(seriesLength)
+        ctime = c_float(time)
+        cmode = c_int(mode)
+        chbin = c_int(hbin)
+        cvbin = c_int(vbin)
+        coffset = c_int(offset)
+        error = self.dll.SetFastKineticsEx(cexposedRows, cseriesLength, 
+            ctime, cmode, chbin, cvbin, coffset)
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return error
+        
+    def SetFastKineticsStorageMode(self, mode):
+        """Increase the number of frames which can be acquired in fast 
+        kinetics mode when using vertical binning. When ‘binning in storage 
+        area’ is selected the offset cannot be adjusted from the bottom of 
+        the sensor and the maximum signal level will be reduced.
+        Inputs:
+          mode - vertically bin in readout register (0)                 
+                     vertically bin in storage area (1)"""
+        cmode = c_int(mode)
+        error = self.dll.SetFastKineticsStorageMode(cmode)
+        self.verbose(error, sys._getframe().f_code.co_name)
+        return error
+   
         
     def SetNumberAccumulations(self, number):
         """Set the number of scans accumulated in memory. This will only 

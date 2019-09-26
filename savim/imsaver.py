@@ -65,6 +65,7 @@ class event_handler(QThread):
     def get_dirs(config_file='./config/config.dat'):
         """Load the paths used from the config.dat file or prompt user if 
         it can't be found"""
+        image_storage_path, dexter_sync_file_name, results_path = '', '', ''
         # load config file for directories or prompt user if first time setup
         try:
             with open(config_file, 'r') as config_file:

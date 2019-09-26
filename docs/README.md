@@ -1,27 +1,44 @@
 ﻿PyDex
 Version 0.0
 
-A master script manages the independent modules:
-	• Starts up the camera to receive acquisition triggers from Dexter
-	• Queues up experiments
-	• Sets multirun
+A master script manages independent modules for experimental control:
+	• Starts up the camera to receive acquisition triggers from DExTer
+	• Sets multirun to change variables in an experiment
 	• In a sequence:
-		○ The master script synchronising the Dexter run #
-		○ Initiates the camera acquisition (for several images, initiate several different signals)
-		○ Dexter triggers the camera to take an image (or several images if re-imaging)
+		○ The master script synchronises the run number
+		○ DExTer triggers the camera to take an image (or several images if re-imaging)
 		○ The camera manager sends a signal with the image array to the image saver and to the image analysis
 		○ Image analysis processes the image, image saver saves the image (separate threads)
+		○ Monitor receives signals from image analysis and DAQ
+
+Each module is a Python class that inherits QThread. We use the PyQt signal/slot architecture so that each module can run independently and not hold the other up. 
 
 Included modules:
-	• queue - creates sequences to be sent to Dexter
-	• ancam - controls the Andor camera
-	• savim - saves image files
-	• saia1 - does image analysis
-	• monit - monitoring channels during an experiment
+	• master
+	Initiates all of the modules and provides an interface to display their respective windows or adjust their settings. Synchronises the run number between modules.
+	• queue
+	Communicates with DExTer: sending commands to load sequences, start a multirun with given variables, facilitate the creation of sequences for an experiment, design experiments that optimise common parameters, and synchronise the run number at the start/end of every run.
+	• ancam
+	Control the Andor iXon camera using AndorSDK. Initialise the camera with given acquisition settings. Set the camera running so that it takes acquisitions triggered by DExTer, and then emits the acquired image as an array to be processed and saved. 
+	• savim
+	Python saves image files with a synchronised run number.
+	• saia1
+	Single atom image analysis - has several threads to 1) create histograms, 2) analyse histograms, 3) emit signal of whether there was an atom or not to monitor, and 4) emit signal of the background outside the ROI
+	• monit
+	Takes in the signal from a DAQ to monitor channels like beam powers. Responds to signals of atom presence to and background level to guess if the lasers are still locked.
 
 
+#####  Master  #####
 
-SAIA1 - image analysis
+#####  Queue  #####
+
+#####  Ancam  #####
+
+#####  Savim  #####
+
+#####  Monit  #####
+
+#####  SAIA1  ##### - image analysis
 **** Version 1.3 ****
 Produces histograms for an image containing a either single atom or none.
 **** ****

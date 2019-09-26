@@ -52,22 +52,24 @@ class main_window(QMainWindow):
      - The fitCurve module stores common functions for curve fitting.
     This GUI was produced with help from http://zetcode.com/gui/pyqt5/.
     Keyword arguments:
-    results_path -- directory to save log file and results to.
-    name         -- an ID for this window, prepended to saved files."""
+    results_path  -- directory to save log file and results to.
+    im_store_path -- the directory where images are saved.
+    name          -- an ID for this window, prepended to saved files."""
     event_im = pyqtSignal(np.ndarray)
 
-    def __init__(self, results_path='.', name=''):
+    def __init__(self, results_path='.', im_store_path='.', name=''):
         super().__init__()
         self.name = name  # name is displayed in the window title
-        self.bias = 697   # bias off set from EMCCD
         self.Nr   = 8.8   # read-out noise from EMCCD
         self.image_handler = ih.image_handler() # class to process images
+        self.image_handler.bias = 697   # bias off set from EMCCD
         self.histo_handler = hh.histo_handler() # class to process histograms
         self.hist_num = 0 # ID number for the next histogram 
         pg.setConfigOption('background', 'w') # set graph background default white
         pg.setConfigOption('foreground', 'k') # set graph foreground default black
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.init_log(results_path) # write header to the log file that collects histograms
+        self.image_storage_path = im_store_path # used for loading image files
         self.init_UI()  # make the widgets
         self.t0 = time.time() # time of initiation
         self.int_time = 0     # time taken to process an image
@@ -125,6 +127,15 @@ class main_window(QMainWindow):
         load_im.triggered.connect(self.load_image)
         file_menu.addAction(load_im)
         
+        make_im_menu = QMenu('Make Average Image', self) # display ave. image
+        make_im = QAction('From Files', self) # from image files (using file browser)
+        make_im.triggered.connect(self.make_ave_im)
+        make_im_menu.addAction(make_im)
+        make_im_fn = QAction('From File Numbers', self) # from image file numbers
+        make_im_fn.triggered.connect(self.make_ave_im)
+        make_im_menu.addAction(make_im_fn)
+        file_menu.addMenu(make_im_menu)
+        
         # histogram menu saves/loads/resets histogram and gives binning options
         hist_menu =  menubar.addMenu('Histogram')
 
@@ -141,12 +152,11 @@ class main_window(QMainWindow):
         load_dir.triggered.connect(self.load_from_files)
         load_menu.addAction(load_dir)
         load_fnums = QAction('From File Numbers', self) # from image file numbers
-        # load_fnums.triggered.connect(self.load_from_file_nums)
+        load_fnums.triggered.connect(self.load_from_file_nums)
         load_menu.addAction(load_fnums)
         load_csv = QAction('From csv', self) # from csv of hist data
         load_csv.triggered.connect(self.load_from_csv)
         load_menu.addAction(load_csv)
-        
         hist_menu.addMenu(load_menu)
 
         bin_menu = QMenu('Binning', self) # drop down menu for binning options
@@ -230,7 +240,7 @@ class main_window(QMainWindow):
         settings_grid.addWidget(bias_offset_label, 4,0, 1,1)
         self.bias_offset_edit = QLineEdit(self)
         settings_grid.addWidget(self.bias_offset_edit, 4,1, 1,1)
-        self.bias_offset_edit.setText(str(self.bias)) # default
+        self.bias_offset_edit.setText(str(self.image_handler.bias)) # default
         self.bias_offset_edit.editingFinished.connect(self.CCD_stat_edit)
         self.bias_offset_edit.setValidator(double_validator) # only floats
 
@@ -468,7 +478,20 @@ class main_window(QMainWindow):
         self.im_hist = pg.HistogramLUTItem()
         self.im_hist.setImageItem(self.im_canvas)
         im_widget.addItem(self.im_hist)
-        # self.im_canvas.show()
+        
+        # edits to allow the user to fix the intensity limits
+        vmin_label = QLabel('Min. intensity: ', self)
+        im_grid.addWidget(vmin_label, 8,im_grid_pos, 1,1)
+        self.vmin_edit = QLineEdit(self)
+        im_grid.addWidget(self.vmin_edit, 8,im_grid_pos+1, 1,1)
+        self.vmin_edit.setText('')  # default auto from image
+        self.vmin_edit.setValidator(int_validator) # only integers
+        vmax_label = QLabel('Max. intensity: ', self)
+        im_grid.addWidget(vmax_label, 8,im_grid_pos+2, 1,1)
+        self.vmax_edit = QLineEdit(self)
+        im_grid.addWidget(self.vmax_edit, 8,im_grid_pos+3, 1,1)
+        self.vmax_edit.setText('')  # default auto from image
+        self.vmax_edit.setValidator(int_validator) # only integers
 
 
         #### tab for plotting variables ####
@@ -545,7 +568,7 @@ class main_window(QMainWindow):
     def CCD_stat_edit(self):
         """Update the values used for the EMCCD bias offset and readout noise"""
         if self.bias_offset_edit.text(): # check the label isn't empty
-            self.bias = float(self.bias_offset_edit.text())
+            self.image_handler.bias = float(self.bias_offset_edit.text())
         if self.read_noise_edit.text():
             self.Nr = float(self.read_noise_edit.text())
 
@@ -704,8 +727,8 @@ class main_window(QMainWindow):
             if np.size(self.image_handler.peak_counts) == 2:
                 self.histo_handler.temp_vals['Background peak count'] = int(self.image_handler.peak_counts[0])
                 # assume bias offset is self.bias, readout noise standard deviation Nr
-                if self.Nr**2+self.image_handler.peak_counts[0]-self.bias > 0:
-                    self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = int((self.Nr**2+self.image_handler.peak_counts[0]-self.bias)**0.5)
+                if self.Nr**2+self.image_handler.peak_counts[0] > 0:
+                    self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = int((self.Nr**2+self.image_handler.peak_counts[0])**0.5)
                 else: # don't take the sqrt of a -ve number
                     self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = 0
                 bgw = self.image_handler.peak_widths[0] # fitted background peak width
@@ -715,8 +738,8 @@ class main_window(QMainWindow):
                 self.histo_handler.temp_vals['Background standard deviation'] = np.around(np.std(below, ddof=1), 1)
                 self.histo_handler.temp_vals['Signal peak count'] = int(self.image_handler.peak_counts[1])
                 # assume bias offset is self.bias, readout noise standard deviation Nr
-                if self.Nr**2+self.image_handler.peak_counts[1]-self.bias > 0:
-                    self.histo_handler.temp_vals['sqrt(Nr^2 + Ns)'] = int((self.Nr**2+self.image_handler.peak_counts[1]-self.bias)**0.5)
+                if self.Nr**2+self.image_handler.peak_counts[1] > 0:
+                    self.histo_handler.temp_vals['sqrt(Nr^2 + Ns)'] = int((self.Nr**2+self.image_handler.peak_counts[1])**0.5)
                 else: # don't take the sqrt of a -ve number
                     self.histo_handler.temp_vals['sqrt(Nr^2 + Ns)'] = 0
                 siw = self.image_handler.peak_widths[1] # fitted signal peak width
@@ -812,8 +835,8 @@ class main_window(QMainWindow):
             self.histo_handler.temp_vals['Upper Error in Loading probability'] = np.around(uplperr, 4)
             self.histo_handler.temp_vals['Background peak count'] = int(best_fits[0].ps[1])
             # assume bias offset is self.bias, readout noise standard deviation Nr
-            if self.Nr**2+best_fits[0].ps[1]-self.bias > 0:
-                self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = int((self.Nr**2+best_fits[0].ps[1]-self.bias)**0.5)
+            if self.Nr**2+best_fits[0].ps[1] > 0:
+                self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = int((self.Nr**2+best_fits[0].ps[1])**0.5)
             else: # don't take the sqrt of a -ve number
                 self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = 0
             bgw = best_fits[0].ps[2] # fitted background peak width
@@ -823,8 +846,8 @@ class main_window(QMainWindow):
             self.histo_handler.temp_vals['Background standard deviation'] = np.around(np.std(below, ddof=1), 1)
             self.histo_handler.temp_vals['Signal peak count'] = int(best_fits[1].ps[1])
             # assume bias offset is self.bias, readout noise standard deviation Nr
-            if self.Nr**2+best_fits[1].ps[1]-self.bias > 0:
-                self.histo_handler.temp_vals['sqrt(Nr^2 + Ns)'] = int((self.Nr**2+best_fits[1].ps[1]-self.bias)**0.5)
+            if self.Nr**2+best_fits[1].ps[1]-self > 0:
+                self.histo_handler.temp_vals['sqrt(Nr^2 + Ns)'] = int((self.Nr**2+best_fits[1].ps[1])**0.5)
             else:
                 self.histo_handler.temp_vals['sqrt(Nr^2 + Ns)'] = 0
             siw = best_fits[1].ps[2] # fitted signal peak width
@@ -908,8 +931,8 @@ class main_window(QMainWindow):
         self.histo_handler.temp_vals['Upper Error in Loading probability'] = lperr
         self.histo_handler.temp_vals['Background peak count'] = int(best_fit.ps[1])
         # assume bias offset is self.bias, readout noise standard deviation Nr
-        if self.Nr**2+mu-self.bias:
-            self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = int((self.Nr**2+mu-self.bias)**0.5)
+        if self.Nr**2+mu:
+            self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = int((self.Nr**2+mu)**0.5)
         else: # don't take the sqrt of a -ve number
             self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = 0
         self.histo_handler.temp_vals['Background peak width'] = int(best_fit.ps[2])
@@ -1108,7 +1131,12 @@ class main_window(QMainWindow):
         """Receive the image array emitted from the event signal
         display the image in the image canvas."""
         self.im_canvas.setImage(event_im)
-        self.im_hist.setLevels(np.min(event_im), np.max(event_im))
+        vmin, vmax = np.min(event_im), np.max(event_im)
+        if self.vmin_edit.text():
+            vmin = int(self.vmin_edit.text())
+        if self.vmax_edit.text():
+            vmax = int(self.vmax_edit.text())
+        self.im_hist.setLevels(vmin, vmax)
         
     def update_plot(self, event_im):
         """Receive the event path emitted from the system event handler signal
@@ -1361,9 +1389,15 @@ class main_window(QMainWindow):
             self.image_handler.reset_arrays() # get rid of old data
             self.hist_canvas.clear() # remove old histogram from display
 
-    def load_from_files(self, trigger=None):
-        """Prompt the user to select image files to process, then sequentially process
-        them and update the histogram"""
+    def load_from_files(self, trigger=None, process=1):
+        """Prompt the user to select image files to process using the file
+        browser.
+        Keyword arguments:
+            trigger:        Boolean passed from the QObject that triggers
+                            this function.
+            process:        1: process images and add to histogram.
+                            0: return list of image arrays."""
+        im_list = []
         default_path = self.get_default_path()
         if self.check_reset():
             try:
@@ -1377,23 +1411,34 @@ class main_window(QMainWindow):
                 for file_name in file_list:
                     try:
                         im_vals = self.image_handler.load_full_im(file_name)
-                        self.image_handler.process(im_vals)
-                        self.recent_label.setText(
-                            'Just processed: '+os.path.basename(file_name)) # only updates at end of loop
-                    except:
-                        print("\n WARNING: failed to load "+file_name) # probably file size was wrong
+                        if process:
+                            self.image_handler.process(im_vals)
+                        else: im_list.append(im_vals)
+                        self.recent_label.setText( # only updates at end of loop
+                            'Just processed: '+os.path.basename(file_name)) 
+                    except: # probably file size was wrong
+                        print("\n WARNING: failed to load "+file_name) 
                 self.update_stats()
                 if self.recent_label.text == 'Processing files...':
                     self.recent_label.setText('Finished Processing')
             except OSError:
                 pass # user cancelled - file not found
+        return im_list
 
-    def load_from_file_nums(self, trigger=None, species='Cs-133'):
+    def load_from_file_nums(self, trigger=None, species='Cs-133', process=1):
         """Prompt the user to enter a range of image file numbers.
         Use these to select the image files from the current image storage path.
-        Sequentially process the images then update the histogram"""
+        Sequentially process the images then update the histogram
+        Keyword arguments:
+            trigger:        Boolean passed from the QObject that triggers
+                            this function.
+            species:        part of the labelling convention for image files
+            process:        1: process images and add to histogram.
+                            0: return list of image arrays."""
+        im_list = []
         default_range = ''
-        image_storage_path = self.path_label['Image Storage Path: '].text() + '\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])  
+        image_storage_path = self.image_storage_path + '\%s\%s\%s'%(
+                self.date[3],self.date[2],self.date[0])  
         date = self.date[0]+self.date[1]+self.date[3]
         if self.image_handler.im_num > 0: # defualt load all files in folder
             default_range = '0 - ' + str(self.image_handler.im_num)
@@ -1415,7 +1460,9 @@ class main_window(QMainWindow):
             for file_name in file_list:
                 try:
                     im_vals = self.image_handler.load_full_im(file_name)
-                    self.image_handler.process(im_vals)
+                    if process:
+                        self.image_handler.process(im_vals)
+                    else: im_list.append(im_vals)
                     self.recent_label.setText(
                         'Just processed: '+os.path.basename(file_name)) # only updates at end of loop
                 except:
@@ -1423,6 +1470,7 @@ class main_window(QMainWindow):
             self.update_stats()
             if self.recent_label.text == 'Processing files...':
                 self.recent_label.setText('Finished Processing')
+        return im_list
 
     def load_from_csv(self, trigger=None):
         """Prompt the user to select a csv file to load histogram data from.
@@ -1457,6 +1505,22 @@ class main_window(QMainWindow):
                 self.update_im(im_vals)
         except OSError:
             pass # user cancelled - file not found
+
+    def make_ave_im(self):
+        """Make an average image from the files selected by the user and 
+        display it."""
+        if self.sender().text() == 'From Files':
+            im_list = self.load_from_files(process=0)
+        elif self.sender().text() == 'From File Numbers':
+            im_list = self.load_from_file_nums(process=0)
+        else: im_list = []
+        if len(im_list):
+            aveim = np.zeros(np.shape(im_list[0]))
+        else: return 0 # no images selected
+        for im in im_list:
+            aveim += im
+        self.update_im(aveim / len(im_list))
+        return 1
 
     def load_from_log(self, trigger=None):
         """Prompt the user to select the log file then pass it to the histohandler"""

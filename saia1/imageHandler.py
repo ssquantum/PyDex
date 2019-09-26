@@ -46,6 +46,7 @@ class image_handler:
     def __init__(self):
         self.delim = ' '                # delimieter to use when opening files
         self.n = 10000                  # length of array for storing counts
+        self.bias = 697                 # bias offset from EMCCD
         self.counts = np.zeros(self.n)  # integrated counts over the ROI
         self.mid_count = np.zeros(self.n)# count at the centre of the ROI
         self.mean_count = np.zeros(self.n) # list of mean counts in image - estimates background 
@@ -127,6 +128,7 @@ class image_handler:
         Fill in the next index of the file, xc, yc, mean, stdv arrays.
         Keyword arguments:
         im_vals    -- image array to be processed"""
+        full_im -= self.bias # remove the bias offset, it's arbitrary
         not_roi = full_im.copy()
         # get the ROI
         if self.roi_size % 2: # odd ROI length (+1 to upper bound)

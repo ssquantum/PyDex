@@ -31,11 +31,14 @@ class camera(QThread):
     AcquireEnd = pyqtSignal(np.ndarray) # send to image analysis 
     Finished = pyqtSignal(int) # emit when the acquisition thread finishes
 
-    def __init__(self, config_file="./AndorCam_config.dat"):
+    def __init__(self, config_file=".\\ExExposure_config.dat"):
         super().__init__()         # Initialise the parent classes
-        self.AF = Andor()          # functions for Andor camera
+        self.AF = Andor() # functions for Andor camera
         self.AF.verbosity = False  # Set True for debugging
         self.AF.connected = False
+        
+        self.lastImage  = np.zeros((32,32)) # last acquired image
+        self.BufferSize = 0 # number of images that can fit in the buffer
         
         self.idle_time = 0     # time between acquisitions
         self.t0 = time.time()  # time at start of acquisition
@@ -90,7 +93,8 @@ class camera(QThread):
     def ApplySettings(self, setPointT=-20, coolerMode=1, shutterMode=2, 
             outamp=0, hsspeed=2, vsspeed=4, preampgain=3, EMgain=1, 
             ROI=None, cropMode=0, readmode=4, acqumode=5, triggerMode=7,
-            frameTransf=0, fastTrigger=0, expTime=70e-6, verbosity=False):
+            frameTransf=0, fastTrigger=0, expTime=70e-6, verbosity=False,
+            numKin=1):
         """Apply user settings.
         Keyword arguments:
         setPointT   -- temperature set point in degrees Celsius. 
@@ -100,13 +104,14 @@ class camera(QThread):
                        mod=1: internal shutter permanently open
                        mod=2: internal shutter permanently closed
         outamp      -- output amplification setting.
-                        0: electron multiplication/conventional
-                        1: conventional/extended NIR mode
+                        0: electron multiplication
+                        1: conventional
         hsspeed     -- Horizontal shift speed (MHz)
-                        0: 17.0
-                        1: 10.0
-                        2:  5.0 
-                        3:  1.0
+              value - EM mode shift speed - conventional mode shift speed
+                0:         17.0                         3.0
+                1:         10.0                         1.0
+                2:          5.0                         0.08
+                3:          1.0 
         vsspeed     -- Vertical shift speeds (us / row).
                         0: 0.3  
                         1: 0.5
@@ -143,12 +148,14 @@ class camera(QThread):
                         0: off        1: on
         expTime     -- exposure time when not in external exposure trigger
                         mode. Units: seconds.
-        verbosity   -- True for debugging info."""
+        verbosity   -- True for debugging info
+        numKin      -- number of scans in kinetic mode."""
         errors = []
         errors.append(ERROR_CODE[self.AF.CoolerON()])
         errors.append(ERROR_CODE[self.AF.SetCoolerMode(coolerMode)])
         errors.append(ERROR_CODE[self.AF.SetTemperature(setPointT)])
         errors.append(ERROR_CODE[self.AF.SetShutter(1, shutterMode)])
+        errors.append(ERROR_CODE[self.AF.SetOutputAmplifier(outamp)])
         errors.append(ERROR_CODE[self.AF.SetHSSpeed(outamp, hsspeed)]) 
         errors.append(ERROR_CODE[self.AF.SetVSSpeed(vsspeed)])
         errors.append(ERROR_CODE[self.AF.SetPreAmpGain(preampgain)])
@@ -156,6 +163,10 @@ class camera(QThread):
         self.AF.ROI = ROI 
         errors.append(ERROR_CODE[self.AF.SetReadMode(readmode)])
         errors.append(ERROR_CODE[self.AF.SetAcquisitionMode(acqumode)])
+        if numKin > 1:
+            errors.append(ERROR_CODE[self.AF.SetNumberKinetics(numKin)])
+            # errors.append(ERROR_CODE[self.cam.AF.SetFastKineticsEx(
+            #                     100, numKin, expTime, 4, 1, 1, 1)])
         errors.append(ERROR_CODE[self.AF.SetTriggerMode(triggerMode)])
         errors.append(ERROR_CODE[self.AF.SetFastExtTrigger(fastTrigger)])
         errors.append(ERROR_CODE[self.AF.SetFrameTransferMode(frameTransf)])
@@ -163,6 +174,7 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.SetROI(self.AF.ROI, crop=cropMode)])
         errors.append(ERROR_CODE[self.AF.SetExposureTime(expTime)])
         errors.append(ERROR_CODE[self.AF.GetAcquisitionTimings()])
+        self.BufferSize = self.AF.GetSizeOfCircularBuffer()
         if abs(expTime - self.AF.exposure)/expTime > 0.01:
             print("WARNING: Tried to set exposure time %.3g s"%expTime + 
                 " but acquisition settings require min. exposure time " +
@@ -206,9 +218,8 @@ class camera(QThread):
         self.AF.ROI = (cvals[8], cvals[9], cvals[10], cvals[11])
         errors.append(ERROR_CODE[self.AF.SetReadMode(cvals[13])])
         errors.append(ERROR_CODE[self.AF.SetAcquisitionMode(cvals[14])])
-        # if cvals[14] == 4 or cvals[16] == 1:
-        #     self.AF.SetNumberKinetics(1) # number of kinetic scans
-        #     self.AF.SetNumberAccumulations(1) # number of accumulations
+        if cvals[20] > 1:
+            errors.append(ERROR_CODE[self.AF.SetNumberKinetics(cvals[20])])
         errors.append(ERROR_CODE[self.AF.SetTriggerMode(cvals[15])])
         errors.append(ERROR_CODE[self.AF.SetFrameTransferMode(cvals[16])])
         errors.append(ERROR_CODE[self.AF.SetFastExtTrigger(cvals[17])])
@@ -216,6 +227,7 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.SetROI(self.AF.ROI, crop=cvals[12])])
         errors.append(ERROR_CODE[self.AF.SetExposureTime(cvals[18])])
         errors.append(ERROR_CODE[self.AF.GetAcquisitionTimings()])
+        self.BufferSize = self.AF.GetSizeOfCircularBuffer()
         if abs(cvals[18] - self.AF.exposure)/cvals[18] > 0.01:
             print("WARNING: Tried to set exposure time %.3g s"%cvals[18] + 
                 " but acquisition settings require min. exposure time " +
@@ -228,7 +240,7 @@ class camera(QThread):
                 str(check_success.index(True)))
         return check_success
 
-    def SetROI(self, ROI, crop=0, slowcrop=0):
+    def SetROI(self, ROI, crop=0, slowcrop=1):
         """Specify an ROI on the camera to image. If none specified, use 
         the entire CCD. 
            Parameters:
@@ -307,13 +319,13 @@ class camera(QThread):
         """Taking a series of n acquisitions sequentially.
         Assuming external mode, the camera will wait for an external trigger
         to take an acquisition."""
-        for i in range():
+        for i in range(n):
             self.AF.StartAcquisition()
             result = win32event.WaitForSingleObject(
                             self.AcquisitionEvent, self.timeout)
             if result == win32event.WAIT_OBJECT_0:
                 self.Acquire()
-            elif result == win32event.WAIT_TIMEOUT and self.verbosity:
+            elif result == win32event.WAIT_TIMEOUT and self.AF.verbosity:
                 print('Acquisition timeout ', i)
         self.Finished.emit(1)
         
@@ -323,7 +335,7 @@ class camera(QThread):
         array are: (# images, # kinetic scans, ROI width, ROI height)."""
         istart, iend = self.AF.GetNumberNewImages()
         if iend > istart:
-            if iend >= self.AF.GetSizeOfCircularBuffer():
+            if iend >= self.BufferSize:
                 print("WARNING: The camera buffer was full, some images",
                     " may have been overwritten")
             return self.AF.GetImages(istart, iend, self.AF.ROIwidth,
@@ -365,6 +377,10 @@ class camera(QThread):
                 (self.t1 - self.t0)*scale)+unit)
         print("Last time taken to emit signals: %.4g "%(
                 (self.t2 - self.t1)*scale)+unit)
+        print("Readout time: %.4g "%(
+                (self.AF.GetReadOutTime())*scale)+unit)
+        print("Exposure time: %.4g "%(
+                (self.AF.exposure)*scale)+unit)
 
     def PlotAcquisition(self, images):
         """Display the list of images in separate subplots"""

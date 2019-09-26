@@ -44,24 +44,22 @@ class reim_window(main_window):
     displaying images, and plotting histogram statistics.
     This GUI was produced with help from http://zetcode.com/gui/pyqt5/.
     Keyword arguments:
-    config_file  -- if absolute path to a config file that contains 
-        the directories for the directoryWatcher is supplied, then use 
-        this instead of the default './config/config.dat'.
-    pop_up       -- control whether a pop-up window asks the user to 
-        initiate the directoryWatcher. 
-        0: don't initiate the directoryWatcher.
-        1: tacitly initiate the directoryWatcher.
-        2: pop-up window asks the user if they want to initiate.
-    """
-    def __init__(self, results_path='.', name=''):
-        super().__init__(results_path=results_path, name=name)
+    results_path  -- directory to save log file and results to.
+    im_store_path -- the directory where images are saved.
+    name          -- an ID for this window, prepended to saved files."""
+
+    def __init__(self, results_path='.', im_store_path='.', name=''):
+        super().__init__(results_path=results_path, 
+                        im_store_path=im_store_path, name=name)
         self.adjust_UI() # adjust widgets from main_window
 
         # Make instances of SAIA that watch different directories
         self.mws = []
         for i in range(2):
             self.mws.append(main_window(
-                    results_path=results_path, name=str(i)))
+                    results_path=results_path, 
+                    im_store_path=im_store_path,
+                    name=str(i)))
             # don't ask the user to confirm on close, run in background
             self.mws[i].closeEvent = self.closeAndContinue
             self.mws[i].setWindowTitle(
