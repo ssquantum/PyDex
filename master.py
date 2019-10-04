@@ -62,7 +62,7 @@ class Master(QMainWindow):
         self.restore_state(file_name=state_config)
         self.init_UI()
         self.cam = camera(config_file=self.ancam_config) # Andor camera
-        self.cam.AcquireEnd.connect(self.synchronise) # receive the most recent image
+        self.cam.AcquireEnd.connect(self.receive) # receive the most recent image
         # self.cam.verbosity = True # for debugging
         self.sv = event_handler(self.save_config) # image saver        
         self.im_save.connect(self.sv.respond)
@@ -209,7 +209,29 @@ class Master(QMainWindow):
         elif self.sender().text() == 'Monitoring':
             pass
 
-    def synchronise(self, im=0):
+    def synchronise(self, option='check', verbose=0):
+        """Check the run number in each of the associated modules.
+        option: 'check' = simply check if they're in sync
+                'reset' = if out of sync, reset to master's run #
+        """
+        checks = []
+        if int(self.sv.dfn) != self._n:
+            checks.append(0)
+            if verbose: print('Image saver # %s /= run # %s'%(
+                                self.sv.dfn, self._n))
+        for mw in self.mw:
+            if mw.image_handler.fid != self._n:
+                checks.append(0)
+                if verbose: 
+                    print('Image analysis # %s /= run # %s'%(
+                            mw.image_handler.fid, self._n))
+        if self._k != self._n*self._m + self._k % self._m:
+            checks.append(0)
+            if verbose:
+                print('Lost sync: %s images taken in %s runs'%(
+                    self._k, self._n))
+
+    def receive(self, im=0):
         """Update the Dexter file number in all associated modules,
         then send the image array to be saved and analysed.
         Temporarily incrementing the image number after every acquisition
@@ -227,12 +249,25 @@ class Master(QMainWindow):
             self.mw[0].mws[imn].image_handler.fid = self._n
             self.mw[0].mws[imn].event_im.emit(im)
         self._k += 1 # another image was taken
-        if self._k % self._m == 0: # took all of the images in a sequence
+
+    def start_run(self, option='normal'):
+        """Tell DExTer to do a run of its current sequence
+        option: 'normal'   = single run
+                'multirun' = loop over sequence changing variables"""
+        self.synchronise()
+        return 1
+
+    def end_run(self, dxn=0):
+        """Receive confirmation from DExTer that the run with ID
+        dxn completed successfully"""
+        if dxn == self._n:
+            
             self._n += 1
             self.Dx_label.setText('Dx #: '+str(self._n)
-                        + ', Im #: ' + str(imn)
+                        + ', Im #: ' + str(self._k % self._m)
                         + '\nTotal images taken: ' + str(self._k))
-                        
+        
+
     def reset_dates(self):
         """Make sure that the dates in the image saving and analysis 
         programs are correct."""
@@ -267,7 +302,7 @@ class Master(QMainWindow):
             unprocessed_ims = self.cam.EmptyBuffer()
             for im in unprocessed_ims:
                 # image dimensions: (# kscans, width pixels, height pixels)
-                self.synchronise(im[0]) 
+                self.receive(im[0]) 
             self.cam.AF.AbortAcquisition()
             self.acquire_button.setText('Start acquisition')
             self.status_label.setText('Idle')

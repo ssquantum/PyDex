@@ -42,7 +42,6 @@ class event_handler(QThread):
         self.dfn     = "0"         # dexter file number
         self.imn     = "0"         # ID # for when there are several images in a sequence
         self.nfn     = 0           # number to append to file so as not to overwrite
-        self.species = 'Cs-133'    # atomic species to label files with
         self.last_event_path = ""  # last event processed 
         self.t0      = 0           # time at start of event
         self.init_t  = time.time() # time of initiation: use to test how long it takes to realise an event is started
@@ -109,20 +108,22 @@ class event_handler(QThread):
             last_file_size = os.path.getsize(file_name)
             time.sleep(dt) # deliberately add pause so we don't loop too many times
             
-    def respond(self, im_array):
+    def respond(self, im_array, species='Cs-133'):
         """On a new image signal being emitted, save it to a file with a 
-        synced label into the image storage dir"""
+        synced label into the image storage dir. File name format:
+        [species]_[date]_[Dexter file #].asc
+        """
         self.t0 = time.time()
         self.idle_t = self.t0 - self.end_t   # duration between end of last event and start of current event
         # copy file with labeling: [species]_[date]_[Dexter file #]
         new_file_name = os.path.join(self.image_storage_path, 
-                '_'.join([self.species, 
+                '_'.join([species, 
                         self.date[0]+self.date[1]+self.date[3], 
                         self.dfn, self.imn]) + '.asc')
         self.write_t = time.time()
         if os.path.isfile(new_file_name): # don't overwrite files
             new_file_name = os.path.join(self.image_storage_path, 
-                '_'.join([self.species, 
+                '_'.join([species, 
                         self.date[0]+self.date[1]+self.date[3], 
                         self.dfn, self.imn, str(self.nfn)]) + '.asc')
             self.nfn += 1 # always a unique number
