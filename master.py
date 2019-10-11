@@ -35,6 +35,7 @@ from saia1.reimage import reim_window # analysis for survival probability
 sys.path.append(r'./ancam')
 from ancam.cameraHandler import camera # manages Andor camera
 from savim.imsaver import event_handler # saves images
+from queue.runid import runnum # synchronises run number, sends signals
 
 class Master(QMainWindow):
     """A manager to synchronise and control experiment modules.
@@ -52,20 +53,13 @@ class Master(QMainWindow):
                     Default directories for camera settings and image 
                     saving are also saved in this file.
     """
-    im_save    = pyqtSignal(np.ndarray) # send an incoming image to saver
-
     def __init__(self, pop_up=1, state_config='.\\state'):
         super().__init__()
-        t0 = time.localtime()
         self.ancam_config = '.\\ancam\\ExExposure_config.dat'
         self.save_config = '.\\config\\config.dat'
-        self.restore_state(file_name=state_config)
+        sv_dirs = event_handler.get_dirs(self.save_config)
+        startn = self.restore_state(file_name=state_config)
         self.init_UI()
-        self.cam = camera(config_file=self.ancam_config) # Andor camera
-        self.cam.AcquireEnd.connect(self.receive) # receive the most recent image
-        # self.cam.verbosity = True # for debugging
-        self.sv = event_handler(self.save_config) # image saver        
-        self.im_save.connect(self.sv.respond)
         # choose which image analyser to use from number images in sequence
         if pop_up:
             m, ok = QInputDialog.getInt( # user chooses image analyser
@@ -74,28 +68,27 @@ class Master(QMainWindow):
                 value=0, min=0, max=10)
         else:
             m = 0
-        if m == 0:
-            self.mw = [reim_window(self.sv.dirs_dict['Results Path: '])]
-            self.mw[0].setGeometry(100, 250, 850, 700)
-            self.mw[0].show()
-            self._m = 2 # number of images per experimental sequence
+        # initialise the thread controlling run # and emitting images
+        if m == 0: # reimage calculates survival probability
+            self.rn = runnum(camera(config_file=self.ancam_config), # Andor camera
+                event_handler(self.save_config), # image saver
+                [reim_window(sv_dirs['Results Path: '])], # image analysis
+                n=startn, m=2, k=0) 
+            self.rn.mw[0].setGeometry(100, 250, 850, 700)
+            self.rn.mw[0].show()
         else:
-            self._m = m # number of images per experimental sequence
-            self.mw = []
+            self.rn = runnum(camera(config_file=self.ancam_config), # Andor camera
+                event_handler(self.save_config), # image saver
+                [main_window(
+                    results_path =sv_dirs['Results Path: '],
+                    im_store_path=sv_dirs['Image Storage Path: '],
+                    name=str(i)) for i in range(m)], # image analysis
+                n=startn, m=m, k=0) 
             for i in range(m):
-                self.mw.append(main_window(
-                    results_path =self.sv.dirs_dict['Results Path: '],
-                    im_store_path=self.sv.dirs_dict['Image Storage Path: '],
-                    name=str(i)))
-                self.mw[i].show()
-                
-        # set a timer to update the dates 10s after midnight:
-        QTimer.singleShot((86410 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
-            self.reset_dates)
+                self.rn.mw[i].show()
         
         self.status_label.setText('Initialised')
 
-        self._k = 0 # number of images processed
         
     def restore_state(self, file_name='./state'):
         """Use the data stored in the given file to restore the file # for
@@ -112,8 +105,8 @@ class Master(QMainWindow):
                 elif 'SaveConfig' in row:
                     self.save_config = row.split('=')[-1].replace('\n','')
         if nd == time.strftime("%d,%B,%Y", time.localtime()): # restore file number
-            self._n = nfn # [Py]DExTer file number
-        else: self._n = 0
+            return nfn # [Py]DExTer file number
+        else: return 0
         
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
             default_text='', validator=0):
@@ -158,7 +151,7 @@ class Master(QMainWindow):
         self.status_label = QLabel('Initiating...', self)
         self.centre_widget.layout.addWidget(self.status_label, 0,0, 1,1)
         
-        self.Dx_label = QLabel('Dx #: '+str(self._n), self)
+        self.Dx_label = QLabel('Dx #: '+str(self.rn._n), self)
         self.centre_widget.layout.addWidget(self.Dx_label, 1,0, 1,1)
 
         self.acquire_button = QPushButton('Start acquisition', self, 
@@ -175,16 +168,16 @@ class Master(QMainWindow):
     def show_window(self):
         """Show the window of the submodule or adjust its settings."""
         if self.sender().text() == 'Image Analyser':
-            for mw in self.mw:
+            for mw in self.rn.mw:
                 mw.show()
         elif self.sender().text() == 'Camera Status':
             text, ok = QInputDialog.getText( 
                 self, 'Camera Status',
-                'Current state: ' + self.cam.AF.GetStatus() + '\n' +
+                'Current state: ' + self.rn.cam.AF.GetStatus() + '\n' +
                 'Choose a new config file: ',
                 text=self.ancam_config)
             if text and ok and not self.acquire_button.isChecked():
-                check = self.cam.ApplySettingsFromConfig(text)
+                check = self.rn.cam.ApplySettingsFromConfig(text)
                 if not any(check):
                     self.status_label.setText('Camera settings were reset.')
                     self.ancam_config = text
@@ -194,100 +187,38 @@ class Master(QMainWindow):
         elif self.sender().text() == 'Image Saver':
             text, ok = QInputDialog.getText( 
                 self, 'Image Saver',
-                self.sv.print_dirs(self.sv.dirs_dict.items()) + 
+                self.rn.sv.print_dirs(self.rn.sv.dirs_dict.items()) + 
         '\nEnter the path to a config file to reset the image saver: ',
         text=self.save_config)
             if text and ok:
                 self.im_save.disconnect()
-                self.sv = event_handler(text)
-                if self.sv.image_storage_path:
+                self.rn.sv = event_handler(text)
+                if self.rn.sv.image_storage_path:
                     self.status_label.setText('Image Saver was reset.')
-                    self.im_save.connect(self.sv.respond)
+                    self.im_save.connect(self.rn.sv.respond)
                     self.save_config = text
                 else:
                     self.status_label.setText('Failed to find config file.')
+        elif self.sender().text() == 'Sequence Editor':
+            pass
         elif self.sender().text() == 'Monitoring':
             pass
-
-    def synchronise(self, option='check', verbose=0):
-        """Check the run number in each of the associated modules.
-        option: 'check' = simply check if they're in sync
-                'reset' = if out of sync, reset to master's run #
-        """
-        checks = []
-        if int(self.sv.dfn) != self._n:
-            checks.append(0)
-            if verbose: print('Image saver # %s /= run # %s'%(
-                                self.sv.dfn, self._n))
-        for mw in self.mw:
-            if mw.image_handler.fid != self._n:
-                checks.append(0)
-                if verbose: 
-                    print('Image analysis # %s /= run # %s'%(
-                            mw.image_handler.fid, self._n))
-        if self._k != self._n*self._m + self._k % self._m:
-            checks.append(0)
-            if verbose:
-                print('Lost sync: %s images taken in %s runs'%(
-                    self._k, self._n))
-
-    def receive(self, im=0):
-        """Update the Dexter file number in all associated modules,
-        then send the image array to be saved and analysed.
-        Temporarily incrementing the image number after every acquisition
-        and then using this to define the Dx run #, but we should define
-        the Dx run # from the start of the sequence."""
-        self.sv.dfn = str(self._n) # Dexter file number
-        imn = self._k % self._m # ID number of image in sequence
-        self.sv.imn = str(imn) 
-        self.im_save.emit(im)
-        if self._m != 2:
-            self.mw[imn].image_handler.fid = self._n
-            self.mw[imn].event_im.emit(im)
-        else: # survival probability uses a master window
-            self.mw[0].image_handler.fid = self._n
-            self.mw[0].mws[imn].image_handler.fid = self._n
-            self.mw[0].mws[imn].event_im.emit(im)
-        self._k += 1 # another image was taken
 
     def start_run(self, option='normal'):
         """Tell DExTer to do a run of its current sequence
         option: 'normal'   = single run
                 'multirun' = loop over sequence changing variables"""
-        self.synchronise()
+        self.synchronise('popup')
         return 1
 
-    def end_run(self, dxn=0):
-        """Receive confirmation from DExTer that the run with ID
-        dxn completed successfully"""
-        if dxn == self._n:
-            
-            self._n += 1
-            self.Dx_label.setText('Dx #: '+str(self._n)
-                        + ', Im #: ' + str(self._k % self._m)
-                        + '\nTotal images taken: ' + str(self._k))
-        
-
-    def reset_dates(self):
-        """Make sure that the dates in the image saving and analysis 
-        programs are correct."""
-        t0 = time.localtime()
-        self.sv.date = time.strftime(
-                "%d %b %B %Y", t0).split(" ") # day short_month long_month year
-        for mw in self.mw:
-            mw.date = self.sv.date
-        QTimer.singleShot((86410 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
-            self.reset_dates)
-            
     def reset_camera(self, ancam_config='./ancam/ExExposure_config.dat'):
         """Close the camera and then start it up again with the new setting.
         Sometimes after being in crop mode the camera fails to reset the 
         ROI and so must be closed and restarted."""
-        self.cam.SafeShutdown()
-        self.cam = camera(config_file=ancam_config) # Andor camera
+        self.rn.cam.SafeShutdown()
+        self.rn.cam = camera(config_file=ancam_config) # Andor camera
         self.status_label.setText('Camera settings were reset.')
         self.ancam_config = ancam_config
-        
 
     def start_acquisitions(self, toggle):
         """Take the number of acquisitions stated in the num_acquisitions
@@ -295,22 +226,27 @@ class Master(QMainWindow):
         the camera thread is runnning, the button to start acquisitions 
         will be disabled."""
         if toggle:            
-            self.status_label.setText('Acquiring...')
-            self.acquire_button.setText('Stop acquisition')
-            self.cam.start()
+            self.status_label.setText('Running...')
+            self.acquire_button.setText('Abort')
+            self.rn.cam.start()
         else:
-            unprocessed_ims = self.cam.EmptyBuffer()
-            for im in unprocessed_ims:
-                # image dimensions: (# kscans, width pixels, height pixels)
-                self.receive(im[0]) 
-            self.cam.AF.AbortAcquisition()
-            self.acquire_button.setText('Start acquisition')
+            unprocessed = self.rn.cam.EmptyBuffer()
+            self.rn.cam.AF.AbortAcquisition()
+            if unprocessed:
+                reply = QMessageBox.question(self, 'Unprocessed Images',
+            "Process the remaining %s images from the buffer?"%len(unprocessed), 
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if reply == QMessageBox.Yes:
+                    for im in unprocessed:
+                        # image dimensions: (# kscans, width pixels, height pixels)
+                        self.receive(im[0]) 
+            self.acquire_button.setText('Start run')
             self.status_label.setText('Idle')
             
     def save_state(self, file_name='./state'):
         """Save the file number and date and config file paths so that they
         can be loaded again when the program is next started."""
-        state = {'File#':self._n,
+        state = {'File#':self.rn._n,
                         'Date':time.strftime("%d,%B,%Y", time.localtime()),
                 'CameraConfig':self.ancam_config,
                   'SaveConfig':self.save_config}
@@ -320,8 +256,8 @@ class Master(QMainWindow):
 
     def closeEvent(self, event):
         """Proper shut down procedure"""
-        self.cam.SafeShutdown()
-        for mw in self.mw:
+        self.rn.cam.SafeShutdown()
+        for mw in self.rn.mw:
             mw.close()
         self.save_state()
         event.accept()
