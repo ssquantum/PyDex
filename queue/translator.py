@@ -13,7 +13,7 @@ try:
         QAction, QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, 
         QFileDialog, QDoubleValidator, QIntValidator, QComboBox, QMenu, 
         QActionGroup, QTabWidget, QVBoxLayout, QFont, QRegExpValidator, 
-        QInputDialog) 
+        QInputDialog, QScrollArea) 
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
     from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
@@ -21,7 +21,7 @@ except ImportError:
     from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, 
         QTabWidget, QAction, QMainWindow, QLabel, QInputDialog, QGridLayout,
         QMessageBox, QLineEdit, QFileDialog, QComboBox, QActionGroup, QMenu,
-        QVBoxLayout)
+        QVBoxLayout, QScrollArea)
 
 
 #### #### DExTer clusters #### ####
@@ -164,6 +164,7 @@ class Editor(QMainWindow):
     def __init__(self, num_events=1):
         super().__init__()
         self.seq = translate(num_events)
+        self.pre = Previewer(self.seq)
         self.init_UI()
 
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
@@ -219,9 +220,9 @@ class Editor(QMainWindow):
             position=[3,0, 1,1], default_text='0', validator=double_validator)
 
         #### preview sequence ####
-        self.preview_button = QPushButton('Preview sequence', self, 
-                                                        checkable=True)
+        self.preview_button = QPushButton('Preview sequence', self)
         self.preview_button.resize(self.preview_button.sizeHint())
+        self.preview_button.clicked.connect(self.pre.show)
         self.centre_widget.layout.addWidget(self.preview_button, 5,0, 1,1)
 
         #### save to file ####
@@ -229,7 +230,7 @@ class Editor(QMainWindow):
         #### choose main window position and dimensions: (xpos,ypos,width,height)
         self.setGeometry(60, 60, 900, 800)
         self.setWindowTitle('DExTer Sequence Editor')
-        # self.setWindowIcon(QIcon('docs/tempicon.png'))
+        self.setWindowIcon(QIcon('docs/translatoricon.png'))
 
 #### #### Preview sequences #### ####
 
@@ -242,95 +243,171 @@ class Previewer(QMainWindow):
         self.init_UI()
         self.set_sequence(sequence)
 
-    def label_pair(self, label_text, layout, position=[0,0, 1,1],
-            default_text=''):
+    def label_pair(self, label_text, layout, pos1=[0,0, 1,1],
+            pos2=[0,1, 1,1], default_text=''):
         """Make a QLabel pair and add them to the 
         given layout . The position argument should
         be [row number, column number, row width, column width]."""
         label1 = QLabel(label_text, self)
-        layout.addWidget(label1, *position)
+        label1.setStyleSheet('border: 1px solid black')
+        label1.setFixedWidth(200)
+        layout.addWidget(label1, *pos1)
         label2 = QLabel(default_text, self)
-        if np.size(position) == 4:
-            position[1] += 1
-        layout.addWidget(label2, *position)
+        label2.setStyleSheet('border: 1px solid black')
+        layout.addWidget(label2, *pos2)
         return label1, label2
 
     def position(self, list0, arr1, i0r, i0c, i1r, i1c, layout,
-            step0=1, step1=1, size0=[1,1], size1=[1,1]):
+            step0=1, step1=1, size0=[1,1], size1=[1,1],
+            dimn=1):
         """Generate a new Qlabel with text from list1 and position
         it in layout at rows j descending down from i0r in steps of
         step0 at column i0c. The Qlabel will take up 
         size0 = [rows, columns]. 
         For each row position widgets from arr1 at row j+i1r 
         starting from column i1c in steps step1. The widgets take up 
-        size1 = [rows,columns]."""
+        size1 = [rows,columns].
+        dimn: arr1 has shape (# events, # channels, dimn):
+            iterate over the widgets in the last dimension of arr1
+            placing them in successive columns."""
         for i, text in enumerate(list0):
             label = QLabel(text, self)
-            layout.addWidget(label, i*step0+i0r,i0c, *size0)
-            for j, widget in enumerate(arr1[:,i]):
-                layout.addWidget(widget, i1r+i*step0,i1c+j*step1, *size1)
+            label.setStyleSheet('border: 1px solid black')
+            label.setFixedWidth(200)
+            layout.addWidget(label, i0r + i*step0, i0c, *size0)
+            for j, widgets in enumerate(arr1[:,i]):
+                for k in range(dimn):
+                    widgets[k].setStyleSheet('border: 1px solid black')
+                    widgets[k].setFixedWidth(80*size1[1])
+                    layout.addWidget(widgets[k], 
+                        i1r + i*step0, i1c + j*step1 + k, *size1)
             yield label
-
 
     def init_UI(self, num_e=1):
         """Create all of the widget objects required"""
         self.centre_widget = QWidget()
         self.centre_widget.layout = QGridLayout()
-        self.centre_widget.setLayout(self.centre_widget.layout)
-        self.setCentralWidget(self.centre_widget)
         
         # position the widgets on the layout:
-
         i=0 # index to separate label positions
         # metadata
         _, self.routine_name = self.label_pair(
             'Routine name: ', self.centre_widget.layout,
-            [i,0, 1,1])
+            [i,0, 1,2], [i,2, 1,2*num_e])
         _, self.routine_desc = self.label_pair(
             'Routine description: ', self.centre_widget.layout,
-            [i+1,0, 1,1])
+            [i+1,0, 1,2], [i+1,2, 1,2*num_e])
         self.routine_desc.setWordWrap(True)
 
         # list of event descriptions
-        self.e_list = np.array([[QLabel(self)]*4]*num_e) # event list
-        e_labels = [x for x in self.position(['Event name: ', 'Routine specific event? ',
-                'Event indices: ', 'Event path: '], self.e_list,
-                i0r=i+2, i0c=1, i1r=i+2, i1c=2, 
-                self.centre_widget.layout)]
+        self.e_list = np.array([[[QLabel(self)] for ii in range(4)] 
+            for iii in range(num_e)]) # event list
+        _ = [x for x in self.position(['Event name: ', 
+            'Routine specific event? ', 'Event indices: ', 'Event path: '], 
+            self.e_list, i0r=i+2, i0c=0, i1r=i+2, i1c=2, size0=[1,2],
+            step1=2, size1=[1,2], layout=self.centre_widget.layout)]
         
         # event header top 
         header_items = ['Skip step: ', 'Event name: ', 'Hide event steps: ', 
-                'Event ID: ', 'Time step name: ', 'Populate multirun: ',
-                'Time step length: ', 'Time unit: ', 'D/A trigger: ',
-                'Trigger this step? ', 'Channel: ', 'Analogue voltage: ',
-                'GBIP event name: ', 'GBIP on/off: ']
-        self.head_top = np.array([[QLabel(self)*len(header_items)]*num_e])
-        e_head_top = [x for x in self.position(header_items, self.head_top,
-            i0r=i+7, i0c=1, i1r=i+7, i1c=2, self.centre_widget.layout)]
+            'Event ID: ', 'Time step name: ', 'Populate multirun: ',
+            'Time step length: ', 'Time unit: ', 'D/A trigger: ',
+            'Trigger this step? ', 'Channel: ', 'Analogue voltage: ',
+            'GBIP event name: ', 'GBIP on/off: ']
+        i += 7
+        self.head_top = np.array([[[QLabel(self)] for ii in 
+            range(len(header_items))] for iii in range(num_e)])
+        _ = [x for x in self.position(header_items, self.head_top,
+            i0r=i, i0c=0, i1r=i, i1c=2, layout=self.centre_widget.layout, 
+            size0=[1,2], step1=2, size1=[1,2])]
             
         # fast digital channels
+        i += len(header_items)
         fd_head = QLabel('FD', self) 
-        self.centre_widget.layout.addWidget(fd_head, i+21,0, 1,1)
-        self.fd_chans = np.array([[QLabel(self)]*56]*num_e)
+        self.centre_widget.layout.addWidget(fd_head, i,0, 1,1)
+        self.fd_chans = np.array([[[QLabel(self)] for ii in 
+            range(56)] for iii in range(num_e)])
         self.fd_names = [x for x in self.position(['']*56, self.fd_chans,
-            i0r=i+22, i0c=0, i1r=i+22, i1c=2, step1=2, size1=[1,2])]
+            i0r=i+1, i0c=0, i1r=i+1, i1c=2, layout=self.centre_widget.layout, 
+            step1=2, size1=[1,2])]
             
         # fast analogue channels
-        self.fa_chans = np.array([[[QLabel('0', self), Qlabel(self)]]*8]*num_e) 
-        self.ch_names = [[Qlabel(self)]*8]*3 # fast analogue, slow digital, slow analogue names
+        i += 57
+        fa_head = QLabel('FA', self) 
+        self.centre_widget.layout.addWidget(fa_head, i,0, 1,1)
+        self.fa_chans = np.array([[[QLabel('0', self), QLabel(self)] for ii in 
+            range(8)] for iii in range(num_e)]) 
+        self.fa_names = [x for x in self.position(['']*8, self.fa_chans, i0r=i+1, 
+            i0c=0, i1r=i+1, i1c=2, step1=2, layout=self.centre_widget.layout, dimn=2)]
 
-        for ind, text in [[79, 'FA'], [88, 'SD'], [97, 'SA']]:
-            l0 = Qlabel(text, self)
-            self.centre_widget.layout.addWidget(l0, ind,0, 1,1)
-            for j, l1 in enumerate(self.ch_names[(ind-79)//8]):
-                self.centre_widget.layout.addWidget(l1, ind+j+1,0, 1,1)
+        # event header middle
+        i += 9
+        self.head_mid = np.array([[[QLabel(self)] for ii in 
+            range(len(header_items))] for iii in range(num_e)])
+        _ = [x for x in self.position(header_items, self.head_mid,
+            i0r=i, i0c=0, i1r=i, i1c=2, layout=self.centre_widget.layout,
+             size0=[1,2], step1=2, size1=[1,2])]
 
-        self.head_mid = np.array([[QLabel(self)*len(header_items)]*num_e])
-        self.sd_chans = np.array([[QLabel(self)]*8]*num_e)  # slow digital
-        self.sa_chans = np.array([[[QLabel('0', self), Qlabel(self)]]*8]*num_e) # slow analogue
-        for chan in np.append(self.fd_chans.flatten() + self.sd_chans.flatten()):
-            chan.setStyleSheet('color: red') # use color to indicate on/off
+        # slow digital channels
+        i += len(header_items)
+        sd_head = QLabel('SD', self) 
+        self.centre_widget.layout.addWidget(sd_head, i,0, 1,1)
+        self.sd_chans = np.array([[[QLabel(self)] for ii in 
+            range(8)] for iii in range(num_e)])
+        self.sd_names = [x for x in self.position(['']*8, self.sd_chans,
+            i0r=i+1, i0c=0, i1r=i+1, i1c=2, layout=self.centre_widget.layout, 
+            step1=2, size1=[1,2])]
+        
+        # slow analogue channels
+        i += 57
+        sa_head = QLabel('SA', self) 
+        self.centre_widget.layout.addWidget(sa_head, i,0, 1,1)
+        self.sa_chans = np.array([[[QLabel('0', self), QLabel(self)] for ii in 
+            range(8)] for iii in range(num_e)])
+        self.sa_names = [x for x in self.position(['']*8, self.sa_chans, i0r=i+1, 
+            i0c=0, i1r=i+1, i1c=2, step1=2, layout=self.centre_widget.layout, dimn=2)]
 
+        # set default of digital channels to false = red.
+        for chan in np.append(self.fd_chans.flatten(), self.sd_chans.flatten()):
+            chan.setStyleSheet('background-color: red; border: 1px solid black') 
+
+        # place scroll bars if the contents of the window are too large
+        self.centre_widget.setLayout(self.centre_widget.layout)
+        scroll = QScrollArea(self)
+        scroll.setWidget(self.centre_widget)
+        scroll.setWidgetResizable(True)
+        scroll.setFixedHeight(800)
+        self.setCentralWidget(scroll)
+        
+        # choose main window position and dimensions: (xpos,ypos,width,height)
+        width = 220*(num_e+1) # scale width with number of events
+        self.setGeometry(60, 60, width if width<1200 else 1200, 800)
+        self.setWindowTitle('Sequence Preview')
+        self.setWindowIcon(QIcon('docs/previewicon.png'))
+
+    def set_sequence(self, seq=translate()):
+        """Fill the labels with the values from the sequence"""
+        self.routine_name.setText(seq['Routine name'])
+        self.routine_desc.setText(seq['Routine description'])
+        for i in range(len(seq['Event list array'])):
+            ela = seq['Event list array'] # shorthand
+            self.e_list[i][0].setText(ela['Event name'][i])
+            self.e_list[i][0].setText(ela['Routine specific event?'][i])
+            self.e_list[i][0].setText(ela['Event indices'][i])
+            self.e_list[i][0].setText(ela['Event path'][i])
+            self.head_top[i].setText()
+            self.fd_names[i].setText()
+            self.fd_chans[i].setText()
+            self.fa_names[i].setText()
+            self.fa_chans[i].setText()
+            self.head_mid[i].setText()
+            self.sd_names[i].setText()
+            self.sd_chans[i].setText()
+            self.sa_names[i].setText()
+            self.sa_chans[i].setText()
+        'Event list array':
+            [event_list()]*num_e,
+        'Routine name': '',
+        'Routine description': '',
         'Experimental sequence cluster': {
             'Sequence header top':[header_cluster()]*num_e,
             'Fast digital names':channel_names(56),
@@ -343,26 +420,6 @@ class Previewer(QMainWindow):
             'Slow analogue names':channel_names(8),
             'Slow analogue array':[analogue_cluster(8)]*num_e}
         }
-        # horizontal scroll bar
-        # vertical scroll bar
-
-        #### menubar at top gives options ####
-        # menubar = self.menuBar()
-        # show_windows = menubar.addMenu('')
-        # menu_items = []
-        # for window_title in []:
-        #     menu_items.append(QAction(window_title, self)) 
-        #     menu_items[-1].triggered.connect(self.show_window)
-        #     show_windows.addAction(menu_items[-1])
-
-        
-        #### choose main window position and dimensions: (xpos,ypos,width,height)
-        self.setGeometry(60, 60, 800, 800)
-        self.setWindowTitle('Sequence Preview')
-        # self.setWindowIcon(QIcon('docs/tempicon.png'))
-
-    def set_sequence(self, sequence=translate()):
-        """Fill the labels with the values from the sequence"""
         return 0
 
 

@@ -163,7 +163,7 @@ class Master(QMainWindow):
         #### choose main window position and dimensions: (xpos,ypos,width,height)
         self.setGeometry(50, 50, 800, 150)
         self.setWindowTitle('PyDex Master')
-        # self.setWindowIcon(QIcon('docs/tempicon.png'))
+        self.setWindowIcon(QIcon('docs/pydexicon.png'))
 
     def show_window(self):
         """Show the window of the submodule or adjust its settings."""
