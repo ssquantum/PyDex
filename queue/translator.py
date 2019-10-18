@@ -45,14 +45,12 @@ def header_cluster():
             'Populate multirun':False,
             'Time step length':1,
             'Time unit':1,
-            'Trigger details':{
-                'Digital trigger or analogue trigger?':0,
-                'Trigger this time step?':False,
-                'Channel':0,
-                'Analogue voltage':0},
-            'GPIB routine data':{
-                'GPIB event name':0,
-                'GPIB on/off':False}}
+            'Digital trigger or analogue trigger?':0,
+            'Trigger this time step?':False,
+            'Channel':0,
+            'Analogue voltage':0,
+            'GPIB event name':0,
+            'GPIB on/off':False}
 
 def channel_names(length, values=None):
     """Define a dictionary for DExTer's channel names cluster
@@ -388,39 +386,43 @@ class Previewer(QMainWindow):
         """Fill the labels with the values from the sequence"""
         self.routine_name.setText(seq['Routine name'])
         self.routine_desc.setText(seq['Routine description'])
+        ela = seq['Event list array'] # shorthand
+        esc = seq['Experimental sequence cluster']
+        for i in range(56):
+            self.fd_names[i].setText(esc['Fast digital names']['Hardware ID'][i]
+                + ': ' + esc['Fast digital names']['Name'][i])
+        for i in range(8):
+            self.fa_names[i].setText(esc['Fast digital names']['Hardware ID'][i]
+                + ': ' + esc['Fast analogue names']['Name'][i])
+            self.sd_names[i].setText(esc['Slow digital names']['Hardware ID'][i]
+                + ': ' + esc['Fast digital names']['Name'][i])
+            self.sa_names[i].setText(esc['Slow analogue names']['Hardware ID'][i]
+                + ': ' + esc['Fast digital names']['Name'][i])
         for i in range(len(seq['Event list array'])):
-            ela = seq['Event list array'] # shorthand
-            self.e_list[i][0].setText(ela['Event name'][i])
-            self.e_list[i][0].setText(ela['Routine specific event?'][i])
-            self.e_list[i][0].setText(ela['Event indices'][i])
-            self.e_list[i][0].setText(ela['Event path'][i])
-            self.head_top[i].setText()
-            self.fd_names[i].setText()
-            self.fd_chans[i].setText()
-            self.fa_names[i].setText()
-            self.fa_chans[i].setText()
-            self.head_mid[i].setText()
-            self.sd_names[i].setText()
-            self.sd_chans[i].setText()
-            self.sa_names[i].setText()
-            self.sa_chans[i].setText()
-        'Event list array':
-            [event_list()]*num_e,
-        'Routine name': '',
-        'Routine description': '',
-        'Experimental sequence cluster': {
-            'Sequence header top':[header_cluster()]*num_e,
-            'Fast digital names':channel_names(56),
-            'Fast digital channels':[[False]*56]*num_e,
-            'Fast analogue names':channel_names(8),
-            'Fast analogue array':[analogue_cluster(8)]*num_e,
-            'Sequence header middle':[header_cluster()]*num_e,
-            'Slow digital names':channel_names(8),
-            'Slow digital channels':[[False]*8]*num_e,
-            'Slow analogue names':channel_names(8),
-            'Slow analogue array':[analogue_cluster(8)]*num_e}
-        }
-        return 0
+            self.e_list[i][0].setText(ela[i]['Event name'])
+            self.e_list[i][0].setText(ela[i]['Routine specific event?'])
+            self.e_list[i][0].setText(ela[i]['Event indices'])
+            self.e_list[i][0].setText(ela[i]['Event path'])
+            for j, key in enumerate(['Skip step', 'Event name', 'Hide event steps', 
+                    'Event ID', 'Time step name', 'Populate multirun', 'Time step length', 
+                    'Time unit', 'Digital trigger of analogue trigger?', 'Trigger this step?', 
+                    'Channel', 'Analogue voltage', 'GBIP event name', 'GBIP on/off']):
+                self.head_top[i][j].setText(esc['Sequence header top'][i][key])
+                self.head_mid[i][j].setText(esc['Sequence header middle'][i][key])
+            for j in range(56):
+                self.fd_chans[i][j][0].setStyleSheet('background-color: '
+                    + 'green' if esc['Fast digital channels'][i][j] else 'red' 
+                    + '; border: 1px solid black') 
+            for j in range(8):
+                self.fa_chans[i][j][0].setText(esc['Fast analogue array'][i]['Voltage'][j])
+                self.fa_chans[i][j][1].setText(
+                    'Ramp' if esc['Fast analogue array'][i]['Ramp?'][j] else '')
+                self.sd_chans[i][j][0].setStyleSheet('background-color: '
+                    + 'green' if esc['Slow digital channels'][i][j] else 'red' 
+                    + '; border: 1px solid black') 
+                self.sa_chans[i][j][0].setText(esc['Slow analogue array'][i]['Voltage'][j])
+                self.sa_chans[i][j][1].setText(
+                    'Ramp' if esc['Slow analogue array'][i]['Ramp?'][j] else '')        
 
 
 ####    ####    ####    #### 
