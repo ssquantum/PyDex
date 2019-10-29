@@ -50,19 +50,27 @@ class fit:
         return A * np.exp( -2 * (x-x0)**2 /wx**2) + y0
 
     def gauss(self, x, A, x0, sig):
-        """Gaussian function centred at x0 with amplitude A, and standard deviation sig"""
+        """Gaussian function centred at x0 with amplitude A, and standard 
+        deviation sig"""
         return A * np.exp( - (x-x0)**2 /sig**2 / 2)
+    
+    def double_gauss(self, x, A0, x0, sig0, A1, x1, sig1):
+        """Fit 2 Gaussian functions with independent amplitudes A, centre x, 
+        and standard deviation sig."""
+        return A0* np.exp(-(x-x0)**2 /2. /sig0**2) + A1* np.exp(
+                                                    -(x-x1)**2 /2. /sig1**2)
     
     def poisson(self, x, mu, A):
         """Poisson distribution with mean mu, amplitude A"""
         return A * np.power(mu,x) * np.exp(-mu) / factorial(x)
     
-    def getBestFit(self, fn):
-        """Use scipy.optimize.curve_fit to get the best fit to the supplied data
-        using the supplied function fn
+    def getBestFit(self, fn, **kwargs):
+        """Use scipy.optimize.curve_fit to get the best fit to the supplied 
+        data using the supplied function fn. Bounds and other keyword 
+        arguments can be passed through.
         Returns tuple of best fit parameters and their errors"""
         popt, pcov = curve_fit(fn, self.x, self.y, p0=self.p0, sigma=self.yerr,
-                                maxfev=80000)
+                                maxfev=80000, **kwargs)
         self.ps = popt
         self.perrs = np.sqrt(np.diag(pcov))
     

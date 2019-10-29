@@ -13,7 +13,7 @@ try:
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal, QTimer
     from PyQt5.QtWidgets import QMessageBox
-
+from networker import PyClient
 
 class runnum(QThread):
     """Take ownership of the run number that is
@@ -31,7 +31,7 @@ class runnum(QThread):
     m     - the number of images taken per sequence
     k     - the number of images taken already"""
     im_save = pyqtSignal(np.ndarray) # send an incoming image to saver
-    rn_end  = pyqtSignal(str) # send confirmation that run has finished
+    run_end  = pyqtSignal(str) # send confirmation that run has finished
 
     def __init__(self, camra, saver, saiaw, n=0, m=1, k=0):
         super().__init__()
@@ -49,9 +49,6 @@ class runnum(QThread):
         QTimer.singleShot((86410 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.rn.reset_dates)
 
-        # self.lock = 0     # run # locked
-        # self.rlog = []    # log failed requests to change run num
-
     def receive(self, im=0):
         """Update the Dexter file number in all associated modules,
         then send the image array to be saved and analysed."""
@@ -68,13 +65,17 @@ class runnum(QThread):
             self.mw[0].mws[imn].event_im.emit(im)
         self._k += 1 # another image was taken
 
+    def start_run(self):
+        """Tell DExTer to start a multirun"""
+        return 0
+
     def end_run(self, dxn='0'):
         """Receive confirmation from DExTer that the run with ID
         dxn completed successfully"""
         if dxn != str(self._n):
             print('Lost sync: Dx %s /= master %s'%(dxn, self._n))
         self._n += 1
-        self.rn_end.emit('Dx #: '+str(self._n)
+        self.run_end.emit('Dx #: '+str(self._n)
             + ', Im #: ' + str(self._k % self._m)
             + '\nTotal images taken: ' + str(self._k))
 

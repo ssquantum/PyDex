@@ -1,10 +1,11 @@
-"""Sequence Translator
+"""Queue - Sequence Translator
 Stefan Spence 04/10/19
 
  - translate DExTer sequences to/from json
  - create a GUI to facilitate editing sequences
 """
 import json
+import xmltodict
 import sys
 import numpy as np
 try:
@@ -122,10 +123,16 @@ class translate:
         format as a string."""
         return json.dumps(self.json_dict)
 
-    def load_file(self, fname='sequence_example.json'):
+    def load_json(self, fname='sequence_example.json'):
         """Load a sequence as a dictionary from a json file."""
         with open(fname, 'r') as f:
             self.json_dict = json.load(f)
+            
+    def load_xml(self, fname='sequence_example.xml'):
+        """Load a sequence as a dictionary from an xml file."""
+        with open(fname, 'r') as f:
+            whole_dict = xmltodict.parse(f.read())
+            self.json_dict = whole_dict # needs restructuring
 
     def add_event(self, idx=None, event_name=event_list(), 
             header_top=header_cluster(), fd=[False]*56,

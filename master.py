@@ -35,6 +35,7 @@ from saia1.reimage import reim_window # analysis for survival probability
 sys.path.append(r'./ancam')
 from ancam.cameraHandler import camera # manages Andor camera
 from savim.imsaver import event_handler # saves images
+sys.path.append(r'./queue')
 from queue.runid import runnum # synchronises run number, sends signals
 
 class Master(QMainWindow):

@@ -1,4 +1,4 @@
-Date=25,September,2019
 SaveConfig=.\\config\\config.dat
-File#=0
-CameraConfig=.\\ancam\\ExExposure_config.dat
+Date=17,October,2019
+File#=2039
+CameraConfig=.\\ancam\\Single_Acquisition_config.dat

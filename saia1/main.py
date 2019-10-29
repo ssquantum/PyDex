@@ -172,6 +172,19 @@ class main_window(QMainWindow):
         bin_options.setExclusive(True) # only one option checked at a time
         bin_options.triggered.connect(self.set_bins) # connect the signal
         hist_menu.addMenu(bin_menu)
+        
+        fit_menu = QMenu('Fitting', self) # drop down menu for fitting options
+        fit_options = QActionGroup(fit_menu)  # group together the options
+        self.fit_methods = {'Seperate Gaussians':0, 'Double Gaussian':0}
+        for action_label in self.fit_methods.keys():
+            self.fit_methods[action_label] = QAction(
+                action_label, fit_menu, checkable=True, 
+                checked=action_label=='Seperate Gaussians') # set default
+            fit_menu.addAction(self.fit_methods[action_label])
+            fit_options.addAction(self.fit_methods[action_label])
+        self.fit_methods['Seperate Gaussians'].setChecked(True) # make sure default is set
+        fit_options.setExclusive(True) # only one option checked at a time
+        hist_menu.addMenu(fit_menu)
 
         # load plots from log files
         varplot_menu = menubar.addMenu('Plotting')
@@ -728,7 +741,8 @@ class main_window(QMainWindow):
                 self.histo_handler.temp_vals['Background peak count'] = int(self.image_handler.peak_counts[0])
                 # assume bias offset is self.bias, readout noise standard deviation Nr
                 if self.Nr**2+self.image_handler.peak_counts[0] > 0:
-                    self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = int((self.Nr**2+self.image_handler.peak_counts[0])**0.5)
+                    self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = int((
+                        np.prod(self.roi.size())*self.Nr**2+self.image_handler.peak_counts[0])**0.5)
                 else: # don't take the sqrt of a -ve number
                     self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = 0
                 bgw = self.image_handler.peak_widths[0] # fitted background peak width
@@ -739,7 +753,8 @@ class main_window(QMainWindow):
                 self.histo_handler.temp_vals['Signal peak count'] = int(self.image_handler.peak_counts[1])
                 # assume bias offset is self.bias, readout noise standard deviation Nr
                 if self.Nr**2+self.image_handler.peak_counts[1] > 0:
-                    self.histo_handler.temp_vals['sqrt(Nr^2 + Ns)'] = int((self.Nr**2+self.image_handler.peak_counts[1])**0.5)
+                    self.histo_handler.temp_vals['sqrt(Nr^2 + Ns)'] = int((
+                        np.prod(self.roi.size())*self.Nr**2+self.image_handler.peak_counts[1])**0.5)
                 else: # don't take the sqrt of a -ve number
                     self.histo_handler.temp_vals['sqrt(Nr^2 + Ns)'] = 0
                 siw = self.image_handler.peak_widths[1] # fitted signal peak width
@@ -770,40 +785,60 @@ class main_window(QMainWindow):
             for key, val in self.histo_handler.temp_vals.items():
                 self.stat_labels[key].setText(str(val))
 
-    def fit_gaussians(self, store_stats=False):
+    def fit_gaussians(self, store_stats=False, method='Split'):
         """Update the histogram and fit two Gaussians, splitting the data at the threshold
         then use the fits to calculate histogram statistics, and set the threshold where the 
-        fidelity is maximum. If the store_stats Boolean is True, append the calculated values
-        to the histo_handler's statistics dictionary."""
+        fidelity is maximum. 
+        store_stats - True: append the calculated values to the 
+                histo_handler's statistics dictionary.
+                      False: don't store the results
+        method      - 'Split': split the histogram at the threshold and fit
+                two separate Gaussians
+                    - 'Double': fit a function that sums two Gaussians"""
         bins, occ, thresh = self.image_handler.histogram()  # get histogram
         bin_mid = (bins[1] - bins[0]) * 0.5 # from edge of bin to middle
-        diff = abs(bins - thresh)   # minimum is at the threshold
-        thresh_i = np.argmin(diff)  # index of the threshold
-        # split the histogram at the threshold value
-        best_fits = [fc.fit(bins[:thresh_i]+bin_mid, occ[:thresh_i]),
-                        fc.fit(bins[thresh_i:-1]+bin_mid, occ[thresh_i:])]
-        for bf in best_fits:
+        if self.fit_methods['Seperate Gaussians'].isChecked():
+            diff = abs(bins - thresh)   # minimum is at the threshold
+            thresh_i = np.argmin(diff)  # index of the threshold
+            # split the histogram at the threshold value
+            best_fits = [fc.fit(bins[:thresh_i]+bin_mid, occ[:thresh_i]),
+                            fc.fit(bins[thresh_i:-1]+bin_mid, occ[thresh_i:])]
+            for bf in best_fits:
+                try:
+                    bf.estGaussParam()         # get estimate of parameters
+                    # parameters are: amplitude, centre, standard deviation
+                    bf.getBestFit(bf.gauss)    # get best fit parameters
+                except: return 0               # fit failed, do nothing
+            bf = fc.fit(bins[:-1]+bin_mid, occ)
+            bf.ps = np.concatenate([b.ps for b in best_fits])
+        elif self.fit_methods['Double Gaussian'].isChecked():
+            # sort counts ascending
+            cs = np.sort(self.image_handler.counts[:self.image_handler.im_num]) 
+            mid = len(cs) // 2 # index of the middle of the counts array
+            bf = fc.fit(bins[:-1]+bin_mid, occ, param=[
+                    np.max(occ), np.mean(cs[:mid]), np.std(cs[:mid]),
+                    np.max(occ), np.mean(cs[mid:]), np.std(cs[mid:])])
             try:
-                bf.estGaussParam()         # get estimate of parameters
-                # parameters are: amplitude, centre, standard deviation
-                bf.getBestFit(bf.gauss)    # get best fit parameters
+                # parameters are: amplitude, centre, standard deviation for the
+                # upper and then lower peaks.
+                bf.getBestFit(bf.double_gauss)     # get best fit parameters
             except: return 0               # fit failed, do nothing
         # update image handler's values for peak parameters
-        self.image_handler.peak_heights = np.array((best_fits[0].ps[0], best_fits[1].ps[0]))
-        self.image_handler.peak_counts = np.array((best_fits[0].ps[1], best_fits[1].ps[1]))
-        self.image_handler.peak_widths = np.array((best_fits[0].ps[2], best_fits[1].ps[2]))
+        self.image_handler.peak_heights = np.array((bf.ps[0], bf.ps[3]))
+        self.image_handler.peak_counts = np.array((bf.ps[1], bf.ps[4]))
+        bf.ps[2], bf.ps[5] = abs(bf.ps[2]), abs(bf.ps[5])
+        self.image_handler.peak_widths = np.array((bf.ps[2], bf.ps[5]))
         # update threshold to where fidelity is maximum
         if not self.thresh_toggle.isChecked(): # update thresh if not set by user
-            self.image_handler.search_fidelity(best_fits[0].ps[1], best_fits[0].ps[2], 
-                                                            best_fits[1].ps[1], n=100)
+            self.image_handler.search_fidelity(bf.ps[1], bf.ps[2], 
+                                                            bf.ps[4], n=100)
         else:
             self.image_handler.fidelity, self.image_handler.err_fidelity = np.around(
                             self.image_handler.get_fidelity(), 4) # round to 4 d.p.
 
         self.plot_current_hist(self.image_handler.histogram) # clear then update histogram plot
-        for bf in best_fits:
-            xs = np.linspace(min(bf.x), max(bf.x), 100) # interpolate
-            self.hist_canvas.plot(xs, bf.gauss(xs, *bf.ps), pen='b') # plot best fit
+        xs = np.linspace(min(bf.x), max(bf.x), 100) # interpolate
+        self.hist_canvas.plot(xs, bf.double_gauss(xs, *bf.ps), pen='b') # plot best fit
         # update atom statistics
         self.image_handler.atom[:self.image_handler.im_num] = self.image_handler.counts[
             :self.image_handler.im_num] // self.image_handler.thresh   # update atom presence
@@ -833,31 +868,33 @@ class main_window(QMainWindow):
             self.histo_handler.temp_vals['Error in Loading probability'] = np.around((uplperr + lolperr)*0.5, 4)
             self.histo_handler.temp_vals['Lower Error in Loading probability'] = np.around(lolperr, 4)
             self.histo_handler.temp_vals['Upper Error in Loading probability'] = np.around(uplperr, 4)
-            self.histo_handler.temp_vals['Background peak count'] = int(best_fits[0].ps[1])
+            self.histo_handler.temp_vals['Background peak count'] = int(bf.ps[1])
             # assume bias offset is self.bias, readout noise standard deviation Nr
-            if self.Nr**2+best_fits[0].ps[1] > 0:
-                self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = int((self.Nr**2+best_fits[0].ps[1])**0.5)
+            if self.Nr**2+bf.ps[1] > 0:
+                self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = int((
+                        np.prod(self.roi.size())*self.Nr**2+bf.ps[1])**0.5)
             else: # don't take the sqrt of a -ve number
                 self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = 0
-            bgw = best_fits[0].ps[2] # fitted background peak width
+            bgw = bf.ps[2] # fitted background peak width
             self.histo_handler.temp_vals['Background peak width'] = int(bgw)
-            self.histo_handler.temp_vals['Error in Background peak count'] = np.around(best_fits[0].ps[2] / empty_count**0.5, 2)
+            self.histo_handler.temp_vals['Error in Background peak count'] = np.around(bf.ps[2] / empty_count**0.5, 2)
             self.histo_handler.temp_vals['Background mean'] = np.around(np.mean(below), 1)
             self.histo_handler.temp_vals['Background standard deviation'] = np.around(np.std(below, ddof=1), 1)
-            self.histo_handler.temp_vals['Signal peak count'] = int(best_fits[1].ps[1])
+            self.histo_handler.temp_vals['Signal peak count'] = int(bf.ps[4])
             # assume bias offset is self.bias, readout noise standard deviation Nr
-            if self.Nr**2+best_fits[1].ps[1]-self > 0:
-                self.histo_handler.temp_vals['sqrt(Nr^2 + Ns)'] = int((self.Nr**2+best_fits[1].ps[1])**0.5)
+            if self.Nr**2+bf.ps[4] > 0:
+                self.histo_handler.temp_vals['sqrt(Nr^2 + Ns)'] = int((
+                        np.prod(self.roi.size())*self.Nr**2+bf.ps[4])**0.5)
             else:
                 self.histo_handler.temp_vals['sqrt(Nr^2 + Ns)'] = 0
-            siw = best_fits[1].ps[2] # fitted signal peak width
+            siw = bf.ps[5] # fitted signal peak width
             self.histo_handler.temp_vals['Signal peak width'] = int(siw)
-            self.histo_handler.temp_vals['Error in Signal peak count'] = np.around(best_fits[1].ps[2] / atom_count**0.5, 2)
+            self.histo_handler.temp_vals['Error in Signal peak count'] = np.around(bf.ps[5] / atom_count**0.5, 2)
             self.histo_handler.temp_vals['Signal mean'] = np.around(np.mean(above), 1)
             self.histo_handler.temp_vals['Signal standard deviation'] = np.around(np.std(above, ddof=1), 1)
-            sep = best_fits[1].ps[1] - best_fits[0].ps[1] # separation of fitted peak centres
+            sep = bf.ps[4] - bf.ps[1] # separation of fitted peak centres
             self.histo_handler.temp_vals['Separation'] = int(sep)
-            seperr = np.sqrt(best_fits[0].ps[2]**2 / empty_count + best_fits[1].ps[2]**2 / atom_count) # error in separation
+            seperr = np.sqrt(bf.ps[2]**2 / empty_count + bf.ps[5]**2 / atom_count) # error in separation
             self.histo_handler.temp_vals['Error in Separation'] = np.around(seperr, 2)
             self.histo_handler.temp_vals['Fidelity'] = self.image_handler.fidelity
             self.histo_handler.temp_vals['Error in Fidelity'] = self.image_handler.err_fidelity
@@ -898,23 +935,23 @@ class main_window(QMainWindow):
         bins, occ, _ = self.image_handler.histogram()  # get histogram
         bin_mid = (bins[1] - bins[0]) * 0.5 # from edge of bin to middle
         # make a Gaussian fit to the peak
-        best_fit = fc.fit(bins[:-1]+bin_mid, occ)
+        bf = fc.fit(bins[:-1]+bin_mid, occ)
         try:
-            best_fit.estGaussParam()
+            bf.estGaussParam()
             # parameters are: amplitude, centre, standard deviation
-            best_fit.getBestFit(best_fit.gauss)    # get best fit parameters
+            bf.getBestFit(bf.gauss)    # get best fit parameters
         except: return 0               # fit failed, do nothing
         # calculate mean and std dev from the data
         mu, sig = np.mean(c), np.std(c, ddof=1)
-        # best_fit.ps = [best_fit.ps[0], mu, sig] # use the peak from the fit
+        # bf.ps = [bf.ps[0], mu, sig] # use the peak from the fit
         lperr = np.around(binom_conf_interval(0, n, interval='jeffreys')[1], 4) # upper 1 sigma confidence
         # update image handler's values for peak parameters
-        self.image_handler.peak_heights = np.array((best_fit.ps[0], 0))
-        self.image_handler.peak_counts = np.array((best_fit.ps[1], 0))
-        self.image_handler.peak_widths = np.array((best_fit.ps[2], 0))
+        self.image_handler.peak_heights = np.array((bf.ps[0], 0))
+        self.image_handler.peak_counts = np.array((bf.ps[1], 0))
+        self.image_handler.peak_widths = np.array((bf.ps[2], 0))
         self.plot_current_hist(self.image_handler.histogram) # clear then update histogram plot
-        xs = np.linspace(min(best_fit.x), max(best_fit.x), 100) # interpolate
-        self.hist_canvas.plot(xs, best_fit.gauss(xs, *best_fit.ps), pen='b') # plot best fit
+        xs = np.linspace(min(bf.x), max(bf.x), 100) # interpolate
+        self.hist_canvas.plot(xs, bf.gauss(xs, *bf.ps), pen='b') # plot best fit
         # store the calculated histogram statistics as temp, don't add to plot
         self.histo_handler.temp_vals['Hist ID'] = int(self.hist_num)
         file_list = [x for x in self.image_handler.files if x]
@@ -929,14 +966,15 @@ class main_window(QMainWindow):
         self.histo_handler.temp_vals['Error in Loading probability'] = lperr
         self.histo_handler.temp_vals['Lower Error in Loading probability'] = 0
         self.histo_handler.temp_vals['Upper Error in Loading probability'] = lperr
-        self.histo_handler.temp_vals['Background peak count'] = int(best_fit.ps[1])
+        self.histo_handler.temp_vals['Background peak count'] = int(bf.ps[1])
         # assume bias offset is self.bias, readout noise standard deviation Nr
         if self.Nr**2+mu:
-            self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = int((self.Nr**2+mu)**0.5)
+            self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = int((
+                        np.prod(self.roi.size())*self.Nr**2+mu)**0.5)
         else: # don't take the sqrt of a -ve number
             self.histo_handler.temp_vals['sqrt(Nr^2 + Nbg)'] = 0
-        self.histo_handler.temp_vals['Background peak width'] = int(best_fit.ps[2])
-        self.histo_handler.temp_vals['Error in Background peak count'] = np.around(best_fit.ps[2] / n**0.5, 4)
+        self.histo_handler.temp_vals['Background peak width'] = int(bf.ps[2])
+        self.histo_handler.temp_vals['Error in Background peak count'] = np.around(bf.ps[2] / n**0.5, 4)
         self.histo_handler.temp_vals['Background mean'] = np.around(mu, 1)
         self.histo_handler.temp_vals['Background standard deviation'] = np.around(sig, 1)
         self.histo_handler.temp_vals['Signal peak count'] = 0

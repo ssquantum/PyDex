@@ -225,12 +225,12 @@ class image_handler:
             occ, bins = np.histogram(self.counts[:self.im_num], self.bin_array) # fixed bins. 
         else:
             try:
-                lo, hi = min(self.counts[:self.im_num]), max(self.counts[:self.im_num])
+                lo, hi = min(self.counts[:self.im_num])*0.9, max(self.counts[:self.im_num])*1.1
                 # scale number of bins with number of files in histogram and with separation of peaks
-                num_bins = int(17 + 5e-5 * self.im_num**2 + ((hi - lo)/hi)**2*15) 
+                num_bins = int(25 + 5e-5 * self.im_num**2 + ((hi - lo)/hi)**2*15) 
             except: 
                 lo, hi, num_bins = 0, 1, 10
-            occ, bins = np.histogram(self.counts[:self.im_num], bins=num_bins) # no bins provided by user
+            occ, bins = np.histogram(self.counts[:self.im_num], bins=np.linspace(lo, hi, num_bins+1)) # no bins provided by user
         # get the indexes of peak positions, heights, and widths
         self.peak_indexes, self.peak_heights, self.peak_widths = est_param(occ)
         self.peak_counts = bins[self.peak_indexes] + 0.5*(bins[1] - bins[0])
@@ -304,7 +304,7 @@ class image_handler:
             header = f.readline() # check the column headings, might vary between csv files.
         if np.size(data): # check that the file wasn't empty
             i = 0
-            self.files = np.concatenate((self.files[:self.im_num], data[:,i], np.array(['']*self.n)))
+            self.files = np.concatenate((self.files[:self.im_num], list(map(int, data[:,i])), np.array(['']*self.n)))
             self.counts = np.concatenate((self.counts[:self.im_num], data[:,i+1], np.zeros(self.n)))
             self.atom = np.concatenate((self.atom[:self.im_num], data[:,i+2], np.zeros(self.n)))
             if 'Max Count' in header or 'ROI Centre Count' in header:
