@@ -30,9 +30,9 @@ except ImportError:
             QActionGroup, QVBoxLayout, QFont, QRegExpValidator)
     from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, QTabWidget,
         QAction, QMainWindow, QLabel, QInputDialog)
-import imageHandler as ih # process images to build up a histogram
-import histoHandler as hh # collect data from histograms together
-import fitCurve as fc   # custom class to get best fit parameters using curve_fit
+from . import imageHandler as ih # process images to build up a histogram
+from . import histoHandler as hh # collect data from histograms together
+from . import fitCurve as fc   # custom class to get best fit parameters using curve_fit
           
 ####    ####    ####    ####
 

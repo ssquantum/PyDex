@@ -29,7 +29,7 @@ except ImportError:
             QActionGroup, QVBoxLayout, QFont, QRegExpValidator)
     from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, QTabWidget,
         QAction, QMainWindow, QLabel)
-from main import main_window  # a single instance of SAIA
+from .main import main_window  # a single instance of SAIA
 
 # main GUI window contains all the widgets                
 class reim_window(main_window):
@@ -104,7 +104,7 @@ class reim_window(main_window):
         self.image_handler.xc_list    = ih2.xc_list[idxs]
         self.image_handler.yc_list    = ih2.xc_list[idxs]
         self.image_handler.im_num = np.size(self.image_handler.counts) - 1
-        self.image_handler.atom = ih2.counts[idxs] // self.image_handler.thresh
+        self.image_handler.atom = ih2.atom[idxs]
         t2 = time.time()
         self.int_time = t2 - t1
         return t2

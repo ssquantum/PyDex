@@ -1,4 +1,4 @@
-"""Queue - Sequence Translator
+"""Dextr - Sequence Translator
 Stefan Spence 04/10/19
 
  - translate DExTer sequences to/from json

@@ -1,4 +1,4 @@
-"""Queue - task managing for PyDex
+"""Dextr - task managing for PyDex
 Stefan Spence 11/10/19
 
  - control the run number ID for experimental runs
@@ -13,7 +13,7 @@ try:
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal, QTimer
     from PyQt5.QtWidgets import QMessageBox
-from networker import PyClient
+from .networker import PyClient
 
 class runnum(QThread):
     """Take ownership of the run number that is
@@ -47,7 +47,7 @@ class runnum(QThread):
         # set a timer to update the dates 10s after midnight:
         t0 = time.localtime()
         QTimer.singleShot((86410 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
-            self.rn.reset_dates)
+            self.reset_dates)
 
     def receive(self, im=0):
         """Update the Dexter file number in all associated modules,

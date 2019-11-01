@@ -29,14 +29,11 @@ except ImportError:
         QVBoxLayout)
 # change directory to this file's location
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
-sys.path.append(r'./saia1')
 from saia1.main import main_window # image analysis
 from saia1.reimage import reim_window # analysis for survival probability
-sys.path.append(r'./ancam')
 from ancam.cameraHandler import camera # manages Andor camera
 from savim.imsaver import event_handler # saves images
-sys.path.append(r'./queue')
-from queue.runid import runnum # synchronises run number, sends signals
+from dextr.runid import runnum # synchronises run number, sends signals
 
 class Master(QMainWindow):
     """A manager to synchronise and control experiment modules.
@@ -60,7 +57,6 @@ class Master(QMainWindow):
         self.save_config = '.\\config\\config.dat'
         sv_dirs = event_handler.get_dirs(self.save_config)
         startn = self.restore_state(file_name=state_config)
-        self.init_UI()
         # choose which image analyser to use from number images in sequence
         if pop_up:
             m, ok = QInputDialog.getInt( # user chooses image analyser
@@ -87,7 +83,7 @@ class Master(QMainWindow):
                 n=startn, m=m, k=0) 
             for i in range(m):
                 self.rn.mw[i].show()
-        
+        self.init_UI()
         self.status_label.setText('Initialised')
 
         

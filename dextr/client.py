@@ -1,4 +1,4 @@
-"""Queue - communication over the network
+"""Dextr - communication over the network
 Stefan Spence 21/10/19
 
  - Client that can send and receive data
@@ -9,7 +9,6 @@ try:
     from PyQt4.QtCore import QThread, pyqtSignal
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
-    
     
 class PyClient(QThread):
     """Create a client that opens a socket, sends and receives data.
@@ -42,7 +41,7 @@ class PyClient(QThread):
                 textLength = '0'*(3-len(textLength)) + textLength
                 sock.sendall(bytes(textLength, encoding)) # send text length
                 sock.sendall(bytes(text, encoding)) # send text
-                # send signal to listen for received te
+                # send signal to listen for message in return
                 self.txtout.emit(str(sock.recv(buffer_size), encoding))
             except ConnectionRefusedError:
                 print('Warning: could not make TCP connection')
@@ -89,6 +88,57 @@ class PyClient(QThread):
     #         # blocks and waits until a message is received from the server
     #         return str(sock.recv(buffer_size), encoding) 
     
-if __name__ == "__main__":
-    pc = PyClient()
-    pc.singleContact('0', 'Hello world!')
+    
+    
+    
+# a server
+
+class PyServer(QThread):
+    """Create a server that opens a socket, and constantly waits to .
+    The server socket can host several connection sockets.
+    port - the unique port number used for the next socket connection."""
+    textin = pyqtSignal(str) # received message
+    
+    def __init__(self, port=8089):
+        super().__init__()
+        self.server_address = ('localhost', port)
+        self.enum = "0"
+        self.message = ""
+        self.mes_len = "000"
+        
+    def update_textout(self, enum, text):
+        """Update the message that will be sent upon the next connection.
+        enum - a single byte giving an int 0-9 that corresponds to a command
+        text - the message to send as a string."""
+        self.enum = enum
+        self.message = text
+        textLength = str(len(text))
+        # make sure the message length is sent as str of length 3
+        self.mes_len = '0'*(3-len(textLength)) + textLength
+
+    def run(self, encoding="UTF-8", buffer_size=1024):
+        """Keeps a socket open that waits for new connections. For each new
+        connection, open a new socket that sends the following 3 messages:
+         1) the enum as a single byte, which will correspond to a command. 
+         2) the length of the text string in 3 bytes (i.e. length < 1000).
+         3) the text string.
+        Then receives a message that is emitted via a pyqtSignal."""
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(self.server_address)
+            s.listen() # start the socket that waits for connections
+            self.state.emit(1) # server running
+            while True:
+                if self.check_stop():
+                    break # toggle
+                conn, addr = s.accept() # create a new socket 
+                with conn:
+                    conn.sendall(bytes(self.enum, encoding)) # send enum
+                    conn.sendall(bytes(self.mes_len, encoding)) # send text length
+                    conn.sendall(bytes(self.message, encoding)) # send text
+                    # send signal to listen for message in return
+                    self.textin.emit(str(conn.recv(buffer_size), encoding))
+            self.state.emit(0) # server closed
+            
+    def check_stop(self):
+        """"""
+        return self.stop
