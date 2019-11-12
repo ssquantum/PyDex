@@ -105,6 +105,7 @@ class reim_window(main_window):
         self.image_handler.yc_list    = ih2.xc_list[idxs]
         self.image_handler.im_num = np.size(self.image_handler.counts) - 1
         self.image_handler.atom = ih2.atom[idxs]
+        self.image_handler.thresh = ih1.thresh
         t2 = time.time()
         self.int_time = t2 - t1
         return t2

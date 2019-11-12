@@ -10,10 +10,43 @@ Stefan Spence 21/10/19
  - if the queue is empty, continue looping until there is a message to send.
 """
 import socket
+import struct
 try:
     from PyQt4.QtCore import QThread, pyqtSignal
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
+    
+TCP_ENUM = { # enum for DExTer's producer-consumer loop cases
+'Initialise': 0,
+'Save sequence': 1,
+'Load sequence': 2,
+'Lock sequence':3, 
+'Run sequence':4, 
+'Run continuously':5, 
+'Multirun run':6, 
+'Delete multirun list column':7, 
+'Multirun populate values':8, 
+'Change multirun index':9, 
+'Change multirun analogue type':10, 
+'Change multirun type':11, 
+'Load event':12, 
+'Delete event':13, 
+'Move event top':14, 
+'Move event bottom':15, 
+'Move event up':16, 
+'Move event down':17, 
+'New routine specific event':18, 
+'Convert routine specific event':19, 
+'Change timestep':20, 
+'Collapse event':21, 
+'Load last timestep':22, 
+'Panel close':23, 
+'Check IOs':24, 
+'Run GPIB case':25, 
+'TCP read':26, 
+'TCP multirun values':27, 
+'TCP load sequence':28
+}
     
 class PyServer(QThread):
     """Create a server that opens a socket to host TCP connections.
@@ -29,14 +62,15 @@ class PyServer(QThread):
         self.server_address = ('localhost', port)
         self.msg_queue = []
         
-    def add_message(self, enum, text):
+    def add_message(self, enum, text, encoding="UTF-8", ):
         """Update the message that will be sent upon the next connection.
-        enum - a single byte giving an int 0-9 that corresponds to a command
+        enum - an integer corresponding to the enum for DExTer's producer-
+                consumer loop
         text - the message to send as a string."""
-        textLength = str(len(text))
-        # make sure the message length is sent as str of length 3
-        self.msg_queue.append(
-            [enum, '0'*(3-len(textLength)) + textLength, text])
+        # enum and message length are sent as unsigned long int (4 bytes)
+        self.msg_queue.append([struct.pack("!L", int(enum)), # enum 
+                                struct.pack("!L", len(text)), # msg length 
+                                bytes(text, encoding)]) # message
 
     def run(self, encoding="UTF-8", buffer_size=1024):
         """Keeps a socket open that waits for new connections. For each new
@@ -55,9 +89,9 @@ class PyServer(QThread):
                     conn, addr = s.accept() # create a new socket
                     enum, mes_len, message = self.msg_queue.pop(0)
                     with conn:
-                        conn.sendall(bytes(enum, encoding)) # send enum
-                        conn.sendall(bytes(mes_len, encoding)) # send text length
-                        conn.sendall(bytes(message, encoding)) # send text
+                        conn.sendall(enum) # send enum
+                        conn.sendall(mes_len) # send text length
+                        conn.sendall(message) # send text
                         # send signal to listen for message in return
                         self.textin.emit(str(conn.recv(buffer_size), encoding))
             
@@ -74,11 +108,11 @@ class PyServer(QThread):
         """Stop the event loop safely, ensuring that the sockets are closed.
         Once the thread has stopped, reset the stop toggle so that it 
         doesn't block the thread starting again the next time."""
-        self.stop = True
         while True: # make sure that the slot is only connected once 
             try: self.finished.disconnect(self.check_stop)
             except TypeError: break
         self.finished.connect(self.reset_stop)
+        self.stop = True
                             
 if __name__ == "__main__":
     ps = PyServer()

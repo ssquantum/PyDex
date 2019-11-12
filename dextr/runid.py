@@ -13,7 +13,7 @@ try:
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal, QTimer
     from PyQt5.QtWidgets import QMessageBox
-from .networker import PyClient
+from .networker import PyServer
 
 class runnum(QThread):
     """Take ownership of the run number that is
@@ -43,11 +43,30 @@ class runnum(QThread):
         self.sv = saver  # image saver
         self.im_save.connect(self.sv.respond) # separate signal to avoid interfering
         self.mw = saiaw  # image analysis main windows
+        
+        self.server = PyServer() # server will run continuously on a thread
+        self.server.textin.connect(self.Dxnum) # signal gives returned message
 
-        # set a timer to update the dates 10s after midnight:
+        # set a timer to update the dates 1s after midnight:
         t0 = time.localtime()
-        QTimer.singleShot((86410 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
+        QTimer.singleShot((86401 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates)
+            
+    def reset_server(self, force=False):
+        """Check if the server is running. If it is, don't do anything, unless 
+        force=True, then stop and restart the server. If the server isn't 
+        running, then start it."""
+        if self.server.isRunning():
+            if force:
+                self.server.close()
+                self.server.start()
+        else: self.server.start()
+            
+    def Dxnum(self, dxn):
+        """change the Dexter run number to the new value"""
+        if dxn != str(self._n+1):
+            print('Lost sync: Dx %s /= master %s'%(dxn, self._n+1))
+        self._n = int(dxn)
 
     def receive(self, im=0):
         """Update the Dexter file number in all associated modules,
@@ -65,20 +84,6 @@ class runnum(QThread):
             self.mw[0].mws[imn].event_im.emit(im)
         self._k += 1 # another image was taken
 
-    def start_run(self):
-        """Tell DExTer to start a multirun"""
-        return 0
-
-    def end_run(self, dxn='0'):
-        """Receive confirmation from DExTer that the run with ID
-        dxn completed successfully"""
-        if dxn != str(self._n):
-            print('Lost sync: Dx %s /= master %s'%(dxn, self._n))
-        self._n += 1
-        self.run_end.emit('Dx #: '+str(self._n)
-            + ', Im #: ' + str(self._k % self._m)
-            + '\nTotal images taken: ' + str(self._k))
-
     def reset_dates(self):
         """Make sure that the dates in the image saving and analysis 
         programs are correct."""
@@ -87,8 +92,8 @@ class runnum(QThread):
                 "%d %b %B %Y", t0).split(" ") # day short_month long_month year
         for mw in self.mw:
             mw.date = self.sv.date
-        QTimer.singleShot((86410 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
-            self.reset_dates)
+        QTimer.singleShot((86401 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
+            self.reset_dates) # set the next timer to reset dates
     
     def synchronise(self, option='', verbose=0):
         """Check the run number in each of the associated modules.
@@ -128,11 +133,3 @@ class runnum(QThread):
                     mw.image_handler.fid = self._n
             self._k = self._n * self._m # number images that should've been taken
             return checks
-
-    # def increase(self, label=''):
-    #     """Request to increase the run #. This is only
-    #     possible if lock is False. Else, the time and 
-    #     label are recorded in the request log."""
-    #     if not self.lock:
-    #         self._n += 1
-    #     else: self.rlog.append(label+' '+time.strftime("%x %X"))

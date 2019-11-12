@@ -157,7 +157,7 @@ class Master(QMainWindow):
         self.acquire_button.resize(self.acquire_button.sizeHint())
         self.centre_widget.layout.addWidget(self.acquire_button, 2,0, 1,1)
         
-        #### choose main window position and dimensions: (xpos,ypos,width,height)
+        #### choose main window position, dimensions: (xpos,ypos,width,height)
         self.setGeometry(50, 50, 800, 150)
         self.setWindowTitle('PyDex Master')
         self.setWindowIcon(QIcon('docs/pydexicon.png'))
@@ -176,7 +176,8 @@ class Master(QMainWindow):
             if text and ok and not self.acquire_button.isChecked():
                 check = self.rn.cam.ApplySettingsFromConfig(text)
                 if not any(check):
-                    self.status_label.setText('Camera settings were reset.')
+                    self.status_label.setText('Camera settings config: ' +
+                        os.path.basename(text))
                     self.ancam_config = text
                 else:
                     self.status_label.setText(
@@ -201,12 +202,6 @@ class Master(QMainWindow):
         elif self.sender().text() == 'Monitoring':
             pass
 
-    def start_run(self, option='normal'):
-        """Tell DExTer to do a run of its current sequence
-        option: 'normal'   = single run
-                'multirun' = loop over sequence changing variables"""
-        self.synchronise('popup')
-        return 1
 
     def reset_camera(self, ancam_config='./ancam/ExExposure_config.dat'):
         """Close the camera and then start it up again with the new setting.
@@ -272,7 +267,7 @@ def run():
     boss = Master()
     boss.show()
     if standalone: # if an app instance was made, execute it
-        sys.exit(app.exec_()) # when the window is closed, the python code also stops
+        sys.exit(app.exec_()) # when the window is closed, python code stops
    
 if __name__ == "__main__":
     run()

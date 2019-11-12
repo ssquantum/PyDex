@@ -16,6 +16,6 @@
 15 triggerMode = 0
 16 frameTransf = 0
 17 fastTrigger = 0
-18 expTime     = 10e-3
+18 expTime     = 1e-3
 19 verbosity   = 0
 20 numKinetics = 1
