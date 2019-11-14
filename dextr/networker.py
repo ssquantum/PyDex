@@ -16,7 +16,7 @@ try:
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
     
-TCP_ENUM = { # enum for DExTer's producer-consumer loop cases
+TCPENUM = { # enum for DExTer's producer-consumer loop cases
 'Initialise': 0,
 'Save sequence': 1,
 'Load sequence': 2,
@@ -47,6 +47,15 @@ TCP_ENUM = { # enum for DExTer's producer-consumer loop cases
 'TCP multirun values':27, 
 'TCP load sequence':28
 }
+
+def remove_slot(signal, slot, reconnect=True):
+    """Make sure all instances of slot are disconnected
+    from signal. Prevents multiple connections to the same 
+    slot. If reconnect=True, then reconnect slot to signal."""
+    while True: # make sure that the slot is only connected once 
+        try: signal.disconnect(slot)
+        except TypeError: break
+    if reconnect: signal.connect(slot)
     
 class PyServer(QThread):
     """Create a server that opens a socket to host TCP connections.
@@ -54,7 +63,8 @@ class PyServer(QThread):
     made, send a message from the queue. If the queue is empty, wait until 
     there is a message in the queue before using the connection.
     port - the unique port number used for the next socket connection."""
-    textin = pyqtSignal(str) # received message
+    textin = pyqtSignal(str) # received text
+    dxnum  = pyqtSignal(int) # received run number, synchronised with DExTer
     stop   = False           # toggle whether to stop listening
     
     def __init__(self, port=8089):
@@ -64,21 +74,24 @@ class PyServer(QThread):
         
     def add_message(self, enum, text, encoding="UTF-8", ):
         """Update the message that will be sent upon the next connection.
-        enum - an integer corresponding to the enum for DExTer's producer-
-                consumer loop
-        text - the message to send as a string."""
+        enum - (int) corresponding to the enum for DExTer's producer-
+                consumer loop.
+        text - (str) the message to send."""
         # enum and message length are sent as unsigned long int (4 bytes)
         self.msg_queue.append([struct.pack("!L", int(enum)), # enum 
                                 struct.pack("!L", len(text)), # msg length 
                                 bytes(text, encoding)]) # message
 
-    def run(self, encoding="UTF-8", buffer_size=1024):
+    def run(self, encoding="UTF-8"):
         """Keeps a socket open that waits for new connections. For each new
         connection, open a new socket that sends the following 3 messages:
-         1) the enum as a single byte, which will correspond to a command. 
-         2) the length of the text string in 3 bytes (i.e. length < 1000).
+         1) the enum as int32 (4 bytes), which will correspond to a command. 
+         2) the length of the text string as int32 (4 bytes).
          3) the text string.
-        Then receives a message that is emitted via a pyqtSignal."""
+        Then receives:
+         1) the run number as int32 (4 bytes).
+         2) the length of the message to come as int32 (4 bytes).
+         3) the sent message as str."""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(self.server_address)
             s.listen() # start the socket that waits for connections
@@ -92,7 +105,10 @@ class PyServer(QThread):
                         conn.sendall(enum) # send enum
                         conn.sendall(mes_len) # send text length
                         conn.sendall(message) # send text
-                        # send signal to listen for message in return
+                        # receive current run number from DExTer as 4 bytes
+                        self.dxnum.emit(int.from_bytes(conn.recv(4), 'big')) # long int
+                        # receive message from DExTer
+                        buffer_size = int.from_bytes(conn.recv(4), 'big')
                         self.textin.emit(str(conn.recv(buffer_size), encoding))
             
     def check_stop(self):
@@ -108,10 +124,7 @@ class PyServer(QThread):
         """Stop the event loop safely, ensuring that the sockets are closed.
         Once the thread has stopped, reset the stop toggle so that it 
         doesn't block the thread starting again the next time."""
-        while True: # make sure that the slot is only connected once 
-            try: self.finished.disconnect(self.check_stop)
-            except TypeError: break
-        self.finished.connect(self.reset_stop)
+        reconnect(self.finished, self.reset_stop)
         self.stop = True
                             
 if __name__ == "__main__":

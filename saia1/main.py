@@ -175,14 +175,14 @@ class main_window(QMainWindow):
         
         fit_menu = QMenu('Fitting', self) # drop down menu for fitting options
         fit_options = QActionGroup(fit_menu)  # group together the options
-        self.fit_methods = {'Seperate Gaussians':0, 'Double Gaussian':0}
-        for action_label in self.fit_methods.keys():
+        self.fit_methods = {}
+        for action_label in ['Separate Gaussians', 'Double Gaussian']:
             self.fit_methods[action_label] = QAction(
                 action_label, fit_menu, checkable=True, 
-                checked=action_label=='Seperate Gaussians') # set default
+                checked=action_label=='Separate Gaussians') # set default
             fit_menu.addAction(self.fit_methods[action_label])
             fit_options.addAction(self.fit_methods[action_label])
-        self.fit_methods['Seperate Gaussians'].setChecked(True) # make sure default is set
+        self.fit_methods['Separate Gaussians'].setChecked(True) # make sure default is set
         fit_options.setExclusive(True) # only one option checked at a time
         hist_menu.addMenu(fit_menu)
 
@@ -797,7 +797,7 @@ class main_window(QMainWindow):
                     - 'Double': fit a function that sums two Gaussians"""
         bins, occ, thresh = self.image_handler.histogram()  # get histogram
         bin_mid = (bins[1] - bins[0]) * 0.5 # from edge of bin to middle
-        if self.fit_methods['Seperate Gaussians'].isChecked():
+        if self.fit_methods['Separate Gaussians'].isChecked():
             diff = abs(bins - thresh)   # minimum is at the threshold
             thresh_i = np.argmin(diff)  # index of the threshold
             # split the histogram at the threshold value

@@ -31,7 +31,7 @@ class runnum(QThread):
     m     - the number of images taken per sequence
     k     - the number of images taken already"""
     im_save = pyqtSignal(np.ndarray) # send an incoming image to saver
-    run_end  = pyqtSignal(str) # send confirmation that run has finished
+    Dxstate = 'unknown' # current state of DExTer
 
     def __init__(self, camra, saver, saiaw, n=0, m=1, k=0):
         super().__init__()
@@ -45,7 +45,8 @@ class runnum(QThread):
         self.mw = saiaw  # image analysis main windows
         
         self.server = PyServer() # server will run continuously on a thread
-        self.server.textin.connect(self.Dxnum) # signal gives returned message
+        self.server.dxnum.connect(self.Dxnum) # signal gives run number
+        # self.server.textin.connect(self.read_Dx_msg) 
 
         # set a timer to update the dates 1s after midnight:
         t0 = time.localtime()

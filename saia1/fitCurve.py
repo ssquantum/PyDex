@@ -54,15 +54,22 @@ class fit:
         deviation sig"""
         return A * np.exp( - (x-x0)**2 /sig**2 / 2)
     
-    def double_gauss(self, x, A0, x0, sig0, A1, x1, sig1):
-        """Fit 2 Gaussian functions with independent amplitudes A, centre x, 
-        and standard deviation sig."""
-        return A0* np.exp(-(x-x0)**2 /2. /sig0**2) + A1* np.exp(
-                                                    -(x-x1)**2 /2. /sig1**2)
+    def double_gauss(self, x, N, A, x0, sig0, x1, sig1):
+        """Fit 2 Gaussian functions with independent centre x, 
+        and standard deviation sig, but amplitudes that are coupled."""
+        return N*(1-A)* np.exp(-(x-x0)**2 /2. /sig0**2
+               ) + N*A* np.exp(-(x-x1)**2 /2. /sig1**2)
     
     def poisson(self, x, mu, A):
-        """Poisson distribution with mean mu, amplitude A"""
-        return A * np.power(mu,x) * np.exp(-mu) / factorial(x)
+        """Poisson distribution with mean mu, amplitude A.
+        large values of x will cause overflow, so use gaussian instead"""
+        result = A * np.power(mu,x) * np.exp(-mu) / factorial(x)
+        if np.size(result) > 1:
+            nans = np.argwhere(np.logical_or(np.isnan(result), np.isinf(result)))
+            result[nans] = A * np.exp(-(x[nans]-mu)**2 / (2*mu)) / np.sqrt(2*np.pi*mu)
+        elif np.logical_or(np.isnan(result), np.isinf(result)):
+            result = A * np.exp(-(x[nans]-mu)**2 / (2*mu)) / np.sqrt(2*np.pi*mu)
+        return result
     
     def getBestFit(self, fn, **kwargs):
         """Use scipy.optimize.curve_fit to get the best fit to the supplied 

@@ -34,6 +34,7 @@ from saia1.reimage import reim_window # analysis for survival probability
 from ancam.cameraHandler import camera # manages Andor camera
 from savim.imsaver import event_handler # saves images
 from dextr.runid import runnum # synchronises run number, sends signals
+from dextr.networker import TCPENUM, remove_slot # enum for DExTer produce-consumer loop cases
 
 class Master(QMainWindow):
     """A manager to synchronise and control experiment modules.
@@ -58,6 +59,7 @@ class Master(QMainWindow):
         sv_dirs = event_handler.get_dirs(self.save_config)
         startn = self.restore_state(file_name=state_config)
         # choose which image analyser to use from number images in sequence
+        self.init_UI()
         if pop_up:
             m, ok = QInputDialog.getInt( # user chooses image analyser
                 self, 'Initiate Image Analyser(s)',
@@ -83,7 +85,7 @@ class Master(QMainWindow):
                 n=startn, m=m, k=0) 
             for i in range(m):
                 self.rn.mw[i].show()
-        self.init_UI()
+        self.rn.server.textin.connect(self.Dx_label.setText) # synchronise run number
         self.status_label.setText('Initialised')
 
         
@@ -106,7 +108,7 @@ class Master(QMainWindow):
         else: return 0
         
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
-            default_text='', validator=0):
+            default_text='', validator=False):
         """Make a QLabel with an accompanying QLineEdit and add them to the 
         given layout with an input validator. The position argument should
         be [row number, column number, row width, column width]."""
@@ -117,11 +119,13 @@ class Master(QMainWindow):
             position[1] += 1
         layout.addWidget(line_edit, *position)
         line_edit.setText(default_text) 
-        line_edit.setValidator(validator)
+        if validator:
+            line_edit.setValidator(validator)
         return label, line_edit
         
-    def init_UI(self):
-        """Create all of the widget objects required"""
+    def init_UI(self, startn=0):
+        """Create all of the widget objects required
+        startn: the initial run number loaded from previous state"""
         self.centre_widget = QWidget()
         self.centre_widget.layout = QGridLayout()
         self.centre_widget.setLayout(self.centre_widget.layout)
@@ -139,7 +143,7 @@ class Master(QMainWindow):
         show_windows = menubar.addMenu('Windows')
         menu_items = []
         for window_title in ['Image Analyser', 'Camera Status', 
-            'Image Saver', 'Monitoring']:
+            'Image Saver', 'Monitoring', 'Reset Image Analyser']:
             menu_items.append(QAction(window_title, self)) 
             menu_items[-1].triggered.connect(self.show_window)
             show_windows.addAction(menu_items[-1])
@@ -148,14 +152,32 @@ class Master(QMainWindow):
         self.status_label = QLabel('Initiating...', self)
         self.centre_widget.layout.addWidget(self.status_label, 0,0, 1,1)
         
-        self.Dx_label = QLabel('Dx #: '+str(self.rn._n), self)
-        self.centre_widget.layout.addWidget(self.Dx_label, 1,0, 1,1)
+        Dx_label = QLabel('Dx #: ', self)
+        self.centre_widget.layout.addWidget(Dx_label, 1,0, 1,1)
+        self.Dx_label = QLabel(str(startn), self)
+        self.centre_widget.layout.addWidget(self.Dx_label, 1,1, 1,1)
 
-        self.acquire_button = QPushButton('Start acquisition', self, 
-                                                        checkable=True)
-        self.acquire_button.clicked[bool].connect(self.start_acquisitions)
-        self.acquire_button.resize(self.acquire_button.sizeHint())
-        self.centre_widget.layout.addWidget(self.acquire_button, 2,0, 1,1)
+        # actions that can be carried out 
+        self.actions = QComboBox(self)
+        for action_label in ['Run sequence', 'Multirun run', 
+                            'Multirun populate values', 'Load sequence']:
+            self.actions.addItem(action_label)
+        self.actions.resize(self.actions.sizeHint())
+        self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
+
+        self.action_button = QPushButton('Go', self, checkable=False)
+        self.action_button.clicked[bool].connect(self.start_action)
+        self.action_button.resize(self.action_button.sizeHint())
+        self.centre_widget.layout.addWidget(self.action_button, 2,1, 1,1)
+
+        # text box to allow user to specify DExTer sequence file 
+        _, self.seq_edit = self.make_label_edit('DExTer sequence file: ', 
+            self.centre_widget.layout, position=[3,0,1,1])
+        # button to load sequence location from file browser
+        self.seq_browse = QPushButton('Browse', self, checkable=False)
+        self.seq_browse.clicked[bool].connect(self.browse_sequence)
+        self.seq_browse.resize(self.seq_browse.sizeHint())
+        self.centre_widget.layout.addWidget(self.seq_browse, 3,2, 1,1)
         
         #### choose main window position, dimensions: (xpos,ypos,width,height)
         self.setGeometry(50, 50, 800, 150)
@@ -176,8 +198,7 @@ class Master(QMainWindow):
             if text and ok and not self.acquire_button.isChecked():
                 check = self.rn.cam.ApplySettingsFromConfig(text)
                 if not any(check):
-                    self.status_label.setText('Camera settings config: ' +
-                        os.path.basename(text))
+                    self.status_label.setText('Camera settings config: '+text)
                     self.ancam_config = text
                 else:
                     self.status_label.setText(
@@ -192,7 +213,7 @@ class Master(QMainWindow):
                 self.im_save.disconnect()
                 self.rn.sv = event_handler(text)
                 if self.rn.sv.image_storage_path:
-                    self.status_label.setText('Image Saver was reset.')
+                    self.status_label.setText('Image Saver config: '+text)
                     self.im_save.connect(self.rn.sv.respond)
                     self.save_config = text
                 else:
@@ -201,6 +222,25 @@ class Master(QMainWindow):
             pass
         elif self.sender().text() == 'Monitoring':
             pass
+        elif self.sender().text() == 'Reset Image Analyser':
+            for mw in self.rn.mw:
+                mw.close()
+
+
+    def browse_sequence(self, start_dir='./'):
+        """Open the file browser to search for a sequence file, then insert
+        the file path into the DExTer sequence file line edit
+        start_dir: the directory to open initially."""
+        try:
+            if 'PyQt4' in sys.modules:
+                file_name = QFileDialog.getOpenFileName(
+                    self, 'Select A Sequence', start_dir, 'Sequence (*.seq);;all (*)')
+            elif 'PyQt5' in sys.modules:
+                file_name, _ = QFileDialog.getOpenFileName(
+                    self, 'Select A Sequence', start_dir, 'Sequence (*.seq);;all (*)')
+            self.seq_edit.setText(file_name)
+        except OSError:
+            pass # user cancelled - file not found
 
 
     def reset_camera(self, ancam_config='./ancam/ExExposure_config.dat'):
@@ -209,31 +249,65 @@ class Master(QMainWindow):
         ROI and so must be closed and restarted."""
         self.rn.cam.SafeShutdown()
         self.rn.cam = camera(config_file=ancam_config) # Andor camera
-        self.status_label.setText('Camera settings were reset.')
+        self.status_label.setText('Camera settings config: '+ancam_config)
         self.ancam_config = ancam_config
 
-    def start_acquisitions(self, toggle):
-        """Take the number of acquisitions stated in the num_acquisitions
-        text edit. These are set running on the camera's thread. While
-        the camera thread is runnning, the button to start acquisitions 
-        will be disabled."""
-        if toggle:            
-            self.status_label.setText('Running...')
-            self.acquire_button.setText('Abort')
-            self.rn.cam.start()
-        else:
-            unprocessed = self.rn.cam.EmptyBuffer()
-            self.rn.cam.AF.AbortAcquisition()
-            if unprocessed:
-                reply = QMessageBox.question(self, 'Unprocessed Images',
-            "Process the remaining %s images from the buffer?"%len(unprocessed), 
-                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-                if reply == QMessageBox.Yes:
-                    for im in unprocessed:
-                        # image dimensions: (# kscans, width pixels, height pixels)
-                        self.receive(im[0]) 
-            self.acquire_button.setText('Start run')
-            self.status_label.setText('Idle')
+    def start_action(self):
+        """Perform the action currently selected in the actions combobox.
+        Run sequence:   Start the camera acquisition, then make 
+                        DExTer perform a single run of the 
+                        sequence that is currently loaded.
+        Multirun run:   Start the camera acquisition, then make 
+                        DExTer perform a multirun with the preloaded
+                        multirun settings.
+        Multirun populate values:  Send values to fill the DExTer multirun
+        Load sequence:  Tell DExTer to load in the sequence file at
+                        the location in the 'Sequence file' label
+        """
+        if self.rn.server.isRunning():
+            action_text = self.actions.currentText()
+            if action_text == 'Run sequence':
+                self.rn.cam.start() # start acquisition
+                self.rn.server.add_message(TCPENUM[action_text], 'single run')
+                self.status_label.setText('Running current sequence')
+                # queue up a message to be received when the run finishes
+                # this will trigger end_run to stop the camera acquisition
+                remove_slot(signal=self.rn.server.textin, 
+                            slot=self.end_run, reconnect=True)
+                self.rn.server.add_message(TCPENUM['TCP read'], 'run finished') 
+            elif action_text == 'Multirun run':
+                self.rn.cam.start()
+                self.rn.server.add_message(TCPENUM[action_text], 'multirun')
+                self.status_label.setText('Running multirun measure ')
+                remove_slot(signal=self.rn.server.textin, 
+                            slot=self.end_run, reconnect=True)
+                self.rn.server.add_message(TCPENUM['TCP read'], 'run finished') 
+            elif action_text == 'Multirun populate values':
+                self.rn.server.add_message(TCPENUM[action_text], '')
+            elif action_text == 'Load sequence':
+                self.rn.server.add_message(TCPENUM[action_text], 
+                    self.seq_edit.text())
+            
+    def end_run(self, msg=''):
+        """At the end of a single run or a multirun, stop the acquisition,
+        check for unprocessed images, and check synchronisation.
+        First, disconnect the server.textin signal from this slot to it
+        only triggers once."""
+        remove_slot(signal=self.rn.server.textin, 
+                    slot=self.end_run, reconnect=False)
+        unprocessed = self.rn.cam.EmptyBuffer()
+        self.rn.cam.AF.AbortAcquisition()
+        # if unprocessed:
+        #     reply = QMessageBox.question(self, 'Unprocessed Images',
+        # "Process the remaining %s images from the buffer?"%len(unprocessed), 
+        #         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        #     if reply == QMessageBox.Yes:
+        #         for im in unprocessed:
+        #             # image dimensions: (# kscans, width pixels, height pixels)
+        #             self.rn.receive(im[0]) 
+        self.rn.synchronise()
+        self.status_label.setText('Idle')
+
             
     def save_state(self, file_name='./state'):
         """Save the file number and date and config file paths so that they
