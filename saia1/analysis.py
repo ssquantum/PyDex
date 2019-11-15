@@ -25,21 +25,25 @@ class Analysis(QThread):
     These are collected in an ordered dictionary to keep them labelled.
     Also store the type for use when loading from file.
     """
-    def __init__(self):
+    # inherited properties:
+    ind = 0 # a counter for the number of events processed
+    bf  = None # class for fitting function to histogram data
+
+    def __init__(self): # note: this is overwritten in child class
         super().__init__()
         # properties for storing data
         # note: all lists in the stats dictionary should have the same length
         self.types = OrderedDict([('File ID', str)])
         self.stats = OrderedDict([(key, []) for key in self.types.keys()])
         
-        # settings, variables, constants
-        self.ind = 0 # a counter for the number of events processed
+        # class-specific properties:
 
     def reset_arrays(self):
         """Reset all of the data to empty"""
         for key in self.stats.keys():
             self.stats[key] = []
-        self.ind = 0                 # number of images processed
+        self.ind = 0   
+        self.bf  = None
         
     def process(self, data, *args, **kwargs):
         """React to a single instance of incoming data.

@@ -19,14 +19,16 @@ class fit:
     xdat  -- independent variable array
     ydat  -- dependent variable array
     erry  -- errors in the dependent variable array
-    param -- optional best fit parameter estimate"""
-    def __init__(self, xdat=0, ydat=0, erry=None, param=None):
+    param -- optional best fit parameter estimate
+    func  -- a function used for best fits"""
+    def __init__(self, xdat=0, ydat=0, erry=None, param=None, func=None):
         self.x    = xdat   # independent variable
         self.y    = ydat   # measured dependent variable
         self.yerr = erry   # errors in dependent variable
         self.p0   = param  # guess of parameters for fit
         self.ps   = param  # best fit parameters
         self.perrs = None  # error on best fit parameters
+        self.bffunc= func  # function used for the best fit
 
     def estGaussParam(self):
         """Guess at the amplitude A, centre x0, width wx, and offset y0 of a 
@@ -61,7 +63,7 @@ class fit:
                ) + N*A* np.exp(-(x-x1)**2 /2. /sig1**2)
     
     def poisson(self, x, mu, A):
-        """Poisson distribution with mean mu, amplitude A.
+        """Poissononian with mean mu, amplitude A.
         large values of x will cause overflow, so use gaussian instead"""
         result = A * np.power(mu,x) * np.exp(-mu) / factorial(x)
         if np.size(result) > 1:
@@ -71,11 +73,19 @@ class fit:
             result = A * np.exp(-(x[nans]-mu)**2 / (2*mu)) / np.sqrt(2*np.pi*mu)
         return result
     
-    def getBestFit(self, fn, **kwargs):
+    def double_poisson(self, x, mu0, A0, mu1, A1):
+        """The sum of two Poissonians with means mu0, mu1, and 
+        amplitudes A0, A1."""
+        return self.poisson(x, mu0, A0) + self.poisson(x, mu1, A1)
+    
+    def getBestFit(self, fn=None, **kwargs):
         """Use scipy.optimize.curve_fit to get the best fit to the supplied 
         data using the supplied function fn. Bounds and other keyword 
         arguments can be passed through.
         Returns tuple of best fit parameters and their errors"""
+        if fn:
+            self.bffunc = fn # store the function that was used to fit with
+        else: fn = self.bffunc
         popt, pcov = curve_fit(fn, self.x, self.y, p0=self.p0, sigma=self.yerr,
                                 maxfev=80000, **kwargs)
         self.ps = popt

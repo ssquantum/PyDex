@@ -58,7 +58,7 @@ class image_handler(Analysis):
         self.peak_indexes = [0,0]       # indexes of peaks in histogram
         self.peak_heights = [0,0]       # heights of peaks in histogram
         self.peak_widths  = [0,0]       # widths of peaks in histogram
-        self.peak_counts  = [0,0]       # peak position in counts in histogram
+        self.peak_centre  = [0,0]       # peak position in counts in histogram
         self.fidelity     = 0           # fidelity of detecting atom presence
         self.err_fidelity = 0           # error in fidelity
         self.mask      = np.zeros((1,1))# normalised mask to apply to image for ROI
@@ -109,13 +109,13 @@ class image_handler(Analysis):
             thresh = self.thresh
         if np.size(self.peak_indexes) == 2: # must have already calculated peak parameters
             # fidelity = 1 - P(false positives) - P(false negatives)
-            fidelity = norm.cdf(thresh, self.peak_counts[0], self.peak_widths[0]
-                            ) - norm.cdf(thresh, self.peak_counts[1], self.peak_widths[1])
+            fidelity = norm.cdf(thresh, self.peak_centre[0], self.peak_widths[0]
+                            ) - norm.cdf(thresh, self.peak_centre[1], self.peak_widths[1])
             # error is largest fidelity - smallest fidelity from uncertainty in peaks
-            err_fidelity = norm.cdf(thresh, self.peak_counts[0] - self.peak_widths[0],
-                self.peak_widths[0]) - norm.cdf(thresh, self.peak_counts[1] - self.peak_widths[1],
-                self.peak_widths[1]) - norm.cdf(thresh, self.peak_counts[0] + self.peak_widths[0],
-                self.peak_widths[0]) + norm.cdf(thresh, self.peak_counts[1] - self.peak_widths[1],
+            err_fidelity = norm.cdf(thresh, self.peak_centre[0] - self.peak_widths[0],
+                self.peak_widths[0]) - norm.cdf(thresh, self.peak_centre[1] - self.peak_widths[1],
+                self.peak_widths[1]) - norm.cdf(thresh, self.peak_centre[0] + self.peak_widths[0],
+                self.peak_widths[0]) + norm.cdf(thresh, self.peak_centre[1] - self.peak_widths[1],
                 self.peak_widths[1])
             return fidelity, err_fidelity
         else:
@@ -153,9 +153,9 @@ class image_handler(Analysis):
         self.thresh = np.mean(bins) # in case peak calculation fails
         if np.size(self.peak_indexes) == 2: # est_param will only find one peak if the number of bins is small
             # set the threshold where the fidelity is max
-            self.search_fidelity(self.peak_counts[0], self.peak_widths[0] ,self.peak_counts[1])
+            self.search_fidelity(self.peak_centre[0], self.peak_widths[0] ,self.peak_centre[1])
         # atom is present if the counts are above threshold
-        self.stats['Atom detected'] = list(np.array(self.stats['Counts']) // self.thresh)
+        self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
         return bins, occ, self.thresh
 
     def histogram(self):
@@ -172,14 +172,21 @@ class image_handler(Analysis):
             occ, bins = np.histogram(self.stats['Counts'], bins=np.linspace(lo, hi, num_bins+1)) # no bins provided by user
         # get the indexes of peak positions, heights, and widths
         self.peak_indexes, self.peak_heights, self.peak_widths = est_param(occ)
-        self.peak_counts = bins[self.peak_indexes] + 0.5*(bins[1] - bins[0])
         if np.size(self.peak_indexes) == 2: # est_param will only find one peak if the number of bins is small
+            self.peak_centre = bins[self.peak_indexes] + 0.5*(bins[1] - bins[0])
             # convert widths from indexes into counts
             # assume the peak_width is the FWHM, although scipy docs aren't clear
             self.peak_widths = [(bins[1] - bins[0]) * self.peak_widths[0]/2., # /np.sqrt(2*np.log(2)), 
                                 (bins[1] - bins[0]) * self.peak_widths[1]/2.] # /np.sqrt(2*np.log(2))]
+        else: 
+            cs = np.sort(self.stats['Counts']) 
+            mid = len(cs) // 2 # index of the middle of the counts array
+            self.peak_heights = [np.max(occ), np.max(occ)]
+            self.peak_centre = [np.mean(cs[:mid]), np.mean(cs[mid:])]
+            self.peak_widths = [np.std(cs[:mid]), np.std(cs[mid:])]
+            
         # atom is present if the counts are above threshold
-        self.stats['Atom detected'] = list(np.array(self.stats['Counts']) // self.thresh)
+        self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
         return bins, occ, self.thresh
         
     def peaks_and_thresh(self):
@@ -199,7 +206,7 @@ class image_handler(Analysis):
         sep = at_peak - bg_peak
         self.thresh = bg_peak + 5*bg_stdv # update threshold
         # atom is present if the counts are above threshold
-        self.stats['Atom detected'] = list(np.array(self.stats['Counts']) // self.thresh)
+        self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
         atom_count = np.size(np.where(self.stats['Atom detected'] > 0)[0])  # images with counts above threshold
         empty_count = np.size(np.where(self.stats['Atom detected'] == 0)[0])
         load_prob = np.around(atom_count / self.ind, 4)
@@ -211,7 +218,8 @@ class image_handler(Analysis):
                 at_stdv, sep, self.fidelity, self.err_fidelity, self.thresh)
 
     def create_square_mask(self):
-        """Use the current ROI dimensions to create a mask for the image."""
+        """Use the current ROI dimensions to create a mask for the image.
+        The square mask is zero outside the ROI and 1 inside the ROI."""
         if (self.xc + self.roi_size < self.pic_size and 
             self.xc - self.roi_size > 0 and 
             self.yc + self.roi_size < self.pic_size and 
@@ -242,7 +250,7 @@ class image_handler(Analysis):
         success = 0
         if np.size(dimensions) != 0:
             self.xc, self.yc, self.roi_size = list(map(int, dimensions))
-            sucess = 1
+            success = 1
         elif len(im_name) != 0:
             # presume the supplied image has an atom in and take the max
             # pixel's position at the centre of the ROI
