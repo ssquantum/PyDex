@@ -24,16 +24,17 @@ class Analysis(QThread):
     (e.g. collecting counts from series of images) are stored in lists.
     These are collected in an ordered dictionary to keep them labelled.
     Also store the type for use when loading from file.
+    These inherited properties must be initiated with super().__init__(...)
+    so that the methods load() and save() can access them
     """
     # inherited properties:
     ind = 0 # a counter for the number of events processed
     bf  = None # class for fitting function to histogram data
 
-    def __init__(self): # note: this is overwritten in child class
+    def __init__(self, type_labels=[('File ID', str)]):
         super().__init__()
-        # properties for storing data
-        # note: all lists in the stats dictionary should have the same length
-        self.types = OrderedDict([('File ID', str)])
+        # note: all lists in the stats dictionary should have the same length.
+        self.types = OrderedDict(type_labels)
         self.stats = OrderedDict([(key, []) for key in self.types.keys()])
         
         # class-specific properties:
@@ -48,7 +49,8 @@ class Analysis(QThread):
     def process(self, data, *args, **kwargs):
         """React to a single instance of incoming data.
         args: a tuple of arguments passed after the data argument
-        kwargs: a dictionary of keyword arguments"""
+        kwargs: a dictionary of keyword arguments.
+        Override this function in the child class."""
         self.ind += 1
             
     def load(self, file_name, *args, **kwargs):
@@ -57,23 +59,25 @@ class Analysis(QThread):
         Second row is metadata values
         Third row is data column headings
         Then data follows."""
+        head = [[],[],[]]
         with open(file_name, 'r') as f:
-            for i in range(3): # third row gives column headings
-                header = f.readline() 
-        col_headings = np.array(header.split(','))
+            for i in range(3):
+                row = f.readline()
+                if row[:2] == '# ':
+                    head[i] = row[2:].replace('\n','').split(',')
 
         data = np.genfromtxt(file_name, delimiter=',', dtype=str)
         if np.size(data) < len(self.stats.keys()):
             return 0 # insufficient data to load
 
-        n = len(data[:,0]) 
+        self.ind = len(data[:,0]) # number of processed events
         for key in self.stats.keys():
-            index = np.where(header == key)[0]
+            index = np.where([k == key for k in head[2]])[0]
             if np.size(index): # if the key is in the header
-                self.stats[key].append(list(map(self.types[key], data[:,index])))
+                self.stats[key] += list(map(self.types[key], data[:,index]))
             else: # keep lists the same size: fill with zeros.
-                self.stats[key].append(list(np.zeros(n), dtype=self.types[key])) 
-        return 1 # success
+                self.stats[key] += list(np.zeros(self.ind, dtype=self.types[key]))
+        return head # success
 
     def save(self, file_name, meta_head=[], meta_vals=[], *args, **kwargs):
         """Save the processed data to csv. 

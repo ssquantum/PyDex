@@ -15,7 +15,7 @@ import time
 from scipy.signal import find_peaks
 from scipy.stats import norm
 from astropy.stats import binom_conf_interval
-from .analysis import Analysis
+from analysis import Analysis
 
 def est_param(h):
     """Generator function to estimate the parameters for a Guassian fit. 
@@ -41,8 +41,10 @@ class image_handler(Analysis):
     
     Load an ROI image centred on the atom, integrate the counts,
     then compare to the threshold.
-    Inherits reset_arrays, load, and save functions from Analysis."""
+    Inherits the types and stats dictionaries, and reset_arrays, 
+    load, and save methods from Analysis."""
     def __init__(self):
+        super().__init__()
         self.types = OrderedDict([('File ID', int), # number ID of image
             ('Counts', float), # integrated counts over the ROI
             ('Atom detected', int), # compare counts with threshold value
@@ -50,8 +52,8 @@ class image_handler(Analysis):
             ('Max xpos', int), # horizontal positions of max pixel
             ('Max ypos', int), # vertical positions of max pixel
             ('Mean bg count', float), # mean counts outside ROI - estimate bg
-            ('Bg s.d.', float)]) # standard deviation of counts outside ROI
-        self.stats = OrderedDict([(key, []) for key in self.types.keys()])
+            ('Bg s.d.', float)])
+        self.stats = OrderedDict([(key, []) for key in self.types.keys()]) # standard deviation of counts outside ROI
         
         self.delim = ' '                # delimieter to use when opening image files
         self.bias = 697                 # bias offset from EMCCD
@@ -164,29 +166,30 @@ class image_handler(Analysis):
             occ, bins = np.histogram(self.stats['Counts'], self.bin_array) # fixed bins. 
         else:
             try:
-                lo, hi = min(self.stats['Counts'])*0.9, max(self.stats['Counts'])*1.1
+                lo, hi = min(self.stats['Counts'])*0.97, max(self.stats['Counts'])*1.02
                 # scale number of bins with number of files in histogram and with separation of peaks
                 num_bins = int(25 + 5e-5 * self.ind**2 + ((hi - lo)/hi)**2*15) 
             except: 
                 lo, hi, num_bins = 0, 1, 10
             occ, bins = np.histogram(self.stats['Counts'], bins=np.linspace(lo, hi, num_bins+1)) # no bins provided by user
-        # get the indexes of peak positions, heights, and widths
-        self.peak_indexes, self.peak_heights, self.peak_widths = est_param(occ)
-        if np.size(self.peak_indexes) == 2: # est_param will only find one peak if the number of bins is small
-            self.peak_centre = bins[self.peak_indexes] + 0.5*(bins[1] - bins[0])
-            # convert widths from indexes into counts
-            # assume the peak_width is the FWHM, although scipy docs aren't clear
-            self.peak_widths = [(bins[1] - bins[0]) * self.peak_widths[0]/2., # /np.sqrt(2*np.log(2)), 
-                                (bins[1] - bins[0]) * self.peak_widths[1]/2.] # /np.sqrt(2*np.log(2))]
-        else: 
-            cs = np.sort(self.stats['Counts']) 
-            mid = len(cs) // 2 # index of the middle of the counts array
-            self.peak_heights = [np.max(occ), np.max(occ)]
-            self.peak_centre = [np.mean(cs[:mid]), np.mean(cs[mid:])]
-            self.peak_widths = [np.std(cs[:mid]), np.std(cs[mid:])]
-            
-        # atom is present if the counts are above threshold
-        self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
+        if np.size(self.stats['Counts']): # don't do anything to an empty list
+            # get the indexes of peak positions, heights, and widths
+            self.peak_indexes, self.peak_heights, self.peak_widths = est_param(occ)
+            if np.size(self.peak_indexes) == 2: # est_param will only find one peak if the number of bins is small
+                self.peak_centre = bins[self.peak_indexes] + 0.5*(bins[1] - bins[0])
+                # convert widths from indexes into counts
+                # assume the peak_width is the FWHM, although scipy docs aren't clear
+                self.peak_widths = [(bins[1] - bins[0]) * self.peak_widths[0]/2., # /np.sqrt(2*np.log(2)), 
+                                    (bins[1] - bins[0]) * self.peak_widths[1]/2.] # /np.sqrt(2*np.log(2))]
+            else: 
+                cs = np.sort(self.stats['Counts']) 
+                mid = len(cs) // 2 # index of the middle of the counts array
+                self.peak_heights = [np.max(occ), np.max(occ)]
+                self.peak_centre = [np.mean(cs[:mid]), np.mean(cs[mid:])]
+                self.peak_widths = [np.std(cs[:mid]), np.std(cs[mid:])]
+                
+            # atom is present if the counts are above threshold
+            self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
         return bins, occ, self.thresh
         
     def peaks_and_thresh(self):
@@ -257,7 +260,7 @@ class image_handler(Analysis):
             im_vals = self.load_full_im(im_name)
             xcs, ycs  = np.where(im_vals == np.max(im_vals))
             self.xc, self.yc = xcs[0], ycs[0]
-            sucess = 1
+            success = 1
         if success:
             self.create_square_mask()
         return success

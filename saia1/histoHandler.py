@@ -7,8 +7,8 @@ a class to collect and calculate histogram statistics
 import numpy as np
 from collections import OrderedDict
 from astropy.stats import binom_conf_interval
-from .analysis import Analysis
-from . import fitCurve as fc
+from analysis import Analysis
+import fitCurve as fc
 
 class histo_handler(Analysis):
     """Manage statistics from several histograms.
@@ -92,8 +92,10 @@ class histo_handler(Analysis):
             self.bf = fc.fit(bins[:-1] + bin_mid, occ) # class for fitting function to data
 
             if method == 'quick':
-                pass
-            elif method == 'dbl gauss':
+                A0, A1 = ih.peak_heights
+                mu0, mu1 = ih.peak_centre
+                sig0, sig1 = ih.peak_widths
+            elif method == 'double gaussian':
                 self.bf.p0s=[ih.peak_heights[0], ih.peak_centre[0], ih.peak_widths[0],
                         ih.peak_heights[1], ih.peak_centre[1], ih.peak_widths[1]]
                 try:
@@ -104,7 +106,7 @@ class histo_handler(Analysis):
                     A0, mu0, sig0, A1, mu1, sig1 = self.bf.ps
                 else: A1, mu1, sig1, A0, mu0, sig0 = self.bf.ps
 
-            elif method == 'split gauss': # separate Gaussian fit for bg/signal
+            elif method == 'separate gaussians': # separate Gaussian fit for bg/signal
                 diff = abs(bins - thresh)   # minimum is at the threshold
                 thresh_i = np.argmin(diff)  # index of the threshold
                 # split the histogram at the threshold value
@@ -121,7 +123,7 @@ class histo_handler(Analysis):
                 self.bf.ps = list(best_fits[0].ps) + list(best_fits[1].ps)
                 self.bf.bffunc = self.bf.double_gauss
 
-            elif method == 'dbl poisson':
+            elif method == 'double poissonian':
                 self.bf.p0s=[ih.peak_heights[0], ih.peak_centre[0],
                         ih.peak_heights[1], ih.peak_centre[1]]
                 try:
@@ -131,7 +133,7 @@ class histo_handler(Analysis):
                 A0, mu0, A1, mu1 = self.bf.ps
                 sig0, sig1 = np.sqrt(mu0), np.sqrt(mu1)
 
-            elif method == 'sgl gauss':
+            elif method == 'single gaussian':
                 try:
                     self.bf.estGaussParam()
                     self.bf.getBestFit(self.bf.gauss) # get best fit parameters
@@ -152,10 +154,10 @@ class histo_handler(Analysis):
             # update atom statistics
             ih.stats['Atom detected'] = [count // ih.thresh for count in ih.stats['Counts']]
 
-            above_idxs = np.where(ih.stats['Atom detected'] > 0)[0] # index of images with counts above threshold
+            above_idxs = np.where(np.array(ih.stats['Atom detected']) > 0)[0] # index of images with counts above threshold
             atom_count = np.size(above_idxs)  # number of images with counts above threshold
             above = np.array(ih.stats['Counts'])[above_idxs] # counts above threshold
-            below_idxs = np.where(ih.stats['Atom detected'] == 0)[0] # index of images with counts below threshold
+            below_idxs = np.where(np.array(ih.stats['Atom detected']) == 0)[0] # index of images with counts below threshold
             empty_count = np.size(below_idxs) # number of images with counts below threshold
             below = np.array(ih.stats['Counts'])[below_idxs] # counts below threshold
             # use the binomial distribution to get 1 sigma confidence intervals:
@@ -166,11 +168,11 @@ class histo_handler(Analysis):
 
             # store the calculated histogram statistics as temp
             self.temp_vals['File ID'] = int(self.ind)
-            file_list = [x for x in ih.files if x]
+            file_list = [x for x in ih.stats['File ID'] if x]
             self.temp_vals['Start file #'] = min(map(int, file_list))
             self.temp_vals['End file #'] = max(map(int, file_list))
             self.temp_vals['ROI xc ; yc ; size'] = ' ; '.join(list(map(str, [ih.xc, ih.yc, ih.roi_size])))
-            self.temp_vals['User variable'] = float(user_var)
+            self.temp_vals['User variable'] = float(user_var) if user_var else 0.0
             self.temp_vals['Number of images processed'] = ih.ind
             self.temp_vals['Counts above : below threshold'] = str(atom_count) + ' : ' + str(empty_count)
             self.temp_vals['Loading probability'] = np.around(loading_prob, 4)
@@ -182,7 +184,7 @@ class histo_handler(Analysis):
                 # assume bias offset is self.bias, readout noise standard deviation Nr
                 if self.Nr**2+mu0 > 0:
                     self.temp_vals['sqrt(Nr^2 + Nbg)'] = int((
-                        np.prod(self.roi.size())*self.Nr**2+mu0)**0.5)
+                        ih.roi_size*self.Nr**2+mu0)**0.5)
                 else: # don't take the sqrt of a -ve number
                     self.temp_vals['sqrt(Nr^2 + Nbg)'] = 0
                 self.temp_vals['Background peak width'] = int(sig0)
@@ -193,7 +195,7 @@ class histo_handler(Analysis):
                 # assume bias offset is self.bias, readout noise standard deviation Nr
                 if self.Nr**2+mu1 > 0:
                     self.temp_vals['sqrt(Nr^2 + Ns)'] = int((
-                        np.prod(self.roi.size())*self.Nr**2+mu1)**0.5)
+                        ih.roi_size*self.Nr**2+mu1)**0.5)
                 else: # don't take the sqrt of a -ve number
                     self.temp_vals['sqrt(Nr^2 + Ns)'] = 0
                 self.temp_vals['Signal peak width'] = int(sig1)
@@ -209,8 +211,8 @@ class histo_handler(Analysis):
                 self.temp_vals['S/N'] = np.around(sep / np.sqrt(sig0**2 + sig1**2), 2)
                 # fractional error in the error is 1/sqrt(2N - 2)
                 self.temp_vals['Error in S/N'] = np.around(
-                    self.temp_vals['S/N'] * np.sqrt((seperr/sep)**2 + 
-                    (sig0**2/(2*empty_count - 2) + sig1**2/(2*atom_count - 2))/(sig0**2 + sig1**2)), 2)
+                    self.temp_vals['S/N'] * np.sqrt((seperr/sep)**2 + (sig0**2/(2*empty_count - 2) 
+                    + sig1**2/(2*atom_count - 2))/(sig0**2 + sig1**2)), 2) if (empty_count>1 and atom_count>1) else 0.0
             else:
                 for key in ['Background peak count', 'sqrt(Nr^2 + Nbg)', 'Background peak width', 
                 'Error in Background peak count', 'Signal peak count', 'sqrt(Nr^2 + Ns)', 

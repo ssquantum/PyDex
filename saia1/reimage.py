@@ -29,7 +29,7 @@ except ImportError:
             QActionGroup, QVBoxLayout, QFont, QRegExpValidator)
     from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, QTabWidget,
         QAction, QMainWindow, QLabel)
-from .main import main_window  # a single instance of SAIA
+from main import main_window  # a single instance of SAIA
 
 # main GUI window contains all the widgets                
 class reim_window(main_window):

@@ -29,9 +29,9 @@ except ImportError:
             QActionGroup, QVBoxLayout, QFont, QRegExpValidator)
     from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, QTabWidget,
         QAction, QMainWindow, QLabel, QInputDialog)
-from . import imageHandler as ih # process images to build up a histogram
-from . import histoHandler as hh # collect data from histograms together
-from . import fitCurve as fc   # custom class to get best fit parameters using curve_fit
+import imageHandler as ih # process images to build up a histogram
+import histoHandler as hh # collect data from histograms together
+import fitCurve as fc   # custom class to get best fit parameters using curve_fit
           
 ####    ####    ####    ####
 
@@ -424,12 +424,12 @@ class main_window(QMainWindow):
             
         # update statistics
         self.stat_update_button = QPushButton('Update statistics', self)
-        self.stat_update_button.clicked[bool].connect(self.update_fit)
+        self.stat_update_button.clicked[bool].connect(self.display_fit)
         stat_grid.addWidget(self.stat_update_button, i+2,0, 1,1)
 
         # do Gaussian/Poissonian fit - peaks and widths
         self.fit_update_button = QPushButton('Get best fit', self)
-        self.fit_update_button.clicked[bool].connect(self.update_fit)
+        self.fit_update_button.clicked[bool].connect(self.display_fit)
         stat_grid.addWidget(self.fit_update_button, i+2,1, 1,1)
 
         # quickly add the current histogram statistics to the plot
@@ -684,6 +684,19 @@ class main_window(QMainWindow):
             
     #### #### toggle functions #### #### 
 
+    def display_fit(self, toggle=True, fit_method='double gaussian'):
+        """Plot the best fit calculated by histo_handler.process
+        and display the histogram statistics in the stat_labels"""
+        success = self.update_fit(fit_method=fit_method)
+        if success: 
+            for key in self.histo_handler.stats.keys(): # update the text labels
+                self.stat_labels[key].setText(str(self.histo_handler.temp_vals[key]))
+            bf = self.histo_handler.bf # short hand
+            if bf and bf.bffunc: # plot the curve on the histogram
+                self.plot_current_hist(self.image_handler.histogram)
+                xs = np.linspace(min(bf.x), max(bf.x), 200)
+                self.hist_canvas.plot(xs, bf.bffunc(xs, *bf.ps), pen='b')
+
     def update_fit(self, toggle=True, fit_method='double gaussian'):
         """Use the histo_handler.process function to get histogram
         statistics from the current data."""
@@ -693,7 +706,7 @@ class main_window(QMainWindow):
                 fit_method = action.text()
         elif self.sender().text() == 'Update statistics':
             fit_method = 'quick'
-        return self.histo_handler.process(self.image_handler, self.stat_labels['User Variable'], 
+        return self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
             new_thresh=self.thresh_toggle.isChecked(), method=fit_method)
 
     def update_varplot_axes(self, label=''):
@@ -701,11 +714,11 @@ class main_window(QMainWindow):
         The variables are read from the x and y axis QComboBoxes
         Then the plot is updated"""
         if np.size(self.histo_handler.stats['File ID']) > 0:
-            self.histo_handler.xvals = self.histo_handler.stats[
-                                str(self.plot_labels[0].currentText())] # set x values
+            self.histo_handler.xvals = np.array(self.histo_handler.stats[
+                                str(self.plot_labels[0].currentText())]) # set x values
             
             y_label = str(self.plot_labels[1].currentText())
-            self.histo_handler.yvals = self.histo_handler.stats[y_label] # set y values
+            self.histo_handler.yvals = np.array(self.histo_handler.stats[y_label]) # set y values
             
             self.varplot_canvas.clear()  # remove previous data
             try:
@@ -723,7 +736,7 @@ class main_window(QMainWindow):
                         beam_width = 0.2
                     err_bars = pg.ErrorBarItem(x=self.histo_handler.xvals, 
                         y=self.histo_handler.yvals, 
-                        height=self.histo_handler.stats['Error in '+y_label],
+                        height=np.array(self.histo_handler.stats['Error in '+y_label]),
                         beam=beam_width) # plot with error bars
                     self.varplot_canvas.addItem(err_bars)
             except Exception: pass # probably wrong length of arrays
@@ -1135,7 +1148,8 @@ class main_window(QMainWindow):
                         'Just processed: '+os.path.basename(file_name)) 
                 except: # probably file size was wrong
                     print("\n WARNING: failed to load "+file_name) 
-            self.histo_handler.process(self.image_handler, self.stat_labels['User variable'], 
+            self.plot_current_hist(self.image_handler.histogram)
+            self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
                         new_thresh=self.thresh_toggle.isChecked(), method='quick')
             if self.recent_label.text == 'Processing files...':
                 self.recent_label.setText('Finished Processing')
@@ -1183,7 +1197,8 @@ class main_window(QMainWindow):
                         'Just processed: '+os.path.basename(file_name)) # only updates at end of loop
                 except:
                     print("\n WARNING: failed to load "+file_name) # probably file size was wrong
-            self.histo_handler.process(self.image_handler, self.stat_labels['User Variable'], 
+            self.plot_current_hist(self.image_handler.histogram)
+            self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
                         new_thresh=self.thresh_toggle.isChecked(), method='quick')
             if self.recent_label.text == 'Processing files...':
                 self.recent_label.setText('Finished Processing')
@@ -1196,7 +1211,8 @@ class main_window(QMainWindow):
             file_name = self.try_browse(file_type='csv(*.csv);;all (*)')
             if file_name:
                 self.image_handler.load(file_name)
-                self.histo_handler.process(self.image_handler, self.stat_labels['User Variable'], 
+                self.plot_current_hist(self.image_handler.histogram)
+                self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
                         new_thresh=self.thresh_toggle.isChecked(), method='quick')
 
     def load_image(self, trigger=None):
