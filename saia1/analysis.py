@@ -70,13 +70,14 @@ class Analysis(QThread):
         if np.size(data) < len(self.stats.keys()):
             return 0 # insufficient data to load
 
-        self.ind = len(data[:,0]) # number of processed events
+        n = len(data[:,0]) # number of processed events
         for key in self.stats.keys():
             index = np.where([k == key for k in head[2]])[0]
             if np.size(index): # if the key is in the header
                 self.stats[key] += list(map(self.types[key], data[:,index]))
             else: # keep lists the same size: fill with zeros.
-                self.stats[key] += list(np.zeros(self.ind, dtype=self.types[key]))
+                self.stats[key] += list(np.zeros(n, dtype=self.types[key]))
+        self.ind = np.size(self.stats[key]) # length of last array
         return head # success
 
     def save(self, file_name, meta_head=[], meta_vals=[], *args, **kwargs):

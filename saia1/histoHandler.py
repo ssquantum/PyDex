@@ -69,12 +69,12 @@ class histo_handler(Analysis):
         for key in self.stats.keys():
             self.stats[key] = self.stats[key][idxs]
 
-    def process(self, ih, user_var, new_thresh=True, method='quick'):
+    def process(self, ih, user_var, fix_thresh=False, method='quick'):
         """Calculate the statistics from the current histogram.
         Keyword arguments:
         ih: an instance of the image_handler Analysis class, generates the histogram
         user_var: the user variable associated with this calculation
-        thresh_toggle: True - update the threshold value, False - keep old threshold
+        fix_thresh: True - keep old threshold value, False - update the threshold value
         method: 'quick' - image_handler uses a peak finding algorithm 
                 'double gaussian' - fit a double Guassian function
                 'separate gaussians' - split the histogram at the threshold and fit Gaussians
@@ -82,11 +82,10 @@ class histo_handler(Analysis):
                 'single gaussian' - fit a single Gaussian to background peak
         """
         if ih.ind > 0: # only update if a histogram exists
-            if new_thresh: # using manual threshold
+            if fix_thresh: # using manual threshold
                 bins, occ, thresh = ih.histogram() # update hist and peak stats, keep thresh
             else:
                 bins, occ, thresh = ih.hist_and_thresh() # update hist and get peak stats
-
             bin_mid = (bins[1] - bins[0]) * 0.5 # from edge of bin to middle
 
             self.bf = fc.fit(bins[:-1] + bin_mid, occ) # class for fitting function to data
@@ -96,16 +95,16 @@ class histo_handler(Analysis):
                 mu0, mu1 = ih.peak_centre
                 sig0, sig1 = ih.peak_widths
             elif method == 'double gaussian':
-                self.bf.p0s=[ih.peak_heights[0], ih.peak_centre[0], ih.peak_widths[0],
-                        ih.peak_heights[1], ih.peak_centre[1], ih.peak_widths[1]]
+                # parameters: Total num images, loading prob, centre, s.d., centre, s.d.
+                self.bf.p0 = [ih.ind, 0.6, ih.peak_centre[0], ih.peak_widths[0],
+                        ih.peak_centre[1], ih.peak_widths[1]]
                 try:
-                    # parameters are: amplitude, centre, standard deviation
-                    self.bf.getBestFit(self.bf.double_gauss)     # get best fit parameters
+                    self.bf.getBestFit(self.bf.double_gauss) # get best fit parameters
                 except: return 0  # fit failed, do nothing
                 if self.bf.ps[1] < self.bf.ps[4]:
-                    A0, mu0, sig0, A1, mu1, sig1 = self.bf.ps
-                else: A1, mu1, sig1, A0, mu0, sig0 = self.bf.ps
-
+                    N, A1, mu0, sig0, mu1, sig1 = self.bf.ps
+                else: N, A1, mu1, sig1, mu0, sig0 = self.bf.ps
+                A0, A1 = N*(1-A1), N*A1
             elif method == 'separate gaussians': # separate Gaussian fit for bg/signal
                 diff = abs(bins - thresh)   # minimum is at the threshold
                 thresh_i = np.argmin(diff)  # index of the threshold
@@ -119,12 +118,12 @@ class histo_handler(Analysis):
                     except: return 0    
                 A0, mu0, sig0 = best_fits[0].ps
                 A1, mu1, sig1 = best_fits[1].ps
-                self.bf.p0s = list(best_fits[0].p0s) + list(best_fits[1].p0s)
-                self.bf.ps = list(best_fits[0].ps) + list(best_fits[1].ps)
-                self.bf.bffunc = self.bf.double_gauss
+                self.bf.p0 = [A0+A1, 1-A0/(A0+A1), mu0, sig0, mu1, sig1]
+                self.bf.ps = [A0+A1, 1-A0/(A0+A1), mu0, sig0, mu1, sig1]
+                self.bf.bffunc = self.bf.double_gauss # plot as double gaussian for consistency
 
             elif method == 'double poissonian':
-                self.bf.p0s=[ih.peak_heights[0], ih.peak_centre[0],
+                self.bf.p0 = [ih.peak_heights[0], ih.peak_centre[0],
                         ih.peak_heights[1], ih.peak_centre[1]]
                 try:
                     # parameters are: mean, amplitude
@@ -146,10 +145,10 @@ class histo_handler(Analysis):
             ih.peak_widths = [sig0, sig1]
         
             # update threshold to where fidelity is maximum
-            if new_thresh: # update thresh if not set by user
-                ih.search_fidelity(mu0, sig0, mu1, n=100)
-            else:
+            if fix_thresh: # update thresh if not set by user
                 ih.fidelity, ih.err_fidelity = np.around(ih.get_fidelity(), 4) # round to 4 d.p.
+            else:
+                ih.search_fidelity(mu0, sig0, mu1, n=100)
 
             # update atom statistics
             ih.stats['Atom detected'] = [count // ih.thresh for count in ih.stats['Counts']]
@@ -222,13 +221,13 @@ class histo_handler(Analysis):
             self.temp_vals['Threshold'] = int(ih.thresh)
         return 1 # fit successful
 
-    def update_fit(self, ih, user_var, new_thresh=True, method='quick'):
+    def update_fit(self, ih, user_var, fix_thresh=False, method='quick'):
         """Fit functions to the peaks and use it to get a better estimate of the 
         peak centres and widths. Use the fits to get histogram statistics, then set 
         the threshold to maximise fidelity. Iterate until the threshold converges.
         ih: an instance of the image_handler Analysis class, generates the histogram
         user_var: the user variable associated with this calculation
-        thresh_toggle: True - update the threshold value, False - keep old threshold
+        fix_thresh: True - keep old threshold value, False - update the threshold value
         method: 'quick' - image_handler uses a peak finding algorithm 
                 'dbl gauss' - fit a double Guassian function
                 'split gauss' - split the histogram at the threshold and fit Gaussians
@@ -241,8 +240,8 @@ class histo_handler(Analysis):
             for i in range(20):   # shouldn't need many iterations
                 if diff < 0.0015:
                     break
-                success = self.process(ih, user_var, new_thresh, method)
+                success = self.process(ih, user_var, fix_thresh, method)
                 diff = abs(oldthresh - ih.thresh) / float(oldthresh)
             if success: # process returns 0 if it fails
-                self.process(ih, user_var, new_thresh, method)
+                self.process(ih, user_var, fix_thresh, method)
         return success  

@@ -6,6 +6,7 @@ class to fit a Poissonian or Gaussian to a given set of data
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy.special import factorial
+from scipy.stats import chisquare
 
 class fit:
     """Collection of common functions for theoretical fits.
@@ -29,6 +30,7 @@ class fit:
         self.ps   = param  # best fit parameters
         self.perrs = None  # error on best fit parameters
         self.bffunc= func  # function used for the best fit
+        self.chisq = None  # chi-squared statistic for the most recent fit
 
     def estGaussParam(self):
         """Guess at the amplitude A, centre x0, width wx, and offset y0 of a 
@@ -90,4 +92,4 @@ class fit:
                                 maxfev=80000, **kwargs)
         self.ps = popt
         self.perrs = np.sqrt(np.diag(pcov))
-    
+        self.chisq, _ = chisquare(self.y, fn(self.x, *self.ps))

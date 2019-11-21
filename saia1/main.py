@@ -684,22 +684,22 @@ class main_window(QMainWindow):
             
     #### #### toggle functions #### #### 
 
-    def display_fit(self, toggle=True, fit_method='double gaussian'):
+    def display_fit(self, toggle=True, fit_method='quick'):
         """Plot the best fit calculated by histo_handler.process
         and display the histogram statistics in the stat_labels"""
         success = self.update_fit(fit_method=fit_method)
         if success: 
             for key in self.histo_handler.stats.keys(): # update the text labels
                 self.stat_labels[key].setText(str(self.histo_handler.temp_vals[key]))
+            self.plot_current_hist(self.image_handler.histogram)
             bf = self.histo_handler.bf # short hand
             if bf and bf.bffunc: # plot the curve on the histogram
-                self.plot_current_hist(self.image_handler.histogram)
                 xs = np.linspace(min(bf.x), max(bf.x), 200)
                 self.hist_canvas.plot(xs, bf.bffunc(xs, *bf.ps), pen='b')
 
-    def update_fit(self, toggle=True, fit_method='double gaussian'):
+    def update_fit(self, toggle=True, fit_method='quick'):
         """Use the histo_handler.process function to get histogram
-        statistics from the current data."""
+        statistics and a best fit from the current data."""
         if fit_method == 'check action' or self.sender().text() == 'Get best fit':
             action = self.fit_options.checkedAction()
             if action:
@@ -707,7 +707,7 @@ class main_window(QMainWindow):
         elif self.sender().text() == 'Update statistics':
             fit_method = 'quick'
         return self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
-            new_thresh=self.thresh_toggle.isChecked(), method=fit_method)
+            fix_thresh=self.thresh_toggle.isChecked(), method=fit_method)
 
     def update_varplot_axes(self, label=''):
         """The user selects which variable they want to display on the plot
@@ -844,10 +844,11 @@ class main_window(QMainWindow):
             elif self.bin_actions[0].isChecked(): # automatic
                 self.swap_signals()  # disconnect image handler, reconnect plot
                 self.image_handler.bin_array = []
-                if self.thresh_toggle.isChecked():
-                    self.plot_current_hist(self.image_handler.histogram)
-                else:
-                    self.plot_current_hist(self.image_handler.hist_and_thresh)
+                if self.image_handler.ind > 0:
+                    if self.thresh_toggle.isChecked():
+                        self.plot_current_hist(self.image_handler.histogram)
+                    else:
+                        self.plot_current_hist(self.image_handler.hist_and_thresh)
             elif self.bin_actions[2].isChecked() or self.bin_actions[3].isChecked(): # No Display or No Update
                 try: # disconnect all slots
                     self.event_im.disconnect()
@@ -952,7 +953,7 @@ class main_window(QMainWindow):
                 success = self.update_fit(fit_method='check actions') # get best fit
                 if not success:                   # if fit fails, use peak search
                     self.histo_handler.process(self.image_handler, uv, 
-                        new_thresh=self.thresh_toggle.isChecked(), method='quick')
+                        fix_thresh=self.thresh_toggle.isChecked(), method='quick')
                     print('\nWarning: multi-run fit failed at ' +
                         self.mr['prefix'] + '_' + str(self.mr['v']) + '.csv')
                 self.save_hist_data(
@@ -1150,7 +1151,7 @@ class main_window(QMainWindow):
                     print("\n WARNING: failed to load "+file_name) 
             self.plot_current_hist(self.image_handler.histogram)
             self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
-                        new_thresh=self.thresh_toggle.isChecked(), method='quick')
+                        fix_thresh=self.thresh_toggle.isChecked(), method='quick')
             if self.recent_label.text == 'Processing files...':
                 self.recent_label.setText('Finished Processing')
         return im_list
@@ -1199,7 +1200,7 @@ class main_window(QMainWindow):
                     print("\n WARNING: failed to load "+file_name) # probably file size was wrong
             self.plot_current_hist(self.image_handler.histogram)
             self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
-                        new_thresh=self.thresh_toggle.isChecked(), method='quick')
+                        fix_thresh=self.thresh_toggle.isChecked(), method='quick')
             if self.recent_label.text == 'Processing files...':
                 self.recent_label.setText('Finished Processing')
         return im_list
@@ -1210,10 +1211,12 @@ class main_window(QMainWindow):
         if self.check_reset():
             file_name = self.try_browse(file_type='csv(*.csv);;all (*)')
             if file_name:
-                self.image_handler.load(file_name)
-                self.plot_current_hist(self.image_handler.histogram)
-                self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
-                        new_thresh=self.thresh_toggle.isChecked(), method='quick')
+                header = self.image_handler.load(file_name)
+                if self.image_handler.ind > 0:
+                    self.histo_handler.process(self.image_handler, 
+                        self.stat_labels['User variable'].text(), 
+                        fix_thresh=self.thresh_toggle.isChecked(), method='quick')
+                    self.plot_current_hist(self.image_handler.histogram)
 
     def load_image(self, trigger=None):
         """Prompt the user to select an image file to display"""
