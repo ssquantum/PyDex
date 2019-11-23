@@ -29,6 +29,10 @@ except ImportError:
         QVBoxLayout)
 # change directory to this file's location
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
+import logging
+import logerrs
+logerrs.setup_log()
+logger = logging.getLogger(__name__)
 from saia1.main import main_window # image analysis
 from saia1.reimage import reim_window # analysis for survival probability
 from ancam.cameraHandler import camera # manages Andor camera
