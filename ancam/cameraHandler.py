@@ -12,6 +12,8 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import win32event
+import logging
+logger = logging.getLogger(__name__)
 from AndorFunctions import Andor, ERROR_CODE # Import iXon control functions.
 
 try:
