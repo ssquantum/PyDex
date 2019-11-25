@@ -13,7 +13,7 @@ try:
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal, QTimer
     from PyQt5.QtWidgets import QMessageBox
-from .networker import PyServer
+from networker import PyServer
 
 class runnum(QThread):
     """Take ownership of the run number that is

@@ -29,10 +29,14 @@ except ImportError:
         QVBoxLayout)
 # change directory to this file's location
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
+sys.path.append('./saia1')
 from saia1.main import main_window # image analysis
 from saia1.reimage import reim_window # analysis for survival probability
+sys.path.append('./ancam')
 from ancam.cameraHandler import camera # manages Andor camera
+sys.path.append('./savim')
 from savim.imsaver import event_handler # saves images
+sys.path.append('./dextr')
 from dextr.runid import runnum # synchronises run number, sends signals
 from dextr.networker import TCPENUM, remove_slot # enum for DExTer produce-consumer loop cases
 
@@ -54,13 +58,14 @@ class Master(QMainWindow):
     """
     def __init__(self, pop_up=1, state_config='.\\state'):
         super().__init__()
-        self.ancam_config = '.\\ancam\\ExExposure_config.dat'
+        self.ancam_config = '.\\ancam\\ExExposure_config.dat' # if restore state fails
         self.save_config = '.\\config\\config.dat'
         sv_dirs = event_handler.get_dirs(self.save_config)
+        # if not any([os.path.exists(svd) for svd in sv_dirs.values()]): # ask user to choose valid config file
         startn = self.restore_state(file_name=state_config)
         # choose which image analyser to use from number images in sequence
         self.init_UI()
-        if pop_up:
+        if pop_up: # also option to choose config file?
             m, ok = QInputDialog.getInt( # user chooses image analyser
                 self, 'Initiate Image Analyser(s)',
                 'Select the number of images per sequence\n(0 for survival probability)',

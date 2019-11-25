@@ -1,0 +1,5 @@
+# ignore the following directories
+saia1/2019/
+.*/__pycache__/
+
+# ignore the following files
