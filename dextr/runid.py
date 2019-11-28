@@ -14,6 +14,8 @@ except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal, QTimer
     from PyQt5.QtWidgets import QMessageBox
 from networker import PyServer
+import logging
+logger = logging.getLogger(__name__)
 
 class runnum(QThread):
     """Take ownership of the run number that is
@@ -25,8 +27,7 @@ class runnum(QThread):
     keyword arguments:
     camra - an instance of ancam.cameraHandler.camera
     saver - an instance of savim.imsaver.event_handler
-    saiaw - list of instances of saia1.main.main_window
-                or saia1.reimage.reim_window
+    saiaw - an instance of settingsgui.settings_window
     n     - the initial run ID number
     m     - the number of images taken per sequence
     k     - the number of images taken already"""
@@ -42,7 +43,7 @@ class runnum(QThread):
         self.cam.AcquireEnd.connect(self.receive) # receive the most recent image
         self.sv = saver  # image saver
         self.im_save.connect(self.sv.respond) # separate signal to avoid interfering
-        self.mw = saiaw  # image analysis main windows
+        self.sw = saiaw  # image analysis settings gui
         
         self.server = PyServer() # server will run continuously on a thread
         self.server.dxnum.connect(self.Dxnum) # signal gives run number
@@ -65,8 +66,8 @@ class runnum(QThread):
             
     def Dxnum(self, dxn):
         """change the Dexter run number to the new value"""
-        if dxn != str(self._n+1):
-            print('Lost sync: Dx %s /= master %s'%(dxn, self._n+1))
+        # if dxn != str(self._n+1):
+        #     logger.warning('Lost sync: Dx %s /= master %s'%(dxn, self._n+1))
         self._n = int(dxn)
 
     def receive(self, im=0):
@@ -76,13 +77,8 @@ class runnum(QThread):
         imn = self._k % self._m # ID number of image in sequence
         self.sv.imn = str(imn) 
         self.im_save.emit(im)
-        if self._m != 2:
-            self.mw[imn].image_handler.fid = self._n
-            self.mw[imn].event_im.emit(im)
-        else: # survival probability uses a master window
-            self.mw[0].image_handler.fid = self._n
-            self.mw[0].mws[imn].image_handler.fid = self._n
-            self.mw[0].mws[imn].event_im.emit(im)
+        self.sw.mw[imn].image_handler.fid = self._n
+        self.sw.mw[imn].event_im.emit(im)
         self._k += 1 # another image was taken
 
     def reset_dates(self):
@@ -91,8 +87,8 @@ class runnum(QThread):
         t0 = time.localtime()
         self.sv.date = time.strftime(
                 "%d %b %B %Y", t0).split(" ") # day short_month long_month year
-        for mw in self.mw:
-            mw.date = self.sv.date
+        for sw in self.sw:
+            sw.date = self.sv.date
         QTimer.singleShot((86401 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates) # set the next timer to reset dates
     
@@ -105,10 +101,10 @@ class runnum(QThread):
         if self.sv.dfn != str(self._n):
             checks.append('Lost sync: Image saver # %s /= run # %s'%(
                                 self.sv.dfn, self._n))
-        for mw in self.mw:
-            if mw.image_handler.fid != self._n:
+        for sw in self.sw:
+            if sw.image_handler.fid != self._n:
                 checks.append('Lost sync: Image analysis # %s /= run # %s'%(
-                            mw.image_handler.fid, self._n))
+                            sw.image_handler.fid, self._n))
         if self._k != self._n*self._m + self._k % self._m:
             checks.append('Lost sync: %s images taken in %s runs'%(
                     self._k, self._n))
@@ -127,10 +123,7 @@ class runnum(QThread):
                 return checks
         if option == 'reset' or (option == 'popup' and reply == QMessageBox.Yes):
             self.sv.dfn = str(self._n)
-            for mw in self.mw:
-                mw.image_handler.fid = self._n
-            if self._m == 2: # reimage mode has subwindows
-                for mw in self.mw[0].mws:
-                    mw.image_handler.fid = self._n
+            for sw in self.sw:
+                sw.image_handler.fid = self._n
             self._k = self._n * self._m # number images that should've been taken
             return checks

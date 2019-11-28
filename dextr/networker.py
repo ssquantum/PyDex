@@ -11,10 +11,13 @@ Stefan Spence 21/10/19
 """
 import socket
 import struct
+import sys
 try:
     from PyQt4.QtCore import QThread, pyqtSignal
+    from PyQt4.QtGui import QApplication
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
+    from PyQt5.QtWidgets import QApplication 
     
 TCPENUM = { # enum for DExTer's producer-consumer loop cases
 'Initialise': 0,
@@ -124,11 +127,22 @@ class PyServer(QThread):
         """Stop the event loop safely, ensuring that the sockets are closed.
         Once the thread has stopped, reset the stop toggle so that it 
         doesn't block the thread starting again the next time."""
-        reconnect(self.finished, self.reset_stop)
+        remove_slot(self.finished, self.reset_stop)
         self.stop = True
                             
 if __name__ == "__main__":
+    app = QApplication.instance()
+    standalone = app is None # false if there is already an app instance
+    if standalone: # if there isn't an instance, make one
+        app = QApplication(sys.argv) 
+        
     ps = PyServer()
     ps.textin.connect(print)
     ps.add_message('0', 'Hello world!')
     ps.start() # will keep running until you call ps.close()
+    print('server running')
+
+    if input("'q' to close  ") == 'q': # if an app instance was made, execute it
+        ps.close()
+        app.quit()
+        sys.exit() 
