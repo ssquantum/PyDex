@@ -44,9 +44,10 @@ class runnum(QThread):
         self.sv = saver  # image saver
         self.im_save.connect(self.sv.respond) # separate signal to avoid interfering
         self.sw = saiaw  # image analysis settings gui
+        self.sw.m_changed.connect(self.set_m)
         
         self.server = PyServer() # server will run continuously on a thread
-        self.server.dxnum.connect(self.Dxnum) # signal gives run number
+        self.server.dxnum.connect(self.set_n) # signal gives run number
         # self.server.textin.connect(self.read_Dx_msg) 
 
         # set a timer to update the dates 1s after midnight:
@@ -64,11 +65,18 @@ class runnum(QThread):
                 self.server.start()
         else: self.server.start()
             
-    def Dxnum(self, dxn):
+    def set_n(self, dxn):
         """change the Dexter run number to the new value"""
         # if dxn != str(self._n+1):
         #     logger.warning('Lost sync: Dx %s /= master %s'%(dxn, self._n+1))
         self._n = int(dxn)
+    
+    def set_m(self, newm):
+        """Change the number of images per run"""
+        if newm > 0:
+            self._m = int(newm)
+        elif newm == 0:
+            self._m = 2
 
     def receive(self, im=0):
         """Update the Dexter file number in all associated modules,

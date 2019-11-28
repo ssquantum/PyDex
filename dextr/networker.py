@@ -11,7 +11,6 @@ Stefan Spence 21/10/19
 """
 import socket
 import struct
-import sys
 try:
     from PyQt4.QtCore import QThread, pyqtSignal
     from PyQt4.QtGui import QApplication
@@ -75,7 +74,7 @@ class PyServer(QThread):
         self.server_address = ('localhost', port)
         self.msg_queue = []
         
-    def add_message(self, enum, text, encoding="UTF-8", ):
+    def add_message(self, enum, text, encoding="UTF-8"):
         """Update the message that will be sent upon the next connection.
         enum - (int) corresponding to the enum for DExTer's producer-
                 consumer loop.
@@ -131,6 +130,7 @@ class PyServer(QThread):
         self.stop = True
                             
 if __name__ == "__main__":
+    import sys
     app = QApplication.instance()
     standalone = app is None # false if there is already an app instance
     if standalone: # if there isn't an instance, make one
@@ -140,6 +140,7 @@ if __name__ == "__main__":
     ps.textin.connect(print)
     ps.add_message('0', 'Hello world!')
     ps.start() # will keep running until you call ps.close()
+    app.exec_()
     print('server running')
 
     if input("'q' to close  ") == 'q': # if an app instance was made, execute it

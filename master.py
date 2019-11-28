@@ -33,8 +33,8 @@ import logging
 import logerrs
 logerrs.setup_log()
 logger = logging.getLogger(__name__)
-from saia1.main import main_window # image analysis
-from saia1.reimage import reim_window # analysis for survival probability
+sys.path.append('./saia1')
+from saia1.settingsgui import settings_window
 sys.path.append('./ancam')
 from ancam.cameraHandler import camera # manages Andor camera
 sys.path.append('./savim')
@@ -76,23 +76,13 @@ class Master(QMainWindow):
         else:
             m = 0
         # initialise the thread controlling run # and emitting images
-        if m == 0: # reimage calculates survival probability
-            self.rn = runnum(camera(config_file=self.ancam_config), # Andor camera
+        self.rn = runnum(camera(config_file=self.ancam_config), # Andor camera
                 event_handler(self.save_config), # image saver
-                [reim_window(sv_dirs['Results Path: '])], # image analysis
-                n=startn, m=2, k=0) 
-            self.rn.mw[0].setGeometry(100, 250, 850, 700)
-            self.rn.mw[0].show()
-        else:
-            self.rn = runnum(camera(config_file=self.ancam_config), # Andor camera
-                event_handler(self.save_config), # image saver
-                [main_window(
+                settings_window(nsaia=m if m!=0 else 2, nreim=1 if m==0 else 1,
                     results_path =sv_dirs['Results Path: '],
-                    im_store_path=sv_dirs['Image Storage Path: '],
-                    name=str(i)) for i in range(m)], # image analysis
-                n=startn, m=m, k=0) 
-            for i in range(m):
-                self.rn.mw[i].show()
+                    im_store_path=sv_dirs['Image Storage Path: ']), # image analysis
+                n=startn, m=2, k=0) 
+        
         self.rn.server.textin.connect(self.Dx_label.setText) # synchronise run number
         self.status_label.setText('Initialised')
 
@@ -138,12 +128,6 @@ class Master(QMainWindow):
         self.centre_widget.layout = QGridLayout()
         self.centre_widget.setLayout(self.centre_widget.layout)
         self.setCentralWidget(self.centre_widget)
-        
-        #### validators for user input ####
-        # reg_exp = QRegExp(r'([0-9]+(\.[0-9]+)?,?)+')
-        # comma_validator = QRegExpValidator(reg_exp) # floats and commas
-        # double_validator = QDoubleValidator() # floats
-        # int_validator = QIntValidator()       # integers
         
         #### menubar at top gives options ####
         menubar = self.menuBar()
@@ -195,22 +179,23 @@ class Master(QMainWindow):
     def show_window(self):
         """Show the window of the submodule or adjust its settings."""
         if self.sender().text() == 'Image Analyser':
-            for mw in self.rn.mw:
-                mw.show()
+            self.rn.sw.show()
+
         elif self.sender().text() == 'Camera Status':
-            text, ok = QInputDialog.getText( 
-                self, 'Camera Status',
-                'Current state: ' + self.rn.cam.AF.GetStatus() + '\n' +
-                'Choose a new config file: ',
-                text=self.ancam_config)
-            if text and ok and not self.acquire_button.isChecked():
-                check = self.rn.cam.ApplySettingsFromConfig(text)
-                if not any(check):
-                    self.status_label.setText('Camera settings config: '+text)
-                    self.ancam_config = text
-                else:
-                    self.status_label.setText(
-                        'Failed to update camera settings.')
+            if self.rn.cam.initialised:
+                msg = 'Current state: ' + self.rn.cam.AF.GetStatus() + '\nChoose a new config file: '
+            else: msg = 'Camera not initialised. See log file for details. Press OK to retry.'
+            text, ok = QInputDialog.getText( self, 'Camera Status', msg, text=self.ancam_config)
+            if text and ok:
+                if self.rn.cam.initialised:
+                    check = self.rn.cam.ApplySettingsFromConfig(text)
+                    if not any(check):
+                        self.status_label.setText('Camera settings config: '+text)
+                        self.ancam_config = text
+                    else:
+                        self.status_label.setText('Failed to update camera settings.')
+                else: self.reset_camera(text)
+                    
         elif self.sender().text() == 'Image Saver':
             text, ok = QInputDialog.getText( 
                 self, 'Image Saver',
@@ -218,22 +203,19 @@ class Master(QMainWindow):
         '\nEnter the path to a config file to reset the image saver: ',
         text=self.save_config)
             if text and ok:
-                self.im_save.disconnect()
+                self.rn.im_save.disconnect()
                 self.rn.sv = event_handler(text)
                 if self.rn.sv.image_storage_path:
                     self.status_label.setText('Image Saver config: '+text)
-                    self.im_save.connect(self.rn.sv.respond)
+                    self.rn.im_save.connect(self.rn.sv.respond)
                     self.save_config = text
                 else:
                     self.status_label.setText('Failed to find config file.')
+
         elif self.sender().text() == 'Sequence Editor':
             pass
         elif self.sender().text() == 'Monitoring':
             pass
-        elif self.sender().text() == 'Reset Image Analyser':
-            for mw in self.rn.mw:
-                mw.close()
-
 
     def browse_sequence(self, start_dir='./'):
         """Open the file browser to search for a sequence file, then insert
@@ -255,8 +237,11 @@ class Master(QMainWindow):
         """Close the camera and then start it up again with the new setting.
         Sometimes after being in crop mode the camera fails to reset the 
         ROI and so must be closed and restarted."""
-        self.rn.cam.SafeShutdown()
+        try:
+            self.rn.cam.SafeShutdown()
+        except: logger.warning('Andor camera safe shutdown failed') # probably not initialised
         self.rn.cam = camera(config_file=ancam_config) # Andor camera
+        self.rn.cam.AcquireEnd.connect(self.rn.receive)
         self.status_label.setText('Camera settings config: '+ancam_config)
         self.ancam_config = ancam_config
 
@@ -331,8 +316,9 @@ class Master(QMainWindow):
     def closeEvent(self, event):
         """Proper shut down procedure"""
         self.rn.cam.SafeShutdown()
-        for mw in self.rn.mw:
+        for mw in self.rn.sw.mw + self.rn.sw.rw:
             mw.close()
+        self.rn.sw.close()
         self.save_state()
         event.accept()
         

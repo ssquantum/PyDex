@@ -7,8 +7,10 @@ Stefan Spence 21/10/19
 import socket
 try:
     from PyQt4.QtCore import QThread, pyqtSignal
+    from PyQt4.QtGui import QApplication
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
+    from PyQt5.QtWidgets import QApplication 
     
 class PyClient(QThread):
     """Create a client that opens a socket, sends and receives data.
@@ -142,3 +144,19 @@ class PyServer(QThread):
     def check_stop(self):
         """"""
         return self.stop
+        
+        
+if __name__ == "__main__":
+    import sys
+    app = QApplication.instance()
+    standalone = app is None # false if there is already an app instance
+    if standalone: # if there isn't an instance, make one
+        app = QApplication(sys.argv) 
+        
+    pc = PyClient()
+    pc.txtout.connect(print)
+    pc.singleContact('0', 'Hello world!')
+
+    if input("'q' to close  ") == 'q': # if an app instance was made, execute it
+        app.quit()
+        sys.exit() 

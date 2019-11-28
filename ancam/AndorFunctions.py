@@ -29,21 +29,23 @@ from ctypes import *   # Used to read and define C variables in Python.
 import sys
 import os
 import numpy as np
+import logging
+logger = logging.getLogger(__name__)
 
 # Ctype files stored here: C:\Users\Lab\AppData\Local\Enthought\Canopy\App\appdata\canopy-2.1.9.3717.win-x86_64\Lib\ctypes
 
 class Andor:
     """Class containing a library of functions for operating the Andor camera."""
     
-    def __init__(self):
+    def __init__(self, dllpath="Z:\\Tweezer\\Code\\Python 3.5\\PyDex\\ancam\\atmcd64d"):
         super().__init__() # required for multiple inheritence
         self.OS = platform.system()
         self.architecture = platform.architecture()[0]
-        # this takes absolute path, not relative:
-        dllpath = "Z:\\Tweezer\\Code\\Python 3.5\\PyDex\\ancam\\atmcd64d"
-        if not os.path.exists(dllpath+".dll"):
-            dllpath = "Y:\\Tweezer\\Code\\Python 3.5\\PyDex\\ancam\\atmcd64d"
-        self.dll = cdll.LoadLibrary(dllpath)
+        
+        try:            
+            self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+        except OSError:
+            logger.exception('Andor functions dll file not found.')
     
         self.verbosity      = True      # Amount of information to display when debugging
         self.coolerStatus   = None       # Cooler on (1) or off (0)?

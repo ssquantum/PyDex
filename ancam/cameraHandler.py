@@ -34,29 +34,34 @@ class camera(QThread):
     Finished = pyqtSignal(int) # emit when the acquisition thread finishes
 
     def __init__(self, config_file=".\\ExExposure_config.dat"):
-        super().__init__()         # Initialise the parent classes
-        self.AF = Andor() # functions for Andor camera
-        self.AF.verbosity = False  # Set True for debugging
-        self.AF.connected = False
+        super().__init__()   # Initialise the parent classes
+        self.lastImage   = np.zeros((32,32)) # last acquired image
+        self.BufferSize  = 0 # number of images that can fit in the buffer
         
-        self.lastImage  = np.zeros((32,32)) # last acquired image
-        self.BufferSize = 0 # number of images that can fit in the buffer
-        
-        self.idle_time = 0     # time between acquisitions
-        self.t0 = time.time()  # time at start of acquisition
+        self.idle_time = 0    # time between acquisitions
+        self.t0 = time.time() # time at start of acquisition
         self.t1 = 0  # time time just after get acquisition
-        self.t2 = time.time()  # time after emitting signals
+        self.t2 = time.time() # time after emitting signals
+        self.timeout = 5e3 # number of milliseconds to wait for acquire
         
-        self.timeout      = 5e3 # number of milliseconds to wait for acquire
-        
-        if self.AF.OS == "Windows" and self.AF.architecture == "64bit":
-            self.CameraConnect()
-            if self.AF.connected == True:
-                self.AF.SetDriverEvent(int(self.AcquisitionEvent))
-                self.ApplySettingsFromConfig(config_file=config_file) 
-                # self.StabiliseTemperature()
-        else:
-            print("Requires Windows 64 bit")
+        self.initialised = 0 # check whether the camera functions were loaded 
+        try: 
+            self.AF = Andor() # functions for Andor camera
+            self.AF.verbosity = False  # Set True for debugging
+            self.AF.connected = False
+            self.initialised  = 1 # functions loaded but camera not connected
+            if self.AF.OS == "Windows" and self.AF.architecture == "64bit":
+                self.CameraConnect()
+                self.initialised = 2 # camera connected, default config
+                if self.AF.connected == True:
+                    self.AF.SetDriverEvent(int(self.AcquisitionEvent))
+                    self.ApplySettingsFromConfig(config_file=config_file) 
+                    # self.StabiliseTemperature()
+                    self.initialised = 3 # fully initialised
+            else:
+                logger.error("Andor SDK requires Windows 64 bit")
+        except:
+            logger.warning('Andor EMCCD not initialised.')
             
     def CameraConnect(self):
         """Connect to camera and check which one it is.
