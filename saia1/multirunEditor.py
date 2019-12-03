@@ -1,74 +1,79 @@
-"""Single Atom Image Analysis (SAIA) Settings
+"""Single Atom Image Analysis (SAIA) Multirun Editor
 Stefan Spence 26/02/19
 
- - control the ROIs across all SAIA instances
- - update other image statistics like read noise, bias offset
- - set multirun values on all SAIA instances
+ - Provide a visual representation for multirun values
+ - Allow the user to quickly edit multirun values
+ - 
 """
 import os
 import sys
-import time
 import numpy as np
 from collections import OrderedDict
-# some python packages use PyQt4, some use PyQt5...
 try:
     from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
             QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
             QDoubleValidator, QIntValidator, QComboBox, QMenu, QActionGroup, 
-            QTabWidget, QVBoxLayout, QFont, QRegExpValidator, QInputDialog) 
+            QTabWidget, QVBoxLayout, QFont, QRegExpValidator, QInputDialog,
+            QTableWidget, QTableWidgetItem) 
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp
     from PyQt5.QtGui import (QGridLayout, QMessageBox, QLineEdit, QIcon, 
             QFileDialog, QDoubleValidator, QIntValidator, QComboBox, QMenu, 
             QActionGroup, QVBoxLayout, QFont, QRegExpValidator)
-    from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, QTabWidget,
-        QAction, QMainWindow, QLabel, QInputDialog)
+    from PyQt5.QtWidgets import (QApplication, QPushButton,
+        QAction, QMainWindow, QLabel, QTableWidget, QTableWidgetItem)
 import logging
 logger = logging.getLogger(__name__)
 from maingui import main_window, remove_slot # single atom image analysis
-from reimage import reim_window # analysis for survival probability
+
+def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
+            default_text='', validator=None):
+        """Make a QLabel with an accompanying QLineEdit and add them to the 
+        given layout with an input validator. The position argument should
+        be [row number, column number, row width, column width]."""
+        label = QLabel(label_text, self)
+        layout.addWidget(label, *position)
+        line_edit = QLineEdit(self)
+        if np.size(position) == 4:
+            position[1] += 1
+        layout.addWidget(line_edit, *position)
+        line_edit.setText(default_text) 
+        line_edit.setValidator(validator)
+        return label, line_edit
 
 ####    ####    ####    ####
 
 # main GUI window contains all the widgets                
-class settings_window(QMainWindow):
-    """Main GUI window managing settings for all instances of SAIA.
+class multirun_window(QMainWindow):
+    """Main GUI window for editing multirun values.
 
     Keyword arguments:
-    nsaia         -- number of maingui.main_window instances to create
-    nreim         -- number of reimage.reim_window instances to create
-    results_path  -- the directory where result csv or dat files are saved.
-    im_store_path -- the directory where images are saved. Default
+    nrows -- number of rows = number of multirun steps.
+    ncols -- number of columns = number of channels to change in one step.
+    order -- the order to produce the variables list in:
+        ascending  - with repeats next to each other
+        descending - with repeats next to each other
+        random     - completely randomise the order
+        coarse random - randomise order but repeats next to each other
+        unsorted   - make an ascending list, then repeat the list
     """
-    m_changed = pyqtSignal(int) # gives the number of images per run
+    multirun_vals = pyqtSignal(np.ndarray) # the array of multirun values
 
-    def __init__(self, nsaia=1, nreim=0, results_path='.', im_store_path='.'):
+    def __init__(self, nrows=1000, ncols=1, order='ascending'):
         super().__init__()
-        self.types = OrderedDict([('pic_size',int), ('xc',int), ('yc',int), ('roi_size',int), 
-            ('bias',float), ('Nr', float), ('image path', str), ('results path', str)])
-        self.stats = OrderedDict([('pic_size',1), ('xc',0), ('yc',0), ('roi_size',1), 
-            ('bias',697), ('Nr', 8.8), ('image_path', im_store_path), ('results_path', results_path)])
-        self.load_settings() # load default
-        self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
-        self.results_path = results_path # used for saving results
-        self.image_storage_path = im_store_path # used for loading image files
-        self._m = nsaia # number of images per run = number of SAIA instances
-        self.mw = [main_window(results_path, im_store_path, str(i) for i in range(nsaia))] # saia instances
-        self.rw = [] # re-image analysis instances
-        self.rw_inds = [] # which saia instances are used for the re-image instances
-        if np.size(self.mw) >= nreim*2:
-            self.rw = [reim_window([self.mw[2*i].image_handler, self.mw[2*i+1].image_handler],
-                results_path, im_store_path, str(i)) for i in range(nreim)]
-            self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(nreim)]
+        self.types = OrderedDict([('nrows',int), ('col_head',str), 
+                ('vals',np.ndarray), ('order',str), ('nomit',int),
+                ('measure',int), ('measure_prefix',str)])
+        self.stats = OrderedDict([('nrows',nrows), ('col_head', ','.join(map(str, range(ncols)))),
+                ('vals',np.zeros((nrows, ncols))), ('order', order), 
+                ('nomit',0), ('measure',0), ('measure_prefix','0_')])
         self.init_UI()  # make the widgets
         
     def init_UI(self):
         """Create all of the widget objects required"""
         self.centre_widget = QWidget()
-        self.tabs = QTabWidget()       # make tabs for each main display 
         self.centre_widget.layout = QVBoxLayout()
-        self.centre_widget.layout.addWidget(self.tabs)
         self.centre_widget.setLayout(self.centre_widget.layout)
         self.setCentralWidget(self.centre_widget)
         
@@ -79,158 +84,41 @@ class settings_window(QMainWindow):
         double_validator = QDoubleValidator() # floats
         int_validator = QIntValidator()       # integers
 
-        #### menubar at top gives options ####
-        menubar = self.menuBar()
+        grid_layout = QGridLayout()
         
-        hist_menu =  menubar.addMenu('Histogram')
-        bin_menu = QMenu('Binning', self) # drop down menu for binning options
-        bin_options = QActionGroup(bin_menu)  # group together the options
-        self.bin_actions = []
-        for action_label in ['Automatic', 'Manual', 'No Display', 'No Update']:
-            self.bin_actions.append(QAction(
-                action_label, bin_menu, checkable=True, 
-                checked=action_label=='Automatic')) # default is auto
-            bin_menu.addAction(self.bin_actions[-1])
-            bin_options.addAction(self.bin_actions[-1])
-        self.bin_actions[0].setChecked(True) # make sure default is auto
-        bin_options.setExclusive(True) # only one option checked at a time
-        bin_options.triggered.connect(self.set_all_windows) # connect the signal
-        hist_menu.addMenu(bin_menu)
-        
-        fit_menu = QMenu('Fitting', self) # drop down menu for fitting options
-        self.fit_options = QActionGroup(fit_menu)  # group together the options
-        for action_label in ['separate gaussians', 'double poissonian', 
-                            'single gaussian', 'double gaussian']:
-            fit_method = QAction(action_label, fit_menu, checkable=True, 
-                checked=action_label=='double gaussian') # set default
-            fit_menu.addAction(fit_method)
-            self.fit_options.addAction(fit_method)
-        fit_method.setChecked(True) # set last method as checked: double gaussian
-        self.fit_options.setExclusive(True) # only one option checked at a time
-        self.fit_options.triggered.connect(self.set_all_windows)
-        hist_menu.addMenu(fit_menu)
+        # choose the number of rows = number of multirun steps
+        _, self.rows_edit = make_label_edit('# Rows', grid_layout, 
+            position=[0,0, 1,1], default_text=str(self.stats['nrows']), 
+            validator=int_validator)
+        self.rows_edit.textChanged[str].connect(self.change_array_size)
 
-        #### tab for settings  ####
-        settings_tab = QWidget()
-        settings_grid = QGridLayout()
-        settings_tab.setLayout(settings_grid)
-        self.tabs.addTab(settings_tab, "Settings")
+        # choose the number of rows = number of multirun steps
+        _, self.rows_edit = make_label_edit('# Omit', grid_layout, 
+            position=[0,2, 1,1], default_text=str(self.stats['nrows']), 
+            validator=int_validator)
+        self.rows_edit.textChanged[str].connect(self.change_array_size)
 
-        # choose the number of image per run = number of SAIA instances
-        m_label = QLabel('Number of images per run: ', self)
-        settings_grid.addWidget(m_label, 0,0, 1,1)
-        self.m_edit = QLineEdit(self)
-        settings_grid.addWidget(self.m_edit, 0,1, 1,1)
-        self.m_edit.setText(str(self._m)) # default
-        self.m_edit.setValidator(int_validator)
+        # choose the number of columns = number of channels to change in one step
+        _, self.cols_edit = make_label_edit('# Columns', grid_layout, 
+            position=[0,4, 1,1], default_text=str(len(self.stats['col_head'].split(','))), 
+            validator=int_validator)
+        self.cols_edit.textChanged[str].connect(self.change_array_size)
 
-        # choose the number of image per run = number of SAIA instances
-        reim_label = QLabel('Histogram indices for re-imaging: ', self)
-        settings_grid.addWidget(reim_label, 1,0, 1,1)
-        self.reim_edit = QLineEdit(self)
-        settings_grid.addWidget(self.reim_edit, 1,1, 1,1)
-        self.reim_edit.setText('; '.join(self.rw_inds)) # default
+        # choose the order
+        self.order = QComboBox(self)
+        self.order.addItems(['ascending', 'descending', 'random', 'coarse random', 'unsorted']) 
+        grid_layout.addWidget(self.order, 0,6, 1,1)
 
-        # get user to set the image size in pixels
-        size_label = QLabel('Image size in pixels: ', self)
-        settings_grid.addWidget(size_label, 2,0, 1,1)
-        self.pic_size_edit = QLineEdit(self)
-        settings_grid.addWidget(self.pic_size_edit, 2,1, 1,1)
-        self.pic_size_edit.setText(str(self.stats['pic_size'])) # default
-        self.pic_size_edit.textChanged[str].connect(self.pic_size_text_edit)
-        self.pic_size_edit.setValidator(int_validator)
-
-        # get image size from loading an image
-        load_im_size = QPushButton('Load size from image', self)
-        load_im_size.clicked.connect(self.load_im_size) # load image size from image
-        load_im_size.resize(load_im_size.sizeHint())
-        settings_grid.addWidget(load_im_size, 2,2, 1,1)
-
-        # # get ROI centre from loading an image
-        # load_roi = QPushButton('Get ROI from image', self)
-        # load_roi.clicked.connect(self.load_roi) # load roi centre from image
-        # load_roi.resize(load_im_size.sizeHint())
-        # settings_grid.addWidget(load_roi, 3,2, 1,1)
-
-        # # get user to set ROI:
-        # # centre of ROI x position
-        # roi_xc_label = QLabel('ROI x_c: ', self)
-        # settings_grid.addWidget(roi_xc_label, 3,0, 1,1)
-        # self.roi_x_edit = QLineEdit(self)
-        # settings_grid.addWidget(self.roi_x_edit, 3,1, 1,1)
-        # self.roi_x_edit.setText('0')  # default
-        # self.roi_x_edit.textEdited[str].connect(self.roi_text_edit)
-        # self.roi_x_edit.setValidator(int_validator) # only numbers
-        
-        # # centre of ROI y position
-        # roi_yc_label = QLabel('ROI y_c: ', self)
-        # settings_grid.addWidget(roi_yc_label, 4,0, 1,1)
-        # self.roi_y_edit = QLineEdit(self)
-        # settings_grid.addWidget(self.roi_y_edit, 4,1, 1,1)
-        # self.roi_y_edit.setText('0')  # default
-        # self.roi_y_edit.textEdited[str].connect(self.roi_text_edit)
-        # self.roi_y_edit.setValidator(int_validator) # only numbers
-        
-        # # ROI size
-        # roi_l_label = QLabel('ROI size: ', self)
-        # settings_grid.addWidget(roi_l_label, 5,0, 1,1)
-        # self.roi_l_edit = QLineEdit(self)
-        # settings_grid.addWidget(self.roi_l_edit, 5,1, 1,1)
-        # self.roi_l_edit.setText('1')  # default
-        # self.roi_l_edit.textEdited[str].connect(self.roi_text_edit)
-        # self.roi_l_edit.setValidator(int_validator) # only numbers
-
-        # EMCCD bias offset
-        bias_offset_label = QLabel('EMCCD bias offset: ', self)
-        settings_grid.addWidget(bias_offset_label, 6,0, 1,1)
-        self.bias_offset_edit = QLineEdit(self)
-        settings_grid.addWidget(self.bias_offset_edit, 6,1, 1,1)
-        self.bias_offset_edit.setText(str(self.stats['bias'])) # default
-        self.bias_offset_edit.editingFinished.connect(self.CCD_stat_edit)
-        self.bias_offset_edit.setValidator(double_validator) # only floats
-
-        # EMCCD readout noise
-        read_noise_label = QLabel('EMCCD read-out noise: ', self)
-        settings_grid.addWidget(read_noise_label, 7,0, 1,1)
-        self.read_noise_edit = QLineEdit(self)
-        settings_grid.addWidget(self.read_noise_edit, 7,1, 1,1)
-        self.read_noise_edit.setText(str(self.stats['Nr'])) # default
-        self.read_noise_edit.editingFinished.connect(self.CCD_stat_edit)
-        self.read_noise_edit.setValidator(double_validator) # only floats
-        
-        reset_win = QPushButton('Reset Analyses', self) 
-        reset_win.triggered.connect(self.reset_analyses)
-        reset_win.resize(reset_win.sizeHint())
-        settings_grid.addWidget(reset_win, 8,0, 1,1)
-
-        show_win = QPushButton('Show Current Analyses', self) 
-        show_win.triggered.connect(self.show_analyses)
-        show_win.resize(show_win.sizeHint())
-        settings_grid.addWidget(show_win, 8,1, 1,1)
-
-        load_set = QPushButton('Reload Default Settings', self) 
-        load_set.triggered.connect(self.load_settings)
-        load_set.resize(load_set.sizeHint())
-        settings_grid.addWidget(load_set, 8,1, 1,1)
+        # edit 
+        self.col_edit = []
+        i = 0
+        for label in ['column index', 'start', 'stop', 'step', 'repeats']:
+            self.col_edit.append(make_label_edit(label, grid_layout, 
+                position=[1,i, 1,1], default_text='1', 
+                validator=int_validator)[1])
+            i += 2
 
         #### tab for multi-run settings ####
-        multirun_tab = QWidget()
-        multirun_grid = QGridLayout()
-        multirun_tab.setLayout(multirun_grid)
-        self.tabs.addTab(multirun_tab, "Multirun")
-
-        # dictionary for multirun settings
-        self.mr = {'# omit':0, '# hist':100, 'var list':[], 
-                'prefix':'0', 'o':0, 'h':0, 'v':0, 
-                'measure':0}
-
-        # user chooses an ID as a prefix for the histogram files
-        measure_label = QLabel('Measure prefix: ', self)
-        multirun_grid.addWidget(measure_label, 0,0, 1,1)
-        self.measure_edit = QLineEdit(self)
-        multirun_grid.addWidget(self.measure_edit, 0,1, 1,1)
-        self.measure_edit.setText(str(self.mr['prefix']))
-        
         # user chooses a variable to include in the multi-run
         entry_label = QLabel('User variable: ', self)
         multirun_grid.addWidget(entry_label, 1,0, 1,1)

@@ -315,7 +315,9 @@ class Master(QMainWindow):
 
     def closeEvent(self, event):
         """Proper shut down procedure"""
-        self.rn.cam.SafeShutdown()
+        try:
+            self.rn.cam.SafeShutdown()
+        except Exception as e: logger.warning('camera safe shutdown failed.\n'+str(e))
         for mw in self.rn.sw.mw + self.rn.sw.rw:
             mw.close()
         self.rn.sw.close()
