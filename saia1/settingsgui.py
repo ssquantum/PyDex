@@ -28,6 +28,7 @@ import logging
 logger = logging.getLogger(__name__)
 from maingui import main_window, remove_slot # single atom image analysis
 from reimage import reim_window # analysis for survival probability
+from multirunEditor import multirun_widget # tab for multirun
 
 ####    ####    ####    ####
 
@@ -54,7 +55,7 @@ class settings_window(QMainWindow):
         self.results_path = results_path # used for saving results
         self.image_storage_path = im_store_path # used for loading image files
         self._m = nsaia # number of images per run = number of SAIA instances
-        self.mw = [main_window(results_path, im_store_path, str(i) for i in range(nsaia))] # saia instances
+        self.mw = [main_window(results_path, im_store_path, str(i)) for i in range(nsaia)] # saia instances
         self.rw = [] # re-image analysis instances
         self.rw_inds = [] # which saia instances are used for the re-image instances
         if np.size(self.mw) >= nreim*2:
@@ -214,84 +215,21 @@ class settings_window(QMainWindow):
         settings_grid.addWidget(load_set, 8,1, 1,1)
 
         #### tab for multi-run settings ####
-        multirun_tab = QWidget()
-        multirun_grid = QGridLayout()
-        multirun_tab.setLayout(multirun_grid)
-        self.tabs.addTab(multirun_tab, "Multirun")
+        self.mr = multirun_widget()
+        self.tabs.addTab(self.mr, "Multirun")
 
-        # dictionary for multirun settings
-        self.mr = {'# omit':0, '# hist':100, 'var list':[], 
-                'prefix':'0', 'o':0, 'h':0, 'v':0, 
-                'measure':0}
-
-        # user chooses an ID as a prefix for the histogram files
-        measure_label = QLabel('Measure prefix: ', self)
-        multirun_grid.addWidget(measure_label, 0,0, 1,1)
-        self.measure_edit = QLineEdit(self)
-        multirun_grid.addWidget(self.measure_edit, 0,1, 1,1)
-        self.measure_edit.setText(str(self.mr['prefix']))
-        
-        # user chooses a variable to include in the multi-run
-        entry_label = QLabel('User variable: ', self)
-        multirun_grid.addWidget(entry_label, 1,0, 1,1)
-        self.entry_edit = QLineEdit(self)
-        multirun_grid.addWidget(self.entry_edit, 1,1, 1,1)
-        self.entry_edit.returnPressed.connect(self.add_var_to_multirun)
-        self.entry_edit.setValidator(comma_validator)
-        # add the current variable to list
-        add_var_button = QPushButton('Add to list', self)
-        add_var_button.clicked.connect(self.add_var_to_multirun)
-        add_var_button.resize(add_var_button.sizeHint())
-        multirun_grid.addWidget(add_var_button, 1,2, 1,1)
-        # display current list of user variables
-        var_list_label = QLabel('Current list: ', self)
-        multirun_grid.addWidget(var_list_label, 2,0, 1,1)
-        self.multirun_vars = QLabel('', self)
-        multirun_grid.addWidget(self.multirun_vars, 2,1, 1,1)
-        # clear the current list of user variables
-        clear_vars_button = QPushButton('Clear list', self)
-        clear_vars_button.clicked.connect(self.clear_multirun_vars)
-        clear_vars_button.resize(clear_vars_button.sizeHint())
-        multirun_grid.addWidget(clear_vars_button, 2,2, 1,1)
-        
-        # choose how many files to omit before starting the next histogram
-        omit_label = QLabel('Omit the first N files: ', self)
-        multirun_grid.addWidget(omit_label, 3,0, 1,1)
-        self.omit_edit = QLineEdit(self)
-        multirun_grid.addWidget(self.omit_edit, 3,1, 1,1)
-        self.omit_edit.setText(str(self.mr['# omit'])) # default
-        self.omit_edit.setValidator(int_validator)
-
-        # choose how many files to have in one histogram
-        hist_size_label = QLabel('# files in the histogram: ', self)
-        multirun_grid.addWidget(hist_size_label, 4,0, 1,1)
-        self.multirun_hist_size = QLineEdit(self)
-        multirun_grid.addWidget(self.multirun_hist_size, 4,1, 1,1)
-        self.multirun_hist_size.setText(str(self.mr['# hist'])) # default
-        self.multirun_hist_size.setValidator(int_validator)
-
-        # choose the directory to save histograms and measure files to
-        multirun_dir_button = QPushButton('Choose directory to save to: ', self)
-        multirun_grid.addWidget(multirun_dir_button, 5,0, 1,1)
-        multirun_dir_button.clicked.connect(self.choose_multirun_dir)
-        multirun_dir_button.resize(multirun_dir_button.sizeHint())
-        # default directory is the results folder
-        self.multirun_save_dir = QLabel(self.get_default_path(), self)
-        multirun_grid.addWidget(self.multirun_save_dir, 5,1, 1,1)
-
-        # start/abort the multirun
-        self.multirun_switch = QPushButton('Start', self, checkable=True)
-        self.multirun_switch.clicked[bool].connect(self.multirun_go)
-        multirun_grid.addWidget(self.multirun_switch, 6,1, 1,1)
-        # pause/restart the multirun
-        self.multirun_pause = QPushButton('Resume', self)
-        self.multirun_pause.clicked.connect(self.multirun_resume)
-        multirun_grid.addWidget(self.multirun_pause, 6,2, 1,1)
-
-        # display current progress
-        self.multirun_progress = QLabel(
-            'User variable: , omit 0 of 0 files, 0 of 100 histogram files, 0% complete')
-        multirun_grid.addWidget(self.multirun_progress, 7,0, 1,3)
+        # # start/abort the multirun
+        # self.multirun_switch = QPushButton('Start', self, checkable=True)
+        # self.multirun_switch.clicked[bool].connect(self.multirun_go)
+        # multirun_grid.addWidget(self.multirun_switch, 6,1, 1,1)
+        # # pause/restart the multirun
+        # self.multirun_pause = QPushButton('Resume', self)
+        # self.multirun_pause.clicked.connect(self.multirun_resume)
+        # multirun_grid.addWidget(self.multirun_pause, 6,2, 1,1)
+        # # display current progress
+        # self.multirun_progress = QLabel(
+        #     'User variable: , omit 0 of 0 files, 0 of 100 histogram files, 0% complete')
+        # multirun_grid.addWidget(self.multirun_progress, 7,0, 1,3)
 
         #### choose main window position and dimensions: (xpos,ypos,width,height)
         self.setGeometry(100, 100, 850, 700)
@@ -370,7 +308,7 @@ class settings_window(QMainWindow):
             l = 2*min([xc, yc])  # can't have the boundary go off the edge
         if int(l) == 0:
             l = 1 # can't have zero width
-        self.stats['xc'], self.stats['yc'], self.stats['roi_size'] = map(int, [xc, yc, l]))
+        self.stats['xc'], self.stats['yc'], self.stats['roi_size'] = map(int, [xc, yc, l])
             
     #### #### toggle functions #### #### 
 
@@ -387,113 +325,113 @@ class settings_window(QMainWindow):
 
     #### multirun ####
 
-    def multirun_go(self, toggle):
-        """Initiate the multi-run: omit N files, save a histogram of M files, and
-        repeat for the user variables in the list. If the button is pressed during
-        the multi-run, save the current histogram, save the measure file, then
-        return to normal operation"""
-        if toggle and np.size(self.mr['var list']) > 0:
-            self.check_reset()
-            # self.plot_current_hist(self.image_handler.histogram)
-            remove_slot(self.event_im, self.update_plot, False)
-            remove_slot(self.event_im, self.update_plot_only, False)
-            remove_slot(self.event_im, self.image_handler.process, False)
-            if self.multirun_save_dir.text() == '':
-                self.choose_multirun_dir()
-            remove_slot(self.event_im, self.multirun_step, True)
-            self.mr['# omit'] = int(self.omit_edit.text()) # number of files to omit
-            self.mr['# hist'] = int(self.multirun_hist_size.text()) # number of files in histogram                
-            self.mr['o'], self.mr['h'], self.mr['v'] = 0, 0, 0 # counters for different stages of multirun
-            self.mr['prefix'] = self.measure_edit.text() # prefix for histogram files 
-            self.multirun_switch.setText('Abort')
-            self.clear_varplot() # varplot cleared so it only has multirun data
-            self.multirun_progress.setText(       # update progress label
-                'User variable: %s, omit %s of %s files, %s of %s histogram files, 0%% complete'%(
-                    self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
-                    self.mr['h'], self.mr['# hist']))
-        else: # cancel the multi-run
-            self.set_bins() # reconnect the signal
-            self.multirun_switch.setText('Start') # reset button text
-            self.multirun_progress.setText(       # update progress label
-                'Stopped at - User variable: %s, omit %s of %s files, %s of %s histogram files, %.3g%% complete'%(
-                    self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
-                    self.mr['h'], self.mr['# hist'], 100 * ((self.mr['# omit'] + self.mr['# hist']) * 
-                    self.mr['v'] + self.mr['o'] + self.mr['h']) / (self.mr['# omit'] + self.mr['# hist']) / 
-                    np.size(self.mr['var list'])))
+    # def multirun_go(self, toggle):
+    #     """Initiate the multi-run: omit N files, save a histogram of M files, and
+    #     repeat for the user variables in the list. If the button is pressed during
+    #     the multi-run, save the current histogram, save the measure file, then
+    #     return to normal operation"""
+    #     if toggle and np.size(self.mr['var list']) > 0:
+    #         self.check_reset()
+    #         # self.plot_current_hist(self.image_handler.histogram)
+    #         remove_slot(self.event_im, self.update_plot, False)
+    #         remove_slot(self.event_im, self.update_plot_only, False)
+    #         remove_slot(self.event_im, self.image_handler.process, False)
+    #         if self.multirun_save_dir.text() == '':
+    #             self.choose_multirun_dir()
+    #         remove_slot(self.event_im, self.multirun_step, True)
+    #         self.mr['# omit'] = int(self.omit_edit.text()) # number of files to omit
+    #         self.mr['# hist'] = int(self.multirun_hist_size.text()) # number of files in histogram                
+    #         self.mr['o'], self.mr['h'], self.mr['v'] = 0, 0, 0 # counters for different stages of multirun
+    #         self.mr['prefix'] = self.measure_edit.text() # prefix for histogram files 
+    #         self.multirun_switch.setText('Abort')
+    #         self.clear_varplot() # varplot cleared so it only has multirun data
+    #         self.multirun_progress.setText(       # update progress label
+    #             'User variable: %s, omit %s of %s files, %s of %s histogram files, 0%% complete'%(
+    #                 self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
+    #                 self.mr['h'], self.mr['# hist']))
+    #     else: # cancel the multi-run
+    #         self.set_bins() # reconnect the signal
+    #         self.multirun_switch.setText('Start') # reset button text
+    #         self.multirun_progress.setText(       # update progress label
+    #             'Stopped at - User variable: %s, omit %s of %s files, %s of %s histogram files, %.3g%% complete'%(
+    #                 self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
+    #                 self.mr['h'], self.mr['# hist'], 100 * ((self.mr['# omit'] + self.mr['# hist']) * 
+    #                 self.mr['v'] + self.mr['o'] + self.mr['h']) / (self.mr['# omit'] + self.mr['# hist']) / 
+    #                 np.size(self.mr['var list'])))
 
-    def multirun_resume(self):
-        """If the button is clicked, resume the multi-run where it was left off.
-        If the multirun is already running, do nothing."""
-        if not self.multirun_switch.isChecked(): 
-            self.multirun_switch.setChecked(True)
-            self.multirun_switch.setText('Abort')
-            remove_slot(self.event_im, self.multirun_step, True)
+    # def multirun_resume(self):
+    #     """If the button is clicked, resume the multi-run where it was left off.
+    #     If the multirun is already running, do nothing."""
+    #     if not self.multirun_switch.isChecked(): 
+    #         self.multirun_switch.setChecked(True)
+    #         self.multirun_switch.setText('Abort')
+    #         remove_slot(self.event_im, self.multirun_step, True)
 
-    def multirun_step(self, event_im):
-        """Receive event paths emitted from the system event handler signal
-        for the first '# omit' events, only save the files
-        then for '# hist' events, add files to a histogram,
-        save the histogram 
-        repeat this for the user variables in the multi-run list,
-        then return to normal operation as set by the histogram binning"""
-        if self.mr['v'] < np.size(self.mr['var list']):
-            if self.mr['o'] < self.mr['# omit']: # don't process, just copy
-                # self.recent_label.setText('Just omitted image '
-                #     + self.image_handler.stats['File ID'][-1])
-                self.mr['o'] += 1 # increment counter
-            elif self.mr['h'] < self.mr['# hist']: # add to histogram
-                # add the count to the histogram
-                t1 = time.time()
-                # self.image_handler.process(event_im)
-                t2 = time.time()
-                self.int_time = t2 - t1
-                # display the name of the most recent file
-                # self.recent_label.setText('Just processed image '
-                #             + str(self.image_handler.fid))
-                # self.plot_current_hist(self.image_handler.hist_and_thresh) # update the displayed plot
-                self.plot_time = time.time() - t2
-                self.mr['h'] += 1 # increment counter
+    # def multirun_step(self, event_im):
+    #     """Receive event paths emitted from the system event handler signal
+    #     for the first '# omit' events, only save the files
+    #     then for '# hist' events, add files to a histogram,
+    #     save the histogram 
+    #     repeat this for the user variables in the multi-run list,
+    #     then return to normal operation as set by the histogram binning"""
+    #     if self.mr['v'] < np.size(self.mr['var list']):
+    #         if self.mr['o'] < self.mr['# omit']: # don't process, just copy
+    #             # self.recent_label.setText('Just omitted image '
+    #             #     + self.image_handler.stats['File ID'][-1])
+    #             self.mr['o'] += 1 # increment counter
+    #         elif self.mr['h'] < self.mr['# hist']: # add to histogram
+    #             # add the count to the histogram
+    #             t1 = time.time()
+    #             # self.image_handler.process(event_im)
+    #             t2 = time.time()
+    #             self.int_time = t2 - t1
+    #             # display the name of the most recent file
+    #             # self.recent_label.setText('Just processed image '
+    #             #             + str(self.image_handler.fid))
+    #             # self.plot_current_hist(self.image_handler.hist_and_thresh) # update the displayed plot
+    #             self.plot_time = time.time() - t2
+    #             self.mr['h'] += 1 # increment counter
 
-            if self.mr['o'] == self.mr['# omit'] and self.mr['h'] == self.mr['# hist']:
-                self.mr['o'], self.mr['h'] = 0, 0 # reset counters
-                uv = str(self.mr['var list'][self.mr['v']]) # set user variable
-                self.var_edit.setText(uv) # also updates histo_handler temp vals
-                self.bins_text_edit(text='reset') # set histogram bins 
-                success = self.update_fit(fit_method='check actions') # get best fit
-                if not success:                   # if fit fails, use peak search
-                    # self.histo_handler.process(self.image_handler, uv, 
-                    #     fix_thresh=self.thresh_toggle.isChecked(), method='quick')
-                    print('\nWarning: multi-run fit failed at ' +
-                        self.mr['prefix'] + '_' + str(self.mr['v']) + '.csv')
-                self.save_hist_data(
-                    save_file_name=os.path.join(
-                        self.multirun_save_dir.text(), self.name + self.mr['prefix']) 
-                            + '_' + str(self.mr['v']) + '.csv', 
-                    confirm=False)# save histogram
-                # self.image_handler.reset_arrays() # clear histogram
-                self.mr['v'] += 1 # increment counter
+    #         if self.mr['o'] == self.mr['# omit'] and self.mr['h'] == self.mr['# hist']:
+    #             self.mr['o'], self.mr['h'] = 0, 0 # reset counters
+    #             uv = str(self.mr['var list'][self.mr['v']]) # set user variable
+    #             self.var_edit.setText(uv) # also updates histo_handler temp vals
+    #             self.bins_text_edit(text='reset') # set histogram bins 
+    #             success = self.update_fit(fit_method='check actions') # get best fit
+    #             if not success:                   # if fit fails, use peak search
+    #                 # self.histo_handler.process(self.image_handler, uv, 
+    #                 #     fix_thresh=self.thresh_toggle.isChecked(), method='quick')
+    #                 print('\nWarning: multi-run fit failed at ' +
+    #                     self.mr['prefix'] + '_' + str(self.mr['v']) + '.csv')
+    #             self.save_hist_data(
+    #                 save_file_name=os.path.join(
+    #                     self.multirun_save_dir.text(), self.name + self.mr['prefix']) 
+    #                         + '_' + str(self.mr['v']) + '.csv', 
+    #                 confirm=False)# save histogram
+    #             # self.image_handler.reset_arrays() # clear histogram
+    #             self.mr['v'] += 1 # increment counter
             
-        if self.mr['v'] == np.size(self.mr['var list']):
-            self.save_varplot(
-                save_file_name=os.path.join(
-                    self.multirun_save_dir.text(), self.name + self.mr['prefix']) 
-                        + '.dat', 
-                confirm=False)# save measure file
-            # reconnect previous signals
-            self.multirun_switch.setChecked(False) # reset multi-run button
-            self.multirun_switch.setText('Start')  # reset multi-run button text
-            self.set_bins() # reconnects signal with given histogram binning settings
-            self.mr['o'], self.mr['h'], self.mr['v'] = 0, 0, 0 # reset counters
-            self.mr['measure'] += 1 # completed a measure successfully
-            self.mr['prefix'] = str(self.mr['measure']) # suggest new measure as file prefix
-            self.measure_edit.setText(self.mr['prefix'])
+    #     if self.mr['v'] == np.size(self.mr['var list']):
+    #         self.save_varplot(
+    #             save_file_name=os.path.join(
+    #                 self.multirun_save_dir.text(), self.name + self.mr['prefix']) 
+    #                     + '.dat', 
+    #             confirm=False)# save measure file
+    #         # reconnect previous signals
+    #         self.multirun_switch.setChecked(False) # reset multi-run button
+    #         self.multirun_switch.setText('Start')  # reset multi-run button text
+    #         self.set_bins() # reconnects signal with given histogram binning settings
+    #         self.mr['o'], self.mr['h'], self.mr['v'] = 0, 0, 0 # reset counters
+    #         self.mr['measure'] += 1 # completed a measure successfully
+    #         self.mr['prefix'] = str(self.mr['measure']) # suggest new measure as file prefix
+    #         self.measure_edit.setText(self.mr['prefix'])
 
-        self.multirun_progress.setText( # update progress label
-            'User variable: %s, omit %s of %s files, %s of %s histogram files, %.3g%% complete'%(
-                self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
-                self.mr['h'], self.mr['# hist'], 100 * ((self.mr['# omit'] + self.mr['# hist']) * 
-                self.mr['v'] + self.mr['o'] + self.mr['h']) / (self.mr['# omit'] + self.mr['# hist']) / 
-                np.size(self.mr['var list'])))
+    #     self.multirun_progress.setText( # update progress label
+    #         'User variable: %s, omit %s of %s files, %s of %s histogram files, %.3g%% complete'%(
+    #             self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
+    #             self.mr['h'], self.mr['# hist'], 100 * ((self.mr['# omit'] + self.mr['# hist']) * 
+    #             self.mr['v'] + self.mr['o'] + self.mr['h']) / (self.mr['# omit'] + self.mr['# hist']) / 
+    #             np.size(self.mr['var list'])))
 
     #### #### save and load data functions #### ####
 
@@ -608,7 +546,8 @@ class settings_window(QMainWindow):
         if reply == QMessageBox.Cancel:
             return 0
         elif reply == QMessageBox.Yes:
-            # self.image_handler.reset_arrays() # gets rid of old data
+            for mw in self.mw + self.rw:
+                mw.image_handler.reset_arrays() # gets rid of old data
         return 1
 
     def load_empty_hist(self):
@@ -664,7 +603,7 @@ class settings_window(QMainWindow):
         m = int(self.m_edit.text())
         if m != self._m: # make sure there are the right numer of main_window instances
             if m > self._m:
-                for i in range(self._m, m)
+                for i in range(self._m, m):
                     self.mw.append(main_window(results_path, im_store_path, str(i)))
             self._m = m
         for mw in self.mw:
@@ -690,7 +629,7 @@ class settings_window(QMainWindow):
             self.rw[i].ih2 = self.mw[k].image_handler
         for i in range(len(self.rw), len(self.rw_inds)): # add new re-image instances as required
             j, k = map(int, self.rw_inds[i].split(','))
-            self.rw.append([reim_window([self.mw[j].image_handler, self.mw[k].image_handler],
+            self.rw.append(reim_window([self.mw[j].image_handler, self.mw[k].image_handler],
                         results_path, im_store_path, str(i)))
             
         self.show_analyses()
@@ -725,7 +664,7 @@ def run():
     if standalone: # if there isn't an instance, make one
         app = QApplication(sys.argv) 
         
-    main_win = main_window()
+    main_win = settings_window()
     main_win.show()
     if standalone: # if an app instance was made, execute it
         sys.exit(app.exec_()) # when the window is closed, the python code also stops

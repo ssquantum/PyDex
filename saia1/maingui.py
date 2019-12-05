@@ -468,7 +468,7 @@ class main_window(QMainWindow):
         plot_grid.addWidget(save_varplot, 5,0, 1,1)
 
         #### choose main window position and dimensions: (xpos,ypos,width,height)
-        self.setGeometry(100, 250, 850, 700)
+        self.setGeometry(100, 150, 850, 700)
         self.setWindowTitle(self.name+' - Single Atom Image Analyser -')
         self.setWindowIcon(QIcon('docs/tempicon.png'))
         
