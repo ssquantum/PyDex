@@ -10,37 +10,21 @@ import sys
 import numpy as np
 from collections import OrderedDict
 try:
-    from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp
-    from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
-            QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
-            QDoubleValidator, QIntValidator, QComboBox, QMenu, QActionGroup, 
-            QTabWidget, QVBoxLayout, QFont, QRegExpValidator, QInputDialog,
-            QTableWidget, QTableWidgetItem, QScrollArea) 
+    from PyQt4.QtCore import pyqtSignal, QRegExp
+    from PyQt4.QtGui import (QPushButton, QWidget, QLabel,
+        QGridLayout, QLineEdit, QDoubleValidator, QIntValidator, QComboBox, 
+        QTabWidget, QVBoxLayout, QRegExpValidator, QInputDialog,
+        QTableWidget, QTableWidgetItem, QScrollArea) 
 except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp
-    from PyQt5.QtGui import (QGridLayout, QMessageBox, QLineEdit, QIcon, 
-            QFileDialog, QDoubleValidator, QIntValidator, QComboBox, QMenu, 
-            QActionGroup, QVBoxLayout, QFont, QRegExpValidator)
-    from PyQt5.QtWidgets import (QApplication, QPushButton, QScrollArea,
-        QAction, QMainWindow, QLabel, QTableWidget, QTableWidgetItem)
+    from PyQt5.QtCore import pyqtSignal, QRegExp
+    from PyQt5.QtGui import (QDoubleValidator, QIntValidator, 
+       QRegExpValidator)
+    from PyQt5.QtWidgets import (QVBoxLayout, QWidget,
+       QComboBox,QLineEdit, QGridLayout, QPushButton, 
+       QScrollArea, QLabel, QTableWidget, QTableWidgetItem)
 import logging
 logger = logging.getLogger(__name__)
 from maingui import remove_slot # single atom image analysis
-
-def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
-            default_text='', validator=None):
-        """Make a QLabel with an accompanying QLineEdit and add them to the 
-        given layout with an input validator. The position argument should
-        be [row number, column number, row width, column width]."""
-        label = QLabel(label_text, self)
-        layout.addWidget(label, *position)
-        line_edit = QLineEdit(self)
-        if np.size(position) == 4:
-            position[1] += 1
-        layout.addWidget(line_edit, *position)
-        line_edit.setText(default_text) 
-        line_edit.setValidator(validator)
-        return label, line_edit
 
 ####    ####    ####    ####
 
@@ -62,12 +46,25 @@ class multirun_widget(QWidget):
     def __init__(self, nrows=1000, ncols=1, order='ascending'):
         super().__init__()
         self.types = OrderedDict([('nrows',int), ('col_head',list), 
-                ('vals',np.ndarray), ('order',str), ('nomit',int),
-                ('measure',int), ('measure_prefix',str)])
+            ('order',str), ('nomit',int), ('measure',int), ('measure_prefix',str)])
         self.stats = OrderedDict([('nrows',nrows), ('col_head', [str(i) for i in range(ncols)]),
-                ('vals',np.zeros((nrows, ncols))), ('order', order), 
-                ('nomit',0), ('measure',0), ('measure_prefix','0_')])
+            ('order', order), ('nomit',0), ('measure',0), ('measure_prefix','0_')])
         self.init_UI()  # make the widgets
+
+    def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
+            default_text='', validator=None):
+        """Make a QLabel with an accompanying QLineEdit and add them to the 
+        given layout with an input validator. The position argument should
+        be [row number, column number, row width, column width]."""
+        label = QLabel(label_text, self)
+        layout.addWidget(label, *position)
+        line_edit = QLineEdit(self)
+        if np.size(position) == 4:
+            position[1] += 1
+        layout.addWidget(line_edit, *position)
+        line_edit.setText(default_text) 
+        line_edit.setValidator(validator)
+        return label, line_edit
         
     def init_UI(self):
         """Create all of the widget objects required"""
@@ -94,19 +91,19 @@ class multirun_widget(QWidget):
         int_validator = QIntValidator()       # integers
 
         # choose the number of rows = number of multirun steps
-        _, self.rows_edit = make_label_edit('# Rows', self.grid, 
+        _, self.rows_edit = self.make_label_edit('# Rows', self.grid, 
             position=[0,0, 1,1], default_text=str(nrows), 
             validator=int_validator)
         self.rows_edit.textChanged[str].connect(self.change_array_size)
 
         # choose the number of rows = number of multirun steps
-        _, self.omit_edit = make_label_edit('# Omit', self.grid, 
+        _, self.omit_edit = self.make_label_edit('# Omit', self.grid, 
             position=[0,2, 1,1], default_text='0', 
             validator=int_validator)
         self.omit_edit.textChanged[str].connect(self.change_array_size)
 
         # choose the number of columns = number of channels to change in one step
-        _, self.cols_edit = make_label_edit('# Columns', self.grid, 
+        _, self.cols_edit = self.make_label_edit('# Columns', self.grid, 
             position=[0,4, 1,1], default_text=str(ncols), 
             validator=int_validator)
         self.cols_edit.textChanged[str].connect(self.change_array_size)
@@ -120,12 +117,25 @@ class multirun_widget(QWidget):
         self.col_val_edit = []
         i = 0
         for label in ['column index', 'start', 'stop', 'step', 'repeats']:
-            self.col_val_edit.append(make_label_edit(label, self.grid, 
+            self.col_val_edit.append(self.make_label_edit(label, self.grid, 
                 position=[1,i, 1,1], default_text='0', 
                 validator=int_validator)[1])
             i += 2
 
-        #### tab for multi-run settings ####
+        # line edit for user inputing column headings
+        self.head_edit = QLineEdit(self)
+        self.grid.addWidget(self.head_edit, 3,0, 1,3)
+        self.head_edit.editingFinished.connect(self.set_col_head)
+        self.head_edit.col = 0 # which column to edit
+        self.head_edit.hide() # hide unless user double clicks
+
+        # table stores multirun values:
+        self.table = QTableWidget(nrows, ncols)
+        # display column headings
+        self.table.itemDoubleClicked.connect(self.open_head_edit)
+        self.table.setHorizontalHeaderLabels(self.stats['col_head'])
+        self.grid.addWidget(self.table, 4,0, nrows, ncols)
+
         # add the column to the multirun values array
         add_var_button = QPushButton('Add column', self)
         add_var_button.clicked.connect(self.add_column_to_array)
@@ -134,7 +144,7 @@ class multirun_widget(QWidget):
         
         # clear the current list of user variables
         clear_vars_button = QPushButton('Clear list', self)
-        clear_vars_button.clicked.connect(self.clear_array)
+        clear_vars_button.clicked.connect(self.table.clearContents)
         clear_vars_button.resize(clear_vars_button.sizeHint())
         self.grid.addWidget(clear_vars_button, 1,i+1, 1,1)
 
@@ -152,22 +162,6 @@ class multirun_widget(QWidget):
             'User variable: , omit 0 of 0 files, 0 of 100 histogram files, 0% complete')
         self.grid.addWidget(self.multirun_progress, 2,2, 1,3)
     
-        # display current list of user variables
-        self.header_item_edit = QLineEdit(self)
-        self.grid.addWidget(self.header_item_edit, 3,0, 1,3)
-        self.header_item_edit.editingFinished.connect(self.set_col_head)
-        self.header_item_edit.hide()
-
-        self.table = QTableWidget()
-        self.table.setRowCount(nrows)
-        self.table.setColumnCount(ncols)
-        # display column headings
-        for j in range(ncols):
-            head_item = QTableWidgetItem()
-            self.table.setHorizontalHeaderItem(j, head_item)
-            head_item.connect(self.open_head_edit)
-        self.table.setVerticalHeaderLabels(self.stats['col_head'])
-        self.grid.addWidget(self.table, 4,0, nrows, ncols)
 
         scroll.setWidget(scroll_content)
 
@@ -178,35 +172,34 @@ class multirun_widget(QWidget):
         """Update the size of the multirun array based on the number of rows
         and columns specified in the line edit."""
         self.stats['nrows'] = self.types['nrows'](self.rows_edit.text())
+        self.table.setRowCount(self.stats['nrows'])
         newcol = int(self.cols_edit)
-        for i in range(len(self.stats['col_head'], newcol)): # newcol > ncols
+        self.table.setColumnCount(newcol)
+        for i in range(len(self.stats['col_head'], newcol)): # add new columns
             self.stats['col_head'].append(str(i))
-            head_item = QTableWidgetItem()
-            self.table.setHorizontalHeaderItem(i, head_item)
-            head_item.connect(self.open_head_edit)
-        for i in range(newcol, len(self.stats['col_head'])): # ncols > newcol
-            # remove column
-            pass
-        if ncols > newcol:
+        if len(self.stats['col_head']) > newcol: # or remove columns if needed
             self.stats['col_head'] = self.stats['col_head'][:newcol]
-        self.table.setVerticalHeaderLabels(self.stats['col_head'])
-
-        # make new array
-        self.stats['vals'] = [] # insert old values
-        np.zeros((nrows, ncols))
+        self.table.setHorizontalHeaderLabels(self.stats['col_head'])
 
     def set_col_head(self):
+        """Take the text typed from the line edit and insert it into
+        the appropriate column header, then hide the line edit"""
+        self.stats['col_head'][self.head_edit.col] = self.head_edit.text()
+        self.table.setHorizontalHeaderLabels(self.stats['col_head'])
+        self.head_edit.hide()
 
-    def open_head_edit(self)
+    def open_head_edit(self):
+        """When the user double clicks on a column, open the line edit
+        so that they can input a new column header"""
+        if self.sender().column() < len(self.stats['col_head']):
+            self.head_edit.col = self.sender().column()
+            self.head_edit.show()
+        else: self.change_array_size()
 
     def add_column_to_array(self):
-
-    def clear_array(self):
-
-
+        pass
 
     #### multirun ####
-
     
     def add_var_to_multirun(self):
         """When the user hits enter or the 'Add to list' button, add the 

@@ -12,18 +12,19 @@ import numpy as np
 from collections import OrderedDict
 # some python packages use PyQt4, some use PyQt5...
 try:
-    from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp
+    from PyQt4.QtCore import pyqtSignal, QRegExp
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
             QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
-            QDoubleValidator, QIntValidator, QComboBox, QMenu, QActionGroup, 
-            QTabWidget, QVBoxLayout, QFont, QRegExpValidator, QInputDialog) 
+            QDoubleValidator, QIntValidator, QMenu, QActionGroup, 
+            QTabWidget, QVBoxLayout, QRegExpValidator) 
 except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp
-    from PyQt5.QtGui import (QGridLayout, QMessageBox, QLineEdit, QIcon, 
-            QFileDialog, QDoubleValidator, QIntValidator, QComboBox, QMenu, 
-            QActionGroup, QVBoxLayout, QFont, QRegExpValidator)
-    from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, QTabWidget,
-        QAction, QMainWindow, QLabel, QInputDialog)
+    from PyQt5.QtCore import pyqtSignal, QRegExp
+    from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
+        QRegExpValidator)
+    from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
+        QFileDialog, QMessageBox, QLineEdit, QGridLayout, QWidget,
+        QApplication, QPushButton, QAction, QMainWindow, QTabWidget,
+        QLabel)
 import logging
 logger = logging.getLogger(__name__)
 from maingui import main_window, remove_slot # single atom image analysis
@@ -47,7 +48,7 @@ class settings_window(QMainWindow):
     def __init__(self, nsaia=1, nreim=0, results_path='.', im_store_path='.'):
         super().__init__()
         self.types = OrderedDict([('pic_size',int), ('xc',int), ('yc',int), ('roi_size',int), 
-            ('bias',float), ('Nr', float), ('image path', str), ('results path', str)])
+            ('bias',float), ('Nr', float), ('image_path', str), ('results_path', str)])
         self.stats = OrderedDict([('pic_size',1), ('xc',0), ('yc',0), ('roi_size',1), 
             ('bias',697), ('Nr', 8.8), ('image_path', im_store_path), ('results_path', results_path)])
         self.load_settings() # load default
@@ -200,17 +201,17 @@ class settings_window(QMainWindow):
         self.read_noise_edit.setValidator(double_validator) # only floats
         
         reset_win = QPushButton('Reset Analyses', self) 
-        reset_win.triggered.connect(self.reset_analyses)
+        reset_win.clicked.connect(self.reset_analyses)
         reset_win.resize(reset_win.sizeHint())
         settings_grid.addWidget(reset_win, 8,0, 1,1)
 
         show_win = QPushButton('Show Current Analyses', self) 
-        show_win.triggered.connect(self.show_analyses)
+        show_win.clicked.connect(self.show_analyses)
         show_win.resize(show_win.sizeHint())
         settings_grid.addWidget(show_win, 8,1, 1,1)
 
         load_set = QPushButton('Reload Default Settings', self) 
-        load_set.triggered.connect(self.load_settings)
+        load_set.clicked.connect(self.load_settings)
         load_set.resize(load_set.sizeHint())
         settings_grid.addWidget(load_set, 8,1, 1,1)
 

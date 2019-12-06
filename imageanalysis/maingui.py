@@ -14,18 +14,19 @@ import numpy as np
 import pyqtgraph as pg    # not as flexible as matplotlib but works a lot better with qt
 # some python packages use PyQt4, some use PyQt5...
 try:
-    from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp
+    from PyQt4.QtCore import pyqtSignal, QRegExp
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
             QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
             QDoubleValidator, QIntValidator, QComboBox, QMenu, QActionGroup, 
             QTabWidget, QVBoxLayout, QFont, QRegExpValidator, QInputDialog) 
 except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp
-    from PyQt5.QtGui import (QGridLayout, QMessageBox, QLineEdit, QIcon, 
-            QFileDialog, QDoubleValidator, QIntValidator, QComboBox, QMenu, 
-            QActionGroup, QVBoxLayout, QFont, QRegExpValidator)
-    from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, QTabWidget,
-        QAction, QMainWindow, QLabel, QInputDialog)
+    from PyQt5.QtCore import pyqtSignal, QRegExp
+    from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
+        QFont, QRegExpValidator)
+    from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
+        QFileDialog, QComboBox, QMessageBox, QLineEdit, QGridLayout, 
+        QApplication, QPushButton, QAction, QMainWindow, QWidget,
+        QLabel, QTabWidget, QInputDialog)
 import logging
 logger = logging.getLogger(__name__)
 import imageHandler as ih # process images to build up a histogram

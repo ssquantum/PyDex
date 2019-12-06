@@ -2,29 +2,35 @@
 Stefan Spence 09/09/19
 
  - receive an image array through a signal
- - save the new image into a dated subdirectory under image_storage_path
+ - add the received image array to a list to save
+ - run a thread saving images from the list into a dated 
+    subdirectory under image_storage_path
  
 Assuming that image files are ASCII.
 This runs as a QThread in parallel to other tasks
 """
 import numpy as np
 import os
+import sys
 import time
 try:
-    from PyQt4.QtCore import QThread, pyqtSignal, QEvent
+    from PyQt4.QtCore import pyqtSignal
 except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal, QEvent
+    from PyQt5.QtCore import pyqtSignal
+sys.path.append('..')
+from mythread import PyDexThread
 
 ####    ####    ####    ####
     
 # set up an event handler that is also a QObject through inheritance of QThread
-class event_handler(QThread):
+class event_handler(PyDexThread):
     """Save the image array that is passed through a signal to a file.
     
-    The event handler responds to a signal saving the image array 
-    to a new directory, and then emits a signal to confirm the 
-    saving has finished.The Dexter file number and image number 
-    should be synced externally.
+    The event handler responds to a signal by appending the array to a
+    list. When the thread is running it will pop images from the list
+    and save the image array to a new directory, and then emit a 
+    signal to confirm the saving has finished. The Dexter file number 
+    and image number should be synced externally.
     Use a config file to load the directories.
     Wait for events and process them with the event_handler.
     Keyword arguments:
@@ -107,8 +113,8 @@ class event_handler(QThread):
         while last_file_size != os.path.getsize(file_name): 
             last_file_size = os.path.getsize(file_name)
             time.sleep(dt) # deliberately add pause so we don't loop too many times
-            
-    def respond(self, im_array, species='Cs-133'):
+
+    def process(self, im_array, species='Cs-133'):
         """On a new image signal being emitted, save it to a file with a 
         synced label into the image storage dir. File name format:
         [species]_[date]_[Dexter file #].asc
@@ -137,7 +143,3 @@ class event_handler(QThread):
         self.event_path.emit(new_file_name)  # emit signal
         self.end_t = time.time()       # time at end of current event
         self.event_t = self.end_t - self.t0 # duration of event
-    
-    def run(self):
-        pass
-        

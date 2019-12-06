@@ -33,15 +33,15 @@ import logging
 import logerrs
 logerrs.setup_log()
 logger = logging.getLogger(__name__)
-sys.path.append('./saia1')
-from saia1.settingsgui import settings_window
-sys.path.append('./ancam')
-from ancam.cameraHandler import camera # manages Andor camera
-sys.path.append('./savim')
-from savim.imsaver import event_handler # saves images
-sys.path.append('./dextr')
-from dextr.runid import runnum # synchronises run number, sends signals
-from dextr.networker import TCPENUM, remove_slot # enum for DExTer produce-consumer loop cases
+sys.path.append('./imageanalysis')
+from imageanalysis.settingsgui import settings_window
+sys.path.append('./andorcamera')
+from andorcamera.cameraHandler import camera # manages Andor camera
+sys.path.append('./saveimages')
+from saveimages.imsaver import event_handler # saves images
+sys.path.append('./networking')
+from networking.runid import runnum # synchronises run number, sends signals
+from networking.networker import TCPENUM, remove_slot # enum for DExTer produce-consumer loop cases
 
 class Master(QMainWindow):
     """A manager to synchronise and control experiment modules.

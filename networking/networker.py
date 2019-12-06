@@ -140,7 +140,7 @@ if __name__ == "__main__":
     ps.textin.connect(print)
     ps.add_message('0', 'Hello world!')
     ps.start() # will keep running until you call ps.close()
-    app.exec_()
+    # app.exec_()
     print('server running')
 
     if input("'q' to close  ") == 'q': # if an app instance was made, execute it

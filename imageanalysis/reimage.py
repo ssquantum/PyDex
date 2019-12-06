@@ -17,18 +17,9 @@ from astropy.stats import binom_conf_interval
 import pyqtgraph as pg    # not as flexible as matplotlib but works a lot better with qt
 # some python packages use PyQt4, some use PyQt5...
 try:
-    from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp, Qt
-    from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
-            QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
-            QDoubleValidator, QIntValidator, QComboBox, QMenu, QActionGroup, 
-            QTabWidget, QVBoxLayout, QFont, QRegExpValidator) 
+    from PyQt4.QtCore import pyqtSignal 
 except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp, Qt
-    from PyQt5.QtGui import (QGridLayout, QMessageBox, QLineEdit, QIcon, 
-            QFileDialog, QDoubleValidator, QIntValidator, QComboBox, QMenu, 
-            QActionGroup, QVBoxLayout, QFont, QRegExpValidator)
-    from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, QTabWidget,
-        QAction, QMainWindow, QLabel)
+    from PyQt5.QtCore import pyqtSignal
 from maingui import main_window, remove_slot  # a single instance of SAIA
 
 # main GUI window contains all the widgets                
