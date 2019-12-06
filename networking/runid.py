@@ -42,7 +42,7 @@ class runnum(QThread):
         self.cam = camra # Andor camera control
         self.cam.AcquireEnd.connect(self.receive) # receive the most recent image
         self.sv = saver  # image saver
-        self.im_save.connect(self.sv.respond) # separate signal to avoid interfering
+        self.im_save.connect(self.sv.add_item) # separate signal to avoid interfering
         self.sw = saiaw  # image analysis settings gui
         self.sw.m_changed.connect(self.set_m)
         

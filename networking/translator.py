@@ -6,6 +6,7 @@ Stefan Spence 04/10/19
 """
 import json
 import xmltodict
+import dicttoxml
 import sys
 import numpy as np
 try:
@@ -160,6 +161,14 @@ class translate:
         esc['Slow analogue array'].insert(sa)
 
     # extra functions for checking the sequence is correct format?
+
+    @staticmethod
+    def get_mr_xml_str(mr_array, anlogue_options, change_type, 
+                        analogue_channel, time_step):
+        """Convert the multirun array of values, along with the
+        selected channels, into an XML string to send to DExTer"""
+        dicttoxml
+
 
 #### #### Edit sequences #### ####
 

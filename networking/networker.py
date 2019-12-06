@@ -136,14 +136,16 @@ if __name__ == "__main__":
     if standalone: # if there isn't an instance, make one
         app = QApplication(sys.argv) 
         
+    try:
+        from PyQt4.QtGui import QWidget
+    except ImportError:
+        from PyQt5.QtWidgets import QWidget
+    
     ps = PyServer()
     ps.textin.connect(print)
     ps.add_message('0', 'Hello world!')
     ps.start() # will keep running until you call ps.close()
-    # app.exec_()
-    print('server running')
-
-    if input("'q' to close  ") == 'q': # if an app instance was made, execute it
-        ps.close()
-        app.quit()
-        sys.exit() 
+    w = QWidget()
+    w.setWindowTitle('Server is runnning')
+    w.show()
+    sys.exit(app.exec_()) # ends the program when the widget is closed

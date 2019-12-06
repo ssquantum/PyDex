@@ -42,6 +42,7 @@ from saveimages.imsaver import event_handler # saves images
 sys.path.append('./networking')
 from networking.runid import runnum # synchronises run number, sends signals
 from networking.networker import TCPENUM, remove_slot # enum for DExTer produce-consumer loop cases
+from networking.translator import translate
 
 class Master(QMainWindow):
     """A manager to synchronise and control experiment modules.
@@ -152,7 +153,7 @@ class Master(QMainWindow):
         # actions that can be carried out 
         self.actions = QComboBox(self)
         for action_label in ['Run sequence', 'Multirun run', 
-                            'Multirun populate values', 'Load sequence']:
+                            'TCP multirun values', 'TCP load sequence']:
             self.actions.addItem(action_label)
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
@@ -253,8 +254,8 @@ class Master(QMainWindow):
         Multirun run:   Start the camera acquisition, then make 
                         DExTer perform a multirun with the preloaded
                         multirun settings.
-        Multirun populate values:  Send values to fill the DExTer multirun
-        Load sequence:  Tell DExTer to load in the sequence file at
+        TCP multirun values:  Send values to fill the DExTer multirun
+        TCP load sequence:  Tell DExTer to load in the sequence file at
                         the location in the 'Sequence file' label
         """
         if self.rn.server.isRunning():
@@ -275,9 +276,9 @@ class Master(QMainWindow):
                 remove_slot(signal=self.rn.server.textin, 
                             slot=self.end_run, reconnect=True)
                 self.rn.server.add_message(TCPENUM['TCP read'], 'run finished') 
-            elif action_text == 'Multirun populate values':
-                self.rn.server.add_message(TCPENUM[action_text], '')
-            elif action_text == 'Load sequence':
+            elif action_text == 'TCP multirun values':
+                self.rn.server.add_message(TCPENUM[action_text], self.rn.sw.)
+            elif action_text == 'TCP load sequence':
                 self.rn.server.add_message(TCPENUM[action_text], 
                     self.seq_edit.text())
             

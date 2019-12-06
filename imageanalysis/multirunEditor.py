@@ -7,8 +7,10 @@ Stefan Spence 26/02/19
 """
 import os
 import sys
+import time
 import numpy as np
 from collections import OrderedDict
+from random import shuffle
 try:
     from PyQt4.QtCore import pyqtSignal, QRegExp
     from PyQt4.QtGui import (QPushButton, QWidget, QLabel,
@@ -43,11 +45,11 @@ class multirun_widget(QWidget):
     """
     multirun_vals = pyqtSignal(np.ndarray) # the array of multirun values
 
-    def __init__(self, nrows=1000, ncols=1, order='ascending'):
+    def __init__(self, nrows=500, ncols=3, order='ascending'):
         super().__init__()
-        self.types = OrderedDict([('nrows',int), ('col_head',list), 
+        self.types = OrderedDict([('nrows',int), ('ncols',int), 
             ('order',str), ('nomit',int), ('measure',int), ('measure_prefix',str)])
-        self.stats = OrderedDict([('nrows',nrows), ('col_head', [str(i) for i in range(ncols)]),
+        self.stats = OrderedDict([('nrows',nrows), ('ncols', ncols),
             ('order', order), ('nomit',0), ('measure',0), ('measure_prefix','0_')])
         self.init_UI()  # make the widgets
 
@@ -81,7 +83,7 @@ class multirun_widget(QWidget):
         scroll_content.setLayout(self.grid)
 
         nrows = self.stats['nrows']
-        ncols = len(self.stats['col_head'])
+        ncols = self.stats['ncols']
         
         # validators for user input
         # this regex needs work to disallow -1-1
@@ -89,6 +91,8 @@ class multirun_widget(QWidget):
         comma_validator = QRegExpValidator(reg_exp) # floats and commas
         double_validator = QDoubleValidator() # floats
         int_validator = QIntValidator()       # integers
+        nat_validator = QIntValidator(1,999999)# natural numbers
+        col_validator = QIntValidator(0,ncols-1) # for number of columns
 
         # choose the number of rows = number of multirun steps
         _, self.rows_edit = self.make_label_edit('# Rows', self.grid, 
@@ -111,126 +115,98 @@ class multirun_widget(QWidget):
         # choose the order
         self.order = QComboBox(self)
         self.order.addItems(['ascending', 'descending', 'random', 'coarse random', 'unsorted']) 
-        self.grid.addWidget(self.order, 0,6, 1,1)
+        self.grid.addWidget(self.order, 0,6, 1,4)
 
         # add a new list of multirun values to the array
         self.col_val_edit = []
-        i = 0
-        for label in ['column index', 'start', 'stop', 'step', 'repeats']:
-            self.col_val_edit.append(self.make_label_edit(label, self.grid, 
-                position=[1,i, 1,1], default_text='0', 
-                validator=int_validator)[1])
-            i += 2
-
-        # line edit for user inputing column headings
-        self.head_edit = QLineEdit(self)
-        self.grid.addWidget(self.head_edit, 3,0, 1,3)
-        self.head_edit.editingFinished.connect(self.set_col_head)
-        self.head_edit.col = 0 # which column to edit
-        self.head_edit.hide() # hide unless user double clicks
-
-        # table stores multirun values:
-        self.table = QTableWidget(nrows, ncols)
-        # display column headings
-        self.table.itemDoubleClicked.connect(self.open_head_edit)
-        self.table.setHorizontalHeaderLabels(self.stats['col_head'])
-        self.grid.addWidget(self.table, 4,0, nrows, ncols)
+        labels = ['column index', 'start', 'stop', 'step', 'repeats']
+        validators = [col_validator, double_validator, double_validator, nat_validator, nat_validator]
+        for i in range(0, len(labels)*2, 2):
+            self.col_val_edit.append(self.make_label_edit(labels[i//2], self.grid, 
+                position=[1,i, 1,1], default_text='1', 
+                validator=validators[i//2])[1])
 
         # add the column to the multirun values array
         add_var_button = QPushButton('Add column', self)
         add_var_button.clicked.connect(self.add_column_to_array)
         add_var_button.resize(add_var_button.sizeHint())
-        self.grid.addWidget(add_var_button, 1,i, 1,1)
+        self.grid.addWidget(add_var_button, 2,0, 1,1)
         
         # clear the current list of user variables
-        clear_vars_button = QPushButton('Clear list', self)
-        clear_vars_button.clicked.connect(self.table.clearContents)
+        clear_vars_button = QPushButton('Clear', self)
+        clear_vars_button.clicked.connect(self.reset_table)
         clear_vars_button.resize(clear_vars_button.sizeHint())
-        self.grid.addWidget(clear_vars_button, 1,i+1, 1,1)
+        self.grid.addWidget(clear_vars_button, 2,1, 1,2)
 
         # start/abort the multirun
-        self.multirun_switch = QPushButton('Start', self, checkable=True)
+        self.multirun_switch = QPushButton('Start multirun', self, checkable=True)
         self.multirun_switch.clicked[bool].connect(self.multirun_go)
-        self.grid.addWidget(self.multirun_switch, 2,0, 1,1)
+        self.grid.addWidget(self.multirun_switch, 2,3, 1,2)
         # pause/restart the multirun
         self.multirun_pause = QPushButton('Resume', self)
         self.multirun_pause.clicked.connect(self.multirun_resume)
-        self.grid.addWidget(self.multirun_pause, 2,1, 1,1)
+        self.grid.addWidget(self.multirun_pause, 2,5, 1,2)
 
         # display current progress
         self.multirun_progress = QLabel(
             'User variable: , omit 0 of 0 files, 0 of 100 histogram files, 0% complete')
-        self.grid.addWidget(self.multirun_progress, 2,2, 1,3)
-    
+        self.grid.addWidget(self.multirun_progress, 3,0, 1,12)
 
+        # table stores multirun values:
+        self.table = QTableWidget(nrows, ncols)
+        # display column headings
+        self.reset_table()
+        self.grid.addWidget(self.table, 5,0, 20, 12)
+    
         scroll.setWidget(scroll_content)
 
         
     #### #### array editing functions #### #### 
+
+    def reset_table(self):
+        """Fill all of the array cells with 0"""
+        for i in range(self.table.rowCount()):
+            for j in range(self.table.columnCount()):
+                self.table.setItem(i, j, QTableWidgetItem())
+                self.table.item(i, j).setText('0')
     
     def change_array_size(self):
         """Update the size of the multirun array based on the number of rows
         and columns specified in the line edit."""
         self.stats['nrows'] = self.types['nrows'](self.rows_edit.text())
         self.table.setRowCount(self.stats['nrows'])
-        newcol = int(self.cols_edit)
+        self.stats['ncols'] = self.types['ncols'](self.cols_edit.text())
         self.table.setColumnCount(newcol)
-        for i in range(len(self.stats['col_head'], newcol)): # add new columns
-            self.stats['col_head'].append(str(i))
-        if len(self.stats['col_head']) > newcol: # or remove columns if needed
-            self.stats['col_head'] = self.stats['col_head'][:newcol]
-        self.table.setHorizontalHeaderLabels(self.stats['col_head'])
-
-    def set_col_head(self):
-        """Take the text typed from the line edit and insert it into
-        the appropriate column header, then hide the line edit"""
-        self.stats['col_head'][self.head_edit.col] = self.head_edit.text()
-        self.table.setHorizontalHeaderLabels(self.stats['col_head'])
-        self.head_edit.hide()
-
-    def open_head_edit(self):
-        """When the user double clicks on a column, open the line edit
-        so that they can input a new column header"""
-        if self.sender().column() < len(self.stats['col_head']):
-            self.head_edit.col = self.sender().column()
-            self.head_edit.show()
-        else: self.change_array_size()
+        self.col_val_edit[0].setValidator(QIntValidator(0,newcol-1))
+        self.reset_table()
 
     def add_column_to_array(self):
-        pass
+        """Make a list of values and add it to the given column 
+        in the multirun values array. The list is 
+        range(start, stop, step) repeated a set number of times.
+        The list is ordered according to the ComboBox text."""
+        if all([x.text() for x in self.col_val_edit]):
+            col = int(self.col_val_edit[0].text())
+            # make the list of values with a given order:
+            vals = range(*map(int, [x.text() for x in self.col_val_edit[1:4]]))
+            repeats = int(self.col_val_edit[4].text())
+            if self.order.currentText() == 'descending':
+                vals = reversed(vals)
+            elif self.order.currentText() == 'coarse random':
+                vals = list(vals)
+                shuffle(vals)
+            # make the full list:
+            if self.order.currentText() == 'unsorted':
+                vals = [v for i in range(repeats) for v in vals]
+            else:
+                vals = [v for v in vals for i in range(repeats)] 
+            if self.order.currentText() == 'random':
+                shuffle(vals)
+            for i in range(self.table.rowCount()): # set vals in table cells
+                self.table.item(i, col).setText(str(vals[i]))
 
     #### multirun ####
     
-    def add_var_to_multirun(self):
-        """When the user hits enter or the 'Add to list' button, add the 
-        text from the entry edit to the list of user variables that will 
-        be used for the multi-run. For speed, you can enter a range in 
-        the form start,stop,step,repeat. If the multi-run has already
-        started, do nothing."""
-        if not self.multirun_switch.isChecked():
-            new_var = list(map(float, [v for v in self.entry_edit.text().split(',') if v]))
-            if np.size(new_var) == 1: # just entered a single variable
-                self.mr['var list'].append(new_var[0])
-                # empty the text edit so that it's quicker to enter a new variable
-                self.entry_edit.setText('') 
-
-            elif np.size(new_var) == 3: # range, with no repeats
-                self.mr['var list'] += list(np.arange(new_var[0], new_var[1], new_var[2]))
-            elif np.size(new_var) == 4: # range, with repeats
-                self.mr['var list'] += list(np.arange(new_var[0], new_var[1],
-                                            new_var[2]))*int(new_var[3])
-            # display the list
-            vlist = ','.join(list(map(str, self.mr['var list'])))
-            vlist = vlist[:20] + ' ...' if len(vlist)>20 else vlist
-            self.multirun_vars.setText(vlist)
-
-    def clear_multirun_vars(self):
-        """Reset the list of user variables to be used in the multi-run.
-        If the multi-run is already running, don't do anything"""
-        if not self.multirun_switch.isChecked():
-            self.mr['var list'] = []
-            self.multirun_vars.setText('')
-
     def multirun_go(self, toggle):
         """Initiate the multi-run: omit N files, save a histogram of M files, and
         repeat for the user variables in the list. If the button is pressed during
@@ -280,6 +256,7 @@ class multirun_widget(QWidget):
         save the histogram 
         repeat this for the user variables in the multi-run list,
         then return to normal operation as set by the histogram binning"""
+        self.table.selectRow(n)
         if self.mr['v'] < np.size(self.mr['var list']):
             if self.mr['o'] < self.mr['# omit']: # don't process, just copy
                 # self.recent_label.setText('Just omitted image '
