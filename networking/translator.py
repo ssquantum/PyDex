@@ -9,6 +9,7 @@ import xmltodict
 import dicttoxml
 import sys
 import numpy as np
+from collections import OrderedDict
 try:
     from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, 
@@ -31,28 +32,28 @@ except ImportError:
 def event_list():
     """Define a dictionary for DExTer's event
     list cluster since it's used several times."""
-    return {'Event name':'',
-            'Routine specific event?':False,
-            'Event indices':[],
-            'Event path':''}
+    return OrderedDict([('Event name',''),
+            ('Routine specific event?',False),
+            ('Event indices',[]),
+            ('Event path','')])
 
 def header_cluster():
     """Define a dictionary for DExTer's matrix header
     cluster since it's used several times."""
-    return {'Skip step':False,
-            'Event name':'',
-            'Hide event steps':False,
-            'Event ID':'',
-            'Time step name':'',
-            'Populate multirun':False,
-            'Time step length':1,
-            'Time unit':1,
-            'Digital trigger or analogue trigger?':0,
-            'Trigger this time step?':False,
-            'Channel':0,
-            'Analogue voltage':0,
-            'GPIB event name':0,
-            'GPIB on/off':False}
+    return OrderedDict([('Skip step',False),
+            ('Event name',''),
+            ('Hide event steps',False),
+            ('Event ID',''),
+            ('Time step name',''),
+            ('Populate multirun',False),
+            ('Time step length',1),
+            ('Time unit',1),
+            ('Digital trigger or analogue trigger?',0),
+            ('Trigger this time step?',False),
+            ('Channel',0),
+            ('Analogue voltage',0),
+            ('GPIB event name',0),
+            ('GPIB on/off',False)])
 
 def channel_names(length, values=None):
     """Define a dictionary for DExTer's channel names cluster
@@ -60,11 +61,11 @@ def channel_names(length, values=None):
     items but take care to give them the right length:
     values = [[hardware IDs],[names]]"""
     if not values:
-        return {'Hardware ID':['']*length,
-                'Name':['']*length}
+        return OrderedDict([('Hardware ID',['']*length),
+                    ('Name',['']*length)])
     else:
-        return {'Hardware ID':values[0],
-                'Name':values[1]}
+        return OrderedDict([('Hardware ID',['']*length),
+                    ('Name',['']*length)])
 
 def analogue_cluster(length, values=None):
     """Define a dictionary for DExTer's analogue channels 
@@ -73,18 +74,64 @@ def analogue_cluster(length, values=None):
     right length:
     values = [[voltages],[ramp?]]"""
     if not values:
-        return {'Voltage':[0]*length,
-                'Ramp?':[False]*length}
+        return OrderedDict([('Voltage',[0]*length),
+                    ('Ramp?',[False]*length)])
     else:
-        return {'Voltage':values[0],
-                'Ramp?':values[1]}
+        return OrderedDict([('Voltage',[0]*length),
+                    ('Ramp?',[False]*length)])
+
+def d2str(dic, key):
+    """Return an ordered dictionary with the LV
+    (name, val) format."""
+    return OrderedDict([('Name',key), ('Val',dic[key])])
+
+def wrap_sequence(seq_dict):
+    """Add all the extra jargon that LabVIEW puts in XML files."""
+    return OrderedDict([
+        ('LVData', OrderedDict([
+            ('@amlns', 'http://www.ni.com/LVData'),
+            ('Version', '12.0.1f5'),
+            ('Cluster', OrderedDict([
+                ('Name', 'input cluster'),
+                ('NumElts', 4),
+                ('Array', OrderedDict([
+                    ('Name','Event list array in'),
+                    ('Dimsize', len(seq_dict['Event list array in'])),
+                    ('Cluster', [OrderedDict([
+                        ('Name','Event list cluster in'),
+                        ('NumElts', 4),
+                        ('String', d2str(event, 'Event name')),
+                        ('Array', OrderedDict([
+                            ('Name', 'Event indices'),
+                            ('Dimsize', len(event['Event indices'])),
+                            ('I32', [OrderedDict([
+                                ('Name','Numeric control'),
+                                ('Val',x)]) for x in event['Event indices']])])),
+                        ('Path', d2str(event, 'Event path')),
+                        ('Boolean', OrderedDict([
+                            ('Name', 'Routine specific event?'),
+                            ('Val', str(int(event['Routine specific event?'])))]))
+                        ]) for event in seq_dict['Event list array in']])])),
+                ('Cluster', OrderedDict([
+                    ('Name', 'Experimental sequence cluster in'),
+                    ('NumElts', 10),
+                    ('Array', [OrderedDict([('Name','Sequence header top'),
+                        ('Dimsize', len(seq_dict['Experimental sequence cluster in'])),
+                        ('Cluster','')])])])), ## add in the rest here
+                ('String', [d2str(seq_dict, key)
+                    for key in ['Routine name in', 'Routine description in']])
+                ]))
+            ]))
+        ])
+    
 
 #### #### Convert json <-> python dict #### ####
 
 class translate:
     """Write DExTer sequences to json files.
     Facilitate editing of several variables quickly.
-    A sequence has a fixed number of events; num_e.
+    A sequence has a fixed number of events, num_e,
+    which give a total number of steps, num_s.
     Functions are provided to create a multirun.
 
     The format is:
@@ -94,24 +141,24 @@ class translate:
      - routine name
      - routine description
     """
-    def __init__(self, num_e=1):
-        self.json_dict = {
-        'Event list array':
-            [event_list()]*num_e,
-        'Routine name': '',
-        'Routine description': '',
-        'Experimental sequence cluster': {
-            'Sequence header top':[header_cluster()]*num_e,
-            'Fast digital names':channel_names(56),
-            'Fast digital channels':[[False]*56]*num_e,
-            'Fast analogue names':channel_names(8),
-            'Fast analogue array':[analogue_cluster(8)]*num_e,
-            'Sequence header middle':[header_cluster()]*num_e,
-            'Slow digital names':channel_names(8),
-            'Slow digital channels':[[False]*8]*num_e,
-            'Slow analogue names':channel_names(8),
-            'Slow analogue array':[analogue_cluster(8)]*num_e}
-        }
+    def __init__(self, , num_e=1, num_s=1):
+        self.json_dict = OrderedDict([(
+            ('Event list array in'),
+                [event_list()]*num_e),
+            ('Routine name in', (''),
+            ('Routine description in', (''),
+            ('Experimental sequence cluster in', OrderedDict([(
+                ('Sequence header top',[header_cluster()]*num_s),
+                ('Fast digital names',channel_names(56)),
+                ('Fast digital channels',[[False]*56]*num_s),
+                ('Fast analogue names',channel_names(8)),
+                ('Fast analogue array',[analogue_cluster(8)]*num_s),
+                ('Sequence header middle',[header_cluster()]*num_s),
+                ('Slow digital names',channel_names(8)),
+                ('Slow digital channels',[[False]*8]*num_s),
+                ('Slow analogue names',channel_names(8)),
+                ('Slow analogue array',[analogue_cluster(8)]*num_s)])
+            )])
 
     def write_to_file(self, fname='sequence_example.json'):
         """Write the current sequence in the json dictionary
@@ -150,9 +197,9 @@ class translate:
         sd         -- slow digital channels
         sa         -- slow analogue channels."""
         if idx == None:
-            idx = len(self.json_dict['Event list array'])
-        self.json_dict['Event list array'].insert(idx, event_name)
-        esc = self.json_dict['Experimental sequence cluster'] # shorthand
+            idx = len(self.json_dict['Event list array in'])
+        self.json_dict['Event list array in'].insert(idx, event_name)
+        esc = self.json_dict['Experimental sequence cluster in'] # shorthand
         esc['Sequence header top'].insert(idx, header_top)
         esc['Fast digital channels'].insert(idx, fd)
         esc['Fast analogue array'].insert(idx, fa)
@@ -175,9 +222,9 @@ class translate:
 class Editor(QMainWindow):
     """Provide a GUI for quickly editing DExTer sequences.
     """
-    def __init__(self, num_events=1):
+    def __init__(self, num_steps=1):
         super().__init__()
-        self.seq = translate(num_events)
+        self.seq = translate(num_steps)
         self.pre = Previewer(self.seq)
         self.init_UI()
 
@@ -281,7 +328,7 @@ class Previewer(QMainWindow):
         For each row position widgets from arr1 at row j+i1r 
         starting from column i1c in steps step1. The widgets take up 
         size1 = [rows,columns].
-        dimn: arr1 has shape (# events, # channels, dimn):
+        dimn: arr1 has shape (# steps, # channels, dimn):
             iterate over the widgets in the last dimension of arr1
             placing them in successive columns."""
         for i, text in enumerate(list0):
@@ -297,7 +344,7 @@ class Previewer(QMainWindow):
                         i1r + i*step0, i1c + j*step1 + k, *size1)
             yield label
 
-    def init_UI(self, num_e=1):
+    def init_UI(self, num_s=1):
         """Create all of the widget objects required"""
         self.centre_widget = QWidget()
         self.centre_widget.layout = QGridLayout()
@@ -307,15 +354,15 @@ class Previewer(QMainWindow):
         # metadata
         _, self.routine_name = self.label_pair(
             'Routine name: ', self.centre_widget.layout,
-            [i,0, 1,2], [i,2, 1,2*num_e])
+            [i,0, 1,2], [i,2, 1,2*num_s])
         _, self.routine_desc = self.label_pair(
             'Routine description: ', self.centre_widget.layout,
-            [i+1,0, 1,2], [i+1,2, 1,2*num_e])
+            [i+1,0, 1,2], [i+1,2, 1,2*num_s])
         self.routine_desc.setWordWrap(True)
 
         # list of event descriptions
         self.e_list = np.array([[[QLabel(self)] for ii in range(4)] 
-            for iii in range(num_e)]) # event list
+            for iii in range(num_s)]) # event list
         _ = [x for x in self.position(['Event name: ', 
             'Routine specific event? ', 'Event indices: ', 'Event path: '], 
             self.e_list, i0r=i+2, i0c=0, i1r=i+2, i1c=2, size0=[1,2],
@@ -329,7 +376,7 @@ class Previewer(QMainWindow):
             'GBIP event name: ', 'GBIP on/off: ']
         i += 7
         self.head_top = np.array([[[QLabel(self)] for ii in 
-            range(len(header_items))] for iii in range(num_e)])
+            range(len(header_items))] for iii in range(num_s)])
         _ = [x for x in self.position(header_items, self.head_top,
             i0r=i, i0c=0, i1r=i, i1c=2, layout=self.centre_widget.layout, 
             size0=[1,2], step1=2, size1=[1,2])]
@@ -339,7 +386,7 @@ class Previewer(QMainWindow):
         fd_head = QLabel('FD', self) 
         self.centre_widget.layout.addWidget(fd_head, i,0, 1,1)
         self.fd_chans = np.array([[[QLabel(self)] for ii in 
-            range(56)] for iii in range(num_e)])
+            range(56)] for iii in range(num_s)])
         self.fd_names = [x for x in self.position(['']*56, self.fd_chans,
             i0r=i+1, i0c=0, i1r=i+1, i1c=2, layout=self.centre_widget.layout, 
             step1=2, size1=[1,2])]
@@ -349,14 +396,14 @@ class Previewer(QMainWindow):
         fa_head = QLabel('FA', self) 
         self.centre_widget.layout.addWidget(fa_head, i,0, 1,1)
         self.fa_chans = np.array([[[QLabel('0', self), QLabel(self)] for ii in 
-            range(8)] for iii in range(num_e)]) 
+            range(8)] for iii in range(num_s)]) 
         self.fa_names = [x for x in self.position(['']*8, self.fa_chans, i0r=i+1, 
             i0c=0, i1r=i+1, i1c=2, step1=2, layout=self.centre_widget.layout, dimn=2)]
 
         # event header middle
         i += 9
         self.head_mid = np.array([[[QLabel(self)] for ii in 
-            range(len(header_items))] for iii in range(num_e)])
+            range(len(header_items))] for iii in range(num_s)])
         _ = [x for x in self.position(header_items, self.head_mid,
             i0r=i, i0c=0, i1r=i, i1c=2, layout=self.centre_widget.layout,
              size0=[1,2], step1=2, size1=[1,2])]
@@ -366,7 +413,7 @@ class Previewer(QMainWindow):
         sd_head = QLabel('SD', self) 
         self.centre_widget.layout.addWidget(sd_head, i,0, 1,1)
         self.sd_chans = np.array([[[QLabel(self)] for ii in 
-            range(8)] for iii in range(num_e)])
+            range(8)] for iii in range(num_s)])
         self.sd_names = [x for x in self.position(['']*8, self.sd_chans,
             i0r=i+1, i0c=0, i1r=i+1, i1c=2, layout=self.centre_widget.layout, 
             step1=2, size1=[1,2])]
@@ -376,7 +423,7 @@ class Previewer(QMainWindow):
         sa_head = QLabel('SA', self) 
         self.centre_widget.layout.addWidget(sa_head, i,0, 1,1)
         self.sa_chans = np.array([[[QLabel('0', self), QLabel(self)] for ii in 
-            range(8)] for iii in range(num_e)])
+            range(8)] for iii in range(num_s)])
         self.sa_names = [x for x in self.position(['']*8, self.sa_chans, i0r=i+1, 
             i0c=0, i1r=i+1, i1c=2, step1=2, layout=self.centre_widget.layout, dimn=2)]
 
@@ -393,7 +440,7 @@ class Previewer(QMainWindow):
         self.setCentralWidget(scroll)
         
         # choose main window position and dimensions: (xpos,ypos,width,height)
-        width = 220*(num_e+1) # scale width with number of events
+        width = 220*(num_s+1) # scale width with number of steps
         self.setGeometry(60, 60, width if width<1200 else 1200, 800)
         self.setWindowTitle('Sequence Preview')
         self.setWindowIcon(QIcon('docs/previewicon.png'))
@@ -402,8 +449,8 @@ class Previewer(QMainWindow):
         """Fill the labels with the values from the sequence"""
         self.routine_name.setText(seq['Routine name'])
         self.routine_desc.setText(seq['Routine description'])
-        ela = seq['Event list array'] # shorthand
-        esc = seq['Experimental sequence cluster']
+        ela = seq['Event list array in'] # shorthand
+        esc = seq['Experimental sequence cluster in']
         for i in range(56):
             self.fd_names[i].setText(esc['Fast digital names']['Hardware ID'][i]
                 + ': ' + esc['Fast digital names']['Name'][i])
@@ -414,7 +461,7 @@ class Previewer(QMainWindow):
                 + ': ' + esc['Fast digital names']['Name'][i])
             self.sa_names[i].setText(esc['Slow analogue names']['Hardware ID'][i]
                 + ': ' + esc['Fast digital names']['Name'][i])
-        for i in range(len(seq['Event list array'])):
+        for i in range(len(seq['Event list array in'])):
             self.e_list[i][0].setText(ela[i]['Event name'])
             self.e_list[i][0].setText(ela[i]['Routine specific event?'])
             self.e_list[i][0].setText(ela[i]['Event indices'])
