@@ -28,10 +28,10 @@ class PyClient(QThread):
     def singleContact(self, enum, text, encoding="UTF-8", buffer_size=1024):
         """Send a message and then receive a string in reply. Send format:
          1) the enum as a single byte, which will correspond to a command. 
-         2) the length of the text string in 3 bytes (i.e. length < 1000).
+         2) the length of the text string in 6 digits (i.e. length < 1000000).
          3) the text string.
         enum        - a single digit integer
-        text        - the string to send, can have any length < 1000.
+        text        - the string to send, can have any length < 1000000.
         encoding    - the character encoding to use for converting to bytes
         buffer_size - the upper limit on the size of the returned message"""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -40,7 +40,7 @@ class PyClient(QThread):
                 sock.sendall(bytes(enum, encoding)) # send enum
                 # make sure address length sent as str of length 3
                 textLength = str(len(text))
-                textLength = '0'*(3-len(textLength)) + textLength
+                textLength = '0'*(6-len(textLength)) + textLength
                 sock.sendall(bytes(textLength, encoding)) # send text length
                 sock.sendall(bytes(text, encoding)) # send text
                 # send signal to listen for message in return
@@ -66,15 +66,15 @@ class PyClient(QThread):
     def sendCluster(self, enum, text, encoding="UTF-8"):
         """Send a bundle of info vie the current socket:
          1) the enum as a single byte, which will correspond to a command. 
-         2) the length of the text string in 3 bytes (i.e. length < 1000).
+         2) the length of the text string in 6 digits (i.e. length < 1000000).
          3) the text string.
         enum - a single digit integer
-        text - the string to send, can have any length < 1000."""
+        text - the string to send, can have any length < 1000000."""
         if self.socket:
             self.socket.sendall(bytes(enum, encoding))
             textLength = str(len(text))
             # make sure address length sent as str of length 3
-            textLength = '0'*(3-len(textLength)) + textLength
+            textLength = '0'*(6-len(textLength)) + textLength
             self.socket.sendall(bytes(textLength, encoding))
             self.socket.sendall(bytes(text, encoding))
         else: print('Error: Connect socket before sending cluster')
@@ -153,9 +153,12 @@ if __name__ == "__main__":
     if standalone: # if there isn't an instance, make one
         app = QApplication(sys.argv) 
         
+    import time
     pc = PyClient()
     pc.txtout.connect(print)
-    pc.singleContact('0', 'Hello world!')
+    t0 = time.time()
+    pc.singleContact('0', """Hello world!""")
+    print("Message duration: %.3g s"%(time.time()-t0))
 
     if input("'q' to close  ") == 'q': # if an app instance was made, execute it
         app.quit()
