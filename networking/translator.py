@@ -103,6 +103,62 @@ def mk_dic(typ='Array', name='', size=1, dtyp='Cluster', data=[]):
         ('Dimsize' if typ=='Array' else 'NumElts', size),
         (dtyp, data)])
 
+def hf_seq(seq_dict, nsteps, nd, na, up=1):
+    """Expand the dictionaries required for the header and channels
+    of either the top or bottom half of the sequence.
+    seq_dict: the python dictionary which the sequence is stored in
+    nsteps: the number of time steps in the sequence
+    nd: number of digital channels
+    na: number of analogue channels
+    up: 1 - the top half (fast channels), 0 - bottom half (slow)."""
+    title = 'Sequence header ' + 'top' if up else 'middle'
+    speed = 'Fast' if up else 'Slow'
+    return (mk_dic('Array', title, nsteps, 'Cluster',
+            data=[OrderedDict([
+                ('Name','Sequence header cluster'),
+                ('NumElts',10),
+                ('String',[nm_val(head, key) for key in ['Event name', 'Time step name']]),
+                ('DBL', nm_val(head, 'Time step length', [str])),
+                ('Cluster', OrderedDict([('Name', 'Trigger details'),
+                    ('NumElts',4),
+                    ('DBL', nm_val(head, 'Analogue voltage (V)', [str])),
+                    ('EW', OrderedDict([('Name', 'Digital or analogue trigger?'),
+                        ('Choice', ['Digital trigger', 'Analogue trigger']),
+                        ('Val', str(int(head['Digital or analogue trigger?']))),
+                    ])),
+                    ('U8', nm_val(head, 'Channel')),
+                    ('Boolean', nm_val(head, 'Trigger this time step?', [int, str]))
+                ])),
+                ('Boolean', [nm_val(head, key, [int, str]) for key in
+                    ['Hide event steps', 'Populate multirun', 'Skip Step']]),
+                ('EW', OrderedDict([('Name', 'Time unit'),
+                    ('Choice', ['µs', 'ms', 's']),
+                    ('Val', head['Time unit'])
+                ])),
+                ('I32', nm_val(head, 'Event ID'))
+            ]) for head in seq_dict['Experimental sequence cluster in'][title]]),
+        mk_dic('Array', speed + ' digital names', nd, 'Cluster',
+            [mk_dic('Cluster', 'Channel names', 2, 'String',
+                [nm_val(fdn, key) for key in ['Hardware ID', 'Name']])
+            for fdn in seq_dict['Experimental sequence cluster in'][speed + ' digital names']]),
+        mk_dic('Array', speed + ' digital channels', [nd, nsteps], 'Boolean',
+            data=[OrderedDict([('Name', 'Boolean'),
+                ('Val', seq_dict['Experimental sequence cluster in'][speed + ' digital channels'][i][j])
+                ]) for j in range(nd) for i in range(nsteps)]),
+        mk_dic('Array', speed + ' analogue names', na, 'Cluster',
+            [mk_dic('Cluster', 'Channel names', 2, 'String',
+                [nm_val(fan, key) for key in ['Hardware ID', 'Name']])
+            for fan in seq_dict['Experimental sequence cluster in'][speed + ' analogue names']]),
+        mk_dic('Array', speed + ' analogue array', [na, nsteps], 'Cluster',
+            [OreredDict([
+                ('Name', 'Analogue cluster'),
+                ('NumElts', 2),
+                ('Boolean', OrderedDict([('Name','Ramp?'), 
+                    ('Val',str(int(seq_dict['Experimental sequence cluster in'][speed + ' analogue array'][i]['Ramp?'][j])))])),
+                ('DBL',  OrderedDict([('Name','Voltage'), 
+                    ('Val',str(int(seq_dict['Experimental sequence cluster in'][speed + ' analogue array'][i]['Voltage'][j])))]))
+            ]) for j in range(na) for i in range(nsteps)]))
+
 def wrap_sequence(seq_dict):
     """Add all the extra jargon that LabVIEW puts in XML files."""
     numsteps = len(seq_dict['Experimental sequence cluster in']['Sequence header top'])
@@ -131,69 +187,8 @@ def wrap_sequence(seq_dict):
                     ]) for event in seq_dict['Event list array in']])),
             ('Cluster', mk_dic(typ='Cluster', name='Experimental sequence cluster in', 
                 size=10, dtyp='Array',
-                data=[mk_dic(typ='Array', name='Sequence header top', 
-                        size=numsteps, dtyp='Cluster',
-                        data=[OrderedDict([
-                            ('Name','Sequence header cluster'),
-                            ('NumElts',10),
-                            ('String',[nm_val(head, key) for key in ['Event name', 'Time step name']]),
-                            ('DBL', nm_val(head, 'Time step length', [str])),
-                            ('Cluster', OrderedDict([('Name', 'Trigger details'),
-                                ('NumElts',4),
-                                ('DBL', nm_val(head, 'Analogue voltage (V)', [str])),
-                                ('EW', OrderedDict([('Name', 'Digital or analogue trigger?'),
-                                    ('Choice', ['Digital trigger', 'Analogue trigger']),
-                                    ('Val', str(int(head['Digital or analogue trigger?']))),
-                                ])),
-                                ('U8', nm_val(head, 'Channel')),
-                                ('Boolean', nm_val(head, 'Trigger this time step?', [int, str]))
-                            ])),
-                            ('Boolean', [nm_val(head, key, [int, str]) for key in
-                                ['Hide event steps', 'Populate multirun', 'Skip Step']]),
-                            ('EW', OrderedDict([('Name', 'Time unit'),
-                                ('Choice', ['µs', 'ms', 's']),
-                                ('Val', head['Time unit'])
-                            ])),
-                            ('I32', nm_val(head, 'Event ID'))
-                        ]) for head in seq_dict['Experimental sequence cluster in']['Sequence header top']]),
-                    mk_dic(typ='Array', name='Fast digital channels', 
-                        size=[56, numsteps], dtyp='Boolean',
-                        data=[OrderedDict([('Name', 'Boolean'),
-                            ('Val', seq_dict['Experimental sequence cluster in']['Fast digital channels'][i][j])
-                            ]) for j in range(56) for i in range(numsteps)]),
-                    mk_dic('Array', 'Fast digital names', 56, 'Cluster',
-                        [mk_dic('Cluster', 'Channel names', 2, 'String',
-                            [d2str(fdn, key) for key in ['Hardware ID', 'Name']])
-                        for fdn in seq_dict['Experimental sequence cluster in']['Fast digital names']]),
-                    mk_dic('Array', 'Fast analogue names', 8, 'Cluster',
-                        [mk_dic('Cluster', 'Channel names', 2, 'String',
-                            [d2str(fan, key) for key in ['Hardware ID', 'Name']])
-                        for fan in seq_dict['Experimental sequence cluster in']['Fast analogue names']]),
-                    mk_dic('Array', 'Fast analogue array', [8, numsteps], 'Cluster',
-                        [OreredDict([
-                            ('Name', 'Analogue cluster'),
-                            ('NumElts', 2),
-                            ('Boolean', OrderedDict([('Name','Ramp?'), 
-                                ('Val',str(int(seq_dict['Experimental sequence cluster in']['Fast analogue array'][i]['Ramp?'][j])))])),
-                            ('DBL',  OrderedDict([('Name','Voltage'), 
-                                ('Val',str(int(seq_dict['Experimental sequence cluster in']['Fast analogue array'][i]['Voltage'][j])))]))
-                        ]) for j in range(8) for i in range(numsteps)]),
-                    mk_dic('Array', 'Slow digital channels', [48, numsteps], 'Boolean',
-                        [OrderedDict([('Name', 'Boolean'),
-                            ('Val', seq_dict['Experimental sequence cluster in']['Slow digital channels'][i][j])
-                            ]) for j in range(48) for i in range(numsteps)]),
-                    mk_dic('Array', 'Slow digital names', 48, 'Cluster',
-                        [mk_dic('Cluster', 'Channel names', 2, 'String',
-                            [d2str(fdn, key) for key in ['Hardware ID', 'Name']])
-                        for sdn in seq_dict['Experimental sequence cluster in']['Slow digital names']]),
-                    mk_dic('Array', 'Sequence header middle', , '',
-                        []),
-                    mk_dic('Array', 'Slow analogue names', 32, '',
-                        []),
-                    mk_dic('Array', 'Slow analogue array', [32, numsteps], '',
-                        [])
-                    ]) 
-            ),
+                data=[*hf_seq(seq_dict, numsteps, 56, 8, 1),
+                    *hf_seq(seq_dict, numsteps, 48, 32, 0)])),
             ('String', [nm_val(seq_dict, key)
                 for key in ['Routine name in', 'Routine description in']])
             ]))
