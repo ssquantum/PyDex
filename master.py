@@ -42,7 +42,7 @@ from saveimages.imsaver import event_handler # saves images
 sys.path.append('./networking')
 from networking.runid import runnum # synchronises run number, sends signals
 from networking.networker import TCPENUM, remove_slot # enum for DExTer produce-consumer loop cases
-from networking.translator import translate
+from networking.translator import Previewer
 
 class Master(QMainWindow):
     """A manager to synchronise and control experiment modules.
@@ -82,12 +82,12 @@ class Master(QMainWindow):
                 settings_window(nsaia=m if m!=0 else 2, nreim=1 if m==0 else 1,
                     results_path =sv_dirs['Results Path: '],
                     im_store_path=sv_dirs['Image Storage Path: ']), # image analysis
+                Previewer() # sequence editor
                 n=startn, m=2, k=0) 
         
         self.rn.server.textin.connect(self.Dx_label.setText) # synchronise run number
         self.status_label.setText('Initialised')
 
-        
     def restore_state(self, file_name='./state'):
         """Use the data stored in the given file to restore the file # for
         synchronisation if it is the same day, and use the same config 
@@ -153,7 +153,8 @@ class Master(QMainWindow):
         # actions that can be carried out 
         self.actions = QComboBox(self)
         for action_label in ['Run sequence', 'Multirun run', 
-                            'TCP multirun values', 'TCP load sequence']:
+                            'TCP multirun values', 'TCP load sequence',
+                            'TCP load sequence from string']:
             self.actions.addItem(action_label)
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
@@ -214,7 +215,7 @@ class Master(QMainWindow):
                     self.status_label.setText('Failed to find config file.')
 
         elif self.sender().text() == 'Sequence Editor':
-            pass
+            self.rn.seq.show()
         elif self.sender().text() == 'Monitoring':
             pass
 
@@ -255,9 +256,10 @@ class Master(QMainWindow):
                         DExTer perform a multirun with the preloaded
                         multirun settings.
         TCP multirun values:  Send values to fill the DExTer multirun
+        TCP load sequence from string: Tell DExTer to load in the sequence
+                        from a string in XML format.
         TCP load sequence:  Tell DExTer to load in the sequence file at
-                        the location in the 'Sequence file' label
-        """
+                        the location in the 'Sequence file' label."""
         if self.rn.server.isRunning():
             action_text = self.actions.currentText()
             if action_text == 'Run sequence':
@@ -277,7 +279,9 @@ class Master(QMainWindow):
                             slot=self.end_run, reconnect=True)
                 self.rn.server.add_message(TCPENUM['TCP read'], 'run finished') 
             elif action_text == 'TCP multirun values':
-                self.rn.server.add_message(TCPENUM[action_text], self.rn.sw.)
+                self.rn.server.add_message(TCPENUM[action_text], '')
+            elif action_text == 'TCP load sequence from string':
+                self.rn.server.add_message(TCPENUM[action_text], self.)
             elif action_text == 'TCP load sequence':
                 self.rn.server.add_message(TCPENUM[action_text], 
                     self.seq_edit.text())
