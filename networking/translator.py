@@ -1,11 +1,14 @@
 """Dextr - Sequence Translator
 Stefan Spence 04/10/19
 
- - translate DExTer sequences to/from json
+ - translate DExTer sequences to/from XML
  - create a GUI to facilitate editing sequences
+The functions here are specific to the format of 
+sequences that DExTer generates.
 """
 import json
 import xmltodict
+import xml.dom.minidom
 import sys
 import numpy as np
 from collections import OrderedDict
@@ -54,7 +57,7 @@ def header_cluster(skip=False, ename='', hide=False, ID='',
             ('Channel',channel),
             ('Analogue voltage (V)',av),
             ('GPIB event name',gpibevent),
-            ('GPIB on/off',gpibon)])
+            ('GPIB on/off?',gpibon)])
 
 def channel_names(length, values=None):
     """Define a dictionary for DExTer's channel names cluster
@@ -112,7 +115,7 @@ def wrap_hf(seq_dict, nsteps, nd, na, up=1):
     nd: number of digital channels
     na: number of analogue channels
     up: 1 - the top half (fast channels), 0 - bottom half (slow)."""
-    title = 'Sequence header ' + 'top' if up else 'middle'
+    title = 'Sequence header top' if up else 'Sequence header middle'
     speed = 'Fast' if up else 'Slow'
     return (mk_dic('Array', title, nsteps, 'Cluster',
             data=[OrderedDict([
@@ -120,16 +123,25 @@ def wrap_hf(seq_dict, nsteps, nd, na, up=1):
                 ('NumElts',10),
                 ('String',[nm_val(head, key) for key in ['Event name', 'Time step name']]),
                 ('DBL', nm_val(head, 'Time step length', [str])),
-                ('Cluster', OrderedDict([('Name', 'Trigger details'),
-                    ('NumElts',4),
-                    ('DBL', nm_val(head, 'Analogue voltage (V)', [str])),
-                    ('EW', OrderedDict([('Name', 'Digital or analogue trigger?'),
-                        ('Choice', ['Digital trigger', 'Analogue trigger']),
-                        ('Val', str(int(head['Digital or analogue trigger?']))),
-                    ])),
-                    ('U8', nm_val(head, 'Channel')),
-                    ('Boolean', nm_val(head, 'Trigger this time step?', [int, str]))
-                ])),
+                ('Cluster', [OrderedDict([('Name', 'Trigger details'),
+                        ('NumElts',4),
+                        ('DBL', nm_val(head, 'Analogue voltage (V)', [str])),
+                        ('EW', OrderedDict([('Name', 'Digital or analogue trigger?'),
+                            ('Choice', ['Digital trigger', 'Analogue trigger']),
+                            ('Val', str(int(head['Digital or analogue trigger?']))),
+                        ])),
+                        ('U8', nm_val(head, 'Channel')),
+                        ('Boolean', nm_val(head, 'Trigger this time step?', [int, str]))
+                    ]),
+                    OrderedDict([('Name', 'GPIB routine data'),
+                        ('NumElts',2),
+                        ('EW', OrderedDict([('Name', 'GPIB event name'),
+                            ('Choice', ['Do nothing', 'Initial setup', 'RF ramp 1', 
+                                'RF ramp 2', 'RF ramp 3', 'Spin flip', 'RF off', 'Remote']),
+                            ('Val', head['GPIB event name'])])),
+                        ('Boolean', nm_val(head, 'GPIB on/off?'))
+                    ])
+                ]),
                 ('Boolean', [nm_val(head, key, [int, str]) for key in
                     ['Hide event steps', 'Populate multirun', 'Skip Step']]),
                 ('EW', OrderedDict([('Name', 'Time unit'),
@@ -138,18 +150,18 @@ def wrap_hf(seq_dict, nsteps, nd, na, up=1):
                 ])),
                 ('I32', nm_val(head, 'Event ID'))
             ]) for head in seq_dict['Experimental sequence cluster in'][title]]),
-        mk_dic('Array', speed + ' digital names', nd, 'Cluster',
-            [mk_dic('Cluster', 'Channel names', 2, 'String',
-                [nm_val(fdn, key) for key in ['Hardware ID', 'Name']])
-            for fdn in seq_dict['Experimental sequence cluster in'][speed + ' digital names']]),
         mk_dic('Array', speed + ' digital channels', [nd, nsteps], 'Boolean',
             data=[OrderedDict([('Name', 'Boolean'),
                 ('Val', seq_dict['Experimental sequence cluster in'][speed + ' digital channels'][i][j])
                 ]) for j in range(nd) for i in range(nsteps)]),
+        mk_dic('Array', speed + ' digital names', nd, 'Cluster',
+            [mk_dic('Cluster', 'Channel names', 2, 'String',
+                [OrderedDict([('Name', key), ('Val', vals[i])]) for key, vals in seq_dict['Experimental sequence cluster in'][speed + ' digital names'].items()])
+            for i in range(len(seq_dict['Experimental sequence cluster in'][speed + ' digital names']['Name']))]),
         mk_dic('Array', speed + ' analogue names', na, 'Cluster',
             [mk_dic('Cluster', 'Channel names', 2, 'String',
-                [nm_val(fan, key) for key in ['Hardware ID', 'Name']])
-            for fan in seq_dict['Experimental sequence cluster in'][speed + ' analogue names']]),
+                [OrderedDict([('Name', key), ('Val', vals[i])]) for key, vals in seq_dict['Experimental sequence cluster in'][speed + ' analogue names'].items()])
+            for i in range(len(seq_dict['Experimental sequence cluster in'][speed + ' analogue names']['Name']))]),
         mk_dic('Array', speed + ' analogue array', [na, nsteps], 'Cluster',
             [OrderedDict([
                 ('Name', 'Analogue cluster'),
@@ -157,8 +169,8 @@ def wrap_hf(seq_dict, nsteps, nd, na, up=1):
                 ('Boolean', OrderedDict([('Name','Ramp?'), 
                     ('Val',str(int(seq_dict['Experimental sequence cluster in'][speed + ' analogue array'][i]['Ramp?'][j])))])),
                 ('DBL',  OrderedDict([('Name','Voltage'), 
-                    ('Val',str(int(seq_dict['Experimental sequence cluster in'][speed + ' analogue array'][i]['Voltage'][j])))]))
-            ]) for j in range(na) for i in range(nsteps)]))
+                    ('Val',seq_dict['Experimental sequence cluster in'][speed + ' analogue array'][i]['Voltage'][j])]))
+            ]) for i in range(na) for j in range(nsteps)]))
 
 def wrap_sequence(seq_dict):
     """Add all the extra jargon that LabVIEW puts in XML files
@@ -166,7 +178,7 @@ def wrap_sequence(seq_dict):
     numsteps = len(seq_dict['Experimental sequence cluster in']['Sequence header top'])
     numevents = len(seq_dict['Event list array in'])
     return OrderedDict([('LVData', OrderedDict([
-        ('@amlns', 'http://www.ni.com/LVData'),
+        ('@xmlns', 'http://www.ni.com/LVData'),
         ('Version', '12.0.1f5'),
         ('Cluster', OrderedDict([
             ('Name', 'input cluster'),
@@ -181,7 +193,7 @@ def wrap_sequence(seq_dict):
                         ('Name', 'Event indices'),
                         ('Dimsize', len(event['Event indices'])),
                         ('I32', [OrderedDict([
-                            ('Name','Numeric control'),
+                            ('Name','Numeric Control'),
                             ('Val',x)]) for x in event['Event indices']])
                         ])),
                     ('Path', nm_val(event, 'Event path')),
@@ -197,6 +209,55 @@ def wrap_sequence(seq_dict):
         ]))
     ])
 
+def shift(fullstr, i, start, end, match1, match2, single=False):
+    """Move the subsection of 'fullstr' between 'start'
+    and 'end' (starting the search after index 'i') forward to the 
+    position where 'match2' is first found after 'match1'.
+    single: True  - only move the first occurrence of the substring
+            False - iterate through the whole string.
+    Return: (rearranged string, index at end of substring in new position)
+    If any of the matching strings are unfound, return:
+    (unchanged string, -1)."""
+    while i>=0:
+        i0 = fullstr.find(start, i) # start of substring
+        i1 = fullstr.find(end, i0) # end of substring
+        isub = i1 + len(end)
+        i2 = fullstr.find(match1, isub) # needed to find new position
+        i2 = fullstr.find(match2, i2) # new position
+        iend = i2 + len(match2)
+        if any(j<0 for j in [i0, i1, i2]) or single:
+            break # find() returns -1 if it fails
+        else:
+            fullstr = fullstr[:i0] + fullstr[isub:iend] + fullstr[i0:isub] + fullstr[iend:]
+            i = iend + isub - i0 + 1
+    return fullstr
+
+def reformat(xmlstr):
+    """LabVIEW is fussy about the order that XML tags appear in.
+    So having created the sequence as an XML string, we must now reorder
+    parts of it."""
+    # move 'Time step name' to below 'GPIB on/off?'
+    xmlstr = shift(xmlstr, 0, '<String><Name>Time step name</Name>', 
+                '</String>', '<Name>GPIB on/off?</Name>', '</Cluster>')
+    # move 'Skip Step' to below 'Event ID'
+    xmlstr = shift(xmlstr, 0, '<Boolean><Name>Skip Step</Name>', 
+                '</Boolean>', '<I32><Name>Event ID</Name>', '</I32>')
+    # move all of 'Sequence header middle' to below 'Slow digital names'
+    xmlstr = shift(xmlstr, 0, '<Array><Name>Sequence header middle</Name>', 
+        '</Boolean></Cluster></Array>', '<Array><Name>Slow digital names</Name>', '</String></Cluster></Array>')
+    return xmlstr
+
+def get_ev_inds(event_array):
+    """Return a list of the event indices for a given event
+    seq_dict['LVData']['Cluster']['Array']['Cluster'][i]['Array']['I32']
+    this function is needed since if there are more than one indices then
+    it returns a list, but if there's only one then it's a dict."""
+    if type(event_array) == list:
+        return [x['Val'] for x in event_array]
+    elif type(event_array) == OrderedDict:
+        return [event_array['Val']]
+    else: return []
+
 def find_item(list_dicts, item_name):
     """Find the index in the list of dictionaries which has a
     'Name' item with value item_name"""
@@ -210,7 +271,7 @@ def strip_hf(seq_arrays, up=1):
     seq_arrays: the list of arrays giving headers, channels, and names;
         seq_dict['LVData']['Cluster']['Cluster']['Array']
     up: 1 - the top half (fast channels), 0 - bottom half (slow)."""
-    title = 'Sequence header ' + 'top' if up else 'middle'
+    title = 'Sequence header top' if up else 'Sequence header middle'
     speed = 'Fast' if up else 'Slow'
     nsteps= len(find_item(seq_arrays, title)['Cluster']) # number of timesteps
     nd = len(find_item(seq_arrays, speed+' digital names')['Cluster']) # number of digital channels
@@ -231,20 +292,21 @@ def strip_hf(seq_arrays, up=1):
             gpibevent=head['Cluster'][1]['EW']['Val'], 
             gpibon=head['Cluster'][1]['Boolean']['Val']
         ) for head in find_item(seq_arrays, title)['Cluster']]),
+        (speed + ' digital channels', list(map(list, zip(*# reshape flattened list of digital channels
+            np.reshape([x['Val'] for x in find_item(seq_arrays, speed + ' digital channels')['Boolean']], (nd, nsteps)))))),
         (speed + ' digital names', channel_names(nd, 
             list(map(list, zip(*[ # transpose list
                 [find_item(cl['String'], 'Hardware ID')['Val'], 
                 find_item(cl['String'], 'Name')['Val']] 
                 for cl in find_item(seq_arrays, speed+' digital names')['Cluster']]))))),
-        (speed + ' digital channels', list(map(list, # reshape flattened list of digital channels
-            np.reshape([x['Val'] for x in find_item(seq_arrays, speed + ' digital channels')['Boolean']], (nsteps, nd))))),
         (speed + ' analogue names', channel_names(na, 
             list(map(list, zip(*[ # transpose list
                 [find_item(cl['String'], 'Hardware ID')['Val'], 
                 find_item(cl['String'], 'Name')['Val']] 
                 for cl in find_item(seq_arrays, speed+' analogue names')['Cluster']]))))),
-        (speed + ' analogue array', [analogue_cluster(na, list(map(list, zip(*[ # transpose list
-                [cl['Boolean']['Val'], cl['DBL']['Val']] for cl in find_item(seq_arrays, speed + ' analogue array')['Cluster'][na*i:na*(i+1)]])))) for i in range(nsteps)]))
+        (speed + ' analogue array', [analogue_cluster(nsteps, list(map(list, zip(*[ # transpose list
+                [cl['DBL']['Val'], cl['Boolean']['Val']] # note this is the opposite order because of transpose
+                for cl in find_item(seq_arrays, speed + ' analogue array')['Cluster'][nsteps*i:nsteps*(i+1)]])))) for i in range(na)]))
 
 def strip_sequence(seq_dict):
     """Remove all the extra jargon that LabVIEW puts in XML files
@@ -253,7 +315,7 @@ def strip_sequence(seq_dict):
     return OrderedDict([
             ('Event list array in',[event_list(name=ev['String']['Val'],
                     routinespec=ev['Boolean']['Val'], 
-                    indices=[x['Val'] for x in ev['Array']['I32']],
+                    indices=get_ev_inds(ev['Array']['I32']),
                     path=ev['Path']['Val']) 
                 for ev in seq_dict['LVData']['Cluster']['Array']['Cluster']]),
             ('Routine name in', seq_dict['LVData']['Cluster']['String'][routine_ind]['Val']),
@@ -292,33 +354,35 @@ class translate:
                 ('Fast digital names',channel_names(self.nfd)),
                 ('Fast digital channels',[[False]*self.nfd]*num_s),
                 ('Fast analogue names',channel_names(self.nfa)),
-                ('Fast analogue array',[analogue_cluster(self.nfa)]*num_s),
+                ('Fast analogue array',[analogue_cluster(num_s)]*self.nfa),
                 ('Sequence header middle',[header_cluster()]*num_s),
                 ('Slow digital names',channel_names(self.nsd)),
                 ('Slow digital channels',[[False]*self.nsd]*num_s),
                 ('Slow analogue names',channel_names(self.nsa)),
-                ('Slow analogue array',[analogue_cluster(self.nsa)]*num_s)])
+                ('Slow analogue array',[analogue_cluster(num_s)]*self.nsa)])
             )])
 
     def write_to_file(self, fname='sequence_example.xml'):
         """Write the current sequence in the dictionary
         format to an XML file with name fname."""
         with open(fname, 'w+') as f:
-            f.write(xmltodict.unparse(wrap_sequence(self.seq_dic), 
-                pretty=True).replace(
-                'encoding="utf-8"?', 'standalone="yes" ?'))
+            xmlstr = reformat(xmltodict.unparse(wrap_sequence(self.seq_dic)))
+            dom = xml.dom.minidom.parseString(xmlstr)
+            f.write(dom.toprettyxml().replace(
+                'encoding="utf-8"?', 'standalone="yes" ?').replace(
+                    '<Val/>', '<Val></Val>'))
         
     def write_to_str(self):
         """Return the current sequence in the dictionary
         in XML string format specified by LabVIEW"""
-        return xmltodict.unparse(wrap_sequence(self.seq_dic)).replace(
+        return reformat(xmltodict.unparse(wrap_sequence(self.seq_dic))).replace(
                 'encoding="utf-8"?', 'standalone="yes" ?')
 
     def load_xml(self, fname='sequence_example.xml'):
         """Load a sequence as a dictionary from an xml file."""
         with open(fname, 'r') as f:
             whole_dict = xmltodict.parse(f.read())
-            self.seq_dic = strip_sequence(whole_dict) # needs restructuring
+            self.seq_dic = strip_sequence(whole_dict)
 
     def add_event(self, idx=None, event_name=event_list(), 
             header_top=header_cluster(), fd=[False]*56,
@@ -362,8 +426,8 @@ class Editor(QMainWindow):
     """
     def __init__(self, num_steps=1):
         super().__init__()
-        self.seq = translate(num_steps)
-        self.pre = Previewer(self.seq)
+        self.tr = translate(num_steps)
+        self.pre = Previewer(self.tr)
         self.init_UI()
 
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
@@ -437,10 +501,11 @@ class Previewer(QMainWindow):
     """Provide a display of a sequence, reminiscent
     of DExTer main view.
     """
-    def __init__(self, sequence=translate()):
+    def __init__(self, tr=translate()):
         super().__init__()
+        self.tr = tr
         self.init_UI()
-        self.set_sequence(sequence)
+        self.set_sequence()
 
     def label_pair(self, label_text, layout, pos1=[0,0, 1,1],
             pos2=[0,1, 1,1], default_text=''):
@@ -458,7 +523,7 @@ class Previewer(QMainWindow):
 
     def position(self, list0, arr1, i0r, i0c, i1r, i1c, layout,
             step0=1, step1=1, size0=[1,1], size1=[1,1],
-            dimn=1):
+            dimn=1, transpose=0):
         """Generate a new Qlabel with text from list1 and position
         it in layout at rows j descending down from i0r in steps of
         step0 at column i0c. The Qlabel will take up 
@@ -468,13 +533,15 @@ class Previewer(QMainWindow):
         size1 = [rows,columns].
         dimn: arr1 has shape (# steps, # channels, dimn):
             iterate over the widgets in the last dimension of arr1
-            placing them in successive columns."""
+            placing them in successive columns.
+        transpose: arr1 has shape (# channels, # steps, dimn)"""
         for i, text in enumerate(list0):
             label = QLabel(text, self)
             label.setStyleSheet('border: 1px solid black')
             label.setFixedWidth(200)
             layout.addWidget(label, i0r + i*step0, i0c, *size0)
-            for j, widgets in enumerate(arr1[:,i]):
+            arr = arr1[:,i] if not transpose else arr1[i]
+            for j, widgets in enumerate(arr):
                 for k in range(dimn):
                     widgets[k].setStyleSheet('border: 1px solid black')
                     widgets[k].setFixedWidth(80*size1[1])
@@ -482,10 +549,22 @@ class Previewer(QMainWindow):
                         i1r + i*step0, i1c + j*step1 + k, *size1)
             yield label
 
-    def init_UI(self, num_s=1):
+    def init_UI(self, num_e=1, num_s=1):
         """Create all of the widget objects required"""
         self.centre_widget = QWidget()
         self.centre_widget.layout = QGridLayout()
+
+        menubar = self.menuBar()
+
+        # save/load a sequence file
+        menubar.clear() # prevents recreating menubar if init_UI() is called again 
+        file_menu = menubar.addMenu('File')
+        load = QAction('Load Sequence', self) 
+        load.triggered.connect(self.load_seq_from_file)
+        file_menu.addAction(load)
+        save = QAction('Save Sequence', self) 
+        save.triggered.connect(self.save_seq_file)
+        file_menu.addAction(save)
         
         # position the widgets on the layout:
         i=0 # index to separate label positions
@@ -500,7 +579,7 @@ class Previewer(QMainWindow):
 
         # list of event descriptions
         self.e_list = np.array([[[QLabel(self)] for ii in range(4)] 
-            for iii in range(num_s)]) # event list
+            for iii in range(num_e)]) # event list
         _ = [x for x in self.position(['Event name: ', 
             'Routine specific event? ', 'Event indices: ', 'Event path: '], 
             self.e_list, i0r=i+2, i0c=0, i1r=i+2, i1c=2, size0=[1,2],
@@ -510,8 +589,8 @@ class Previewer(QMainWindow):
         header_items = ['Skip Step: ', 'Event name: ', 'Hide event steps: ', 
             'Event ID: ', 'Time step name: ', 'Populate multirun: ',
             'Time step length: ', 'Time unit: ', 'D/A trigger: ',
-            'Trigger this step? ', 'Channel: ', 'Analogue voltage (V): ',
-            'GBIP event name: ', 'GBIP on/off: ']
+            'Trigger this time step? ', 'Channel: ', 'Analogue voltage (V): ',
+            'GPIB event name: ', 'GPIB on/off? ']
         i += 7
         self.head_top = np.array([[[QLabel(self)] for ii in 
             range(len(header_items))] for iii in range(num_s)])
@@ -524,22 +603,23 @@ class Previewer(QMainWindow):
         fd_head = QLabel('FD', self) 
         self.centre_widget.layout.addWidget(fd_head, i,0, 1,1)
         self.fd_chans = np.array([[[QLabel(self)] for ii in 
-            range(56)] for iii in range(num_s)])
-        self.fd_names = [x for x in self.position(['']*56, self.fd_chans,
+            range(self.tr.nfd)] for iii in range(num_s)])
+        self.fd_names = [x for x in self.position(['']*self.tr.nfd, self.fd_chans,
             i0r=i+1, i0c=0, i1r=i+1, i1c=2, layout=self.centre_widget.layout, 
             step1=2, size1=[1,2])]
             
         # fast analogue channels
-        i += 57
+        i += self.tr.nfd+1
         fa_head = QLabel('FA', self) 
         self.centre_widget.layout.addWidget(fa_head, i,0, 1,1)
         self.fa_chans = np.array([[[QLabel('0', self), QLabel(self)] for ii in 
-            range(8)] for iii in range(num_s)]) 
-        self.fa_names = [x for x in self.position(['']*8, self.fa_chans, i0r=i+1, 
-            i0c=0, i1r=i+1, i1c=2, step1=2, layout=self.centre_widget.layout, dimn=2)]
+            range(num_s)] for iii in range(self.tr.nfa)]) 
+        self.fa_names = [x for x in self.position(['']*self.tr.nfa, self.fa_chans, i0r=i+1, 
+            i0c=0, i1r=i+1, i1c=2, step1=2, layout=self.centre_widget.layout, dimn=2,
+            transpose=1)]
 
         # event header middle
-        i += 9
+        i += self.tr.nfa+1
         self.head_mid = np.array([[[QLabel(self)] for ii in 
             range(len(header_items))] for iii in range(num_s)])
         _ = [x for x in self.position(header_items, self.head_mid,
@@ -551,19 +631,20 @@ class Previewer(QMainWindow):
         sd_head = QLabel('SD', self) 
         self.centre_widget.layout.addWidget(sd_head, i,0, 1,1)
         self.sd_chans = np.array([[[QLabel(self)] for ii in 
-            range(8)] for iii in range(num_s)])
-        self.sd_names = [x for x in self.position(['']*8, self.sd_chans,
+            range(self.tr.nsd)] for iii in range(num_s)])
+        self.sd_names = [x for x in self.position(['']*self.tr.nsd, self.sd_chans,
             i0r=i+1, i0c=0, i1r=i+1, i1c=2, layout=self.centre_widget.layout, 
             step1=2, size1=[1,2])]
         
         # slow analogue channels
-        i += 57
+        i += self.tr.nsd+1
         sa_head = QLabel('SA', self) 
         self.centre_widget.layout.addWidget(sa_head, i,0, 1,1)
         self.sa_chans = np.array([[[QLabel('0', self), QLabel(self)] for ii in 
-            range(8)] for iii in range(num_s)])
-        self.sa_names = [x for x in self.position(['']*8, self.sa_chans, i0r=i+1, 
-            i0c=0, i1r=i+1, i1c=2, step1=2, layout=self.centre_widget.layout, dimn=2)]
+            range(num_s)] for iii in range(self.tr.nsa)])
+        self.sa_names = [x for x in self.position(['']*self.tr.nsa, self.sa_chans, i0r=i+1, 
+            i0c=0, i1r=i+1, i1c=2, step1=2, layout=self.centre_widget.layout, dimn=2,
+            transpose=1)]
 
         # set default of digital channels to false = red.
         for chan in np.append(self.fd_chans.flatten(), self.sd_chans.flatten()):
@@ -583,49 +664,89 @@ class Previewer(QMainWindow):
         self.setWindowTitle('Sequence Preview')
         self.setWindowIcon(QIcon('docs/previewicon.png'))
 
-    def set_sequence(self, seq=translate()):
+    def try_browse(self, title='Select a File', file_type='all (*)', 
+                open_func=QFileDialog.getOpenFileName):
+        """Open a file dialog and retrieve a file name from the browser.
+        title: String to display at the top of the file browser window
+        default_path: directory to open first
+        file_type: types of files that can be selected
+        open_func: the function to use to open the file browser"""
+        try:
+            if 'PyQt4' in sys.modules:
+                file_name = open_func(self, title, '', file_type)
+            elif 'PyQt5' in sys.modules:
+                file_name, _ = open_func(self, title, '', file_type)
+            return file_name
+        except OSError: return '' # probably user cancelled
+
+    def load_seq_from_file(self):
+        """Open a file dialog to choose a file to load a new sequence from"""
+        fname = self.try_browse(file_type='XML (*.xml);;all (*)')
+        if fname:
+            self.tr.load_xml(fname)
+            ne = len(self.tr.seq_dic['Event list array in'])
+            ns = len(self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top'])
+            self.init_UI(ne, ns)
+            self.set_sequence()
+
+    def save_seq_file(self):
+        """Open a file dialog to choose a file name to save the current sequence to"""
+        if fname:
+            fname = self.try_browse(title='Choose a file name', 
+                file_type='XML (*.xml);;all (*)', open_func=QFileDialog.getSaveFileName)
+            self.tr.write_to_file(fname)
+
+    def set_sequence(self):
         """Fill the labels with the values from the sequence"""
-        self.routine_name.setText(seq['Routine name'])
-        self.routine_desc.setText(seq['Routine description'])
+        seq = self.tr.seq_dic
+        self.routine_name.setText(seq['Routine name in'])
+        self.routine_desc.setText(seq['Routine description in'])
         ela = seq['Event list array in'] # shorthand
         esc = seq['Experimental sequence cluster in']
-        for i in range(56):
+        for i in range(self.tr.nfd):
+            name = esc['Fast digital names']['Name'][i] if esc['Fast digital names']['Name'][i] else ''
             self.fd_names[i].setText(esc['Fast digital names']['Hardware ID'][i]
-                + ': ' + esc['Fast digital names']['Name'][i])
-        for i in range(8):
-            self.fa_names[i].setText(esc['Fast digital names']['Hardware ID'][i]
-                + ': ' + esc['Fast analogue names']['Name'][i])
-        for i in range(48):
+                + ': ' + name)
+        for i in range(self.tr.nfa):
+            name = esc['Fast analogue names']['Name'][i] if esc['Fast analogue names']['Name'][i] else ''
+            self.fa_names[i].setText(esc['Fast analogue names']['Hardware ID'][i]
+                + ': ' + name)
+        for i in range(self.tr.nsd):
+            name = esc['Slow digital names']['Name'][i] if esc['Slow digital names']['Name'][i] else ''
             self.sd_names[i].setText(esc['Slow digital names']['Hardware ID'][i]
-                + ': ' + esc['Fast digital names']['Name'][i])
-        for i in range(32):
+                + ': ' + name)
+        for i in range(self.tr.nsa):
+            name = esc['Slow analogue names']['Name'][i] if esc['Slow analogue names']['Name'][i] else ''
             self.sa_names[i].setText(esc['Slow analogue names']['Hardware ID'][i]
-                + ': ' + esc['Fast digital names']['Name'][i])
+                + ': ' + name)
         for i in range(len(seq['Event list array in'])):
-            self.e_list[i][0].setText(ela[i]['Event name'])
-            self.e_list[i][0].setText(ela[i]['Routine specific event?'])
-            self.e_list[i][0].setText(ela[i]['Event indices'])
-            self.e_list[i][0].setText(ela[i]['Event path'])
+            self.e_list[i][0][0].setText(ela[i]['Event name'])
+            self.e_list[i][1][0].setText(str(ela[i]['Routine specific event?']))
+            self.e_list[i][2][0].setText(','.join(map(str, ela[i]['Event indices'])))
+            self.e_list[i][3][0].setText(ela[i]['Event path'])
+        for i in range(len(seq['Experimental sequence cluster in']['Sequence header top'])):
             for j, key in enumerate(['Skip Step', 'Event name', 'Hide event steps', 
                     'Event ID', 'Time step name', 'Populate multirun', 'Time step length', 
-                    'Time unit', 'Digital trigger of analogue trigger?', 'Trigger this step?', 
-                    'Channel', 'Analogue voltage (V)', 'GBIP event name', 'GBIP on/off']):
-                self.head_top[i][j].setText(esc['Sequence header top'][i][key])
-                self.head_mid[i][j].setText(esc['Sequence header middle'][i][key])
-            for j in range(56):
+                    'Time unit', 'Digital or analogue trigger?', 'Trigger this time step?', 
+                    'Channel', 'Analogue voltage (V)', 'GPIB event name', 'GPIB on/off?']):
+                self.head_top[i][j][0].setText(str(esc['Sequence header top'][i][key]))
+                self.head_mid[i][j][0].setText(str(esc['Sequence header middle'][i][key]))
+            for j in range(self.tr.nfd):
                 self.fd_chans[i][j][0].setStyleSheet('background-color: '
-                    + 'green' if esc['Fast digital channels'][i][j] else 'red' 
+                    + 'green' if int(esc['Fast digital channels'][i][j]) else 'red' 
                     + '; border: 1px solid black') 
-            for j in range(8):
-                self.fa_chans[i][j][0].setText(esc['Fast analogue array'][i]['Voltage'][j])
-                self.fa_chans[i][j][1].setText(
-                    'Ramp' if esc['Fast analogue array'][i]['Ramp?'][j] else '')
+            for j in range(self.tr.nfa):
+                self.fa_chans[j][i][0].setText(str(esc['Fast analogue array'][j]['Voltage'][i]))
+                self.fa_chans[j][i][1].setText(
+                    'Ramp' if int(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
+            for j in range(self.tr.nsd):
                 self.sd_chans[i][j][0].setStyleSheet('background-color: '
-                    + 'green' if esc['Slow digital channels'][i][j] else 'red' 
+                    + 'green' if int(esc['Slow digital channels'][i][j]) else 'red' 
                     + '; border: 1px solid black') 
-                self.sa_chans[i][j][0].setText(esc['Slow analogue array'][i]['Voltage'][j])
-                self.sa_chans[i][j][1].setText(
-                    'Ramp' if esc['Slow analogue array'][i]['Ramp?'][j] else '')        
+            for j in range(self.tr.nsa):
+                self.sa_chans[j][i][0].setText(str(esc['Slow analogue array'][j]['Voltage'][i]))
+                self.sa_chans[j][i][1].setText(
+                    'Ramp' if int(esc['Slow analogue array'][j]['Ramp?'][i]) else '')        
 
 
 ####    ####    ####    #### 
@@ -638,12 +759,13 @@ def run():
     if standalone: # if there isn't an instance, make one
         app = QApplication(sys.argv) 
         
-    boss = Editor()
+    boss = Previewer()
     boss.show()
     if standalone: # if an app instance was made, execute it
         sys.exit(app.exec_()) # when the window is closed, the python code also stops
    
 if __name__ == "__main__":
-    # run()
-    t = translate()
-    t.load_xml(r'Y:\Tweezer\People\Stefan\0_17 September 2019_09 30 18.xml')
+    run()
+    # t = translate()
+    # t.load_xml(r'Y:\Tweezer\People\Stefan\0_17 September 2019_09 30 18.xml')
+    # t.write_to_file(r'C:\Users\qgtx64\DocumentsCDrive\QSUM\Training\test\test.xml')

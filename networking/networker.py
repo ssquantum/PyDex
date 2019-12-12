@@ -46,7 +46,7 @@ TCPENUM = { # enum for DExTer's producer-consumer loop cases
 'Check IOs':24, 
 'Run GPIB case':25, 
 'TCP read':26, 
-'TCP multirun values':27, 
+'TCP load sequence from string':27, 
 'TCP load sequence':28
 }
 
