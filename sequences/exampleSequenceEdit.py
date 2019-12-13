@@ -13,7 +13,7 @@ except ImportError:
     from PyQt5.QtWidgets import QApplication
 
 t = translate()
-t.load_xml('.\\sequences\\0_17 September 2019_09 30 18.xml')
+t.load_xml('.\\SequenceFiles\\0_17 September 2019_09 30 18.xml')
 t.seq_dic['Routine name in'] = "My new routine"
 t.seq_dic['Routine description in'] = "An example of editing sequences"
 
@@ -80,6 +80,6 @@ if standalone: # if there isn't an instance, make one
     app = QApplication(sys.argv) 
 boss = Previewer(t)
 boss.show()
-t.write_to_file('.\\sequences\\example.xml') # save to file
+t.write_to_file('.\\SequenceFiles\\example.xml') # save to file
 if standalone: # if an app instance was made, execute it
     sys.exit(app.exec_())

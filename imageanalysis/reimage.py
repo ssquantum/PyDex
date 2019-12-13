@@ -57,7 +57,6 @@ class reim_window(main_window):
         # update the histogram when getting statistics
         self.stat_update_button.clicked[bool].connect(self.get_histogram)
         self.fit_update_button.clicked[bool].connect(self.get_histogram)
-        self.fit_bg_button.clicked[bool].connect(self.get_histogram)
 
     #### #### canvas functions #### ####
 

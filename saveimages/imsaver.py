@@ -19,6 +19,8 @@ except ImportError:
     from PyQt5.QtCore import pyqtSignal
 sys.path.append('..')
 from mythread import PyDexThread
+import logging
+logger = logging.getLogger(__name__)
 
 ####    ####    ####    ####
     
@@ -64,8 +66,12 @@ class event_handler(PyDexThread):
             self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
             self.image_storage_path += r'\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])
             # create image storage directory by date if it doesn't already exist
-            os.makedirs(self.image_storage_path, exist_ok=True) # requies version > 3.2
-    
+            try:
+                os.makedirs(self.image_storage_path, exist_ok=True) # requies version > 3.2
+            except PermissionError as e: 
+                os.makedirs(r'.\%s\%s\%s'%(self.date[3],self.date[2],self.date[0]), exist_ok=True) 
+                logger.warning('Could not create image storage path. Using current directory instead\n'+str(e))
+
     @staticmethod # static method can be accessed without making an instance of the class
     def get_dirs(config_file='./config/config.dat'):
         """Load the paths used from the config.dat file or prompt user if 

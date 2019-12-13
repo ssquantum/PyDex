@@ -57,5 +57,7 @@ dependencies:
   - xmltodict=0.12.0=py_0
   - zipp=0.6.0=py_0
   - zlib=1.2.11=h62dcd97_3
+  - pip:
+    - colorlog==4.0.2
 prefix: C:\Users\qgtx64\.conda\envs\pydexenv
 

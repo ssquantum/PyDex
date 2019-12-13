@@ -10,7 +10,6 @@ Some info on what the triggering options do:
 import os
 import time
 import numpy as np
-import matplotlib.pyplot as plt
 import win32event
 import logging
 logger = logging.getLogger(__name__)
@@ -60,8 +59,9 @@ class camera(QThread):
                     self.initialised = 3 # fully initialised
             else:
                 logger.error("Andor SDK requires Windows 64 bit")
-        except:
-            logger.warning('Andor EMCCD not initialised.')
+        except Exception as e:
+            self.initialised = 0
+            logger.warning('Andor EMCCD not initialised.\n'+str(e))
             
     def CameraConnect(self):
         """Connect to camera and check which one it is.
@@ -391,13 +391,7 @@ class camera(QThread):
 
     def PlotAcquisition(self, images):
         """Display the list of images in separate subplots"""
-        plt.close('all')
-        f = plt.figure()
-        for i in range(self.AF.kscans):
-            axi = f.add_subplot(1,self.AF.kscans,i+1)
-            axi.imshow(images[i])
-            axi.title.set_text('F frame' +str(i+1))   
-            plt.show()
+        pass
 
     def SafeShutdown(self):
         """Shut down the camera after closing the internal shutter

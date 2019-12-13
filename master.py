@@ -42,7 +42,8 @@ from saveimages.imsaver import event_handler # saves images
 sys.path.append('./networking')
 from networking.runid import runnum # synchronises run number, sends signals
 from networking.networker import TCPENUM, remove_slot # enum for DExTer produce-consumer loop cases
-from networking.translator import Previewer
+sys.path.append('./sequences')
+from sequences.translator import Previewer
 
 class Master(QMainWindow):
     """A manager to synchronise and control experiment modules.
@@ -85,7 +86,7 @@ class Master(QMainWindow):
                 Previewer(), # sequence editor
                 n=startn, m=2, k=0) 
         
-        self.rn.server.textin.connect(self.Dx_label.setText) # synchronise run number
+        self.rn.server.dxnum.connect(self.Dx_label.setText) # synchronise run number
         self.status_label.setText('Initialised')
 
     def restore_state(self, file_name='./state'):
@@ -136,14 +137,15 @@ class Master(QMainWindow):
         show_windows = menubar.addMenu('Windows')
         menu_items = []
         for window_title in ['Image Analyser', 'Camera Status', 
-            'Image Saver', 'Monitoring', 'Reset Image Analyser']:
+            'Image Saver', 'TCP Server', 'Sequence Previewer', 
+            'Reset Image Analyser']:
             menu_items.append(QAction(window_title, self)) 
             menu_items[-1].triggered.connect(self.show_window)
             show_windows.addAction(menu_items[-1])
         
         #### status of the master program ####
         self.status_label = QLabel('Initiating...', self)
-        self.centre_widget.layout.addWidget(self.status_label, 0,0, 1,1)
+        self.centre_widget.layout.addWidget(self.status_label, 0,0, 1,3)
         
         Dx_label = QLabel('Dx #: ', self)
         self.centre_widget.layout.addWidget(Dx_label, 1,0, 1,1)
@@ -153,8 +155,7 @@ class Master(QMainWindow):
         # actions that can be carried out 
         self.actions = QComboBox(self)
         for action_label in ['Run sequence', 'Multirun run', 
-                            'TCP multirun values', 'TCP load sequence',
-                            'TCP load sequence from string']:
+                'TCP load sequence','TCP load sequence from string']:
             self.actions.addItem(action_label)
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
@@ -184,6 +185,7 @@ class Master(QMainWindow):
             self.rn.sw.show()
 
         elif self.sender().text() == 'Camera Status':
+            print(self.rn.cam.initialised)
             if self.rn.cam.initialised:
                 msg = 'Current state: ' + self.rn.cam.AF.GetStatus() + '\nChoose a new config file: '
             else: msg = 'Camera not initialised. See log file for details. Press OK to retry.'
@@ -209,27 +211,35 @@ class Master(QMainWindow):
                 self.rn.sv = event_handler(text)
                 if self.rn.sv.image_storage_path:
                     self.status_label.setText('Image Saver config: '+text)
-                    self.rn.im_save.connect(self.rn.sv.respond)
+                    self.rn.im_save.connect(self.rn.sv.process)
                     self.save_config = text
                 else:
                     self.status_label.setText('Failed to find config file.')
 
-        elif self.sender().text() == 'Sequence Editor':
+        elif self.sender().text() == 'Sequence Previewer':
             self.rn.seq.show()
-        elif self.sender().text() == 'Monitoring':
-            pass
+        elif self.sender().text() == 'TCP Server':
+            if self.rn.server.isRunning():
+                msg = "TCP server is running. %s queued message(s)."%len(self.rn.server.msg_queue)
+            else:
+                msg = "TCP server stopped."
+            reply = QMessageBox.question(self, 'TCP Server Status', 
+                msg+"\nDo you want to restart the server?", 
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                self.rn.reset_server()
 
-    def browse_sequence(self, start_dir='./'):
+    def browse_sequence(self, toggle=True):
         """Open the file browser to search for a sequence file, then insert
         the file path into the DExTer sequence file line edit
         start_dir: the directory to open initially."""
         try:
             if 'PyQt4' in sys.modules:
                 file_name = QFileDialog.getOpenFileName(
-                    self, 'Select A Sequence', start_dir, 'Sequence (*.seq);;all (*)')
+                    self, 'Select A Sequence', '', 'Sequence (*.xml);;all (*)')
             elif 'PyQt5' in sys.modules:
                 file_name, _ = QFileDialog.getOpenFileName(
-                    self, 'Select A Sequence', start_dir, 'Sequence (*.seq);;all (*)')
+                    self, 'Select A Sequence', '', 'Sequence (*.xml);;all (*)')
             self.seq_edit.setText(file_name)
         except OSError:
             pass # user cancelled - file not found
@@ -255,7 +265,6 @@ class Master(QMainWindow):
         Multirun run:   Start the camera acquisition, then make 
                         DExTer perform a multirun with the preloaded
                         multirun settings.
-        TCP multirun values:  Send values to fill the DExTer multirun
         TCP load sequence from string: Tell DExTer to load in the sequence
                         from a string in XML format.
         TCP load sequence:  Tell DExTer to load in the sequence file at
@@ -282,8 +291,6 @@ class Master(QMainWindow):
                 remove_slot(signal=self.rn.server.textin, 
                             slot=self.end_run, reconnect=True)
                 self.rn.server.add_message(TCPENUM['TCP read'], 'run finished') 
-            elif action_text == 'TCP multirun values':
-                self.rn.server.add_message(TCPENUM[action_text], '')
             elif action_text == 'TCP load sequence from string':
                 self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.write_to_str())
             elif action_text == 'TCP load sequence':
@@ -297,8 +304,11 @@ class Master(QMainWindow):
         only triggers once."""
         remove_slot(signal=self.rn.server.textin, 
                     slot=self.end_run, reconnect=False)
-        unprocessed = self.rn.cam.EmptyBuffer()
-        self.rn.cam.AF.AbortAcquisition()
+        try:
+            unprocessed = self.rn.cam.EmptyBuffer()
+            self.rn.cam.AF.AbortAcquisition()
+        except Exception as e: 
+            logger.warning('Failed to abort camera acquisition at end of run.\n'+str(e))
         # if unprocessed:
         #     reply = QMessageBox.question(self, 'Unprocessed Images',
         # "Process the remaining %s images from the buffer?"%len(unprocessed), 

@@ -47,7 +47,6 @@ class PyDexThread(QThread):
                 break # stop the thread running
             elif len(self.queue):
                 self.process(self.queue.pop(0), *args, **kwargs)
-        print("Thread end: need to check if finished signal is emitted.")
 
     def check_stop(self):
         """Check the value of stop - must be a function in order to work in

@@ -64,6 +64,12 @@ class settings_window(QMainWindow):
                 results_path, im_store_path, str(i)) for i in range(nreim)]
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(nreim)]
         self.init_UI()  # make the widgets
+
+    def reset_dates(self, date):
+        """Reset the dates in all of the saia instances"""
+        self.date = date
+        for mw in self.mw + self.rw:
+            mw.date = date
         
     def init_UI(self):
         """Create all of the widget objects required"""
@@ -205,15 +211,15 @@ class settings_window(QMainWindow):
         reset_win.resize(reset_win.sizeHint())
         settings_grid.addWidget(reset_win, 8,0, 1,1)
 
-        show_win = QPushButton('Show Current Analyses', self) 
-        show_win.clicked.connect(self.show_analyses)
-        show_win.resize(show_win.sizeHint())
-        settings_grid.addWidget(show_win, 8,1, 1,1)
-
         load_set = QPushButton('Reload Default Settings', self) 
         load_set.clicked.connect(self.load_settings)
         load_set.resize(load_set.sizeHint())
         settings_grid.addWidget(load_set, 8,1, 1,1)
+        
+        show_win = QPushButton('Show Current Analyses', self) 
+        show_win.clicked.connect(self.show_analyses)
+        show_win.resize(show_win.sizeHint())
+        settings_grid.addWidget(show_win, 8,2, 1,1)
 
         #### tab for multi-run settings ####
         self.mr = multirun_widget()
@@ -457,14 +463,17 @@ class settings_window(QMainWindow):
             return file_name
         except OSError: return '' # probably user cancelled
 
-    def load_settings(self, fname='default.config'):
+    def load_settings(self, fname='.\\imageanalysis\\default.config'):
         """Load the default settings from a config file"""
-        with open(fname, 'r') as f:
-            for line in f:
-                key, val = line.split('=') # there should only be one = per line
-                self.stats[key] = self.types[key](val)
+        try:
+            with open(fname, 'r') as f:
+                for line in f:
+                    key, val = line.split('=') # there should only be one = per line
+                    self.stats[key] = self.types[key](val)
+        except FileNotFoundError as e: 
+            logger.warning('Image analysis settings could not find the default config.\n'+str(e))
     
-    def save_settings(self, fname='default.config'):
+    def save_settings(self, fname='.\\imageanalysis\\default.config'):
         """Save the current settings to a config file"""
         with open(fname, 'w+') as f:
             for key, val in self.stats.items():
@@ -484,7 +493,7 @@ class settings_window(QMainWindow):
         file_name = self.try_browse(file_type='Images (*.asc);;all (*)')
         if file_name:
             # get pic size from this image in case the user forgot to set it
-            im_vals = np.genfromtxt(im_name, delimiter=' ')
+            im_vals = np.genfromtxt(file_name, delimiter=' ')
             self.stats['pic_size'] = int(np.size(im_vals[0]) - 1)
             self.pic_size_edit.setText(str(self.stats['pic_size'])) # update loaded value
             # get the position of the max count
@@ -600,12 +609,12 @@ class settings_window(QMainWindow):
         for mw in self.mw + self.rw:
             mw.hard_reset() # wipes clean the data
             mw.close() # closes the display
-            
+        
         m = int(self.m_edit.text())
         if m != self._m: # make sure there are the right numer of main_window instances
             if m > self._m:
                 for i in range(self._m, m):
-                    self.mw.append(main_window(results_path, im_store_path, str(i)))
+                    self.mw.append(main_window(self.results_path, self.image_storage_path, str(i)))
             self._m = m
         for mw in self.mw:
             mw.swap_signals() # reconnect signals
@@ -631,7 +640,7 @@ class settings_window(QMainWindow):
         for i in range(len(self.rw), len(self.rw_inds)): # add new re-image instances as required
             j, k = map(int, self.rw_inds[i].split(','))
             self.rw.append(reim_window([self.mw[j].image_handler, self.mw[k].image_handler],
-                        results_path, im_store_path, str(i)))
+                        self.results_path, self.image_storage_path, str(i)))
             
         self.show_analyses()
         self.m_changed.emit(m) # let other modules know the value has changed, and reconnect signals

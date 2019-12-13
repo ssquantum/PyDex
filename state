@@ -1,4 +1,4 @@
-SaveConfig=.\\config\\config.dat
-CameraConfig=.\\ancam\\Single_Acquisition_config.dat
 File#=0
-Date=04,November,2019
+Date=13,December,2019
+CameraConfig=.\\ancam\\Single_Acquisition_config.dat
+SaveConfig=.\\config\\config.dat

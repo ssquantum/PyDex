@@ -49,7 +49,7 @@ class runnum(QThread):
         
         self.server = PyServer() # server will run continuously on a thread
         self.server.dxnum.connect(self.set_n) # signal gives run number
-        # self.server.textin.connect(self.read_Dx_msg) 
+        self.server.start()
 
         # set a timer to update the dates 1s after midnight:
         t0 = time.localtime()
@@ -96,8 +96,7 @@ class runnum(QThread):
         t0 = time.localtime()
         self.sv.date = time.strftime(
                 "%d %b %B %Y", t0).split(" ") # day short_month long_month year
-        for sw in self.sw:
-            sw.date = self.sv.date
+        self.sw.reset_dates(self.sv.date)
         QTimer.singleShot((86401 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates) # set the next timer to reset dates
     
@@ -110,10 +109,14 @@ class runnum(QThread):
         if self.sv.dfn != str(self._n):
             checks.append('Lost sync: Image saver # %s /= run # %s'%(
                                 self.sv.dfn, self._n))
-        for sw in self.sw:
-            if sw.image_handler.fid != self._n:
+        for mw in self.sw.mw:
+            if mw.image_handler.fid != self._n:
                 checks.append('Lost sync: Image analysis # %s /= run # %s'%(
-                            sw.image_handler.fid, self._n))
+                            mw.image_handler.fid, self._n))
+        for rw in self.sw.rw:
+            if (rw.ih1.fid != self._n or rw.ih2.fid != self._n):
+                checks.append('Lost sync: Re-image windows # %s, %s /= run # %s'%(
+                            rw.ih1.fid, rw.ih2.fid, self._n))
         if self._k != self._n*self._m + self._k % self._m:
             checks.append('Lost sync: %s images taken in %s runs'%(
                     self._k, self._n))
@@ -132,7 +135,10 @@ class runnum(QThread):
                 return checks
         if option == 'reset' or (option == 'popup' and reply == QMessageBox.Yes):
             self.sv.dfn = str(self._n)
-            for sw in self.sw:
-                sw.image_handler.fid = self._n
+            for mw in self.sw.mw:
+                mw.image_handler.fid = self._n
+            for rw in self.sw.rw:
+                rw.ih1.fid = self._n
+                rw.ih2.fid = self._n
             self._k = self._n * self._m # number images that should've been taken
             return checks

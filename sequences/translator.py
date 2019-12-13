@@ -31,6 +31,12 @@ except ImportError:
 import logging
 logger = logging.getLogger(__name__)
 
+def bl(string):
+    """Convert a string of a boolean to a boolean.
+    This corrects for bool('0')=True."""
+    try: return bool(int(string))
+    except ValueError: return bool(string)
+
 #### #### DExTer clusters #### ####
 
 def event_list(name='', routinespec=False, indices=[], path=''):
@@ -85,6 +91,8 @@ def analogue_cluster(length, values=None):
     else:
         return OrderedDict([('Voltage', [0]*length),
                     ('Ramp?', [False]*length)])
+
+#### Expanding python dictionaries to LabVIEW format ####
 
 def nm_val(dic, key, conv=[]):
     """Return an ordered dictionary with the LV
@@ -211,6 +219,8 @@ def wrap_sequence(seq_dict):
         ]))
     ])
 
+#### editing XML strings to LabVIEW format ####
+
 def shift(fullstr, i, start, end, match1, match2, single=False):
     """Move the subsection of 'fullstr' between 'start'
     and 'end' (starting the search after index 'i') forward to the 
@@ -248,6 +258,8 @@ def reformat(xmlstr):
     xmlstr = shift(xmlstr, 0, '<Array><Name>Sequence header middle</Name>', 
         '</Boolean></Cluster></Array>', '<Array><Name>Slow digital names</Name>', '</String></Cluster></Array>')
     return xmlstr
+
+#### Removing unnecessary data from dictionary translated from XML ####
 
 def get_ev_inds(event_array):
     """Return a list of the event indices for a given event
@@ -326,7 +338,7 @@ def strip_sequence(seq_dict):
                 *strip_hf(seq_dict['LVData']['Cluster']['Cluster']['Array'], up=1),
                 *strip_hf(seq_dict['LVData']['Cluster']['Cluster']['Array'], up=0)]))])
 
-#### #### Convert json <-> python dict #### ####
+#### #### Convert xml <-> python dict #### ####
 
 class translate:
     """Write DExTer sequences to XML files.
@@ -694,6 +706,7 @@ class Previewer(QMainWindow):
         """Open a file dialog to choose a file to load a new sequence from"""
         fname = self.try_browse(file_type='XML (*.xml);;all (*)')
         if fname:
+            QMessageBox.information(self, 'Setting Sequence...', 'Please be patient as the sequence can take several seconds to load')
             self.tr.load_xml(fname)
             self.init_UI()
             self.set_sequence()
@@ -742,20 +755,20 @@ class Previewer(QMainWindow):
                 self.head_mid[i][j][0].setText(str(esc['Sequence header middle'][i][key]))
             for j in range(self.tr.nfd):
                 self.fd_chans[i][j][0].setStyleSheet('background-color: '
-                    + 'green' if int(esc['Fast digital channels'][i][j]) else 'red' 
+                    + 'green' if bl(esc['Fast digital channels'][i][j]) else 'red' 
                     + '; border: 1px solid black') 
             for j in range(self.tr.nfa):
                 self.fa_chans[j][i][0].setText(str(esc['Fast analogue array'][j]['Voltage'][i]))
                 self.fa_chans[j][i][1].setText(
-                    'Ramp' if int(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
+                    'Ramp' if bl(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
             for j in range(self.tr.nsd):
                 self.sd_chans[i][j][0].setStyleSheet('background-color: '
-                    + 'green' if int(esc['Slow digital channels'][i][j]) else 'red' 
+                    + 'green' if bl(esc['Slow digital channels'][i][j]) else 'red' 
                     + '; border: 1px solid black') 
             for j in range(self.tr.nsa):
                 self.sa_chans[j][i][0].setText(str(esc['Slow analogue array'][j]['Voltage'][i]))
                 self.sa_chans[j][i][1].setText(
-                    'Ramp' if int(esc['Slow analogue array'][j]['Ramp?'][i]) else '')        
+                    'Ramp' if bl(esc['Slow analogue array'][j]['Ramp?'][i]) else '')
 
 
 ####    ####    ####    #### 
