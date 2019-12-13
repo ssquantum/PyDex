@@ -17,6 +17,8 @@ try:
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
     from PyQt5.QtWidgets import QApplication 
+import logging
+logger = logging.getLogger(__name__)
     
 TCPENUM = { # enum for DExTer's producer-consumer loop cases
 'Initialise': 0,

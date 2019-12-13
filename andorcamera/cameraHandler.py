@@ -323,7 +323,7 @@ class camera(QThread):
                 self.PlotAcquisition(im)
                 
     def TakeAcquisitions(self, n=1):
-        """Taking a series of n acquisitions sequentially.
+        """Taking a series of n single acquisitions sequentially.
         Assuming external mode, the camera will wait for an external trigger
         to take an acquisition."""
         for i in range(n):

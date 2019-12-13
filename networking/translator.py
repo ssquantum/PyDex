@@ -1,4 +1,4 @@
-"""Dextr - Sequence Translator
+"""Networking - Sequence Translator
 Stefan Spence 04/10/19
 
  - translate DExTer sequences to/from XML
@@ -9,6 +9,7 @@ sequences that DExTer generates.
 import json
 import xmltodict
 import xml.dom.minidom
+import xml.parsers.expat
 import sys
 import numpy as np
 from collections import OrderedDict
@@ -27,7 +28,8 @@ except ImportError:
         QTabWidget, QAction, QMainWindow, QLabel, QInputDialog, QGridLayout,
         QMessageBox, QLineEdit, QFileDialog, QComboBox, QActionGroup, QMenu,
         QVBoxLayout, QScrollArea)
-
+import logging
+logger = logging.getLogger(__name__)
 
 #### #### DExTer clusters #### ####
 
@@ -330,7 +332,9 @@ class translate:
     """Write DExTer sequences to XML files.
     Facilitate editing of several variables quickly.
     A sequence has a fixed number of events, num_e,
-    which give a total number of steps, num_s.
+    which give a total number of time steps, num_s.
+    If fname is a file containing a sequence in XML
+    format, then it will be loaded.
     Functions are provided to create a multirun.
 
     The format is:
@@ -340,7 +344,7 @@ class translate:
      - routine name
      - routine description
     """
-    def __init__(self, num_e=1, num_s=1):
+    def __init__(self, fname='', num_e=1, num_s=1):
         self.nfd = 56 # number of fast digital channels
         self.nfa = 8  # number of fast analogue
         self.nsd = 48 # number of slow digital
@@ -361,6 +365,8 @@ class translate:
                 ('Slow analogue names',channel_names(self.nsa)),
                 ('Slow analogue array',[analogue_cluster(num_s)]*self.nsa)])
             )])
+        if fname:
+            self.load_xml(fname)
 
     def write_to_file(self, fname='sequence_example.xml'):
         """Write the current sequence in the dictionary
@@ -380,9 +386,12 @@ class translate:
 
     def load_xml(self, fname='sequence_example.xml'):
         """Load a sequence as a dictionary from an xml file."""
-        with open(fname, 'r') as f:
-            whole_dict = xmltodict.parse(f.read())
-            self.seq_dic = strip_sequence(whole_dict)
+        try:
+            with open(fname, 'r') as f:
+                whole_dict = xmltodict.parse(f.read())
+                self.seq_dic = strip_sequence(whole_dict)
+        except (FileNotFoundError, xml.parsers.expat.ExpatError) as e: 
+            logger.error('Translator could not load sequence:\n'+str(e))
 
     def add_event(self, idx=None, event_name=event_list(), 
             header_top=header_cluster(), fd=[False]*56,
@@ -549,11 +558,13 @@ class Previewer(QMainWindow):
                         i1r + i*step0, i1c + j*step1 + k, *size1)
             yield label
 
-    def init_UI(self, num_e=1, num_s=1):
+    def init_UI(self):
         """Create all of the widget objects required"""
         self.centre_widget = QWidget()
         self.centre_widget.layout = QGridLayout()
 
+        num_e = len(self.tr.seq_dic['Event list array in'])
+        num_s = len(self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top'])
         menubar = self.menuBar()
 
         # save/load a sequence file
@@ -684,9 +695,7 @@ class Previewer(QMainWindow):
         fname = self.try_browse(file_type='XML (*.xml);;all (*)')
         if fname:
             self.tr.load_xml(fname)
-            ne = len(self.tr.seq_dic['Event list array in'])
-            ns = len(self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top'])
-            self.init_UI(ne, ns)
+            self.init_UI()
             self.set_sequence()
 
     def save_seq_file(self):
@@ -719,12 +728,12 @@ class Previewer(QMainWindow):
             name = esc['Slow analogue names']['Name'][i] if esc['Slow analogue names']['Name'][i] else ''
             self.sa_names[i].setText(esc['Slow analogue names']['Hardware ID'][i]
                 + ': ' + name)
-        for i in range(len(seq['Event list array in'])):
+        for i in range(len(ela)):
             self.e_list[i][0][0].setText(ela[i]['Event name'])
             self.e_list[i][1][0].setText(str(ela[i]['Routine specific event?']))
             self.e_list[i][2][0].setText(','.join(map(str, ela[i]['Event indices'])))
             self.e_list[i][3][0].setText(ela[i]['Event path'])
-        for i in range(len(seq['Experimental sequence cluster in']['Sequence header top'])):
+        for i in range(len(esc['Sequence header top'])):
             for j, key in enumerate(['Skip Step', 'Event name', 'Hide event steps', 
                     'Event ID', 'Time step name', 'Populate multirun', 'Time step length', 
                     'Time unit', 'Digital or analogue trigger?', 'Trigger this time step?', 
@@ -766,6 +775,3 @@ def run():
    
 if __name__ == "__main__":
     run()
-    # t = translate()
-    # t.load_xml(r'Y:\Tweezer\People\Stefan\0_17 September 2019_09 30 18.xml')
-    # t.write_to_file(r'C:\Users\qgtx64\DocumentsCDrive\QSUM\Training\test\test.xml')

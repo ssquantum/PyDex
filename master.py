@@ -62,7 +62,7 @@ class Master(QMainWindow):
     """
     def __init__(self, pop_up=1, state_config='.\\state'):
         super().__init__()
-        self.ancam_config = '.\\ancam\\ExExposure_config.dat' # if restore state fails
+        self.ancam_config = '.\\andorcamera\\ExExposure_config.dat' # if restore state fails
         self.save_config = '.\\config\\config.dat'
         sv_dirs = event_handler.get_dirs(self.save_config)
         # if not any([os.path.exists(svd) for svd in sv_dirs.values()]): # ask user to choose valid config file
@@ -73,7 +73,7 @@ class Master(QMainWindow):
             m, ok = QInputDialog.getInt( # user chooses image analyser
                 self, 'Initiate Image Analyser(s)',
                 'Select the number of images per sequence\n(0 for survival probability)',
-                value=0, min=0, max=10)
+                value=0, min=0, max=100)
         else:
             m = 0
         # initialise the thread controlling run # and emitting images
@@ -82,7 +82,7 @@ class Master(QMainWindow):
                 settings_window(nsaia=m if m!=0 else 2, nreim=1 if m==0 else 1,
                     results_path =sv_dirs['Results Path: '],
                     im_store_path=sv_dirs['Image Storage Path: ']), # image analysis
-                Previewer() # sequence editor
+                Previewer(), # sequence editor
                 n=startn, m=2, k=0) 
         
         self.rn.server.textin.connect(self.Dx_label.setText) # synchronise run number
@@ -189,7 +189,7 @@ class Master(QMainWindow):
             else: msg = 'Camera not initialised. See log file for details. Press OK to retry.'
             text, ok = QInputDialog.getText( self, 'Camera Status', msg, text=self.ancam_config)
             if text and ok:
-                if self.rn.cam.initialised:
+                if self.rn.cam.initialised > 2:
                     check = self.rn.cam.ApplySettingsFromConfig(text)
                     if not any(check):
                         self.status_label.setText('Camera settings config: '+text)
@@ -235,7 +235,7 @@ class Master(QMainWindow):
             pass # user cancelled - file not found
 
 
-    def reset_camera(self, ancam_config='./ancam/ExExposure_config.dat'):
+    def reset_camera(self, ancam_config='./andorcamera/ExExposure_config.dat'):
         """Close the camera and then start it up again with the new setting.
         Sometimes after being in crop mode the camera fails to reset the 
         ROI and so must be closed and restarted."""
@@ -263,7 +263,9 @@ class Master(QMainWindow):
         if self.rn.server.isRunning():
             action_text = self.actions.currentText()
             if action_text == 'Run sequence':
-                self.rn.cam.start() # start acquisition
+                if self.rn.cam.initialised:
+                    self.rn.cam.start() # start acquisition
+                else: logger.warning('Run started without camera acquisition.')
                 self.rn.server.add_message(TCPENUM[action_text], 'single run')
                 self.status_label.setText('Running current sequence')
                 # queue up a message to be received when the run finishes
@@ -272,7 +274,9 @@ class Master(QMainWindow):
                             slot=self.end_run, reconnect=True)
                 self.rn.server.add_message(TCPENUM['TCP read'], 'run finished') 
             elif action_text == 'Multirun run':
-                self.rn.cam.start()
+                if self.rn.cam.initialised:
+                    self.rn.cam.start() # start acquisition
+                else: logger.warning('Run started without camera acquisition.')
                 self.rn.server.add_message(TCPENUM[action_text], 'multirun')
                 self.status_label.setText('Running multirun measure ')
                 remove_slot(signal=self.rn.server.textin, 
@@ -281,7 +285,7 @@ class Master(QMainWindow):
             elif action_text == 'TCP multirun values':
                 self.rn.server.add_message(TCPENUM[action_text], '')
             elif action_text == 'TCP load sequence from string':
-                self.rn.server.add_message(TCPENUM[action_text], self.)
+                self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.write_to_str())
             elif action_text == 'TCP load sequence':
                 self.rn.server.add_message(TCPENUM[action_text], 
                     self.seq_edit.text())
