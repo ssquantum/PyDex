@@ -5,6 +5,12 @@ Stefan Spence 04/10/19
  - create a GUI to facilitate editing sequences
 The functions here are specific to the format of 
 sequences that DExTer generates.
+
+Note: to make it faster we could use xml.dom.minidom 
+instead of python dictionaries. Since LabVIEW uses
+some unicode characters, would need to parse it like
+with open('filename', 'r') as f:
+ dm = xml.dom.minidom.parseString(f.read().replace('\n','').replace('\t','').encode('utf-8'))
 """
 import json
 import xmltodict
@@ -187,10 +193,7 @@ def wrap_sequence(seq_dict):
     to a dictionary containing the sequence."""
     numsteps = len(seq_dict['Experimental sequence cluster in']['Sequence header top'])
     numevents = len(seq_dict['Event list array in'])
-    return OrderedDict([('LVData', OrderedDict([
-        ('@xmlns', 'http://www.ni.com/LVData'),
-        ('Version', '12.0.1f5'),
-        ('Cluster', OrderedDict([
+    return OrderedDict([('Cluster', OrderedDict([
             ('Name', 'input cluster'),
             ('NumElts', 4),
             ('Array', mk_dic(typ='Array', name='Event list array in', 
@@ -216,8 +219,7 @@ def wrap_sequence(seq_dict):
             ('String', [nm_val(seq_dict, key)
                 for key in ['Routine name in', 'Routine description in']])
             ]))
-        ]))
-    ])
+        ])
 
 #### editing XML strings to LabVIEW format ####
 
@@ -386,15 +388,14 @@ class translate:
         with open(fname, 'w+') as f:
             xmlstr = reformat(xmltodict.unparse(wrap_sequence(self.seq_dic)))
             dom = xml.dom.minidom.parseString(xmlstr)
-            f.write(dom.toprettyxml().replace(
-                'encoding="utf-8"?', 'standalone="yes" ?').replace(
-                    '<Val/>', '<Val></Val>'))
+            f.write('<?xml version="1.0" standalone="yes" ?>\n<LVData xmlns="http://www.ni.com/LVData">\n<Version>12.0.1f5</Version>'
+                + dom.toprettyxml().replace('<Val/>', '<Val></Val>') + "</LVData>")
         
     def write_to_str(self):
         """Return the current sequence in the dictionary
         in XML string format specified by LabVIEW"""
         return reformat(xmltodict.unparse(wrap_sequence(self.seq_dic))).replace(
-                'encoding="utf-8"?', 'standalone="yes" ?')
+                '<?xml version="1.0" encoding="utf-8"?>\n', '')
 
     def load_xml(self, fname='sequence_example.xml'):
         """Load a sequence as a dictionary from an xml file."""
@@ -526,7 +527,7 @@ class Previewer(QMainWindow):
         super().__init__()
         self.tr = tr
         self.init_UI()
-        self.set_sequence()
+        # self.set_sequence() # this function is slow...
 
     def label_pair(self, label_text, layout, pos1=[0,0, 1,1],
             pos2=[0,1, 1,1], default_text=''):
@@ -585,6 +586,12 @@ class Previewer(QMainWindow):
         load = QAction('Load Sequence', self) 
         load.triggered.connect(self.load_seq_from_file)
         file_menu.addAction(load)
+        prev = QAction('Preview Sequence', self) 
+        prev.triggered.connect(self.load_seq_from_file)
+        file_menu.addAction(prev)
+        loadpre = QAction('Load and Preview Sequence', self) 
+        loadpre.triggered.connect(self.load_seq_from_file)
+        file_menu.addAction(loadpre)
         save = QAction('Save Sequence', self) 
         save.triggered.connect(self.save_seq_file)
         file_menu.addAction(save)
@@ -703,13 +710,16 @@ class Previewer(QMainWindow):
         except OSError: return '' # probably user cancelled
 
     def load_seq_from_file(self):
-        """Open a file dialog to choose a file to load a new sequence from"""
+        """Open a file dialog to choose a file to load a new sequence from, 
+        load the sequence and then show it in the previewer."""
         fname = self.try_browse(file_type='XML (*.xml);;all (*)')
         if fname:
-            QMessageBox.information(self, 'Setting Sequence...', 'Please be patient as the sequence can take several seconds to load')
-            self.tr.load_xml(fname)
-            self.init_UI()
-            self.set_sequence()
+            if self.sender().text() == 'Load Sequence' or self.sender().text() == 'Load and Preview Sequence':
+                self.tr.load_xml(fname)
+            elif self.sender().text() == 'Load and Preview Sequence' or self.sender().text() == 'Preview Sequence':
+                QMessageBox.information(self, 'Setting Sequence...', 'Please be patient as the sequence can take several seconds to load')
+                self.init_UI()
+                self.set_sequence()
 
     def save_seq_file(self):
         """Open a file dialog to choose a file name to save the current sequence to"""

@@ -155,7 +155,8 @@ class Master(QMainWindow):
         # actions that can be carried out 
         self.actions = QComboBox(self)
         for action_label in ['Run sequence', 'Multirun run', 
-                'TCP load sequence','TCP load sequence from string']:
+                'TCP load sequence','TCP load sequence from string',
+                'Cancel Python Mode']:
             self.actions.addItem(action_label)
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
@@ -185,7 +186,6 @@ class Master(QMainWindow):
             self.rn.sw.show()
 
         elif self.sender().text() == 'Camera Status':
-            print(self.rn.cam.initialised)
             if self.rn.cam.initialised:
                 msg = 'Current state: ' + self.rn.cam.AF.GetStatus() + '\nChoose a new config file: '
             else: msg = 'Camera not initialised. See log file for details. Press OK to retry.'
@@ -240,7 +240,7 @@ class Master(QMainWindow):
             elif 'PyQt5' in sys.modules:
                 file_name, _ = QFileDialog.getOpenFileName(
                     self, 'Select A Sequence', '', 'Sequence (*.xml);;all (*)')
-            self.seq_edit.setText(file_name)
+            self.seq_edit.setText(file_name.replace('/','\\'))
         except OSError:
             pass # user cancelled - file not found
 
@@ -296,6 +296,8 @@ class Master(QMainWindow):
             elif action_text == 'TCP load sequence':
                 self.rn.server.add_message(TCPENUM[action_text], 
                     self.seq_edit.text())
+            elif action_text == 'Cancel Python mode':
+                self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off')
             
     def end_run(self, msg=''):
         """At the end of a single run or a multirun, stop the acquisition,

@@ -101,9 +101,9 @@ class PyServer(QThread):
                 if self.check_stop():
                     break # toggle
                 elif len(self.msg_queue):
+                    enum, mes_len, message = self.msg_queue.pop(0)
                     try:
                         conn, addr = s.accept() # create a new socket
-                        enum, mes_len, message = self.msg_queue.pop(0)
                         with conn:
                             conn.sendall(enum) # send enum
                             conn.sendall(mes_len) # send text length
@@ -114,7 +114,8 @@ class PyServer(QThread):
                             buffer_size = int.from_bytes(conn.recv(4), 'big')
                             self.textin.emit(str(conn.recv(buffer_size), encoding))
                     except (ConnectionResetError, ConnectionAbortedError) as e:
-                        logger.error('Python server error: the client terminated the connection.\n'+str(e))
+                    #     # self.msg_queue.insert(0, [enum, mes_len, message]) # this appears to inifinitely add the message back...
+                        logger.error('Python server: the client terminated the connection. Message not sent.\n'+str(e))
             
     def check_stop(self):
         """Check the value of stop - must be a function in order to work in
