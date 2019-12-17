@@ -3,7 +3,6 @@ Stefan Spence 26/02/19
 
  - control the ROIs across all SAIA instances
  - update other image statistics like read noise, bias offset
- - set multirun values on all SAIA instances
 """
 import os
 import sys
@@ -29,7 +28,6 @@ import logging
 logger = logging.getLogger(__name__)
 from maingui import main_window, remove_slot # single atom image analysis
 from reimage import reim_window # analysis for survival probability
-from multirunEditor import multirun_widget # tab for multirun
 
 ####    ####    ####    ####
 
@@ -74,16 +72,11 @@ class settings_window(QMainWindow):
     def init_UI(self):
         """Create all of the widget objects required"""
         self.centre_widget = QWidget()
-        self.tabs = QTabWidget()       # make tabs for each main display 
         self.centre_widget.layout = QVBoxLayout()
-        self.centre_widget.layout.addWidget(self.tabs)
         self.centre_widget.setLayout(self.centre_widget.layout)
         self.setCentralWidget(self.centre_widget)
         
         # validators for user input
-        # this regex needs work to disallow -1-1
-        reg_exp = QRegExp(r'(-?[0-9]+(\.[0-9]+)?,?)+')
-        comma_validator = QRegExpValidator(reg_exp) # floats and commas
         double_validator = QDoubleValidator() # floats
         int_validator = QIntValidator()       # integers
 
@@ -122,8 +115,7 @@ class settings_window(QMainWindow):
         settings_tab = QWidget()
         settings_grid = QGridLayout()
         settings_tab.setLayout(settings_grid)
-        self.tabs.addTab(settings_tab, "Settings")
-
+        
         # choose the number of image per run = number of SAIA instances
         m_label = QLabel('Number of images per run: ', self)
         settings_grid.addWidget(m_label, 0,0, 1,1)
@@ -221,23 +213,6 @@ class settings_window(QMainWindow):
         show_win.resize(show_win.sizeHint())
         settings_grid.addWidget(show_win, 8,2, 1,1)
 
-        #### tab for multi-run settings ####
-        self.mr = multirun_widget()
-        self.tabs.addTab(self.mr, "Multirun")
-
-        # # start/abort the multirun
-        # self.multirun_switch = QPushButton('Start', self, checkable=True)
-        # self.multirun_switch.clicked[bool].connect(self.multirun_go)
-        # multirun_grid.addWidget(self.multirun_switch, 6,1, 1,1)
-        # # pause/restart the multirun
-        # self.multirun_pause = QPushButton('Resume', self)
-        # self.multirun_pause.clicked.connect(self.multirun_resume)
-        # multirun_grid.addWidget(self.multirun_pause, 6,2, 1,1)
-        # # display current progress
-        # self.multirun_progress = QLabel(
-        #     'User variable: , omit 0 of 0 files, 0 of 100 histogram files, 0% complete')
-        # multirun_grid.addWidget(self.multirun_progress, 7,0, 1,3)
-
         #### choose main window position and dimensions: (xpos,ypos,width,height)
         self.setGeometry(100, 100, 850, 700)
         self.setWindowTitle('- Single Atom Image Analyser Settings -')
@@ -259,46 +234,6 @@ class settings_window(QMainWindow):
         if self.read_noise_edit.text():
             self.stats['Nr'] = float(self.read_noise_edit.text())
 
-    def add_var_to_multirun(self):
-        """When the user hits enter or the 'Add to list' button, add the 
-        text from the entry edit to the list of user variables that will 
-        be used for the multi-run. For speed, you can enter a range in 
-        the form start,stop,step,repeat. If the multi-run has already
-        started, do nothing."""
-        if not self.multirun_switch.isChecked():
-            new_var = list(map(float, [v for v in self.entry_edit.text().split(',') if v]))
-            if np.size(new_var) == 1: # just entered a single variable
-                self.mr['var list'].append(new_var[0])
-                # empty the text edit so that it's quicker to enter a new variable
-                self.entry_edit.setText('') 
-
-            elif np.size(new_var) == 3: # range, with no repeats
-                self.mr['var list'] += list(np.arange(new_var[0], new_var[1], new_var[2]))
-            elif np.size(new_var) == 4: # range, with repeats
-                self.mr['var list'] += list(np.arange(new_var[0], new_var[1],
-                                            new_var[2]))*int(new_var[3])
-            # display the list
-            vlist = ','.join(list(map(str, self.mr['var list'])))
-            vlist = vlist[:20] + ' ...' if len(vlist)>20 else vlist
-            self.multirun_vars.setText(vlist)
-
-    def clear_multirun_vars(self):
-        """Reset the list of user variables to be used in the multi-run.
-        If the multi-run is already running, don't do anything"""
-        if not self.multirun_switch.isChecked():
-            self.mr['var list'] = []
-            self.multirun_vars.setText('')
-
-    def choose_multirun_dir(self):
-        """Allow the user to choose the directory where the histogram .csv
-        files and the measure .dat file will be saved as part of the multi-run"""
-        default_path = self.get_default_path()
-        try:
-            dir_path = QFileDialog.getExistingDirectory(self, "Select Directory", default_path)
-            self.multirun_save_dir.setText(dir_path)
-        except OSError:
-            pass # user cancelled - file not found
-        
     def roi_text_edit(self, text):
         """Update the ROI position and size every time a text edit is made by
         the user to one of the line edit widgets"""
@@ -322,123 +257,12 @@ class settings_window(QMainWindow):
     def set_all_windows(self, action=None):
         """Find which of the binning options and fit methods is checked 
         and apply this to all ofthe image analysis windows."""
-        if not self.multirun_switch.isChecked(): # don't interrupt multirun
-            for mw in self.mw[:self._m] + self.rw[:len(self.rw_inds)]:
-                for i in range(len(self.bin_actions)):
-                    mw.bin_actions[i].setChecked(self.bin_actions[i].isChecked())
-                mw.set_bins()
-                for i in range(len(self.fit_options)):
-                    mw.fit_options[i].setChecked(self.fit_options[i].isChecked())
-
-    #### multirun ####
-
-    # def multirun_go(self, toggle):
-    #     """Initiate the multi-run: omit N files, save a histogram of M files, and
-    #     repeat for the user variables in the list. If the button is pressed during
-    #     the multi-run, save the current histogram, save the measure file, then
-    #     return to normal operation"""
-    #     if toggle and np.size(self.mr['var list']) > 0:
-    #         self.check_reset()
-    #         # self.plot_current_hist(self.image_handler.histogram)
-    #         remove_slot(self.event_im, self.update_plot, False)
-    #         remove_slot(self.event_im, self.update_plot_only, False)
-    #         remove_slot(self.event_im, self.image_handler.process, False)
-    #         if self.multirun_save_dir.text() == '':
-    #             self.choose_multirun_dir()
-    #         remove_slot(self.event_im, self.multirun_step, True)
-    #         self.mr['# omit'] = int(self.omit_edit.text()) # number of files to omit
-    #         self.mr['# hist'] = int(self.multirun_hist_size.text()) # number of files in histogram                
-    #         self.mr['o'], self.mr['h'], self.mr['v'] = 0, 0, 0 # counters for different stages of multirun
-    #         self.mr['prefix'] = self.measure_edit.text() # prefix for histogram files 
-    #         self.multirun_switch.setText('Abort')
-    #         self.clear_varplot() # varplot cleared so it only has multirun data
-    #         self.multirun_progress.setText(       # update progress label
-    #             'User variable: %s, omit %s of %s files, %s of %s histogram files, 0%% complete'%(
-    #                 self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
-    #                 self.mr['h'], self.mr['# hist']))
-    #     else: # cancel the multi-run
-    #         self.set_bins() # reconnect the signal
-    #         self.multirun_switch.setText('Start') # reset button text
-    #         self.multirun_progress.setText(       # update progress label
-    #             'Stopped at - User variable: %s, omit %s of %s files, %s of %s histogram files, %.3g%% complete'%(
-    #                 self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
-    #                 self.mr['h'], self.mr['# hist'], 100 * ((self.mr['# omit'] + self.mr['# hist']) * 
-    #                 self.mr['v'] + self.mr['o'] + self.mr['h']) / (self.mr['# omit'] + self.mr['# hist']) / 
-    #                 np.size(self.mr['var list'])))
-
-    # def multirun_resume(self):
-    #     """If the button is clicked, resume the multi-run where it was left off.
-    #     If the multirun is already running, do nothing."""
-    #     if not self.multirun_switch.isChecked(): 
-    #         self.multirun_switch.setChecked(True)
-    #         self.multirun_switch.setText('Abort')
-    #         remove_slot(self.event_im, self.multirun_step, True)
-
-    # def multirun_step(self, event_im):
-    #     """Receive event paths emitted from the system event handler signal
-    #     for the first '# omit' events, only save the files
-    #     then for '# hist' events, add files to a histogram,
-    #     save the histogram 
-    #     repeat this for the user variables in the multi-run list,
-    #     then return to normal operation as set by the histogram binning"""
-    #     if self.mr['v'] < np.size(self.mr['var list']):
-    #         if self.mr['o'] < self.mr['# omit']: # don't process, just copy
-    #             # self.recent_label.setText('Just omitted image '
-    #             #     + self.image_handler.stats['File ID'][-1])
-    #             self.mr['o'] += 1 # increment counter
-    #         elif self.mr['h'] < self.mr['# hist']: # add to histogram
-    #             # add the count to the histogram
-    #             t1 = time.time()
-    #             # self.image_handler.process(event_im)
-    #             t2 = time.time()
-    #             self.int_time = t2 - t1
-    #             # display the name of the most recent file
-    #             # self.recent_label.setText('Just processed image '
-    #             #             + str(self.image_handler.fid))
-    #             # self.plot_current_hist(self.image_handler.hist_and_thresh) # update the displayed plot
-    #             self.plot_time = time.time() - t2
-    #             self.mr['h'] += 1 # increment counter
-
-    #         if self.mr['o'] == self.mr['# omit'] and self.mr['h'] == self.mr['# hist']:
-    #             self.mr['o'], self.mr['h'] = 0, 0 # reset counters
-    #             uv = str(self.mr['var list'][self.mr['v']]) # set user variable
-    #             self.var_edit.setText(uv) # also updates histo_handler temp vals
-    #             self.bins_text_edit(text='reset') # set histogram bins 
-    #             success = self.update_fit(fit_method='check actions') # get best fit
-    #             if not success:                   # if fit fails, use peak search
-    #                 # self.histo_handler.process(self.image_handler, uv, 
-    #                 #     fix_thresh=self.thresh_toggle.isChecked(), method='quick')
-    #                 print('\nWarning: multi-run fit failed at ' +
-    #                     self.mr['prefix'] + '_' + str(self.mr['v']) + '.csv')
-    #             self.save_hist_data(
-    #                 save_file_name=os.path.join(
-    #                     self.multirun_save_dir.text(), self.name + self.mr['prefix']) 
-    #                         + '_' + str(self.mr['v']) + '.csv', 
-    #                 confirm=False)# save histogram
-    #             # self.image_handler.reset_arrays() # clear histogram
-    #             self.mr['v'] += 1 # increment counter
-            
-    #     if self.mr['v'] == np.size(self.mr['var list']):
-    #         self.save_varplot(
-    #             save_file_name=os.path.join(
-    #                 self.multirun_save_dir.text(), self.name + self.mr['prefix']) 
-    #                     + '.dat', 
-    #             confirm=False)# save measure file
-    #         # reconnect previous signals
-    #         self.multirun_switch.setChecked(False) # reset multi-run button
-    #         self.multirun_switch.setText('Start')  # reset multi-run button text
-    #         self.set_bins() # reconnects signal with given histogram binning settings
-    #         self.mr['o'], self.mr['h'], self.mr['v'] = 0, 0, 0 # reset counters
-    #         self.mr['measure'] += 1 # completed a measure successfully
-    #         self.mr['prefix'] = str(self.mr['measure']) # suggest new measure as file prefix
-    #         self.measure_edit.setText(self.mr['prefix'])
-
-    #     self.multirun_progress.setText( # update progress label
-    #         'User variable: %s, omit %s of %s files, %s of %s histogram files, %.3g%% complete'%(
-    #             self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
-    #             self.mr['h'], self.mr['# hist'], 100 * ((self.mr['# omit'] + self.mr['# hist']) * 
-    #             self.mr['v'] + self.mr['o'] + self.mr['h']) / (self.mr['# omit'] + self.mr['# hist']) / 
-    #             np.size(self.mr['var list'])))
+        for mw in self.mw[:self._m] + self.rw[:len(self.rw_inds)]:
+            for i in range(len(self.bin_actions)):
+                mw.bin_actions[i].setChecked(self.bin_actions[i].isChecked())
+            mw.set_bins()
+            for i in range(len(self.fit_options)):
+                mw.fit_options[i].setChecked(self.fit_options[i].isChecked())
 
     #### #### save and load data functions #### ####
 

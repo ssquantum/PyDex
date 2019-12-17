@@ -1,4 +1,4 @@
-2019/12/16 10:55:06.478 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+2019/12/17 09:45:13.001 - MainThread - AndorFunctions.py.__init__.48 - ERROR
 Andor functions dll file not found.
 
 Traceback (most recent call last):
@@ -9,32 +9,32 @@ Traceback (most recent call last):
   File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
     self._handle = _dlopen(self._name, mode)
 OSError: [WinError 126] The specified module could not be found
-2019/12/16 10:55:06.897 - MainThread - cameraHandler.py.__init__.64 - WARNING
+2019/12/17 09:45:13.406 - MainThread - cameraHandler.py.__init__.64 - WARNING
 Andor EMCCD not initialised.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 10:55:06.982 - MainThread - imsaver.py.__init__.73 - WARNING
+2019/12/17 09:45:13.446 - MainThread - imsaver.py.__init__.73 - WARNING
 Could not create image storage path. Using current directory instead
 [WinError 5] Access is denied: 'C:\\Users\\Lab'
 
 
-2019/12/16 11:09:58.105 - Dummy-1 - networker.py.run.117 - ERROR
-Python server error: the client terminated the connection.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 11:10:09.963 - Dummy-1 - networker.py.run.117 - ERROR
-Python server error: the client terminated the connection.
+2019/12/17 09:45:52.269 - Dummy-1 - networker.py.run.118 - ERROR
+Python server: the client terminated the connection. Message not sent.
 [WinError 10054] An existing connection was forcibly closed by the remote host
 
 
-2019/12/16 11:12:15.223 - MainThread - master.py.closeEvent.339 - WARNING
+2019/12/17 09:48:59.250 - Dummy-1 - networker.py.run.118 - ERROR
+Python server: the client terminated the connection. Message not sent.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/17 09:53:46.540 - MainThread - master.py.closeEvent.341 - WARNING
 camera safe shutdown failed.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 16:04:13.507 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+2019/12/17 09:56:14.760 - MainThread - AndorFunctions.py.__init__.48 - ERROR
 Andor functions dll file not found.
 
 Traceback (most recent call last):
@@ -45,963 +45,31 @@ Traceback (most recent call last):
   File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
     self._handle = _dlopen(self._name, mode)
 OSError: [WinError 126] The specified module could not be found
-2019/12/16 16:04:13.578 - MainThread - cameraHandler.py.__init__.64 - WARNING
+2019/12/17 09:56:14.823 - MainThread - cameraHandler.py.__init__.64 - WARNING
 Andor EMCCD not initialised.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 16:04:13.617 - MainThread - imsaver.py.__init__.73 - WARNING
+2019/12/17 09:56:14.867 - MainThread - imsaver.py.__init__.73 - WARNING
 Could not create image storage path. Using current directory instead
 [WinError 5] Access is denied: 'C:\\Users\\Lab'
 
 
-2019/12/16 16:20:15.787 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.791 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.794 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.797 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.799 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.802 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.805 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.808 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.812 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.815 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.828 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.832 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.835 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:15.838 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.827 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.831 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.834 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.837 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.841 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.843 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.847 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.849 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.853 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.856 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.859 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.862 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.865 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.868 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.871 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.874 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.889 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:24.897 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:20:48.729 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.732 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.735 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.737 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.740 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.743 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.747 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.750 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.753 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.757 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.762 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.766 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.771 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.774 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.777 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.780 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.785 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.790 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.814 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.817 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.822 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.825 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.828 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.831 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.835 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.838 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.843 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.847 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.853 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.856 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.860 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.864 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.868 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:20:48.870 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.745 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.749 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.752 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.755 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.758 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.761 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.765 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.769 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.773 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.778 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.831 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.834 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.838 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.841 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.844 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.847 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.851 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.855 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.860 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.867 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.870 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.874 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.877 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.880 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.885 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.889 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.893 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.898 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.901 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.905 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.908 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.911 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.915 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.919 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.922 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.927 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.932 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.936 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.939 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.942 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.945 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.950 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.953 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.960 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.964 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.967 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.971 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.974 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.980 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.984 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.987 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.990 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.993 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:53.996 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.000 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.003 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.006 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.010 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.015 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.019 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.022 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.027 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.030 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.035 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.038 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.041 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.044 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.049 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.057 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.062 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.065 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.080 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.087 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:24:54.090 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:25:00.089 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:25:00.092 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:25:00.096 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:25:00.100 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:25:00.103 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:25:00.105 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:25:10.417 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:27:23.933 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:37:17.623 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:37:26.082 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:37:34.285 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:38:07.842 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:38:56.791 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:39:20.732 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:43:04.367 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:44:19.203 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:44:41.372 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:44:43.435 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:44:44.135 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:44:44.830 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:44:45.544 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:44:46.240 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:44:47.118 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:44:47.885 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:44:48.602 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:44:49.245 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:44:49.883 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:45:09.967 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 16:46:31.542 - MainThread - master.py.closeEvent.339 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/16 16:47:14.699 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/16 16:47:14.737 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/16 16:47:14.760 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/16 16:47:32.771 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:48:38.774 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:48:55.946 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:49:26.415 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:49:27.760 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:49:36.348 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:55:39.691 - MainThread - master.py.closeEvent.339 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/16 16:56:50.512 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/16 16:56:50.565 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/16 16:56:50.591 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/16 16:56:57.953 - MainThread - master.py.start_action.277 - WARNING
+2019/12/17 09:57:01.712 - MainThread - master.py.start_action.277 - WARNING
 Run started without camera acquisition.
 
 
-2019/12/16 16:57:26.753 - MainThread - master.py.end_run.311 - WARNING
+2019/12/17 09:57:01.751 - MainThread - master.py.end_run.313 - WARNING
 Failed to abort camera acquisition at end of run.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 16:58:28.500 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 16:59:22.046 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Resending message.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 17:00:53.060 - MainThread - master.py.closeEvent.339 - WARNING
+2019/12/17 10:03:35.219 - MainThread - master.py.closeEvent.341 - WARNING
 camera safe shutdown failed.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 17:01:07.798 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+2019/12/17 10:03:50.529 - MainThread - AndorFunctions.py.__init__.48 - ERROR
 Andor functions dll file not found.
 
 Traceback (most recent call last):
@@ -1012,100 +80,22 @@ Traceback (most recent call last):
   File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
     self._handle = _dlopen(self._name, mode)
 OSError: [WinError 126] The specified module could not be found
-2019/12/16 17:01:07.873 - MainThread - cameraHandler.py.__init__.64 - WARNING
+2019/12/17 10:03:50.588 - MainThread - cameraHandler.py.__init__.64 - WARNING
 Andor EMCCD not initialised.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 17:01:07.906 - MainThread - imsaver.py.__init__.73 - WARNING
+2019/12/17 10:03:50.640 - MainThread - imsaver.py.__init__.73 - WARNING
 Could not create image storage path. Using current directory instead
 [WinError 5] Access is denied: 'C:\\Users\\Lab'
 
 
-2019/12/16 17:03:24.532 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/16 17:03:24.592 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/16 17:03:24.625 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/16 17:14:35.556 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/16 17:14:35.606 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/16 17:14:35.630 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/16 17:28:00.057 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/16 17:28:00.116 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/16 17:28:00.150 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/16 17:28:29.036 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 17:46:21.129 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 17:48:14.767 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 18:10:26.180 - MainThread - master.py.closeEvent.339 - WARNING
+2019/12/17 10:10:05.716 - MainThread - master.py.closeEvent.341 - WARNING
 camera safe shutdown failed.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 18:11:19.130 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+2019/12/17 10:10:20.553 - MainThread - AndorFunctions.py.__init__.48 - ERROR
 Andor functions dll file not found.
 
 Traceback (most recent call last):
@@ -1116,48 +106,27 @@ Traceback (most recent call last):
   File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
     self._handle = _dlopen(self._name, mode)
 OSError: [WinError 126] The specified module could not be found
-2019/12/16 18:11:19.193 - MainThread - cameraHandler.py.__init__.64 - WARNING
+2019/12/17 10:10:20.622 - MainThread - cameraHandler.py.__init__.64 - WARNING
 Andor EMCCD not initialised.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 18:11:19.220 - MainThread - imsaver.py.__init__.73 - WARNING
+2019/12/17 10:10:20.667 - MainThread - imsaver.py.__init__.73 - WARNING
 Could not create image storage path. Using current directory instead
 [WinError 5] Access is denied: 'C:\\Users\\Lab'
 
 
-2019/12/16 18:11:46.114 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/16 18:11:46.159 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/16 18:11:46.188 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/16 18:13:06.081 - Dummy-1 - networker.py.run.118 - ERROR
+2019/12/17 10:11:43.836 - Dummy-1 - networker.py.run.119 - ERROR
 Python server: the client terminated the connection. Message not sent.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2019/12/16 18:36:44.658 - MainThread - master.py.closeEvent.339 - WARNING
+2019/12/17 10:40:26.787 - MainThread - master.py.closeEvent.341 - WARNING
 camera safe shutdown failed.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 18:40:19.584 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+2019/12/17 10:41:13.120 - MainThread - AndorFunctions.py.__init__.48 - ERROR
 Andor functions dll file not found.
 
 Traceback (most recent call last):
@@ -1168,82 +137,52 @@ Traceback (most recent call last):
   File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
     self._handle = _dlopen(self._name, mode)
 OSError: [WinError 126] The specified module could not be found
-2019/12/16 18:40:19.630 - MainThread - cameraHandler.py.__init__.64 - WARNING
+2019/12/17 10:41:13.176 - MainThread - cameraHandler.py.__init__.64 - WARNING
 Andor EMCCD not initialised.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 18:40:19.662 - MainThread - imsaver.py.__init__.73 - WARNING
+2019/12/17 10:41:13.231 - MainThread - imsaver.py.__init__.73 - WARNING
 Could not create image storage path. Using current directory instead
 [WinError 5] Access is denied: 'C:\\Users\\Lab'
 
 
-2019/12/16 18:40:56.925 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 18:42:18.893 - MainThread - translator.py.load_xml.407 - ERROR
+2019/12/17 10:41:43.086 - MainThread - translator.py.load_xml.384 - ERROR
 Translator could not load sequence:
 XML or text declaration not at start of entity: line 3, column 27
 
 
-2019/12/16 18:42:39.855 - Dummy-1 - networker.py.run.118 - ERROR
+2019/12/17 10:41:51.805 - Dummy-1 - networker.py.run.119 - ERROR
 Python server: the client terminated the connection. Message not sent.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2019/12/16 18:54:21.814 - Dummy-1 - networker.py.run.118 - ERROR
+2019/12/17 10:46:13.539 - Dummy-1 - networker.py.run.119 - ERROR
 Python server: the client terminated the connection. Message not sent.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2019/12/16 18:54:40.967 - Dummy-1 - networker.py.run.118 - ERROR
+2019/12/17 10:46:19.097 - Dummy-1 - networker.py.run.119 - ERROR
 Python server: the client terminated the connection. Message not sent.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2019/12/16 18:55:35.590 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
+2019/12/17 10:46:51.163 - MainThread - translator.py.load_xml.384 - ERROR
+Translator could not load sequence:
+XML or text declaration not at start of entity: line 3, column 27
 
 
-2019/12/16 19:08:22.397 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
+2019/12/17 10:47:15.827 - MainThread - translator.py.load_xml.384 - ERROR
+Translator could not load sequence:
+XML or text declaration not at start of entity: line 3, column 27
 
 
-2019/12/16 19:10:01.453 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 19:10:13.525 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 19:26:55.906 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 19:27:18.624 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 19:31:56.968 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/16 19:37:05.331 - MainThread - master.py.closeEvent.339 - WARNING
+2019/12/17 10:48:49.922 - MainThread - master.py.closeEvent.341 - WARNING
 camera safe shutdown failed.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 19:38:38.095 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+2019/12/17 11:10:21.345 - MainThread - AndorFunctions.py.__init__.48 - ERROR
 Andor functions dll file not found.
 
 Traceback (most recent call last):
@@ -1254,70 +193,115 @@ Traceback (most recent call last):
   File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
     self._handle = _dlopen(self._name, mode)
 OSError: [WinError 126] The specified module could not be found
-2019/12/16 19:38:38.157 - MainThread - cameraHandler.py.__init__.64 - WARNING
+2019/12/17 11:10:21.430 - MainThread - cameraHandler.py.__init__.64 - WARNING
 Andor EMCCD not initialised.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 19:38:38.195 - MainThread - imsaver.py.__init__.73 - WARNING
+2019/12/17 11:10:21.473 - MainThread - imsaver.py.__init__.73 - WARNING
 Could not create image storage path. Using current directory instead
 [WinError 5] Access is denied: 'C:\\Users\\Lab'
 
 
-2019/12/16 19:39:02.168 - MainThread - master.py.start_action.277 - WARNING
-Run started without camera acquisition.
+2019/12/17 11:15:09.914 - MainThread - master.py.closeEvent.341 - WARNING
+camera safe shutdown failed.
+'Andor' object has no attribute 'dll'
 
 
-2019/12/16 19:39:02.211 - Dummy-1 - networker.py.run.119 - ERROR
+2019/12/17 11:23:45.566 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+Andor functions dll file not found.
+
+Traceback (most recent call last):
+  File "./andorcamera\AndorFunctions.py", line 46, in __init__
+    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
+    return self._dlltype(name)
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
+    self._handle = _dlopen(self._name, mode)
+OSError: [WinError 126] The specified module could not be found
+2019/12/17 11:23:45.629 - MainThread - cameraHandler.py.__init__.64 - WARNING
+Andor EMCCD not initialised.
+'Andor' object has no attribute 'dll'
+
+
+2019/12/17 11:23:45.671 - MainThread - imsaver.py.__init__.73 - WARNING
+Could not create image storage path. Using current directory instead
+[WinError 5] Access is denied: 'C:\\Users\\Lab'
+
+
+2019/12/17 11:27:19.026 - MainThread - master.py.closeEvent.341 - WARNING
+camera safe shutdown failed.
+'Andor' object has no attribute 'dll'
+
+
+2019/12/17 14:14:41.725 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+Andor functions dll file not found.
+
+Traceback (most recent call last):
+  File "./andorcamera\AndorFunctions.py", line 46, in __init__
+    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
+    return self._dlltype(name)
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
+    self._handle = _dlopen(self._name, mode)
+OSError: [WinError 126] The specified module could not be found
+2019/12/17 14:14:41.771 - MainThread - cameraHandler.py.__init__.64 - WARNING
+Andor EMCCD not initialised.
+'Andor' object has no attribute 'dll'
+
+
+2019/12/17 14:14:41.807 - MainThread - imsaver.py.__init__.73 - WARNING
+Could not create image storage path. Using current directory instead
+[WinError 5] Access is denied: 'C:\\Users\\Lab'
+
+
+2019/12/17 14:15:28.855 - Dummy-1 - networker.py.run.119 - ERROR
 Python server: the client terminated the connection. Message not sent.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2019/12/16 19:39:02.227 - MainThread - master.py.end_run.311 - WARNING
-Failed to abort camera acquisition at end of run.
-'Andor' object has no attribute 'dll'
+2019/12/17 14:40:13.214 - Dummy-1 - networker.py.run.119 - ERROR
+Python server: the client terminated the connection. Message not sent.
+[WinError 10054] An existing connection was forcibly closed by the remote host
 
 
-2019/12/16 19:40:03.959 - MainThread - master.py.start_action.277 - WARNING
+2019/12/17 14:41:20.350 - MainThread - master.py.start_action.277 - WARNING
 Run started without camera acquisition.
 
 
-2019/12/16 19:40:39.576 - Dummy-1 - networker.py.run.119 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 19:40:41.572 - MainThread - master.py.end_run.311 - WARNING
+2019/12/17 14:41:20.411 - MainThread - master.py.end_run.313 - WARNING
 Failed to abort camera acquisition at end of run.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/16 19:43:45.262 - Dummy-1 - networker.py.run.119 - ERROR
+2019/12/17 14:45:54.696 - Dummy-1 - networker.py.run.119 - ERROR
 Python server: the client terminated the connection. Message not sent.
-[WinError 10054] An existing connection was forcibly closed by the remote host
+[WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2019/12/16 19:44:31.030 - MainThread - translator.py.load_xml.407 - ERROR
-Translator could not load sequence:
-XML or text declaration not at start of entity: line 3, column 27
-
-
-2019/12/16 19:52:50.941 - Dummy-1 - networker.py.run.119 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/16 19:53:23.147 - MainThread - master.py.start_action.277 - WARNING
-Run started without camera acquisition.
-
-
-2019/12/16 19:53:23.190 - MainThread - master.py.end_run.311 - WARNING
-Failed to abort camera acquisition at end of run.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/16 19:53:36.706 - MainThread - master.py.closeEvent.339 - WARNING
+2019/12/17 14:50:09.101 - MainThread - master.py.closeEvent.341 - WARNING
 camera safe shutdown failed.
 'Andor' object has no attribute 'dll'
+
+
+2019/12/17 15:21:58.787 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+Andor functions dll file not found.
+
+Traceback (most recent call last):
+  File "./andorcamera\AndorFunctions.py", line 46, in __init__
+    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
+    return self._dlltype(name)
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
+    self._handle = _dlopen(self._name, mode)
+OSError: [WinError 126] The specified module could not be found
+2019/12/17 15:21:58.844 - MainThread - cameraHandler.py.__init__.64 - WARNING
+Andor EMCCD not initialised.
+'Andor' object has no attribute 'dll'
+
+
+2019/12/17 15:21:58.883 - MainThread - imsaver.py.__init__.73 - WARNING
+Could not create image storage path. Using current directory instead
+[WinError 5] Access is denied: 'C:\\Users\\Lab'
 
 

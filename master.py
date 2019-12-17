@@ -43,7 +43,7 @@ sys.path.append('./networking')
 from networking.runid import runnum # synchronises run number, sends signals
 from networking.networker import TCPENUM, remove_slot # enum for DExTer produce-consumer loop cases
 sys.path.append('./sequences')
-from sequences.translator import Previewer
+from sequences.sequencePreviewer import Previewer
 
 class Master(QMainWindow):
     """A manager to synchronise and control experiment modules.
@@ -154,10 +154,9 @@ class Master(QMainWindow):
 
         # actions that can be carried out 
         self.actions = QComboBox(self)
-        for action_label in ['Run sequence', 'Multirun run', 
-                'TCP load sequence','TCP load sequence from string',
-                'Cancel Python Mode']:
-            self.actions.addItem(action_label)
+        self.actions.addItems(['Run sequence', 'Multirun run', 
+            'TCP load sequence','TCP load sequence from string',
+            'Cancel Python Mode'])
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
 
@@ -227,7 +226,7 @@ class Master(QMainWindow):
                 msg+"\nDo you want to restart the server?", 
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
-                self.rn.reset_server()
+                self.rn.reset_server(force=True)
 
     def browse_sequence(self, toggle=True):
         """Open the file browser to search for a sequence file, then insert
@@ -292,11 +291,11 @@ class Master(QMainWindow):
                             slot=self.end_run, reconnect=True)
                 self.rn.server.add_message(TCPENUM['TCP read'], 'run finished') 
             elif action_text == 'TCP load sequence from string':
-                self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.write_to_str())
+                self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.seq_txt)
             elif action_text == 'TCP load sequence':
                 self.rn.server.add_message(TCPENUM[action_text], 
                     self.seq_edit.text())
-            elif action_text == 'Cancel Python mode':
+            elif action_text == 'Cancel Python Mode':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off')
             
     def end_run(self, msg=''):
@@ -339,9 +338,8 @@ class Master(QMainWindow):
         try:
             self.rn.cam.SafeShutdown()
         except Exception as e: logger.warning('camera safe shutdown failed.\n'+str(e))
-        for mw in self.rn.sw.mw + self.rn.sw.rw:
-            mw.close()
-        self.rn.sw.close()
+        for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, self.rn.server]:
+            obj.close()
         self.save_state()
         event.accept()
         

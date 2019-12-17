@@ -30,7 +30,7 @@ class fit:
         self.ps   = param  # best fit parameters
         self.perrs = None  # error on best fit parameters
         self.bffunc= func  # function used for the best fit
-        self.chisq = None  # chi-squared statistic for the most recent fit
+        self.rchisq = None  # reduced chi-squared statistic for the most recent fit
 
     def estGaussParam(self):
         """Guess at the amplitude A, centre x0, width wx, and offset y0 of a 
@@ -92,4 +92,4 @@ class fit:
                                 maxfev=80000, **kwargs)
         self.ps = popt
         self.perrs = np.sqrt(np.diag(pcov))
-        self.chisq, _ = chisquare(self.y, fn(self.x, *self.ps))
+        self.rchisq, _ = chisquare(self.y, fn(self.x, *self.ps)) / (np.size(self.y) - np.size(self.ps))

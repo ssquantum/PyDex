@@ -62,6 +62,7 @@ class runnum(QThread):
         running, then start it."""
         if self.server.isRunning():
             if force:
+                self.server.msg_queue = []
                 self.server.close()
                 self.server.start()
         else: self.server.start()

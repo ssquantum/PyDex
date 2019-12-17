@@ -52,7 +52,8 @@ class image_handler(Analysis):
             ('Max xpos', int), # horizontal positions of max pixel
             ('Max ypos', int), # vertical positions of max pixel
             ('Mean bg count', float), # mean counts outside ROI - estimate bg
-            ('Bg s.d.', float)])
+            ('Bg s.d.', float),# standard deviation outside of ROI
+            ('Include', bool)])# whether to include in further analysis
         self.stats = OrderedDict([(key, []) for key in self.types.keys()]) # standard deviation of counts outside ROI
         
         self.delim = ' '                # delimieter to use when opening image files
@@ -74,11 +75,12 @@ class image_handler(Analysis):
         self.im_vals   = np.array([])   # the data from the last image is accessible to an image_handler instance
         self.bin_array = []             # if bins for the histogram are supplied, plotting can be faster
     
-    def process(self, full_im):
+    def process(self, full_im, include=True):
         """Fill in the next index of counts by integrating over
         the ROI. Append file ID, xc, yc, mean, stdv as well.
         Keyword arguments:
         full_im    -- image array to be processed
+        include    -- whether to include the image in further analysis
         """
         full_im -= self.bias # remove the bias offset, it's arbitrary
         not_roi = full_im.copy()
@@ -100,6 +102,7 @@ class image_handler(Analysis):
         xmax, ymax = np.unravel_index(np.argmax(full_im), full_im.shape)
         self.stats['Max xpos'].append(xmax)
         self.stats['Max ypos'].append(ymax)
+        self.stats['Include'].append(include)
         self.ind += 1
             
     def get_fidelity(self, thresh=None):

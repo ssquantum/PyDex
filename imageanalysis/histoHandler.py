@@ -51,7 +51,8 @@ class histo_handler(Analysis):
         ('Error in Fidelity', float),
         ('S/N', float),
         ('Error in S/N', float),
-        ('Threshold', float)])
+        ('Threshold', float),
+        ('Include', bool)])
         self.stats = OrderedDict([(key, []) for key in self.types.keys()])
         # variables that won't be saved for plotting:
         self.temp_vals = OrderedDict([(key,0) for key in self.stats.keys()])
@@ -69,7 +70,7 @@ class histo_handler(Analysis):
         for key in self.stats.keys():
             self.stats[key] = self.stats[key][idxs]
 
-    def process(self, ih, user_var, fix_thresh=False, method='quick'):
+    def process(self, ih, user_var, fix_thresh=False, method='quick', include=True):
         """Calculate the statistics from the current histogram.
         Keyword arguments:
         ih: an instance of the image_handler Analysis class, generates the histogram
@@ -80,6 +81,7 @@ class histo_handler(Analysis):
                 'separate gaussians' - split the histogram at the threshold and fit Gaussians
                 'double poissonian' - fit a double Poissonian function
                 'single gaussian' - fit a single Gaussian to background peak
+        include: whether to include the values in further analysis.
         """
         if ih.ind > 0: # only update if a histogram exists
             if fix_thresh: # using manual threshold
@@ -143,6 +145,8 @@ class histo_handler(Analysis):
             ih.peak_heights = [A0, A1]
             ih.peak_centre = [mu0, mu1]
             ih.peak_widths = [sig0, sig1]
+
+            if self.bf.rchisq > 10: include = False # bad fit
         
             # update threshold to where fidelity is maximum
             if fix_thresh: # update thresh if not set by user
@@ -212,11 +216,12 @@ class histo_handler(Analysis):
                 self.temp_vals['Error in S/N'] = np.around(
                     self.temp_vals['S/N'] * np.sqrt((seperr/sep)**2 + (sig0**2/(2*empty_count - 2) 
                     + sig1**2/(2*atom_count - 2))/(sig0**2 + sig1**2)), 2) if (empty_count>1 and atom_count>1) else 0.0
+                self.temp_vals['Include'] = include
             else:
                 for key in ['Background peak count', 'sqrt(Nr^2 + Nbg)', 'Background peak width', 
                 'Error in Background peak count', 'Signal peak count', 'sqrt(Nr^2 + Ns)', 
                 'Signal peak width', 'Error in Signal peak count', 'Separation', 'Error in Separation', 
-                'Fidelity', 'Error in Fidelity', 'S/N', 'Error in S/N']:
+                'Fidelity', 'Error in Fidelity', 'S/N', 'Error in S/N', 'Include']:
                     self.temp_vals[key] = 0
             self.temp_vals['Threshold'] = int(ih.thresh)
         return 1 # fit successful

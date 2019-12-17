@@ -8,6 +8,7 @@ Stefan Spence 21/10/19
  - when there is a new network connection, send the message at the front of
  the queue. 
  - if the queue is empty, continue looping until there is a message to send.
+ - Note: LabVIEW uses MBCS encoding of bytes to strings.
 """
 import socket
 import struct
@@ -74,17 +75,17 @@ class PyServer(QThread):
         self.server_address = ('localhost', port)
         self.msg_queue = []
         
-    def add_message(self, enum, text, encoding="UTF-8"):
+    def add_message(self, enum, text, encoding="mbcs"):
         """Update the message that will be sent upon the next connection.
         enum - (int) corresponding to the enum for DExTer's producer-
                 consumer loop.
         text - (str) the message to send."""
         # enum and message length are sent as unsigned long int (4 bytes)
         self.msg_queue.append([struct.pack("!L", int(enum)), # enum 
-                                struct.pack("!L", len(text)), # msg length 
+                                struct.pack("!L", len(bytes(text, encoding))), # msg length 
                                 bytes(text, encoding)]) # message
 
-    def run(self, encoding="UTF-8"):
+    def run(self, encoding="mbcs"):
         """Keeps a socket open that waits for new connections. For each new
         connection, open a new socket that sends the following 3 messages:
          1) the enum as int32 (4 bytes), which will correspond to a command. 
@@ -152,4 +153,5 @@ if __name__ == "__main__":
     w = QWidget()
     w.setWindowTitle('Server is runnning')
     w.show()
-    sys.exit(app.exec_()) # ends the program when the widget is closed
+    if standalone: 
+        sys.exit(app.exec_()) # ends the program when the widget is closed

@@ -6,7 +6,8 @@ Stefan Spence 13/10/19
 multiple channels at the same time.
 """
 import sys
-from translator import translate, event_list, header_cluster, channel_names, analogue_cluster, Previewer
+from translator import translate, event_list, header_cluster, channel_names, analogue_cluster
+from sequencePreviewer import Previewer
 try:
     from PyQt4.QtGui import QApplication
 except ImportError:

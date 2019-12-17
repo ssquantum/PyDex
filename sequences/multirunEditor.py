@@ -14,19 +14,19 @@ from random import shuffle
 try:
     from PyQt4.QtCore import pyqtSignal, QRegExp
     from PyQt4.QtGui import (QPushButton, QWidget, QLabel,
-        QGridLayout, QLineEdit, QDoubleValidator, QIntValidator, QComboBox, 
-        QTabWidget, QVBoxLayout, QRegExpValidator, QInputDialog,
+        QGridLayout, QLineEdit, QDoubleValidator, QIntValidator, 
+        QComboBox, QListWidget, QTabWidget, QVBoxLayout, QInputDialog,
         QTableWidget, QTableWidgetItem, QScrollArea) 
 except ImportError:
     from PyQt5.QtCore import pyqtSignal, QRegExp
-    from PyQt5.QtGui import (QDoubleValidator, QIntValidator, 
-       QRegExpValidator)
-    from PyQt5.QtWidgets import (QVBoxLayout, QWidget,
-       QComboBox,QLineEdit, QGridLayout, QPushButton, 
-       QScrollArea, QLabel, QTableWidget, QTableWidgetItem)
+    from PyQt5.QtGui import QDoubleValidator, QIntValidator
+    from PyQt5.QtWidgets import (QVBoxLayout, QWidget, QComboBox,
+        QLineEdit, QGridLayout, QPushButton, QListWidget, QListWidgetItem, 
+        QScrollArea, QLabel, QTableWidget, QTableWidgetItem)
 import logging
 logger = logging.getLogger(__name__)
-from maingui import remove_slot # single atom image analysis
+sys.path.append('..')
+from mythread import remove_slot # for dis- and re-connecting slots
 
 ####    ####    ####    ####
 
@@ -34,6 +34,7 @@ class multirun_widget(QWidget):
     """Widget for editing multirun values.
 
     Keyword arguments:
+    tr    -- a translate instance that contains the experimental sequence
     nrows -- number of rows = number of multirun steps.
     ncols -- number of columns = number of channels to change in one step.
     order -- the order to produce the variables list in:
@@ -45,8 +46,9 @@ class multirun_widget(QWidget):
     """
     multirun_vals = pyqtSignal(np.ndarray) # the array of multirun values
 
-    def __init__(self, nrows=500, ncols=3, order='ascending'):
+    def __init__(self, tr, nrows=500, ncols=3, order='ascending'):
         super().__init__()
+        self.tr = tr
         self.types = OrderedDict([('nrows',int), ('ncols',int), 
             ('order',str), ('nomit',int), ('measure',int), ('measure_prefix',str)])
         self.stats = OrderedDict([('nrows',nrows), ('ncols', ncols),
@@ -85,15 +87,13 @@ class multirun_widget(QWidget):
         nrows = self.stats['nrows']
         ncols = self.stats['ncols']
         
-        # validators for user input
-        # this regex needs work to disallow -1-1
-        reg_exp = QRegExp(r'(-?[0-9]+(\.[0-9]+)?,?)+')
-        comma_validator = QRegExpValidator(reg_exp) # floats and commas
+        #### validators for user input ####
         double_validator = QDoubleValidator() # floats
         int_validator = QIntValidator()       # integers
         nat_validator = QIntValidator(1,999999)# natural numbers
         col_validator = QIntValidator(0,ncols-1) # for number of columns
 
+        #### table dimensions and ordering ####
         # choose the number of rows = number of multirun steps
         _, self.rows_edit = self.make_label_edit('# Rows', self.grid, 
             position=[0,0, 1,1], default_text=str(nrows), 
@@ -117,46 +117,69 @@ class multirun_widget(QWidget):
         self.order.addItems(['ascending', 'descending', 'random', 'coarse random', 'unsorted']) 
         self.grid.addWidget(self.order, 0,6, 1,4)
 
+        #### create multirun list of values ####
+        # metadata for the multirun list: which channels and timesteps
+        self.chan_choices = OrderedDict()
+        label = QLabel('Variable label', self)
+        self.grid.addWidget(label, 1,0, 1,1)
+        self.chan_choices['Variable label'] = QLineEdit(self)
+        self.grid.addWidget(self.chan_choices['Variable label'], 2,1, 1,3)
+
+        labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
+        options = [['Time step length', 'Analogue voltage', 'GPIB'], 
+            [str(i)+': '+hc['Time step name'] for i, hc in enumerate(self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top'])], 
+            ['Fast analogues', 'Slow analogues'],
+            self.get_anlg_chans('Fast')]
+        widgets = [QComboBox, QListWidget]
+        for i in range(0, len(labels)):
+            self.chan_choices[labels[i]] = widgets[i%2]()
+            if i%2:
+                self.chan_choices[labels[i]].setSelectionMode(3)
+            self.chan_choices[labels[i]].addItems(options[i])
+            self.grid.addWidget(self.chan_choices[labels[i]], 1,i+5, 3,1+i//3)
+        self.chan_choices['Type'].currentTextChanged[str].connect(self.change_mr_type)
+        self.chan_choices['Analogue type'].currentTextChanged[str].connect(self.change_mr_anlg_type)
+        self.chan_choices['Analogue channel'].setEnabled(False)
+
         # add a new list of multirun values to the array
         self.col_val_edit = []
         labels = ['column index', 'start', 'stop', 'step', 'repeats']
         validators = [col_validator, double_validator, double_validator, nat_validator, nat_validator]
         for i in range(0, len(labels)*2, 2):
             self.col_val_edit.append(self.make_label_edit(labels[i//2], self.grid, 
-                position=[1,i, 1,1], default_text='1', 
+                position=[4,i, 1,1], default_text='1', 
                 validator=validators[i//2])[1])
 
         # add the column to the multirun values array
         add_var_button = QPushButton('Add column', self)
         add_var_button.clicked.connect(self.add_column_to_array)
         add_var_button.resize(add_var_button.sizeHint())
-        self.grid.addWidget(add_var_button, 2,0, 1,1)
+        self.grid.addWidget(add_var_button, 5,0, 1,1)
         
         # clear the current list of user variables
         clear_vars_button = QPushButton('Clear', self)
         clear_vars_button.clicked.connect(self.reset_table)
         clear_vars_button.resize(clear_vars_button.sizeHint())
-        self.grid.addWidget(clear_vars_button, 2,1, 1,2)
+        self.grid.addWidget(clear_vars_button, 5,1, 1,2)
 
         # start/abort the multirun
         self.multirun_switch = QPushButton('Start multirun', self, checkable=True)
         self.multirun_switch.clicked[bool].connect(self.multirun_go)
-        self.grid.addWidget(self.multirun_switch, 2,3, 1,2)
+        self.grid.addWidget(self.multirun_switch, 5,3, 1,2)
         # pause/restart the multirun
         self.multirun_pause = QPushButton('Resume', self)
         self.multirun_pause.clicked.connect(self.multirun_resume)
-        self.grid.addWidget(self.multirun_pause, 2,5, 1,2)
+        self.grid.addWidget(self.multirun_pause, 5,5, 1,2)
 
         # display current progress
         self.multirun_progress = QLabel(
             'User variable: , omit 0 of 0 files, 0 of 100 histogram files, 0% complete')
-        self.grid.addWidget(self.multirun_progress, 3,0, 1,12)
+        self.grid.addWidget(self.multirun_progress, 6,0, 1,12)
 
         # table stores multirun values:
         self.table = QTableWidget(nrows, ncols)
-        # display column headings
         self.reset_table()
-        self.grid.addWidget(self.table, 5,0, 20, 12)
+        self.grid.addWidget(self.table, 7,0, 20, 12)
     
         scroll.setWidget(scroll_content)
 
@@ -164,11 +187,12 @@ class multirun_widget(QWidget):
     #### #### array editing functions #### #### 
 
     def reset_table(self):
-        """Fill all of the array cells with 0"""
+        """Empty the table of all of its values."""
+        self.table.setHorizontalHeaderLabels(list(map(str, range(self.table.columnCount()))))
         for i in range(self.table.rowCount()):
             for j in range(self.table.columnCount()):
                 self.table.setItem(i, j, QTableWidgetItem())
-                self.table.item(i, j).setText('0')
+                self.table.item(i, j).setText('')
     
     def change_array_size(self):
         """Update the size of the multirun array based on the number of rows
@@ -176,8 +200,8 @@ class multirun_widget(QWidget):
         self.stats['nrows'] = self.types['nrows'](self.rows_edit.text())
         self.table.setRowCount(self.stats['nrows'])
         self.stats['ncols'] = self.types['ncols'](self.cols_edit.text())
-        self.table.setColumnCount(newcol)
-        self.col_val_edit[0].setValidator(QIntValidator(0,newcol-1))
+        self.table.setColumnCount(self.stats['ncols'])
+        self.col_val_edit[0].setValidator(QIntValidator(0,self.stats['ncols']-1))
         self.reset_table()
 
     def add_column_to_array(self):
@@ -204,6 +228,34 @@ class multirun_widget(QWidget):
                 shuffle(vals)
             for i in range(self.table.rowCount()): # set vals in table cells
                 self.table.item(i, col).setText(str(vals[i]))
+
+    #### multirun channel selection ####
+
+    def get_anlg_chans(self, speed):
+        """Return a list of labels for the analogue channels.
+        speed -- 'Fast' or 'Slow'"""
+        return [ID+': '+name for ID, name in zip(
+            *self.tr.seq_dic['Experimental sequence cluster in'][speed + ' analogue names'].values())]
+
+    def change_mr_type(self, newtype):
+        """Enable/Disable list boxes to reflect the multirun type:
+        newtype[str] -- Time step length: only needs timesteps
+                     -- Analogue voltage: also needs channels"""
+        if newtype == 'Time step length':
+            self.chan_choices['Analogue channel'].setEnabled(False)
+        elif newtype == 'Analogue voltage':
+            self.chan_choices['Analogue channel'].setEnabled(True)
+            self.chan_choices['Analogue channel'].clear()
+            self.chan_choices['Analogue channel'].addItems(
+                self.get_anlg_chans(self.chan_choices['Analogue type'].currentText().split(' ')[0]))
+
+    def change_mr_anlg_type(self, newtype):
+        """Change the analogue channels listbox when fast/slow
+        analogue channels are selected."""
+        if self.chan_choices['Analogue channel'].isEnabled():
+            self.chan_choices['Analogue channel'].clear()
+            self.chan_choices['Analogue channel'].addItems(
+                self.get_anlg_chans(self.chan_choices['Analogue type'].currentText().split(' ')[0]))
 
     #### multirun ####
     
