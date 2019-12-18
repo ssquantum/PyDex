@@ -1,4 +1,4 @@
-2019/12/17 09:45:13.001 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+2019/12/18 15:15:49.123 - MainThread - AndorFunctions.py.__init__.48 - ERROR
 Andor functions dll file not found.
 
 Traceback (most recent call last):
@@ -9,299 +9,38 @@ Traceback (most recent call last):
   File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
     self._handle = _dlopen(self._name, mode)
 OSError: [WinError 126] The specified module could not be found
-2019/12/17 09:45:13.406 - MainThread - cameraHandler.py.__init__.64 - WARNING
+2019/12/18 15:15:49.489 - MainThread - cameraHandler.py.__init__.64 - WARNING
 Andor EMCCD not initialised.
 'Andor' object has no attribute 'dll'
 
 
-2019/12/17 09:45:13.446 - MainThread - imsaver.py.__init__.73 - WARNING
+2019/12/18 15:15:49.534 - MainThread - imsaver.py.__init__.73 - WARNING
 Could not create image storage path. Using current directory instead
 [WinError 5] Access is denied: 'C:\\Users\\Lab'
 
 
-2019/12/17 09:45:52.269 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/17 09:48:59.250 - Dummy-1 - networker.py.run.118 - ERROR
-Python server: the client terminated the connection. Message not sent.
+2019/12/18 15:16:57.623 - Dummy-1 - networker.py.run.114 - ERROR
+Python server: client terminated connection before send. Resending message.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2019/12/17 09:53:46.540 - MainThread - master.py.closeEvent.341 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 09:56:14.760 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/17 09:56:14.823 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 09:56:14.867 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/17 09:57:01.712 - MainThread - master.py.start_action.277 - WARNING
-Run started without camera acquisition.
-
-
-2019/12/17 09:57:01.751 - MainThread - master.py.end_run.313 - WARNING
-Failed to abort camera acquisition at end of run.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 10:03:35.219 - MainThread - master.py.closeEvent.341 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 10:03:50.529 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/17 10:03:50.588 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 10:03:50.640 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/17 10:10:05.716 - MainThread - master.py.closeEvent.341 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 10:10:20.553 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/17 10:10:20.622 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 10:10:20.667 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/17 10:11:43.836 - Dummy-1 - networker.py.run.119 - ERROR
-Python server: the client terminated the connection. Message not sent.
+2019/12/18 15:16:57.627 - Dummy-1 - networker.py.run.122 - ERROR
+Python server: client terminated connection before receive.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2019/12/17 10:40:26.787 - MainThread - master.py.closeEvent.341 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 10:41:13.120 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/17 10:41:13.176 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 10:41:13.231 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/17 10:41:43.086 - MainThread - translator.py.load_xml.384 - ERROR
-Translator could not load sequence:
-XML or text declaration not at start of entity: line 3, column 27
-
-
-2019/12/17 10:41:51.805 - Dummy-1 - networker.py.run.119 - ERROR
-Python server: the client terminated the connection. Message not sent.
+2019/12/18 15:18:03.014 - Dummy-1 - networker.py.run.114 - ERROR
+Python server: client terminated connection before send. Resending message.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2019/12/17 10:46:13.539 - Dummy-1 - networker.py.run.119 - ERROR
-Python server: the client terminated the connection. Message not sent.
+2019/12/18 15:18:03.018 - Dummy-1 - networker.py.run.122 - ERROR
+Python server: client terminated connection before receive.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2019/12/17 10:46:19.097 - Dummy-1 - networker.py.run.119 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/17 10:46:51.163 - MainThread - translator.py.load_xml.384 - ERROR
-Translator could not load sequence:
-XML or text declaration not at start of entity: line 3, column 27
-
-
-2019/12/17 10:47:15.827 - MainThread - translator.py.load_xml.384 - ERROR
-Translator could not load sequence:
-XML or text declaration not at start of entity: line 3, column 27
-
-
-2019/12/17 10:48:49.922 - MainThread - master.py.closeEvent.341 - WARNING
+2019/12/18 15:20:14.211 - MainThread - master.py.closeEvent.340 - WARNING
 camera safe shutdown failed.
 'Andor' object has no attribute 'dll'
-
-
-2019/12/17 11:10:21.345 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/17 11:10:21.430 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 11:10:21.473 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/17 11:15:09.914 - MainThread - master.py.closeEvent.341 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 11:23:45.566 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/17 11:23:45.629 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 11:23:45.671 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/17 11:27:19.026 - MainThread - master.py.closeEvent.341 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 14:14:41.725 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/17 14:14:41.771 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 14:14:41.807 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
-
-
-2019/12/17 14:15:28.855 - Dummy-1 - networker.py.run.119 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/17 14:40:13.214 - Dummy-1 - networker.py.run.119 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10054] An existing connection was forcibly closed by the remote host
-
-
-2019/12/17 14:41:20.350 - MainThread - master.py.start_action.277 - WARNING
-Run started without camera acquisition.
-
-
-2019/12/17 14:41:20.411 - MainThread - master.py.end_run.313 - WARNING
-Failed to abort camera acquisition at end of run.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 14:45:54.696 - Dummy-1 - networker.py.run.119 - ERROR
-Python server: the client terminated the connection. Message not sent.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2019/12/17 14:50:09.101 - MainThread - master.py.closeEvent.341 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 15:21:58.787 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2019/12/17 15:21:58.844 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2019/12/17 15:21:58.883 - MainThread - imsaver.py.__init__.73 - WARNING
-Could not create image storage path. Using current directory instead
-[WinError 5] Access is denied: 'C:\\Users\\Lab'
 
 

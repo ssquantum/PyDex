@@ -12,17 +12,17 @@ import numpy as np
 from collections import OrderedDict
 from random import shuffle
 try:
-    from PyQt4.QtCore import pyqtSignal, QRegExp
+    from PyQt4.QtCore import pyqtSignal, QItemSelectionModel
     from PyQt4.QtGui import (QPushButton, QWidget, QLabel,
         QGridLayout, QLineEdit, QDoubleValidator, QIntValidator, 
         QComboBox, QListWidget, QTabWidget, QVBoxLayout, QInputDialog,
-        QTableWidget, QTableWidgetItem, QScrollArea) 
+        QTableWidget, QTableWidgetItem, QScrollArea, QMessageBox) 
 except ImportError:
-    from PyQt5.QtCore import pyqtSignal, QRegExp
+    from PyQt5.QtCore import pyqtSignal, QItemSelectionModel
     from PyQt5.QtGui import QDoubleValidator, QIntValidator
     from PyQt5.QtWidgets import (QVBoxLayout, QWidget, QComboBox,
         QLineEdit, QGridLayout, QPushButton, QListWidget, QListWidgetItem, 
-        QScrollArea, QLabel, QTableWidget, QTableWidgetItem)
+        QScrollArea, QLabel, QTableWidget, QTableWidgetItem, QMessageBox)
 import logging
 logger = logging.getLogger(__name__)
 sys.path.append('..')
@@ -48,11 +48,18 @@ class multirun_widget(QWidget):
 
     def __init__(self, tr, nrows=500, ncols=3, order='ascending'):
         super().__init__()
-        self.tr = tr
+        self.tr = tr # translator for the current sequence
+        self.mrtr = tr # translator for multirun sequence
+        self.ind = 0 # index for how far through the multirun we are
         self.types = OrderedDict([('nrows',int), ('ncols',int), 
-            ('order',str), ('nomit',int), ('measure',int), ('measure_prefix',str)])
+            ('order',str), ('# omit',int), ('# hist', int), ('measure',int), ('measure_prefix',str),
+            ('Variable label', str), ('Type', list), ('Analogue type', list),
+            ('Time step name', list), ('Analogue channel', list)])
         self.stats = OrderedDict([('nrows',nrows), ('ncols', ncols),
-            ('order', order), ('nomit',0), ('measure',0), ('measure_prefix','0_')])
+            ('order', order), ('# omit',0), ('# hist', 100), ('measure',0), ('measure_prefix','0_'),
+            ('Variable label', ''), ('Type', ['Time step length']*ncols), 
+            ('Analogue type', ['Fast analogue']*ncols), ('Time step name', [[]]*ncols), 
+            ('Analogue channel', [[]]*ncols)])
         self.init_UI()  # make the widgets
 
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
@@ -95,21 +102,12 @@ class multirun_widget(QWidget):
 
         #### table dimensions and ordering ####
         # choose the number of rows = number of multirun steps
-        _, self.rows_edit = self.make_label_edit('# Rows', self.grid, 
-            position=[0,0, 1,1], default_text=str(nrows), 
-            validator=int_validator)
+        labels = ['# Rows', '# Omit', '# in Hist', '# Columns']
+        default = [str(nrows), '0', '100', str(ncols)]
+        self.rows_edit, self.omit_edit, self.nhist_edit, self.cols_edit = [
+            self.make_label_edit(labels[i], self.grid, [0,2*i, 1,1],
+                default[i], int_validator)[1] for i in range(4)]
         self.rows_edit.textChanged[str].connect(self.change_array_size)
-
-        # choose the number of rows = number of multirun steps
-        _, self.omit_edit = self.make_label_edit('# Omit', self.grid, 
-            position=[0,2, 1,1], default_text='0', 
-            validator=int_validator)
-        self.omit_edit.textChanged[str].connect(self.change_array_size)
-
-        # choose the number of columns = number of channels to change in one step
-        _, self.cols_edit = self.make_label_edit('# Columns', self.grid, 
-            position=[0,4, 1,1], default_text=str(ncols), 
-            validator=int_validator)
         self.cols_edit.textChanged[str].connect(self.change_array_size)
 
         # choose the order
@@ -122,13 +120,15 @@ class multirun_widget(QWidget):
         self.chan_choices = OrderedDict()
         label = QLabel('Variable label', self)
         self.grid.addWidget(label, 1,0, 1,1)
-        self.chan_choices['Variable label'] = QLineEdit(self)
+        self.chan_choices['Variable label'] = QLineEdit('Variable 0', self)
         self.grid.addWidget(self.chan_choices['Variable label'], 2,1, 1,3)
 
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
+        sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
         options = [['Time step length', 'Analogue voltage', 'GPIB'], 
-            [str(i)+': '+hc['Time step name'] for i, hc in enumerate(self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top'])], 
-            ['Fast analogues', 'Slow analogues'],
+            list(map(str.__add__, [str(i) for i in range(len(sht))],
+                [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht])), 
+            ['Fast analogue', 'Slow analogue'],
             self.get_anlg_chans('Fast')]
         widgets = [QComboBox, QListWidget]
         for i in range(0, len(labels)):
@@ -149,6 +149,8 @@ class multirun_widget(QWidget):
             self.col_val_edit.append(self.make_label_edit(labels[i//2], self.grid, 
                 position=[4,i, 1,1], default_text='1', 
                 validator=validators[i//2])[1])
+        # show the previously selected channels for this column:
+        self.col_val_edit[0].textChanged[str].connect(self.set_chan_listbox)
 
         # add the column to the multirun values array
         add_var_button = QPushButton('Add column', self)
@@ -158,17 +160,15 @@ class multirun_widget(QWidget):
         
         # clear the current list of user variables
         clear_vars_button = QPushButton('Clear', self)
-        clear_vars_button.clicked.connect(self.reset_table)
+        clear_vars_button.clicked.connect(self.reset_array)
         clear_vars_button.resize(clear_vars_button.sizeHint())
         self.grid.addWidget(clear_vars_button, 5,1, 1,2)
 
         # start/abort the multirun
         self.multirun_switch = QPushButton('Start multirun', self, checkable=True)
-        self.multirun_switch.clicked[bool].connect(self.multirun_go)
         self.grid.addWidget(self.multirun_switch, 5,3, 1,2)
         # pause/restart the multirun
         self.multirun_pause = QPushButton('Resume', self)
-        self.multirun_pause.clicked.connect(self.multirun_resume)
         self.grid.addWidget(self.multirun_pause, 5,5, 1,2)
 
         # display current progress
@@ -178,7 +178,7 @@ class multirun_widget(QWidget):
 
         # table stores multirun values:
         self.table = QTableWidget(nrows, ncols)
-        self.reset_table()
+        self.reset_array()
         self.grid.addWidget(self.table, 7,0, 20, 12)
     
         scroll.setWidget(scroll_content)
@@ -186,13 +186,28 @@ class multirun_widget(QWidget):
         
     #### #### array editing functions #### #### 
 
-    def reset_table(self):
+    def reset_array(self):
         """Empty the table of all of its values."""
-        self.table.setHorizontalHeaderLabels(list(map(str, range(self.table.columnCount()))))
+        ncols = self.table.columnCount()
+        self.table.setHorizontalHeaderLabels(list(map(str, range(ncols))))
+        self.stats['Type'] = ['Time step length']*ncols
+        self.stats['Analogue type'] = ['Fast analogue']*ncols
+        self.stats['Time step name'] = [[]]*ncols
+        self.stats['Analogue channel'] = [[]]*ncols
+        self.set_chan_listbox(0)
         for i in range(self.table.rowCount()):
-            for j in range(self.table.columnCount()):
+            for j in range(ncols):
                 self.table.setItem(i, j, QTableWidgetItem())
                 self.table.item(i, j).setText('')
+
+    def check_table(self):
+        """Check that there are values in each of the cells of the array
+        and that the total number of runs is divisible by the number of
+        runs per histogram (including omitted runs)."""
+        return (all(self.table.item(i, j).text() 
+                    for i in range(self.table.rowCount()) 
+                    for j in range(self.table.columnCount())) and not 
+                self.table.rowCount() % (self.stats['# omit'] + self.stats['# hist']))
     
     def change_array_size(self):
         """Update the size of the multirun array based on the number of rows
@@ -202,18 +217,32 @@ class multirun_widget(QWidget):
         self.stats['ncols'] = self.types['ncols'](self.cols_edit.text())
         self.table.setColumnCount(self.stats['ncols'])
         self.col_val_edit[0].setValidator(QIntValidator(0,self.stats['ncols']-1))
-        self.reset_table()
+        self.reset_array()
 
     def add_column_to_array(self):
         """Make a list of values and add it to the given column 
-        in the multirun values array. The list is 
-        range(start, stop, step) repeated a set number of times.
-        The list is ordered according to the ComboBox text."""
+        in the multirun values array. The list is range(start, stop, step) 
+        repeated a set number of times, ordered according to the 
+        ComboBox text. The selected channels are stored in lists."""
         if all([x.text() for x in self.col_val_edit]):
             col = int(self.col_val_edit[0].text())
-            # make the list of values with a given order:
-            vals = range(*map(int, [x.text() for x in self.col_val_edit[1:4]]))
+            # store the selected channels
+            self.stats['Variable label'] = self.chan_choices['Variable label'].text()
+            self.stats['# omit'] = int(self.omit_edit.text()) # number of runs to emit per histogram
+            self.stats['# hist'] = int(self.nhist_edit.text()) # number of runs per histogram
+            for key in ['Type', 'Analogue type']:
+                self.stats[key][col] = self.chan_choices[key].currentText()
+            for key in ['Time step name', 'Analogue channel']:
+                self.stats[key][col] = list(map(self.chan_choices[key].row, self.chan_choices[key].selectedItems()))
+            # make the list of values:
+            vals = np.arange(*map(int, [x.text() for x in self.col_val_edit[1:4]]))
             repeats = int(self.col_val_edit[4].text())
+            # check the number of runs per histogram matches up:
+            if repeats != self.stats['# omit'] + self.stats['# hist']:
+                QMessageBox.information(self, 'Check Repeats', 
+                    "The number of repeats doesn't match the number of runs per histogram:\n" +
+                    "repeats = %s != # omitted + # in hist = %s + %s"%(repeats, self.stats['# omit'], self.stats['# hist']))
+            # order the list of values
             if self.order.currentText() == 'descending':
                 vals = reversed(vals)
             elif self.order.currentText() == 'coarse random':
@@ -226,13 +255,38 @@ class multirun_widget(QWidget):
                 vals = [v for v in vals for i in range(repeats)] 
             if self.order.currentText() == 'random':
                 shuffle(vals)
-            for i in range(self.table.rowCount()): # set vals in table cells
-                self.table.item(i, col).setText(str(vals[i]))
+            for i in range(self.table.rowCount()): 
+                try: # set vals in table cells
+                    self.table.item(i, col).setText(str(vals[i]))
+                except IndexError: # occurs if repeats=0 or invalid range
+                    self.table.item(i, col).setText('')
 
     #### multirun channel selection ####
 
+    def set_chan_listbox(self, col):
+        """Set the selected channels and timesteps with the values
+        previously stored for the given column col. If there were
+        no values stored previously or the index is out of range,
+        reset the selection."""
+        try:
+            col = int(col)
+            mrtype = self.stats['Type'][col]
+            antype = self.stats['Analogue type'][col]
+            sel = {'Time step name':self.stats['Time step name'][col],
+                'Analogue channel':self.stats['Analogue channel'][col]}
+        except IndexError:
+            mrtype, antype = 'Time step length', 'Fast analogue'
+            sel = {'Time step name':[], 'Analogue channel':[]}
+        self.chan_choices['Type'].setCurrentText(mrtype)
+        self.chan_choices['Analogue type'].setCurrentText(antype)
+        self.chan_choices['Analogue channel'].setEnabled(True if mrtype=='Analogue voltage' else False)
+        for key in ['Time step name', 'Analogue channel']:
+            self.chan_choices[key].setCurrentRow(0, QItemSelectionModel.Clear) # clear previous selection
+            for i in sel[key]: # select items at the stored indices
+                self.chan_choices[key].setCurrentRow(i, QItemSelectionModel.SelectCurrent)
+        
     def get_anlg_chans(self, speed):
-        """Return a list of labels for the analogue channels.
+        """Return a list of name labels for the analogue channels.
         speed -- 'Fast' or 'Slow'"""
         return [ID+': '+name for ID, name in zip(
             *self.tr.seq_dic['Experimental sequence cluster in'][speed + ' analogue names'].values())]
@@ -257,113 +311,22 @@ class multirun_widget(QWidget):
             self.chan_choices['Analogue channel'].addItems(
                 self.get_anlg_chans(self.chan_choices['Analogue type'].currentText().split(' ')[0]))
 
-    #### multirun ####
-    
-    def multirun_go(self, toggle):
-        """Initiate the multi-run: omit N files, save a histogram of M files, and
-        repeat for the user variables in the list. If the button is pressed during
-        the multi-run, save the current histogram, save the measure file, then
-        return to normal operation"""
-        if toggle and np.size(self.mr['var list']) > 0:
-            self.check_reset()
-            # self.plot_current_hist(self.image_handler.histogram)
-            remove_slot(self.event_im, self.update_plot, False)
-            remove_slot(self.event_im, self.update_plot_only, False)
-            remove_slot(self.event_im, self.image_handler.process, False)
-            if self.multirun_save_dir.text() == '':
-                self.choose_multirun_dir()
-            remove_slot(self.event_im, self.multirun_step, True)
-            self.mr['# omit'] = int(self.omit_edit.text()) # number of files to omit
-            self.mr['# hist'] = int(self.multirun_hist_size.text()) # number of files in histogram                
-            self.mr['o'], self.mr['h'], self.mr['v'] = 0, 0, 0 # counters for different stages of multirun
-            self.mr['prefix'] = self.measure_edit.text() # prefix for histogram files 
-            self.multirun_switch.setText('Abort')
-            self.clear_varplot() # varplot cleared so it only has multirun data
-            self.multirun_progress.setText(       # update progress label
-                'User variable: %s, omit %s of %s files, %s of %s histogram files, 0%% complete'%(
-                    self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
-                    self.mr['h'], self.mr['# hist']))
-        else: # cancel the multi-run
-            self.set_bins() # reconnect the signal
-            self.multirun_switch.setText('Start') # reset button text
-            self.multirun_progress.setText(       # update progress label
-                'Stopped at - User variable: %s, omit %s of %s files, %s of %s histogram files, %.3g%% complete'%(
-                    self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
-                    self.mr['h'], self.mr['# hist'], 100 * ((self.mr['# omit'] + self.mr['# hist']) * 
-                    self.mr['v'] + self.mr['o'] + self.mr['h']) / (self.mr['# omit'] + self.mr['# hist']) / 
-                    np.size(self.mr['var list'])))
-
-    def multirun_resume(self):
-        """If the button is clicked, resume the multi-run where it was left off.
-        If the multirun is already running, do nothing."""
-        if not self.multirun_switch.isChecked(): 
-            self.multirun_switch.setChecked(True)
-            self.multirun_switch.setText('Abort')
-            remove_slot(self.event_im, self.multirun_step, True)
-
-    def multirun_step(self, event_im):
-        """Receive event paths emitted from the system event handler signal
-        for the first '# omit' events, only save the files
-        then for '# hist' events, add files to a histogram,
-        save the histogram 
-        repeat this for the user variables in the multi-run list,
-        then return to normal operation as set by the histogram binning"""
-        self.table.selectRow(n)
-        if self.mr['v'] < np.size(self.mr['var list']):
-            if self.mr['o'] < self.mr['# omit']: # don't process, just copy
-                # self.recent_label.setText('Just omitted image '
-                #     + self.image_handler.stats['File ID'][-1])
-                self.mr['o'] += 1 # increment counter
-            elif self.mr['h'] < self.mr['# hist']: # add to histogram
-                # add the count to the histogram
-                t1 = time.time()
-                # self.image_handler.process(event_im)
-                t2 = time.time()
-                self.int_time = t2 - t1
-                # display the name of the most recent file
-                # self.recent_label.setText('Just processed image '
-                #             + str(self.image_handler.fid))
-                # self.plot_current_hist(self.image_handler.hist_and_thresh) # update the displayed plot
-                self.plot_time = time.time() - t2
-                self.mr['h'] += 1 # increment counter
-
-            if self.mr['o'] == self.mr['# omit'] and self.mr['h'] == self.mr['# hist']:
-                self.mr['o'], self.mr['h'] = 0, 0 # reset counters
-                uv = str(self.mr['var list'][self.mr['v']]) # set user variable
-                self.var_edit.setText(uv) # also updates histo_handler temp vals
-                self.bins_text_edit(text='reset') # set histogram bins 
-                success = self.update_fit(fit_method='check actions') # get best fit
-                if not success:                   # if fit fails, use peak search
-                    # self.histo_handler.process(self.image_handler, uv, 
-                    #     fix_thresh=self.thresh_toggle.isChecked(), method='quick')
-                    print('\nWarning: multi-run fit failed at ' +
-                        self.mr['prefix'] + '_' + str(self.mr['v']) + '.csv')
-                self.save_hist_data(
-                    save_file_name=os.path.join(
-                        self.multirun_save_dir.text(), self.name + self.mr['prefix']) 
-                            + '_' + str(self.mr['v']) + '.csv', 
-                    confirm=False)# save histogram
-                # self.image_handler.reset_arrays() # clear histogram
-                self.mr['v'] += 1 # increment counter
-            
-        if self.mr['v'] == np.size(self.mr['var list']):
-            self.save_varplot(
-                save_file_name=os.path.join(
-                    self.multirun_save_dir.text(), self.name + self.mr['prefix']) 
-                        + '.dat', 
-                confirm=False)# save measure file
-            # reconnect previous signals
-            self.multirun_switch.setChecked(False) # reset multi-run button
-            self.multirun_switch.setText('Start')  # reset multi-run button text
-            self.set_bins() # reconnects signal with given histogram binning settings
-            self.mr['o'], self.mr['h'], self.mr['v'] = 0, 0, 0 # reset counters
-            self.mr['measure'] += 1 # completed a measure successfully
-            self.mr['prefix'] = str(self.mr['measure']) # suggest new measure as file prefix
-            self.measure_edit.setText(self.mr['prefix'])
-
-        self.multirun_progress.setText( # update progress label
-            'User variable: %s, omit %s of %s files, %s of %s histogram files, %.3g%% complete'%(
-                self.mr['var list'][self.mr['v']], self.mr['o'], self.mr['# omit'],
-                self.mr['h'], self.mr['# hist'], 100 * ((self.mr['# omit'] + self.mr['# hist']) * 
-                self.mr['v'] + self.mr['o'] + self.mr['h']) / (self.mr['# omit'] + self.mr['# hist']) / 
-                np.size(self.mr['var list'])))
+    def get_next_sequence(self):
+        """Use the values in the multirun array to make the next
+        sequence to run in the multirun."""
+        row = self.ind
+        self.table.selectRow(row) # display which row the multirun is up to in the table
+        for col in range(self.table.columnCount()): # edit the sequence
+            val = float(self.table.item(row, col).text())
+            if self.stats['Type'][col] == 'Time step length':
+                for head in ['Sequence header top', 'Sequence header middle']:
+                    for t in self.stats['Time step name'][col]:
+                        self.mrtr['Experimental sequence cluster in'][head][t]['Time step length'] = val
+            elif self.stats['Type'][col] == 'Analogue voltage':
+                for t in self.stats['Time step name'][col]:
+                    for c in self.stats['Analogue channel'][col]:
+                        self.mrtr['Experimental sequence cluster in'][
+                            self.stats['Analogue type'] + ' array'][c]['Voltage'][t] = val
+        self.mrtr['Routine name in'] = 'Multirun ' + self.stats['Variable label'] + \
+            ': ' + self.table.item(row, 0).text() + ' (%s / %s)'%(row, self.table.rowCount())
+        return self.mrtr.write_to_str()

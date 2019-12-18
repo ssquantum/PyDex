@@ -1,6 +1,5 @@
 ﻿PyDex
 Version 0.0
-
 A master script manages independent modules for experimental control:
 	• Starts up the camera to receive acquisition triggers from DExTer
 	• Sets multirun to change variables in an experiment
@@ -14,29 +13,153 @@ A master script manages independent modules for experimental control:
 Each module is a Python class that inherits QThread. We use the PyQt signal/slot architecture so that each module can run independently and not hold the other up. 
 
 Included modules:
-	• master
-	Initiates all of the modules and provides an interface to display their respective windows or adjust their settings. Synchronises the run number between modules.
-	• queue
-	Communicates with DExTer: sending commands to load sequences, start a multirun with given variables, facilitate the creation of sequences for an experiment, design experiments that optimise common parameters, and synchronise the run number at the start/end of every run.
-	• ancam
+	• Master (on the main thread)
+	Initiates all of the modules and provides an interface to display their respective windows or adjust their settings. 
+	• Networking (server runs on a separate thread, but some functions remain on the main thread)
+	Communicates with DExTer: sending commands to run/load sequences and synchronise the run number at the start/end of every run.
+	• Andorcamera (runs a separate thread)
 	Control the Andor iXon camera using AndorSDK. Initialise the camera with given acquisition settings. Set the camera running so that it takes acquisitions triggered by DExTer, and then emits the acquired image as an array to be processed and saved. 
-	• savim
+	• Saveimages (runs a separate thread)
 	Python saves image files with a synchronised run number.
-	• saia1
-	Single atom image analysis - has several threads to 1) create histograms, 2) analyse histograms, 3) emit signal of whether there was an atom or not to monitor, and 4) emit signal of the background outside the ROI
-	• monit
+	• Imageanalysis (currently runs on main thread - will want to change this in the future. Perhaps run separate   program and communicate by TCP or file creation)
+	Single atom image analysis - has several threads to 1) create histograms, 2) analyse histograms, 3) control settings like the ROI and multirun across histogram producers, 4) emit signal of whether there was an atom or not to monitor, and 5) emit signal of the background outside the ROI
+	• monitor
 	Takes in the signal from a DAQ to monitor channels like beam powers. Responds to signals of atom presence to and background level to guess if the lasers are still locked.
+	• Sequences
+	Facilitate the creation of sequences for an experiment, start a multirun with given variables, design experiments that optimise common parameters
+	
+#### Master ####
+A master script manages the independent modules:
+	• Initiates camera, image saver, image analysis, and sequences and passes them to the networking manager; runid
+	• Displays current run number and status
+	• Allows the user to check the status of the individual modules and display their windows
+	• Allows the user to choose commands to send to DExTer
+	• In a sequence:
+		○ Initiates the camera acquisition (for several images in one sequence, assume they come chronologically)
+		○ Sends message to run sequence and receives current run number in return: set state running
+		○ Queue message 'TCP read' that will be sent when DExTer opens connection after the sequence
+		○ DExTer triggers the camera to take an image (or several images if re-imaging)
+		○ The camera manager sends a signal with the image array to the image saver and to the image analysis
+		○ Image analysis processes the image, image saver saves the image (separate threads)
+		○ DExTer opens connection and receives 'TCP read' command so that checks that run is finished: set state idle
 
+	
+#### Networking ####
+TCP messages
+To facilitate communication and data processing, fix TCP message format:
+Python -> LabVIEW:
+	• Enum: 4 bytes 32-bit integer. Enum for DExTer's producer-consumer loop
+	• Text length: 4 bytes 32-bit integer. Giving the length of the message to follow so that we know how many bytes to receive (up to 2^32).
+	• Text: string. the message 
+LabVIEW -> Python:
+	• DExTer run number: 4 byte 32-bit unsigned long integer 
+	• Message: A string of length up to buffer_size of bytes (default 1024)
 
-#####  Master  #####
+TCP Communication for a DExTer run/multirun:
+	1. Python says to start run
+	2. DExTer confirms run/multirun has started (set state 'running')
+	3. DExTer confirms run/multirun has ended (set state 'idle')
 
-#####  Queue  #####
+Server/client model:
+Server hosted by master:
+	+ can queue up commands to send
+	+ master can receive messages from modules at any time
+	- master can't check status of module at any time because the module might be busy
+	- the message received from DExTer relates to the previous command: needs a second message to get the response to the command.
+	
+Experimental sequence XML <-> dictionary
+In order to edit sequences in python and LabVIEW, we choose the XML format that can be accessed by both and is clear to read.
+Functions in the translator.py script allow to convert from XML to a python dictionary, which is much less verbose and much easier to edit.
+In Python the sequence is stored in an ordered dictionary where the keys correspond to the names of the clusters/arrays in DExTer. Note: the fast digital channels are stored in lists of lists with shape (# steps, # channels), but the analogue channels are stored in transposed lists of dictionaries of lists with shape (# channels, {voltage:[# steps], ramp?:[# steps]})
 
-#####  Ancam  #####
+Data format:
 
-#####  Savim  #####
+Use lists to store the integrated counts and other statistics from a collection of images. Append another value for each image.
+This is the fastest method given that we can't fix the size of the list (see timeit results below).
 
-#####  Monit  #####
+Images
+ASCII file with first column as the row number 
+
+Histograms 
+csv with header contains last calculated fit and column headings 
+
+Measure file
+Text file with header containing column headings, then rows for each histogram saved.
+
+Andor config settings
+Text file with ordered rows for each setting
+
+Image saving directory settings
+Text file with text labels indicating each setting
+
+Andor camera 
+
+Save images
+
+#### Image Analysis: SAIA ####
+Single atom image analysis: create histograms from collections to images, collect statistics from images and histograms.
+
+A generic Analysis class is used to standardise the structure that all analyses will take. It provides a structure of:
+	• Properties:
+		○ Stats (from an image or from a histogram) - stored as ordered dictionary of lists for clarity and speed.
+		○ Types (one for each stat) - stored as ordered dictionary for clarity 
+	• Methods:
+		○ Process (quickly take stats from a given image/histogram)
+		○ Save
+		○ Load 
+		○ Reset_arrays
+	
+A settings GUI controls the ROIs, bias offset, etc. for all instances. 
+	• load settings from default config file
+	• Reset signals and histograms when the user wants to have a different number of images per run
+
+SAIA image analysis:
+	• Fit a double Guassian function or a continuous approximation to two Poissonian probability disctribution functions.
+	• Use array of histograms for different ROIs.
+	• Implement independent component analysis or 2D Gaussian masks to find ROIs.
+	• Sub class for a single histogram of a given ROI for a given image in a sequence
+	• Sub class for calculating survival probability
+	• Sub class for collections of histograms in a multirun
+	• Sub class for when there's several ROIs
+
+#### Monitor ####
+
+#### Sequences ####
+DExTer sequences were originally stored in binary .seq files. Since these are inaccessible to Python, we choose .xml format instead. These can be converted to python dictionaries which are much simpler to edit, after several long functions reformatting the structure. A generic sequence has the format:
+	• ('Event list array in', [{'Event name', 'Routine specific event?', 'Event indices', 'Event path'}]*number_of_events )
+	• ('Routine name in', ''),
+	• ('Routine description in', ''),
+	• ('Experimental sequence cluster in', 
+		('Sequence header top', [header_cluster]*number_of_steps),
+		('Fast digital names', [{'Hardware ID', 'Name'}]*number_of_fast_digital_channels),
+		('Fast digital channels', [[Bool]*number_of_fast_digital_channels]*number_of_steps),
+		('Fast analogue names', [{'Hardware ID', 'Name'}]*number_of_fast_analogue_channels),
+		('Fast analogue array', [[{'Voltage', 'Ramp?'}]*number_of_steps]
+												*number_of_fast_analogue_channels),
+		('Sequence header middle', [header cluster]*number_of_steps),
+		('Slow digital names', [{'Hardware ID', 'Name'}]*number_of_slow_digital_channels),
+		('Slow digital channels', [[Bool]*number_of_slow_digital_channels]*number_of_steps),
+		('Slow analogue names', [{'Hardware ID', 'Name'}]*number_of_slow_analogue_channels),
+		('Slow analogue array', [[{'Voltage', 'Ramp?'}]*number_of_steps]
+												*number_of_slow_analogue_channels))
+
+Note that the order of indexing between digital and analogue channels is transposed.
+
+	• Translator
+		○ Converts sequences XML <-> python dictionary
+	• Sequence Previewer
+		○ Uses the translator to display a sequence.
+		○ Gives a GUI for creating a multirun array of variables
+
+Multirun 
+A multirun is a series of runs, changing a list of variables in the sequence for each run. The format is as follows:
+	• Create a list of variables to change:
+		○ Type: 'Time step length' or 'Analogue channel'
+		○ List of time steps to change
+		○ Analogue type: 'Fast analogues' or 'Slow analogues' (*)
+		○ List of analogue channels to change (*)
+		○ List of variables to assign to the given channels in the given time steps, one for each run in the multirun.
+*only needed if the type is 'Analogue channel'
 
 #####  SAIA1  ##### - image analysis
 **** Version 1.3 ****

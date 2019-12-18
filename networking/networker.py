@@ -103,21 +103,25 @@ class PyServer(QThread):
                     break # toggle
                 elif len(self.msg_queue):
                     enum, mes_len, message = self.msg_queue.pop(0)
-                    try:
-                        conn, addr = s.accept() # create a new socket
-                        with conn:
+                    conn, addr = s.accept() # create a new socket
+                    with conn:
+                        try:
                             conn.sendall(enum) # send enum
                             conn.sendall(mes_len) # send text length
                             conn.sendall(message) # send text
+                        except (ConnectionResetError, ConnectionAbortedError) as e:
+                            self.msg_queue.insert(0, [enum, mes_len, message]) # this appears to infinitely add the message back...
+                            logger.error('Python server: client terminated connection before message was sent.' +
+                                ' Re-inserting message at front of queue.\n'+str(e))
+                        try:
                             # receive current run number from DExTer as 4 bytes
                             self.dxnum.emit(str(int.from_bytes(conn.recv(4), 'big'))) # long int
                             # receive message from DExTer
                             buffer_size = int.from_bytes(conn.recv(4), 'big')
                             self.textin.emit(str(conn.recv(buffer_size), encoding))
-                    except (ConnectionResetError, ConnectionAbortedError) as e:
-                    #     # self.msg_queue.insert(0, [enum, mes_len, message]) # this appears to inifinitely add the message back...
-                        logger.error('Python server: the client terminated the connection. Message not sent.\n'+str(e))
-            
+                        except (ConnectionResetError, ConnectionAbortedError) as e:
+                            logger.error('Python server: client terminated connection before receive.\n'+str(e))
+                    
     def check_stop(self):
         """Check the value of stop - must be a function in order to work in
         a while loop."""

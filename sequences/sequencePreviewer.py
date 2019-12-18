@@ -15,20 +15,19 @@ with open('filename', 'r') as f:
 import sys
 import numpy as np
 try:
-    from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
-    from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, 
+    from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer, Qt
+    from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel,
         QAction, QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, 
         QFileDialog, QDoubleValidator, QIntValidator, QComboBox, QMenu, 
-        QActionGroup, QTabWidget, QVBoxLayout, QFont, QRegExpValidator, 
-        QInputDialog, QScrollArea) 
+        QActionGroup, QTabWidget, QVBoxLayout, QHBoxLayout, QFont, QRegExpValidator, 
+        QInputDialog, QTableWidget, QTableWidgetItem, QScrollArea) 
 except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
-    from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
-        QFont, QRegExpValidator)
+    from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer, Qt
+    from PyQt5.QtGui import QFont, QIcon
     from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, 
         QTabWidget, QAction, QMainWindow, QLabel, QInputDialog, QGridLayout,
         QMessageBox, QLineEdit, QFileDialog, QComboBox, QActionGroup, QMenu,
-        QVBoxLayout, QScrollArea)
+        QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QScrollArea)
 from translator import translate
 from multirunEditor import multirun_widget
 import logging
@@ -40,7 +39,6 @@ def bl(string):
     This corrects for bool('0')=True."""
     try: return bool(int(string))
     except ValueError: return bool(string)
-
 
 #### #### Edit sequences #### ####
 
@@ -130,20 +128,6 @@ class Previewer(QMainWindow):
         self.init_UI()
         # self.set_sequence() # this function is slow...
 
-    def label_pair(self, label_text, layout, pos1=[0,0, 1,1],
-            pos2=[0,1, 1,1], default_text=''):
-        """Make a QLabel pair and add them to the 
-        given layout . The position argument should
-        be [row number, column number, row width, column width]."""
-        label1 = QLabel(label_text, self)
-        label1.setStyleSheet('border: 1px solid black')
-        label1.setFixedWidth(200)
-        layout.addWidget(label1, *pos1)
-        label2 = QLabel(default_text, self)
-        label2.setStyleSheet('border: 1px solid black')
-        layout.addWidget(label2, *pos2)
-        return label1, label2
-
     def position(self, list0, arr1, i0r, i0c, i1r, i1c, layout,
             step0=1, step1=1, size0=[1,1], size1=[1,1],
             dimn=1, transpose=0):
@@ -171,6 +155,19 @@ class Previewer(QMainWindow):
                     layout.addWidget(widgets[k], 
                         i1r + i*step0, i1c + j*step1 + k, *size1)
             yield label
+    
+    def reset_table(self, table, digital=1):
+        """Set empty table items in all of the cells of the
+        given table. 
+        digital -- 1: Set the background colour red
+                -- 0: Set the text as ''."""
+        for i in range(table.rowCount()):
+            for j in range(table.columnCount()):
+                table.setItem(i, j, QTableWidgetItem())
+                if digital:
+                    table.item(i, j).setBackground(Qt.red)
+                else:
+                    table.item(i, j).setText('')
 
     def init_UI(self):
         """Create all of the widget objects required"""
@@ -192,12 +189,6 @@ class Previewer(QMainWindow):
         load = QAction('Load Sequence', self) 
         load.triggered.connect(self.load_seq_from_file)
         file_menu.addAction(load)
-        prev = QAction('Preview Sequence', self) 
-        prev.triggered.connect(self.load_seq_from_file)
-        file_menu.addAction(prev)
-        loadpre = QAction('Load and Preview Sequence', self) 
-        loadpre.triggered.connect(self.load_seq_from_file)
-        file_menu.addAction(loadpre)
         save = QAction('Save Sequence', self) 
         save.triggered.connect(self.save_seq_file)
         file_menu.addAction(save)
@@ -208,94 +199,92 @@ class Previewer(QMainWindow):
         preview_tab.setLayout(prv_layout)
         scroll_widget = QWidget()
         prv_layout.addWidget(scroll_widget)
-        prv_grid = QGridLayout()
-        scroll_widget.setLayout(prv_grid)
+        prv_vbox = QVBoxLayout()
+        scroll_widget.setLayout(prv_vbox)
         self.tabs.addTab(preview_tab, "Sequence")
 
         # position the widgets on the layout:
-        i=0 # index to separate label positions
         # metadata
-        _, self.routine_name = self.label_pair(
-            'Routine name: ', prv_grid,
-            [i,0, 1,2], [i,2, 1,2*num_s])
-        _, self.routine_desc = self.label_pair(
-            'Routine description: ', prv_grid,
-            [i+1,0, 1,2], [i+1,2, 1,2*num_s])
-        self.routine_desc.setWordWrap(True)
+        self.routine_name = QLabel('', self)
+        self.routine_desc = QLabel('', self)
+        for label, name in [[self.routine_name, 'Routine name: '], 
+                [self.routine_desc, 'Routine description: ']]:
+            layout = QHBoxLayout()
+            title = QLabel('Routine name: ', self)
+            title.setFixedWidth(200)
+            layout.addWidget(title)    
+            label.setStyleSheet('border: 1px solid black')
+            label.setFixedWidth(400)
+            layout.addWidget(label)
+            prv_vbox.addLayout(layout)
 
         # list of event descriptions
-        self.e_list = np.array([[[QLabel(self)] for ii in range(4)] 
-            for iii in range(num_e)]) # event list
-        _ = [x for x in self.position(['Event name: ', 
-            'Routine specific event? ', 'Event indices: ', 'Event path: '], 
-            self.e_list, i0r=i+2, i0c=0, i1r=i+2, i1c=2, size0=[1,2],
-            step1=2, size1=[1,2], layout=prv_grid)]
+        self.e_list = QTableWidget(4, num_e)
+        self.e_list.setVerticalHeaderLabels(['Event name: ', 
+            'Routine specific event? ', 'Event indices: ', 'Event path: '])
+        self.e_list.setFixedHeight(250)
+        self.reset_table(self.e_list, 0)
+        prv_vbox.addWidget(self.e_list)
         
         # event header top 
-        header_items = ['Skip Step: ', 'Event name: ', 'Hide event steps: ', 
+        self.head_top = QTableWidget(14, num_s)
+        self.head_top.setVerticalHeaderLabels(['Skip Step: ', 
+            'Event name: ', 'Hide event steps: ', 
             'Event ID: ', 'Time step name: ', 'Populate multirun: ',
             'Time step length: ', 'Time unit: ', 'D/A trigger: ',
             'Trigger this time step? ', 'Channel: ', 'Analogue voltage (V): ',
-            'GPIB event name: ', 'GPIB on/off? ']
-        i += 7
-        self.head_top = np.array([[[QLabel(self)] for ii in 
-            range(len(header_items))] for iii in range(num_s)])
-        _ = [x for x in self.position(header_items, self.head_top,
-            i0r=i, i0c=0, i1r=i, i1c=2, layout=prv_grid, 
-            size0=[1,2], step1=2, size1=[1,2])]
-            
+            'GPIB event name: ', 'GPIB on/off? '])
+        self.head_top.setFixedHeight(600)
+        self.reset_table(self.head_top, 0)
+        prv_vbox.addWidget(self.head_top)
+          
         # fast digital channels
-        i += len(header_items)
-        fd_head = QLabel('FD', self) 
-        prv_grid.addWidget(fd_head, i,0, 1,1)
-        self.fd_chans = np.array([[[QLabel(self)] for ii in 
-            range(self.tr.nfd)] for iii in range(num_s)])
-        self.fd_names = [x for x in self.position(['']*self.tr.nfd, self.fd_chans,
-            i0r=i+1, i0c=0, i1r=i+1, i1c=2, layout=prv_grid, 
-            step1=2, size1=[1,2])]
-            
+        fd_head = QLabel('Fast Digital', self) 
+        prv_vbox.addWidget(fd_head)
+
+        self.fd_chans = QTableWidget(self.tr.nfd, num_s)
+        self.fd_chans.setFixedHeight(400)
+        self.reset_table(self.fd_chans, 1)
+        prv_vbox.addWidget(self.fd_chans)
+          
         # fast analogue channels
-        i += self.tr.nfd+1
-        fa_head = QLabel('FA', self) 
-        prv_grid.addWidget(fa_head, i,0, 1,1)
-        self.fa_chans = np.array([[[QLabel('0', self), QLabel(self)] for ii in 
-            range(num_s)] for iii in range(self.tr.nfa)]) 
-        self.fa_names = [x for x in self.position(['']*self.tr.nfa, self.fa_chans, i0r=i+1, 
-            i0c=0, i1r=i+1, i1c=2, step1=2, layout=prv_grid, dimn=2,
-            transpose=1)]
-
+        fa_head = QLabel('Fast Analogue', self) 
+        prv_vbox.addWidget(fa_head)
+        self.fa_chans = QTableWidget(self.tr.nfa, num_s*2)
+        self.fa_chans.setFixedHeight(330)
+        self.reset_table(self.fa_chans, 0)
+        prv_vbox.addWidget(self.fa_chans)
+        
         # event header middle
-        i += self.tr.nfa+1
-        self.head_mid = np.array([[[QLabel(self)] for ii in 
-            range(len(header_items))] for iii in range(num_s)])
-        _ = [x for x in self.position(header_items, self.head_mid,
-            i0r=i, i0c=0, i1r=i, i1c=2, layout=prv_grid,
-             size0=[1,2], step1=2, size1=[1,2])]
-
+        self.head_mid = QTableWidget(14, num_s)
+        self.head_mid.setVerticalHeaderLabels(['Skip Step: ', 
+            'Event name: ', 'Hide event steps: ', 
+            'Event ID: ', 'Time step name: ', 'Populate multirun: ',
+            'Time step length: ', 'Time unit: ', 'D/A trigger: ',
+            'Trigger this time step? ', 'Channel: ', 'Analogue voltage (V): ',
+            'GPIB event name: ', 'GPIB on/off? '])
+        self.head_mid.setFixedHeight(560)
+        self.reset_table(self.head_mid, 0)
+        prv_vbox.addWidget(self.head_mid)
+        
         # slow digital channels
-        i += len(header_items)
-        sd_head = QLabel('SD', self) 
-        prv_grid.addWidget(sd_head, i,0, 1,1)
-        self.sd_chans = np.array([[[QLabel(self)] for ii in 
-            range(self.tr.nsd)] for iii in range(num_s)])
-        self.sd_names = [x for x in self.position(['']*self.tr.nsd, self.sd_chans,
-            i0r=i+1, i0c=0, i1r=i+1, i1c=2, layout=prv_grid, 
-            step1=2, size1=[1,2])]
+        sd_head = QLabel('Slow Digital', self) 
+        prv_vbox.addWidget(sd_head)
+
+        self.sd_chans = QTableWidget(self.tr.nsd, num_s)
+        self.sd_chans.setFixedHeight(400)
+        self.reset_table(self.sd_chans, 1)
+        prv_vbox.addWidget(self.sd_chans)
         
         # slow analogue channels
-        i += self.tr.nsd+1
-        sa_head = QLabel('SA', self) 
-        prv_grid.addWidget(sa_head, i,0, 1,1)
-        self.sa_chans = np.array([[[QLabel('0', self), QLabel(self)] for ii in 
-            range(num_s)] for iii in range(self.tr.nsa)])
-        self.sa_names = [x for x in self.position(['']*self.tr.nsa, self.sa_chans, i0r=i+1, 
-            i0c=0, i1r=i+1, i1c=2, step1=2, layout=prv_grid, dimn=2,
-            transpose=1)]
+        sa_head = QLabel('Slow Analogue', self) 
+        prv_vbox.addWidget(sa_head)
 
-        # set default of digital channels to false = red.
-        for chan in np.append(self.fd_chans.flatten(), self.sd_chans.flatten()):
-            chan.setStyleSheet('background-color: red; border: 1px solid black') 
-
+        self.sa_chans = QTableWidget(self.tr.nsa, num_s*2)
+        self.sa_chans.setFixedHeight(400)
+        self.reset_table(self.sa_chans, 0)
+        prv_vbox.addWidget(self.sa_chans)
+        
         # place scroll bars if the contents of the window are too large
         scroll = QScrollArea(self)
         scroll.setWidget(scroll_widget)
@@ -332,12 +321,9 @@ class Previewer(QMainWindow):
         load the sequence and then show it in the previewer."""
         fname = self.try_browse(file_type='XML (*.xml);;all (*)')
         if fname:
-            if self.sender().text() == 'Load Sequence' or self.sender().text() == 'Load and Preview Sequence':
-                self.tr.load_xml(fname)
-            elif self.sender().text() == 'Load and Preview Sequence' or self.sender().text() == 'Preview Sequence':
-                QMessageBox.information(self, 'Setting Sequence...', 'Please be patient as the sequence can take several seconds to load')
-                self.init_UI()
-                self.set_sequence()
+            self.tr.load_xml(fname)
+            self.init_UI()
+            self.set_sequence()
 
     def save_seq_file(self):
         """Open a file dialog to choose a file name to save the current sequence to"""
@@ -353,52 +339,38 @@ class Previewer(QMainWindow):
         self.routine_desc.setText(seq['Routine description in'])
         ela = seq['Event list array in'] # shorthand
         esc = seq['Experimental sequence cluster in']
-        for i in range(self.tr.nfd):
-            name = esc['Fast digital names']['Name'][i] if esc['Fast digital names']['Name'][i] else ''
-            self.fd_names[i].setText(esc['Fast digital names']['Hardware ID'][i]
-                + ': ' + name)
-        for i in range(self.tr.nfa):
-            name = esc['Fast analogue names']['Name'][i] if esc['Fast analogue names']['Name'][i] else ''
-            self.fa_names[i].setText(esc['Fast analogue names']['Hardware ID'][i]
-                + ': ' + name)
-        for i in range(self.tr.nsd):
-            name = esc['Slow digital names']['Name'][i] if esc['Slow digital names']['Name'][i] else ''
-            self.sd_names[i].setText(esc['Slow digital names']['Hardware ID'][i]
-                + ': ' + name)
-        for i in range(self.tr.nsa):
-            name = esc['Slow analogue names']['Name'][i] if esc['Slow analogue names']['Name'][i] else ''
-            self.sa_names[i].setText(esc['Slow analogue names']['Hardware ID'][i]
-                + ': ' + name)
+        self.fd_chans.setVerticalHeaderLabels(map(str.__add__, esc['Fast digital names']['Hardware ID'],
+                [': '+name if name else '' for name in esc['Fast digital names']['Name']]))
+        self.fa_chans.setVerticalHeaderLabels(map(str.__add__, esc['Fast analogue names']['Hardware ID'],
+                [': '+name if name else '' for name in esc['Fast analogue names']['Name']]))
+        self.sd_chans.setVerticalHeaderLabels(map(str.__add__, esc['Slow digital names']['Hardware ID'],
+                [': '+name if name else '' for name in esc['Slow digital names']['Name']]))
+        self.sa_chans.setVerticalHeaderLabels(map(str.__add__, esc['Slow analogue names']['Hardware ID'],
+                [': '+name if name else '' for name in esc['Slow analogue names']['Name']]))
         for i in range(len(ela)):
-            self.e_list[i][0][0].setText(ela[i]['Event name'])
-            self.e_list[i][1][0].setText(str(ela[i]['Routine specific event?']))
-            self.e_list[i][2][0].setText(','.join(map(str, ela[i]['Event indices'])))
-            self.e_list[i][3][0].setText(ela[i]['Event path'])
+            self.e_list.item(0, i).setText(ela[i]['Event name'])
+            self.e_list.item(1, i).setText(str(ela[i]['Routine specific event?']))
+            self.e_list.item(2, i).setText(','.join(map(str, ela[i]['Event indices'])))
+            self.e_list.item(3, i).setText(ela[i]['Event path'])
         for i in range(len(esc['Sequence header top'])):
             for j, key in enumerate(['Skip Step', 'Event name', 'Hide event steps', 
                     'Event ID', 'Time step name', 'Populate multirun', 'Time step length', 
                     'Time unit', 'Digital or analogue trigger?', 'Trigger this time step?', 
                     'Channel', 'Analogue voltage (V)', 'GPIB event name', 'GPIB on/off?']):
-                self.head_top[i][j][0].setText(str(esc['Sequence header top'][i][key]))
-                self.head_mid[i][j][0].setText(str(esc['Sequence header middle'][i][key]))
+                self.head_top.item(j, i).setText(str(esc['Sequence header top'][i][key]))
+                self.head_mid.item(j, i).setText(str(esc['Sequence header middle'][i][key]))
             for j in range(self.tr.nfd):
-                self.fd_chans[i][j][0].setStyleSheet('background-color: '
-                    + 'green' if bl(esc['Fast digital channels'][i][j]) else 'red' 
-                    + '; border: 1px solid black') 
+                self.fd_chans.item(j, i).setBackground(Qt.green if bl(esc['Fast digital channels'][i][j]) else Qt.red)
             for j in range(self.tr.nfa):
-                self.fa_chans[j][i][0].setText(str(esc['Fast analogue array'][j]['Voltage'][i]))
-                self.fa_chans[j][i][1].setText(
+                self.fa_chans.item(j, 2*i).setText(str(esc['Fast analogue array'][j]['Voltage'][i]))
+                self.fa_chans.item(j, 2*i+1).setText(
                     'Ramp' if bl(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
             for j in range(self.tr.nsd):
-                self.sd_chans[i][j][0].setStyleSheet('background-color: '
-                    + 'green' if bl(esc['Slow digital channels'][i][j]) else 'red' 
-                    + '; border: 1px solid black') 
+                self.sd_chans.item(j, i).setBackground(Qt.green if bl(esc['Slow digital channels'][i][j]) else Qt.red)
             for j in range(self.tr.nsa):
-                self.sa_chans[j][i][0].setText(str(esc['Slow analogue array'][j]['Voltage'][i]))
-                self.sa_chans[j][i][1].setText(
+                self.sa_chans.item(j, 2*i).setText(str(esc['Slow analogue array'][j]['Voltage'][i]))
+                self.sa_chans.item(j, 2*i+1).setText(
                     'Ramp' if bl(esc['Slow analogue array'][j]['Ramp?'][i]) else '')
-
-
 
 
     def choose_multirun_dir(self):
