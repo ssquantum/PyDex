@@ -126,35 +126,7 @@ class Previewer(QMainWindow):
         super().__init__()
         self.tr = tr
         self.init_UI()
-        # self.set_sequence() # this function is slow...
-
-    def position(self, list0, arr1, i0r, i0c, i1r, i1c, layout,
-            step0=1, step1=1, size0=[1,1], size1=[1,1],
-            dimn=1, transpose=0):
-        """Generate a new Qlabel with text from list1 and position
-        it in layout at rows j descending down from i0r in steps of
-        step0 at column i0c. The Qlabel will take up 
-        size0 = [rows, columns]. 
-        For each row position widgets from arr1 at row j+i1r 
-        starting from column i1c in steps step1. The widgets take up 
-        size1 = [rows,columns].
-        dimn: arr1 has shape (# steps, # channels, dimn):
-            iterate over the widgets in the last dimension of arr1
-            placing them in successive columns.
-        transpose: arr1 has shape (# channels, # steps, dimn)"""
-        for i, text in enumerate(list0):
-            label = QLabel(text, self)
-            label.setStyleSheet('border: 1px solid black')
-            label.setFixedWidth(200)
-            layout.addWidget(label, i0r + i*step0, i0c, *size0)
-            arr = arr1[:,i] if not transpose else arr1[i]
-            for j, widgets in enumerate(arr):
-                for k in range(dimn):
-                    widgets[k].setStyleSheet('border: 1px solid black')
-                    widgets[k].setFixedWidth(80*size1[1])
-                    layout.addWidget(widgets[k], 
-                        i1r + i*step0, i1c + j*step1 + k, *size1)
-            yield label
+        self.set_sequence()
     
     def reset_table(self, table, digital=1):
         """Set empty table items in all of the cells of the
@@ -178,21 +150,20 @@ class Previewer(QMainWindow):
         self.centre_widget.setLayout(self.centre_widget.layout)
         self.setCentralWidget(self.centre_widget)
         
-        
         num_e = len(self.tr.seq_dic['Event list array in'])
         num_s = len(self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top'])
         menubar = self.menuBar()
 
         # save/load a sequence file
         menubar.clear() # prevents recreating menubar if init_UI() is called again 
-        file_menu = menubar.addMenu('File')
+        seq_menu = menubar.addMenu('Sequence')
         load = QAction('Load Sequence', self) 
         load.triggered.connect(self.load_seq_from_file)
-        file_menu.addAction(load)
+        seq_menu.addAction(load)
         save = QAction('Save Sequence', self) 
         save.triggered.connect(self.save_seq_file)
-        file_menu.addAction(save)
-        
+        seq_menu.addAction(save)
+
         #### tab for previewing sequences ####
         preview_tab = QWidget()
         prv_layout = QVBoxLayout()
@@ -295,12 +266,36 @@ class Previewer(QMainWindow):
         #### tab for multi-run settings ####
         self.mr = multirun_widget(self.tr)
         self.tabs.addTab(self.mr, "Multirun")
+
+        mr_menu = menubar.addMenu('Multirun')
+        mrload = QAction('Load Parameters', self) 
+        mrload.triggered.connect(self.mr.load_mr_params)
+        mr_menu.addAction(mrload)
+        mrsave = QAction('Save Parameters', self) 
+        mrsave.triggered.connect(self.mr.save_mr_params)
+        mr_menu.addAction(mrsave)
         
         # choose main window position and dimensions: (xpos,ypos,width,height)
         self.setGeometry(60, 60, 1000, 800)
         self.setWindowTitle('Sequence Preview')
         self.setWindowIcon(QIcon('docs/previewicon.png'))
 
+
+    def reset_UI(self):
+        """After loading in a new sequence, adjust the UI
+        so that the tables have the right number of rows and columns. """
+        num_e = len(self.tr.seq_dic['Event list array in'])
+        num_s = len(self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top'])
+        for table, rows, cols, dig in [[self.e_list, 4, num_e, 0], [self.head_top, 14, num_s, 0],
+            [self.fd_chans, self.tr.nfd, num_s, 1], [self.fa_chans, self.tr.nfa, num_s*2, 0],
+            [self.head_mid, 14, num_s, 0], [self.sd_chans, self.tr.nsd, num_s, 1],
+            [self.sa_chans, self.tr.nsa, num_s*2, 0]]:
+            table.setRowCount(rows)
+            table.setColumnCount(cols)
+            self.reset_table(table, dig)
+        
+        self.mr.reset_sequence(self.tr)
+        
     def try_browse(self, title='Select a File', file_type='all (*)', 
                 open_func=QFileDialog.getOpenFileName):
         """Open a file dialog and retrieve a file name from the browser.
@@ -322,7 +317,7 @@ class Previewer(QMainWindow):
         fname = self.try_browse(file_type='XML (*.xml);;all (*)')
         if fname:
             self.tr.load_xml(fname)
-            self.init_UI()
+            self.reset_UI()
             self.set_sequence()
 
     def save_seq_file(self):
@@ -376,9 +371,8 @@ class Previewer(QMainWindow):
     def choose_multirun_dir(self):
         """Allow the user to choose the directory where the histogram .csv
         files and the measure .dat file will be saved as part of the multi-run"""
-        default_path = self.get_default_path()
         try:
-            dir_path = QFileDialog.getExistingDirectory(self, "Select Directory", default_path)
+            dir_path = QFileDialog.getExistingDirectory(self, "Select Directory", '')
             self.multirun_save_dir.setText(dir_path)
         except OSError:
             pass # user cancelled - file not found

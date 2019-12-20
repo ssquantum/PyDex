@@ -87,6 +87,7 @@ class Master(QMainWindow):
                 n=startn, m=2, k=0) 
         
         self.rn.server.dxnum.connect(self.Dx_label.setText) # synchronise run number
+        self.rn.server.textin.connect(self.respond) # read TCP messages
         self.status_label.setText('Initialised')
 
     def restore_state(self, file_name='./state'):
@@ -270,56 +271,76 @@ class Master(QMainWindow):
                         the location in the 'Sequence file' label."""
         if self.rn.server.isRunning():
             action_text = self.actions.currentText()
+            # check the queued messages for planned runs
+            qd_runs = sum([bytes('single run', 'mbcs') in msg[2] or bytes('multirun', 'mbcs') 
+                            in msg[2] for msg in self.rn.server.msg_queue])
             if action_text == 'Run sequence':
-                if self.rn.cam.initialised:
-                    self.rn.cam.start() # start acquisition
-                else: logger.warning('Run %s started without camera acquisition.'%self.rn._n)
-                self.rn.server.add_message(TCPENUM[action_text], 'single run')
-                self.status_label.setText('Running current sequence')
-                # queue up a message to be received when the run finishes
-                # this will trigger end_run to stop the camera acquisition
-                remove_slot(signal=self.rn.server.textin, 
-                            slot=self.end_run, reconnect=True)
-                self.rn.server.add_message(TCPENUM['TCP read'], 'run finished') 
+                # queue up messages: start acquisition, run sequence, then confirm finished
+                self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition') 
+                self.rn.server.add_message(TCPENUM[action_text], 'single run '+str(self.rn._n + qd_runs))
+                # this will trigger end_run to stop the camera acquisition:
+                self.rn.server.add_message(TCPENUM['TCP read'], 'run finished '+str(self.rn._n + qd_runs)) 
             elif action_text == 'Multirun run':
-                if self.rn.cam.initialised:
-                    self.rn.cam.start() # start acquisition
-                else: logger.warning('Run %s started without camera acquisition.'%self.rn._n)
-                self.rn.server.add_message(TCPENUM[action_text], 'multirun')
-                self.status_label.setText('Running multirun measure ')
-                remove_slot(signal=self.rn.server.textin, 
-                            slot=self.end_run, reconnect=True)
-                self.rn.server.add_message(TCPENUM['TCP read'], 'run finished') 
+                self.rn.server.add_message(TCPENUM['TCP read'], 'start measure '+self.rn.seq.mr.stats['measure'])
+            elif action_text == 'Resume multirun':
+                self.rn.multirun_resume(self.status_label.text())
+            elif action_text == 'Pause multirun':
+                if 'multirun' in self.status_label.text():
+                    self.rn.multirun_go(False)
+            elif action_text == 'Cancel multirun':
+                if 'multirun' in self.status_label.text():
+                    self.rn.multirun_go(False)
+                    self.rn.seq.mr.ind = 0
+                    self.rn.seq.mr.reset_sequence(self.rn.seq.tr)
             elif action_text == 'TCP load sequence from string':
                 self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.seq_txt)
             elif action_text == 'TCP load sequence':
-                self.rn.server.add_message(TCPENUM[action_text], 
-                    self.seq_edit.text())
+                self.rn.server.add_message(TCPENUM[action_text], self.seq_edit.text())
             elif action_text == 'Cancel Python Mode':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off')
-            
+
+    def respond(self, msg=''):
+        """Read the text from a TCP message and then execute the appropriate function."""
+        if 'run finished' in msg:
+            self.end_run(msg)
+        elif 'start acquisition' in msg:
+            if self.rn.cam.initialised:
+                self.rn.cam.start() # start acquisition
+            else: logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
+        elif 'single run' in msg:
+            self.status_label.setText('Running current sequence')
+        elif 'start measure' in msg:
+            remove_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
+            if self.rn.cam.initialised:
+                self.rn.cam.start() # start acquisition
+            else: logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
+            self.rn.multirun_go(msg)
+        elif 'multirun run' in msg:
+            self.rn.multirun_step(msg)
+        elif 'end multirun' in msg:
+            remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
+            self.end_run(msg)
+                
     def end_run(self, msg=''):
         """At the end of a single run or a multirun, stop the acquisition,
         check for unprocessed images, and check synchronisation.
         First, disconnect the server.textin signal from this slot to it
         only triggers once."""
-        if msg == 'run finished':
-            remove_slot(signal=self.rn.server.textin, slot=self.end_run, reconnect=False)
-            # try:
-            #     unprocessed = self.rn.cam.EmptyBuffer()
-            #     self.rn.cam.AF.AbortAcquisition()
-            # except Exception as e: 
-            #     logger.warning('Failed to abort camera acquisition at end of run.\n'+str(e))
-            # if unprocessed:
-            #     reply = QMessageBox.question(self, 'Unprocessed Images',
-            # "Process the remaining %s images from the buffer?"%len(unprocessed), 
-            #         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            #     if reply == QMessageBox.Yes:
-            #         for im in unprocessed:
-            #             # image dimensions: (# kscans, width pixels, height pixels)
-            #             self.rn.receive(im[0]) 
-            self.rn.synchronise()
-            self.status_label.setText('Idle')
+        try:
+            unprocessed = self.rn.cam.EmptyBuffer()
+            self.rn.cam.AF.AbortAcquisition()
+        except Exception as e: 
+            logger.warning('Failed to abort camera acquisition at end of run.\n'+str(e))
+        # if unprocessed:
+        #     reply = QMessageBox.question(self, 'Unprocessed Images',
+        # "Process the remaining %s images from the buffer?"%len(unprocessed), 
+        #         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        #     if reply == QMessageBox.Yes:
+        #         for im in unprocessed:
+        #             # image dimensions: (# kscans, width pixels, height pixels)
+        #             self.rn.receive(im[0]) 
+        self.rn.synchronise()
+        self.status_label.setText('Idle')
 
             
     def save_state(self, file_name='./state'):

@@ -594,9 +594,8 @@ class main_window(QMainWindow):
         """Use the histo_handler.process function to get histogram
         statistics and a best fit from the current data."""
         if fit_method == 'check action' or self.sender().text() == 'Get best fit':
-            action = self.fit_options.checkedAction()
-            if action:
-                fit_method = action.text()
+            try: fit_method = self.fit_options.checkedAction().text()
+            except AttributeError: fit_method = 'quick'
         elif self.sender().text() == 'Update statistics':
             fit_method = 'quick'
         return self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 

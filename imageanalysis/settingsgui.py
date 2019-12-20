@@ -58,8 +58,8 @@ class settings_window(QMainWindow):
         self.rw = [] # re-image analysis instances
         self.rw_inds = [] # which saia instances are used for the re-image instances
         if np.size(self.mw) >= nreim*2:
-            self.rw = [reim_window([self.mw[2*i].image_handler, self.mw[2*i+1].image_handler],
-                results_path, im_store_path, str(i)) for i in range(nreim)]
+            self.rw = [reim_window(self.mw[2*i].event_im, [self.mw[2*i].image_handler, self.mw[2*i+1].image_handler],
+                results_path, im_store_path, 'RW'+str(i)) for i in range(nreim)]
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(nreim)]
         self.init_UI()  # make the widgets
 
@@ -375,7 +375,7 @@ class settings_window(QMainWindow):
     def check_reset(self):
         """Ask the user if they would like to reset the current data stored"""
         reply = QMessageBox.question(self, 'Confirm Data Replacement',
-            "Do you want to discard the current data?", 
+            "Do you want to discard all the current data?", 
             QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.Cancel)
         if reply == QMessageBox.Cancel:
             return 0

@@ -61,16 +61,20 @@ class event_handler(PyDexThread):
         self.dirs_dict = self.get_dirs(config_file) # handy dict contains them all
         self.image_storage_path = self.dirs_dict['Image Storage Path: ']
         self.dexter_sync_file_name = self.dirs_dict['Dexter Sync File: ']
+        self.results_path = self.dirs_dict['Results Path: ']
         if self.image_storage_path: # =0 if get_dirs couldn't find config.dat, else continue
             # get the date to be used for file labeling
             self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
-            self.image_storage_path += r'\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])
-            # create image storage directory by date if it doesn't already exist
-            try:
-                os.makedirs(self.image_storage_path, exist_ok=True) # requies version > 3.2
-            except PermissionError as e: 
-                os.makedirs(r'.\%s\%s\%s'%(self.date[3],self.date[2],self.date[0]), exist_ok=True) 
-                logger.warning('Could not create image storage path. Using current directory instead\n'+str(e))
+            datepath = r'\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])
+            paths = [self.image_storage_path, self.results_path]
+            for i in range(len(paths)):
+                paths[i] += datepath
+                try: # create directory by date if it doesn't already exist
+                    os.makedirs(paths[i], exist_ok=True) # requies version > 3.2
+                except PermissionError as e: 
+                    paths[i] = '.' + datepath
+                    os.makedirs(paths[i], exist_ok=True) 
+                    logger.warning('Could not create image storage path. Using current directory instead\n'+str(e))
 
     @staticmethod # static method can be accessed without making an instance of the class
     def get_dirs(config_file='./config/config.dat'):

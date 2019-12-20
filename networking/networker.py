@@ -76,14 +76,21 @@ class PyServer(QThread):
         self.msg_queue = []
         
     def add_message(self, enum, text, encoding="mbcs"):
-        """Update the message that will be sent upon the next connection.
+        """Append a message to the queue that will be sent by TCP connection.
         enum - (int) corresponding to the enum for DExTer's producer-
                 consumer loop.
-        text - (str) the message to send."""
-        # enum and message length are sent as unsigned long int (4 bytes)
+        text - (str) the message to send.
+        enum and message length are sent as unsigned long int (4 bytes)."""
         self.msg_queue.append([struct.pack("!L", int(enum)), # enum 
                                 struct.pack("!L", len(bytes(text, encoding))), # msg length 
                                 bytes(text, encoding)]) # message
+
+    def priority_messages(self, message_list, encoding="mbcs"):
+        """Add messages to the start of the message queue.
+        message_list - list of [enum (int), text(str)] pairs."""
+        self.msg_queue = [[struct.pack("!L", int(enum)), # enum 
+                            struct.pack("!L", len(bytes(text, encoding))), # msg length 
+                            bytes(text, encoding)] for enum, text in message_list] + self.msg_queue
 
     def run(self, encoding="mbcs"):
         """Keeps a socket open that waits for new connections. For each new
@@ -110,7 +117,7 @@ class PyServer(QThread):
                             conn.sendall(mes_len) # send text length
                             conn.sendall(message) # send text
                         except (ConnectionResetError, ConnectionAbortedError) as e:
-                            self.msg_queue.insert(0, [enum, mes_len, message]) # this appears to infinitely add the message back...
+                            self.msg_queue.insert(0, [enum, mes_len, message]) # check this doesn't infinitely add the message back
                             logger.error('Python server: client terminated connection before message was sent.' +
                                 ' Re-inserting message at front of queue.\n'+str(e))
                         try:

@@ -15,7 +15,8 @@ setup(name = 'PyDex',
                             'pyqt5>=5.7.1-1',
                             'xmltodict>=0.12.0',
                             'nidaqmx>=0.5.7-1',
-                            'pywin32>=220.0.0-4'],
+                            'pywin32>=220.0.0-4',
+                            're>=2.2.1'],
         # tests_require=['pytest','setuptools>=26'],
         # package_data = {
         #     # If any package contains *.txt or *.rst files, include them:

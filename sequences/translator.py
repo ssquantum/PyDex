@@ -356,7 +356,8 @@ class translate:
                 ('Slow analogue names',channel_names(self.nsa)),
                 ('Slow analogue array',[analogue_cluster(num_s)]*self.nsa)])
             )])
-        self.seq_txt = self.write_to_str() # also store as string for quick reference
+        self.seq_txt = ''
+        self.write_to_str() # also store sequence as string for quick reference
         if fname:
             self.load_xml(fname)
 
@@ -371,10 +372,12 @@ class translate:
                 + "</LVData>")
         
     def write_to_str(self):
-        """Return the current sequence in the dictionary
-        in XML string format specified by LabVIEW"""
-        return reformat(xmltodict.unparse(wrap_sequence(self.seq_dic))).replace(
+        """Store the current sequence in the dictionary
+        in XML string format specified by LabVIEW and
+        return this string."""
+        self.seq_txt = reformat(xmltodict.unparse(wrap_sequence(self.seq_dic))).replace(
                             '<?xml version="1.0" encoding="utf-8"?>\n', '')
+        return self.seq_txt
 
     def load_xml(self, fname='sequence_example.xml'):
         """Load a sequence as a dictionary from an xml file."""
@@ -382,7 +385,7 @@ class translate:
             with open(fname, 'r') as f:
                 whole_dict = xmltodict.parse(f.read())
                 self.seq_dic = strip_sequence(whole_dict)
-                self.seq_txt = self.write_to_str()
+                self.write_to_str()
         except (FileNotFoundError, xml.parsers.expat.ExpatError) as e: 
             logger.error('Translator could not load sequence:\n'+str(e))
 

@@ -31,17 +31,18 @@ class reim_window(main_window):
     Use Qt to produce the window where the histogram plot is shown.
     A simple interface allows the user to close or open the displays from
     the two instances of SAIA. Separate tabs are made for 
-    settings, multirun options, the histogram, histogram statistics,
+    settings, the histogram, histogram statistics,
     displaying images, and plotting histogram statistics.
     This GUI was produced with help from http://zetcode.com/gui/pyqt5/.
     Keyword arguments:
+    signal        -- the pyqtSignal that is used to trigger updates
     imhandlers    -- list of two instances of image_handler analysis classes.
     results_path  -- directory to save log file and results to.
     im_store_path -- the directory where images are saved.
     name          -- an ID for this window, prepended to saved files.
-    signal        -- the signal that is used to trigger updates"""
-    def __init__(self, imhandlers=[], results_path='.', im_store_path='.',
-            name='', signal=pyqtSignal(np.ndarray)):
+    """
+    def __init__(self, signal, imhandlers=[], results_path='.', im_store_path='.',
+            name=''):
         super().__init__(results_path=results_path, 
                         im_store_path=im_store_path, name=name)
         self.adjust_UI() # adjust widgets from main_window
