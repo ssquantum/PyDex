@@ -1,4 +1,0 @@
-Multirun list of variables:
-2.4,1.35;2.4499999999999997,1.33;2.5,1.32;2.55,1.31;2.5999999999999996,1.28;2.65,1.33;2.6999999999999997,1.4;2.75,1.45;2.8,1.5
-measure; measure_prefix; Variable label; Type; Analogue type; Time step name; Analogue channel; runs included; # omitted; # in hist
-0;Meas0_;Cool Frequency;[['Analogue voltage', ' Analogue voltage']];[['Fast analogue', ' Fast analogue']];[[7, 8, 9], [7, 8, 9]];[[0], [4]];[[], [], [], [], [], [], [], [], []];20;300

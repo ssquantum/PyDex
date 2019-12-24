@@ -34,7 +34,7 @@ from mythread import remove_slot # for dis- and re-connecting slots
 def strlist(text):
     """Convert a string of a list of strings back into
     a list of strings."""
-    return [text[1:-1].replace("'","").split(', ')]
+    return list(text[1:-1].replace("'","").split(', '))
 
 def intstrlist(text):
     """Convert a string of a list of ints back into a list:
@@ -330,8 +330,11 @@ class multirun_widget(QWidget):
             self.chan_choices[key].setCurrentRow(0, QItemSelectionModel.Clear) # clear previous selection
             try:
                 for i in sel[key]: # select items at the stored indices
-                    self.chan_choices[key].item(sel[key]).setSelected(True)
+                    self.chan_choices[key].item(i).setSelected(True)
             except IndexError: pass # perhaps sequence was updated but using old selection indices
+            except AttributeError as e: 
+                logger.warning("Couldn't set channels for the loaded multirun parameters." + 
+                    " Load the sequence first, then load multirun parameters.\n"+str(e))
         
     def get_anlg_chans(self, speed):
         """Return a list of name labels for the analogue channels.
@@ -455,3 +458,5 @@ class multirun_widget(QWidget):
             self.rows_edit.setText(str(nrows)) # triggers change_array_size
             self.cols_edit.setText(str(ncols))
             self.reset_array(vals)
+            self.omit_edit.setText(str(self.nomit))
+            self.nhist_edit.setText(str(self.nhist))

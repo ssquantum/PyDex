@@ -62,11 +62,12 @@ class event_handler(PyDexThread):
         self.image_storage_path = self.dirs_dict['Image Storage Path: ']
         self.dexter_sync_file_name = self.dirs_dict['Dexter Sync File: ']
         self.results_path = self.dirs_dict['Results Path: ']
+        self.sequences_path = self.dirs_dict['Sequences path: ']
         if self.image_storage_path: # =0 if get_dirs couldn't find config.dat, else continue
             # get the date to be used for file labeling
             self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
             datepath = r'\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])
-            paths = [self.image_storage_path, self.results_path]
+            paths = [self.image_storage_path, self.results_path, self.sequences_path]
             for i in range(len(paths)):
                 paths[i] += datepath
                 try: # create directory by date if it doesn't already exist
@@ -74,20 +75,21 @@ class event_handler(PyDexThread):
                 except PermissionError as e: 
                     paths[i] = '.' + datepath
                     os.makedirs(paths[i], exist_ok=True) 
-                    logger.warning('Could not create image storage path. Using current directory instead\n'+str(e))
+                    logger.warning('Image saver could not create directory. Using current directory instead\n'+str(e))
 
     @staticmethod # static method can be accessed without making an instance of the class
     def get_dirs(config_file='./config/config.dat'):
         """Load the paths used from the config.dat file or prompt user if 
         it can't be found"""
-        image_storage_path, dexter_sync_file_name, results_path = '', '', ''
+        image_storage_path, dexter_sync_file_name = '', ''
+        sequences_path, results_path = '', ''
         # load config file for directories or prompt user if first time setup
         try:
             with open(config_file, 'r') as config_file:
                 config_data = config_file.read().split("\n")
         except (FileNotFoundError, OSError):
             print("config.dat file not found. This file is required for directory references.")
-            return {'Image Storage Path: ':'', 'Dexter Sync File: ':'','Results Path: ':''}
+            return {'Image Storage Path: ':'', 'Dexter Sync File: ':'','Results Path: ':'', 'Sequences path: ':''}
         for row in config_data:
             if "image storage path" in row:
                 image_storage_path = row.split('=')[-1] # where image files are saved
@@ -95,9 +97,12 @@ class event_handler(PyDexThread):
                 dexter_sync_file_name = row.split('=')[-1] # where the txt from Dexter with the latest file # is saved
             elif "results path" in row:
                 results_path = row.split('=')[-1]   # where csv files and histograms will be saved
+            elif 'sequences path' in row:
+                sequences_path = row.split('=')[-1] # where sequence xml files will be saved
         return {'Image Storage Path: ':image_storage_path,
                 'Dexter Sync File: ':dexter_sync_file_name,
-                'Results Path: ':results_path}
+                'Results Path: ':results_path,
+                'Sequences path: ':sequences_path}
         
     @staticmethod
     def print_dirs(dict_items):

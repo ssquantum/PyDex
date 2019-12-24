@@ -320,6 +320,8 @@ class Master(QMainWindow):
         elif 'end multirun' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
             self.end_run(msg)
+        elif 'TCP load sequence' in msg: # auto save any sequence that was sent to be loaded (even if it was already an xml file)
+            self.seq.save_seq_file(os.path.join(self.rn.sv.sequences_path, str(self._n) + time.strftime('_%d %B %Y_%H %M %S') + '.xml'))
                 
     def end_run(self, msg=''):
         """At the end of a single run or a multirun, stop the acquisition,

@@ -29,6 +29,7 @@ class runnum(QThread):
     camra - an instance of ancam.cameraHandler.camera
     saver - an instance of savim.imsaver.event_handler
     saiaw - an instance of settingsgui.settings_window
+    seq   - an instance of sequencePreviewer.Previewer
     n     - the initial run ID number
     m     - the number of images taken per sequence
     k     - the number of images taken already"""

@@ -311,20 +311,19 @@ class Previewer(QMainWindow):
             return file_name
         except OSError: return '' # probably user cancelled
 
-    def load_seq_from_file(self):
-        """Open a file dialog to choose a file to load a new sequence from, 
-        load the sequence and then show it in the previewer."""
-        fname = self.try_browse(file_type='XML (*.xml);;all (*)')
+    def load_seq_from_file(self, fname=''):
+        """Choose a file name, load the sequence and then show it in the previewer."""
+        if not fname: fname = self.try_browse(file_type='XML (*.xml);;all (*)')
         if fname:
             self.tr.load_xml(fname)
             self.reset_UI()
             self.set_sequence()
 
-    def save_seq_file(self):
-        """Open a file dialog to choose a file name to save the current sequence to"""
-        if fname:
-            fname = self.try_browse(title='Choose a file name', 
+    def save_seq_file(self, fname=''):
+        """Save the current sequence to an xml file."""
+        if not fname: fname = self.try_browse(title='Choose a file name', 
                 file_type='XML (*.xml);;all (*)', open_func=QFileDialog.getSaveFileName)
+        if fname:
             self.tr.write_to_file(fname)
 
     def set_sequence(self):
