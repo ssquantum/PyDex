@@ -53,8 +53,10 @@ class settings_window(QMainWindow):
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.results_path = results_path # used for saving results
         self.image_storage_path = im_store_path # used for loading image files
-        self._m = nsaia # number of images per run = number of SAIA instances
+        self._m = nsaia # number of images per run 
+        self._a = nsaia # number of SAIA instances
         self.mw = [main_window(results_path, im_store_path, str(i)) for i in range(nsaia)] # saia instances
+        self.mw_inds = list(range(nsaia)) # the index, m, of the image in the sequence to use 
         self.rw = [] # re-image analysis instances
         self.rw_inds = [] # which saia instances are used for the re-image instances
         if np.size(self.mw) >= nreim*2:
@@ -77,6 +79,8 @@ class settings_window(QMainWindow):
         self.setCentralWidget(self.centre_widget)
         
         # validators for user input
+        semico_validator = QRegExpValidator(QRegExp(r'((\d+,\d+);?)+')) # ints, semicolons and commas
+        comma_validator = QRegExpValidator(QRegExp(r'([0-%s]+,?)+'%(self._m-1))) # ints and commas
         double_validator = QDoubleValidator() # floats
         int_validator = QIntValidator()       # integers
 
@@ -116,7 +120,7 @@ class settings_window(QMainWindow):
         settings_grid = QGridLayout()
         settings_tab.setLayout(settings_grid)
         
-        # choose the number of image per run = number of SAIA instances
+        # choose the number of image per run 
         m_label = QLabel('Number of images per run: ', self)
         settings_grid.addWidget(m_label, 0,0, 1,1)
         self.m_edit = QLineEdit(self)
@@ -124,12 +128,29 @@ class settings_window(QMainWindow):
         self.m_edit.setText(str(self._m)) # default
         self.m_edit.setValidator(int_validator)
 
-        # choose the number of image per run = number of SAIA instances
+        # choose the number of SAIA instances
+        a_label = QLabel('Number of image analysers: ', self)
+        settings_grid.addWidget(a_label, 0,2, 1,1)
+        self.a_edit = QLineEdit(self)
+        settings_grid.addWidget(self.a_edit, 0,3, 1,1)
+        self.a_edit.setText(str(self._a)) # default
+        self.a_edit.setValidator(int_validator)
+
+        # choose which histogram to use for survival probability calculations
+        aind_label = QLabel('Image indices for analysers: ', self)
+        settings_grid.addWidget(aind_label, 1,0, 1,1)
+        self.a_ind_edit = QLineEdit(self)
+        settings_grid.addWidget(self.a_ind_edit, 1,1, 1,1)
+        self.a_ind_edit.setText(', '.join(self.mw_inds)) # default
+        self.a_ind_edit.setValidator(comma_validator)
+
+        # choose which histogram to use for survival probability calculations
         reim_label = QLabel('Histogram indices for re-imaging: ', self)
-        settings_grid.addWidget(reim_label, 1,0, 1,1)
+        settings_grid.addWidget(reim_label, 2,0, 1,1)
         self.reim_edit = QLineEdit(self)
-        settings_grid.addWidget(self.reim_edit, 1,1, 1,1)
+        settings_grid.addWidget(self.reim_edit, 3,1, 1,1)
         self.reim_edit.setText('; '.join(self.rw_inds)) # default
+        self.reim_edit.setValidator(semico_validator)
 
         # get user to set the image size in pixels
         size_label = QLabel('Image size in pixels: ', self)
@@ -256,8 +277,8 @@ class settings_window(QMainWindow):
 
     def set_all_windows(self, action=None):
         """Find which of the binning options and fit methods is checked 
-        and apply this to all ofthe image analysis windows."""
-        for mw in self.mw[:self._m] + self.rw[:len(self.rw_inds)]:
+        and apply this to all of the image analysis windows."""
+        for mw in self.mw[:self._a] + self.rw[:len(self.rw_inds)]:
             for i in range(len(self.bin_actions)):
                 mw.bin_actions[i].setChecked(self.bin_actions[i].isChecked())
             mw.set_bins()
@@ -421,7 +442,7 @@ class settings_window(QMainWindow):
     
     def show_analyses(self):
         """Display the instances of SAIA, filling the screen"""
-        for i in range(self._m):
+        for i in range(self._a):
             self.mw[i].setGeometry(40+i//self._m*800, 100, 850, 700)
             self.mw[i].show()
         for i in range(len(self.rw_inds)):
@@ -434,27 +455,44 @@ class settings_window(QMainWindow):
             mw.hard_reset() # wipes clean the data
             mw.close() # closes the display
         
-        m = int(self.m_edit.text())
-        if m != self._m: # make sure there are the right numer of main_window instances
-            if m > self._m:
-                for i in range(self._m, m):
-                    self.mw.append(main_window(self.results_path, self.image_storage_path, str(i)))
-            self._m = m
+        m, a = map(int, [self.m_edit.text(), self.a_edit.text()])
+        self._m = m
+        # make sure there are the right numer of main_window instances
+        if a > self._a:
+            for i in range(self._a, a):
+                self.mw.append(main_window(self.results_path, self.image_storage_path, str(i)))
+                self.mw_inds.append(i if i < m else m)
+        self._a = a
         for mw in self.mw:
             mw.swap_signals() # reconnect signals
+
+        ainds = []
+        try: # set which images in the sequence each image analyser will use.
+            ainds = list(map(int, self.a_ind_edit.text().split(',')))
+        except ValueError as e:
+            logger.warning('Invalid syntax for image analysis indices: '+self.a_ind_edit.text()+'\n'+str(e))
+            self.a_ind_edit.setText(', '.join(self.mw_inds))
+        if len(ainds) != self._a: 
+            logger.warning('Warning: there are %s image indices for the %s image analysers.\n'%(len(ainds), self._a)+str(e))
+        for i, a in enumerate(ainds):
+            try: self.mw_inds[i] = a
+            except IndexError as e: 
+                logger.warning('Cannot set image index for image analyser %s.\n'%i+str(e))
+
+        self.a_ind_edit.setValidator(QRegExpValidator(QRegExp(r'([0-%s]+,?)+'%(self._m-1))))
 
         rinds = self.reim_edit.text().split(';') # indices of SAIA instances used for re-imaging
         for i in range(len(rinds)): # check the list input from the user has the right syntax
             try: 
                 j, k = map(int, rinds[i].split(','))
-                if j >= self._m or k >= self._m:
+                if j >= self._a or k >= self._a:
                     rind = rinds.pop(i)
                     logger.warning('Invalid histogram indices for re-imaging: '+rind)
             except ValueError as e:
                 rind = rinds.pop(i)
                 logger.error('Invalid syntax for re-imaging histogram indices: '+rind+'\n'+str(e))    
             except IndexError:
-                pass # since we're popping elements from the list its length shortens
+                break # since we're popping elements from the list its length shortens
         self.rw_inds = rinds
         
         for i in range(min(len(self.rw_inds), len(self.rw))): # update current re-image instances

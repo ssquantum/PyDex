@@ -129,22 +129,22 @@ class event_handler(PyDexThread):
             last_file_size = os.path.getsize(file_name)
             time.sleep(dt) # deliberately add pause so we don't loop too many times
 
-    def process(self, im_array, species='Cs-133'):
+    def process(self, im_array, label='Im'):
         """On a new image signal being emitted, save it to a file with a 
         synced label into the image storage dir. File name format:
-        [species]_[date]_[Dexter file #].asc
+        [label]_[date]_[Dexter file #].asc
         """
         self.t0 = time.time()
         self.idle_t = self.t0 - self.end_t   # duration between end of last event and start of current event
-        # copy file with labeling: [species]_[date]_[Dexter file #]
+        # copy file with labeling: [label]_[date]_[Dexter file #]
         new_file_name = os.path.join(self.image_storage_path, 
-                '_'.join([species, 
+                '_'.join([label, 
                         self.date[0]+self.date[1]+self.date[3], 
                         self.dfn, self.imn]) + '.asc')
         self.write_t = time.time()
         if os.path.isfile(new_file_name): # don't overwrite files
             new_file_name = os.path.join(self.image_storage_path, 
-                '_'.join([species, 
+                '_'.join([label, 
                         self.date[0]+self.date[1]+self.date[3], 
                         self.dfn, self.imn, str(self.nfn)]) + '.asc')
             self.nfn += 1 # always a unique number

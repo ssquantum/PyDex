@@ -18,6 +18,12 @@ from networker import PyServer, remove_slot, TCPENUM
 import logging
 logger = logging.getLogger(__name__)
 
+def find(target, myList):
+    """Generate the indices there target is found in myList."""
+    for i in range(len(myList)):
+        if myList[i] == target:
+            yield i
+
 class runnum(QThread):
     """Take ownership of the run number that is
     synchronised between modules of PyDex.
@@ -44,7 +50,8 @@ class runnum(QThread):
         self.cam = camra # Andor camera control
         self.cam.AcquireEnd.connect(self.receive) # receive the most recent image
         self.sv = saver  # image saver
-        self.im_save.connect(self.sv.add_item) # separate signal to avoid interfering
+        self.im_save.connect(self.sv.add_item) # separate signal to avoid risk of the slot being disconnected elsewhere
+        self.sv.start()  # constantly checks queue, when an image to save is added to the queue, it saves it to a file.
         self.sw = saiaw  # image analysis settings gui
         self.sw.m_changed.connect(self.set_m)
         self.seq = seq   # sequence editor
@@ -89,8 +96,9 @@ class runnum(QThread):
         imn = self._k % self._m # ID number of image in sequence
         self.sv.imn = str(imn) 
         self.im_save.emit(im)
-        self.sw.mw[imn].image_handler.fid = self._n
-        self.sw.mw[imn].event_im.emit(im)
+        for i in find(imn, self.sw.mw_inds): # find the histograms that use this image
+            self.sw.mw[i].image_handler.fid = self._n
+            self.sw.mw[i].event_im.emit(im)
         self._k += 1 # another image was taken
 
     def mr_receive(self, im=0):
@@ -102,8 +110,9 @@ class runnum(QThread):
         self.sv.imn = str(imn) 
         self.im_save.emit(im)
         if self.seq.mr.ind % (self.seq.mr.nomit + self.seq.mr.nhist) >= self.seq.mr.nomit:
-            self.sw.mw[imn].image_handler.fid = self._n
-            self.sw.mw[imn].event_im.emit(im)
+            for i in find(imn, self.sw.mw_inds):
+                self.sw.mw[i].image_handler.fid = self._n
+                self.sw.mw[i].event_im.emit(im)
         self._k += 1 # another image was taken
 
     def reset_dates(self):

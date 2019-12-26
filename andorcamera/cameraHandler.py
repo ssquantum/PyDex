@@ -343,8 +343,8 @@ class camera(QThread):
         istart, iend = self.AF.GetNumberNewImages()
         if iend > istart:
             if iend >= self.BufferSize:
-                print("WARNING: The camera buffer was full, some images",
-                    " may have been overwritten")
+                logger.warning("While emptying camera buffer: The camera buffer "
+                    "was full, some images may have been overwritten")
             return self.AF.GetImages(istart, iend, self.AF.ROIwidth,
                                             self.AF.ROIheight)
         else: return []

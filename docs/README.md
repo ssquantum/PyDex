@@ -1,16 +1,8 @@
-﻿PyDex
+﻿#### PyDex ####
 Version 0.0
-A master script manages independent modules for experimental control:
-	• Starts up the camera to receive acquisition triggers from DExTer
-	• Sets multirun to change variables in an experiment
-	• In a sequence:
-		○ The master script synchronises the run number
-		○ DExTer triggers the camera to take an image (or several images if re-imaging)
-		○ The camera manager sends a signal with the image array to the image saver and to the image analysis
-		○ Image analysis processes the image, image saver saves the image (separate threads)
-		○ Monitor receives signals from image analysis and DAQ
+A master python script manages independent modules for experimental control:
 
-Each module is a Python class that inherits QThread. We use the PyQt signal/slot architecture so that each module can run independently and not hold the other up. 
+Each module is a Python class that inherits QThread. We use the PyQt signal/slot architecture with TCP communication so that each module can run independently and not hold the other up. 
 
 Included modules:
 	• Master (on the main thread)
@@ -22,81 +14,120 @@ Included modules:
 	• Saveimages (runs a separate thread)
 	Python saves image files with a synchronised run number.
 	• Imageanalysis (currently runs on main thread - will want to change this in the future. Perhaps run separate   program and communicate by TCP or file creation)
-	Single atom image analysis - has several threads to 1) create histograms, 2) analyse histograms, 3) control settings like the ROI and multirun across histogram producers, 4) emit signal of whether there was an atom or not to monitor, and 5) emit signal of the background outside the ROI
-	• monitor
+	Single atom image analysis: 1) create histograms, 2) analyse histograms, 3) control settings like the ROI and multirun across histogram producers, 4) emit signal of whether there was an atom or not to monitor, and 5) emit signal of the background outside the ROI
+	• Monitor
 	Takes in the signal from a DAQ to monitor channels like beam powers. Responds to signals of atom presence to and background level to guess if the lasers are still locked.
 	• Sequences
-	Facilitate the creation of sequences for an experiment, start a multirun with given variables, design experiments that optimise common parameters
+	Facilitate the creation of sequences for an experiment, choose parameters to create a multirun, design experiments that optimise common parameters
 	
-#### Master ####
+## Master
 A master script manages the independent modules:
 	• Initiates camera, image saver, image analysis, and sequences and passes them to the networking manager; runid
 	• Displays current run number and status
 	• Allows the user to check the status of the individual modules and display their windows
 	• Allows the user to choose commands to send to DExTer
+	• Upon receiving the return message from DExTer, interprets it and executes the appropriate function.
+		○ Note that using a message queue means some parameters could have changed by the time the command is executed.
 	• In a sequence:
 		○ Initiates the camera acquisition (for several images in one sequence, assume they come chronologically)
-		○ Sends message to run sequence and receives current run number in return: set state running
+		○ Save the sequence that was just run.
+		○ Sends message to run sequence and receives current run number in return: set state as 'running'
 		○ Queue message 'TCP read' that will be sent when DExTer opens connection after the sequence
 		○ DExTer triggers the camera to take an image (or several images if re-imaging)
 		○ The camera manager sends a signal with the image array to the image saver and to the image analysis
 		○ Image analysis processes the image, image saver saves the image (separate threads)
-		○ DExTer opens connection and receives 'TCP read' command so that checks that run is finished: set state idle
+		○ Send a signal of whether there was an atom or not and the image background level to monitor module
+		○ DExTer opens connection and receives 'TCP read' command so that checks that run is finished: set state 'idle'
 
 	
-#### Networking ####
-TCP messages
+## Networking 
+# TCP messages
 To facilitate communication and data processing, fix TCP message format:
 Python -> LabVIEW:
 	• Enum: 4 bytes 32-bit integer. Enum for DExTer's producer-consumer loop
-	• Text length: 4 bytes 32-bit integer. Giving the length of the message to follow so that we know how many bytes to receive (up to 2^32).
+	• Text length: 4 bytes 32-bit integer. Giving the length of the message to follow so that we know how many bytes to receive (up to 2^31).
 	• Text: string. the message 
 LabVIEW -> Python:
 	• DExTer run number: 4 byte 32-bit unsigned long integer 
 	• Message: A string of length up to buffer_size of bytes (default 1024)
 
 TCP Communication for a DExTer run/multirun:
-	1. Python says to start run
-	2. DExTer confirms run/multirun has started (set state 'running')
-	3. DExTer confirms run/multirun has ended (set state 'idle')
+	1. Python command: load sequence
+		a. DExTer confirms sequence is loaded and returns run number
+		b. Python saves the sequence as a timestamped xml file synced by the run number
+	2. Python command: single run
+		a. DExTer confirms run/multirun has started (set state 'running')
+	3. Python command: 'TCP read' with message 'run finished'
+		a. DExTer confirms run/multirun has ended (set state 'idle')
 
-Server/client model:
-Server hosted by master:
+# Server/client model:
+Server hosted by the master python script:
 	+ can queue up commands to send
 	+ master can receive messages from modules at any time
 	- master can't check status of module at any time because the module might be busy
 	- the message received from DExTer relates to the previous command: needs a second message to get the response to the command.
 	
-Experimental sequence XML <-> dictionary
+# Experimental sequence XML <-> dictionary
 In order to edit sequences in python and LabVIEW, we choose the XML format that can be accessed by both and is clear to read.
 Functions in the translator.py script allow to convert from XML to a python dictionary, which is much less verbose and much easier to edit.
 In Python the sequence is stored in an ordered dictionary where the keys correspond to the names of the clusters/arrays in DExTer. Note: the fast digital channels are stored in lists of lists with shape (# steps, # channels), but the analogue channels are stored in transposed lists of dictionaries of lists with shape (# channels, {voltage:[# steps], ramp?:[# steps]})
 
-Data format:
+## Andor camera
+We use an Andor iXon Ultra 897 EMCCD (SN: 11707). It comes with Andor SDK written in C to control the camera. Python wrapper functions are found in AndorFunctions.py.
+We use the SDK to create a basic operation of the camera:
+	• Create a cameraHandler.camera() instance to connect to the camera. This is a subclass of QThread so that the acquisition of the camera can run independently. Upon initialising:
+		○ Load the C functions from the Andor SDK
+		○ Connect to the camera over USB
+		○ Connect the SDK's driver event to a windows event - this notifies at different stages of acquisition.
+		○ Set the acquisition settings by loading in a config file (see config_README.txt)
+	• To take a series of images, call start(). Assuming that the camera is in 'run till abort' mode this will:
+		○ Start a camera acquisition, which primes the camera ready to trigger an exposure.
+		○ Waits until an exposure is completed (so it must run on a separate thread, otherwise it would be blocking)
+		○ Retrieves the latest image from the camera buffer (it shouldn't miss any, so there should only be one image in the buffer. This can be checked by calling EmptyBuffer()).
+		○ Emits the retrieved image as a numpy array.
+		○ This repeats until the Andor SDK function AbortAcquisition() is called, or an error means that the camera state is no longer 'DRV_ACQUIRING'.
+	• If you don’t want to use the 'run till abort' mode and are taking a known number of acquisitions, it may be easier to use the TakeAcquisitions() function.
+	• The SafeShutdown() function ensures that the camera state is safe before turning it off:
+		○ Temperature kept at the setpoint after turning it off
+		○ Shutter closed
+		○ EM gain reset (since high EM gains give ageing)
+		○ Reset windows event
+	• The recommended acquisition settings are:
+Setting 	Set value	Meaning
+Crop mode	0	off
+Isolated crop mode type	0	Default: high speed
+Read mode	4	Image
+Acquisition mode	5	Run till abort
+Trigger mode	7	External exposure*
+Frame transfer	0	Off
+Fast trigger	0	Off (only available for the external trigger mode)
+* Being in external exposure mode means that the external trigger pulse defines the start and the duration of the exposure. It also means that there are keep clean cycles between exposures, which reduces background.
+		○ With these settings the readout time (which defines the minimum possible time between taking exposures) is decided by the size of the ROI. It is therefore recommended to use the smallest ROI possible:
+ROI size	Minimum duration between exposures (ms)	Software-computed readout time (ms)
+32x32	11 	6.927
+64x64	15	10.34
+128x128	22	17.57
+256x256	36	32.03
+512x512	75	60.96
+		○ To reduce noise on the acquired image, use:
+			§ Conventional mode, 3MHz readout rate, preamp gain setting 1
+		Or if you need to increase the signal and increasing the noise isn't too much of a problem:
+			§ EM gain mode, 10MHz readout rate, preamp gain setting 1, then apply EM gain as needed.
+			§ (applying EM gain should only increase the noise by a constant multiplying factor, but currently it increases as you apply higher EM gain…)
 
-Use lists to store the integrated counts and other statistics from a collection of images. Append another value for each image.
-This is the fastest method given that we can't fix the size of the list (see timeit results below).
+## Save images
+Save a numpy array to a file that is named with a timestap and file ID number (synchronised with the run number).
+The file name follows the syntax: [label]_[day month year]_[file #]
+Load the directories of where to save files to from a config file.
+This class inherits PyDexThread which itself inherits QThread. When the thread is started it runs like:
+	1. Check the queue for an image to save.
+		○ When an image is taken, it should be passed by pyqtSignal to the instance of the imsaver.event_handler() using the inherited add_item() function to append it at the end of the queue.
+	2. Process the image at the front of the queue.
+		○ Save it to a file with the appropriate name.
+	3. Loop continuously as long as the thread is running.
+		○ Stop the thread by calling the inherited close() function.
 
-Images
-ASCII file with first column as the row number 
-
-Histograms 
-csv with header contains last calculated fit and column headings 
-
-Measure file
-Text file with header containing column headings, then rows for each histogram saved.
-
-Andor config settings
-Text file with ordered rows for each setting
-
-Image saving directory settings
-Text file with text labels indicating each setting
-
-Andor camera 
-
-Save images
-
-#### Image Analysis: SAIA ####
+## Image Analysis: SAIA
 Single atom image analysis: create histograms from collections to images, collect statistics from images and histograms.
 
 A generic Analysis class is used to standardise the structure that all analyses will take. It provides a structure of:
@@ -122,9 +153,25 @@ SAIA image analysis:
 	• Sub class for collections of histograms in a multirun
 	• Sub class for when there's several ROIs
 
-#### Monitor ####
+# Data format
+Use lists to store the integrated counts and other statistics from a collection of images. Append another value for each image.
+This is the fastest method given that we can't fix the size of the list.
 
-#### Sequences ####
+Images
+ASCII file with first column as the row number 
+Histograms 
+csv with header contains last calculated fit and column headings 
+Measure file
+Text file with header containing column headings, then rows for each histogram saved.
+Andor config settings
+Text file with ordered rows for each setting
+Image saving directory settings
+Text file with text labels indicating each setting
+
+
+## Monitor
+
+## Sequences
 DExTer sequences were originally stored in binary .seq files. Since these are inaccessible to Python, we choose .xml format instead. These can be converted to python dictionaries which are much simpler to edit, after several long functions reformatting the structure. A generic sequence has the format:
 	• ('Event list array in', [{'Event name', 'Routine specific event?', 'Event indices', 'Event path'}]*number_of_events )
 	• ('Routine name in', ''),
@@ -151,15 +198,33 @@ Note that the order of indexing between digital and analogue channels is transpo
 		○ Uses the translator to display a sequence.
 		○ Gives a GUI for creating a multirun array of variables
 
-Multirun 
+# Multirun 
 A multirun is a series of runs, changing a list of variables in the sequence for each run. The format is as follows:
+	• Load the base sequence into the sequence previewer
 	• Create a list of variables to change:
-		○ Type: 'Time step length' or 'Analogue channel'
-		○ List of time steps to change
-		○ Analogue type: 'Fast analogues' or 'Slow analogues' (*)
-		○ List of analogue channels to change (*)
-		○ List of variables to assign to the given channels in the given time steps, one for each run in the multirun.
+		○ For all variables:
+			§ Variable label used to identify the multirun (what variable you're changing for the experiment)
+			§ Number of runs to omit before starting the histogram 
+			§ Number of runs in a histogram 
+		○ For each variable (a column in the table of values):
+			§ Type: 'Time step length' or 'Analogue channel'
+			§ List of time steps to change
+			§ Analogue type: 'Fast analogues' or 'Slow analogues' (*)
+			§ List of analogue channels to change (*)
+			§ List of variables to assign to the given channels in the given time steps, one for each run in the multirun.
 *only needed if the type is 'Analogue channel'
+	• Check that the variables list is valid (no empty spots, number of rows is divisible by # omitted + # in hist)
+	• Start a multirun. The number of runs per histogram in the multirun is given by the number of rows in the table of variables. The total number of runs is this multiplied by the number of repeats.
+		○ Since there could be a queue of commands sent to DExTer, wait for confirmation before connecting the slots
+			§ Send a message 'start measure '… to confirm DExTer is ready to start the multirun
+		○ Update the sequence and then add a single run to the queue:
+			§ Receive message 'start measure' or 'single run' from the previous run in the multirun
+			§ Send message to load the new sequence 
+			§ Send message to run the new sequence (since the first base sequence is already loaded - run it before editing it)
+			§ Use the run number to decide whether to include this run in the histogram, reset the histogram, or omit.
+			§ Change the channels/timesteps in the sequence specified by the list of variables
+			§ Confirm run finished, then repeat
+	• Finish multirun: save log file with the variable list and associated run numbers.
 
 #####  SAIA1  ##### - image analysis
 **** Version 1.3 ****
@@ -329,7 +394,7 @@ User variable	The user sets the variables associated with each histogram. The nu
 	To enter a list of variables you can input in the format 'start, stop, step, repeats'.
 Current list	Displays the list of user variables that will be used when the multi-run is started
 Omit the first N files	Sometimes we may want to run the experiment several times before taking data (e.g. for the AOMs to warm up). Therefore, save the first N files but don't process them to include in the histogram.
-# files in the histogram	For each of the user variables in the list, after omitting the set number of files, make a histogram of # files and save a .csv file in the chosen directory.
+number of files in the histogram	For each of the user variables in the list, after omitting the set number of files, make a histogram of # files and save a .csv file in the chosen directory.
 Choose directory to save to	The directory to save the histogram .csv files as they are created, and the log file when it's done.
 Current progress	Display the current status of the multi-run:
 	User variable: __, omit __ of __ files, __ of __ histogram files, __ % complete.

@@ -50,4 +50,4 @@ fastTrigger -- enable/disable fast external triggering
 expTime     -- exposure time when not in external exposure trigger
                 mode. Units: seconds.
 verbosity   -- True for debugging info
-numKin      -- number of scans in kinetic mode."""
+numKin      -- number of scans in kinetic mode.
