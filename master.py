@@ -88,7 +88,13 @@ class Master(QMainWindow):
         
         self.rn.server.dxnum.connect(self.Dx_label.setText) # synchronise run number
         self.rn.server.textin.connect(self.respond) # read TCP messages
-        self.status_label.setText('Initialised')
+        self.status_label.setText('Initialising...')
+        QTimer.singleShot(0, self.idle_state) # takes a while for other windows to load
+
+    def idle_state(self):
+        """When the master thread is not processing user events, it is in the idle states.
+        The status label is also used as an indicator for DExTer's current state."""
+        self.status_label.setText('Idle')
 
     def restore_state(self, file_name='./state'):
         """Use the data stored in the given file to restore the file # for
@@ -281,7 +287,8 @@ class Master(QMainWindow):
                 # this will trigger end_run to stop the camera acquisition:
                 self.rn.server.add_message(TCPENUM['TCP read'], 'run finished '+str(self.rn._n + qd_runs)) 
             elif action_text == 'Multirun run':
-                self.rn.server.add_message(TCPENUM['TCP read'], 'start measure '+self.rn.seq.mr.stats['measure'])
+                self.rn.server.add_message(TCPENUM['TCP read'], 'start measure '+str(self.rn.seq.mr.stats['measure'])) # set DExTer's message to send
+                self.rn.server.add_message(TCPENUM['TCP read'], 'check started '+str(self.rn.seq.mr.stats['measure'])) # multirun will start 
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':
@@ -320,8 +327,8 @@ class Master(QMainWindow):
         elif 'end multirun' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
             self.end_run(msg)
-        elif 'TCP load sequence' in msg: # auto save any sequence that was sent to be loaded (even if it was already an xml file)
-            self.seq.save_seq_file(os.path.join(self.rn.sv.sequences_path, str(self._n) + time.strftime('_%d %B %Y_%H %M %S') + '.xml'))
+        elif '<Name>Event list cluster in</Name>' in msg: # auto save any sequence that was sent to be loaded (even if it was already an xml file)
+            self.rn.seq.save_seq_file(os.path.join(self.rn.sv.sequences_path, str(self._n) + time.strftime('_%d %B %Y_%H %M %S') + '.xml'))
                 
     def end_run(self, msg=''):
         """At the end of a single run or a multirun, stop the acquisition,
@@ -342,7 +349,7 @@ class Master(QMainWindow):
         #             # image dimensions: (# kscans, width pixels, height pixels)
         #             self.rn.receive(im[0]) 
         self.rn.synchronise()
-        self.status_label.setText('Idle')
+        self.idle_state()
 
             
     def save_state(self, file_name='./state'):

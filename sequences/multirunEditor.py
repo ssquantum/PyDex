@@ -131,7 +131,6 @@ class multirun_widget(QWidget):
         self.omit_edit, self.nhist_edit, self.cols_edit, self.rows_edit = [
             self.make_label_edit(labels[i], self.grid, [0,2*i, 1,1],
                 default[i], vldtr[i])[1] for i in range(4)]
-        self.nhist_edit.textChanged[str].connect(self.change_array_size)
         self.cols_edit.textChanged[str].connect(self.change_array_size)
         self.rows_edit.textChanged[str].connect(self.change_array_size)
 
@@ -378,18 +377,18 @@ class multirun_widget(QWidget):
         """Use the values in the multirun array to make the next
         sequence to run in the multirun."""
         self.table.selectRow(self.ind) # display which row the multirun is up to in the table
+        esc = self.mrtr.seq_dic['Experimental sequence cluster in'] # shorthand
         for col in range(self.table.columnCount()): # edit the sequence
             val = float(self.table.item(self.ind, col).text())
             if self.stats['Type'][col] == 'Time step length':
                 for head in ['Sequence header top', 'Sequence header middle']:
                     for t in self.stats['Time step name'][col]:
-                        self.mrtr['Experimental sequence cluster in'][head][t]['Time step length'] = val
+                        esc[head][t]['Time step length'] = val
             elif self.stats['Type'][col] == 'Analogue voltage':
                 for t in self.stats['Time step name'][col]:
                     for c in self.stats['Analogue channel'][col]:
-                        self.mrtr['Experimental sequence cluster in'][
-                            self.stats['Analogue type'] + ' array'][c]['Voltage'][t] = val
-        self.mrtr['Routine name in'] = 'Multirun ' + self.stats['Variable label'] + \
+                        esc[self.stats['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
+        self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.stats['Variable label'] + \
             ': ' + self.table.item(self.ind, 0).text() + ' (%s / %s)'%(self.ind, self.table.rowCount())
         return self.mrtr.write_to_str()
 
@@ -431,7 +430,7 @@ class multirun_widget(QWidget):
                 f.write('Multirun list of variables:\n')
                 f.write(';'.join([','.join([self.table.item(row, col).text() 
                     for col in range(self.table.columnCount())]) for row in range(self.table.rowCount())]) + '\n')
-                f.write('; '.join(self.stats.keys()) + '; # omitted; # in hist\n')
+                f.write(';'.join(self.stats.keys()) + ';# omitted;# in hist\n')
                 f.write(';'.join(map(str, list(self.stats.values()) + [self.nomit, self.nhist])))
 
     def load_mr_params(self, load_file_name=''):
@@ -443,7 +442,7 @@ class multirun_widget(QWidget):
             with open(load_file_name, 'r') as f:
                 _ = f.readline()
                 vals = [x.split(',') for x in f.readline().replace('\n','').split(';')]
-                header = f.readline().split('; ')
+                header = f.readline().split(';')
                 params = f.readline().split(';')
             for i in range(len(header)):
                 if header[i] in self.stats:
@@ -457,6 +456,7 @@ class multirun_widget(QWidget):
             self.set_chan_listbox(col if col < ncols else 0)
             self.rows_edit.setText(str(nrows)) # triggers change_array_size
             self.cols_edit.setText(str(ncols))
+            self.change_array_size() # don't wait for it to be triggered
             self.reset_array(vals)
             self.omit_edit.setText(str(self.nomit))
             self.nhist_edit.setText(str(self.nhist))

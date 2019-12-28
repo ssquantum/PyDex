@@ -1,0 +1,1373 @@
+2019/12/20 09:50:14.605 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+Andor functions dll file not found.
+
+Traceback (most recent call last):
+  File "./andorcamera\AndorFunctions.py", line 46, in __init__
+    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
+    return self._dlltype(name)
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
+    self._handle = _dlopen(self._name, mode)
+OSError: [WinError 126] The specified module could not be found
+2019/12/20 09:50:14.936 - MainThread - cameraHandler.py.__init__.64 - WARNING
+Andor EMCCD not initialised.
+'Andor' object has no attribute 'dll'
+
+
+2019/12/20 09:50:14.996 - MainThread - imsaver.py.__init__.77 - WARNING
+Could not create image storage path. Using current directory instead
+[WinError 5] Access is denied: 'C:\\Users\\Lab'
+
+
+2019/12/20 09:50:15.073 - MainThread - imsaver.py.__init__.77 - WARNING
+Could not create image storage path. Using current directory instead
+[WinError 5] Access is denied: 'Z:\\Tweezer'
+
+
+2019/12/20 09:51:58.345 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10054] An existing connection was forcibly closed by the remote host
+
+
+2019/12/20 11:37:07.045 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+Andor functions dll file not found.
+
+Traceback (most recent call last):
+  File "./andorcamera\AndorFunctions.py", line 46, in __init__
+    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
+    return self._dlltype(name)
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
+    self._handle = _dlopen(self._name, mode)
+OSError: [WinError 126] The specified module could not be found
+2019/12/20 11:37:07.108 - MainThread - cameraHandler.py.__init__.64 - WARNING
+Andor EMCCD not initialised.
+'Andor' object has no attribute 'dll'
+
+
+2019/12/20 11:37:07.156 - MainThread - imsaver.py.__init__.77 - WARNING
+Could not create image storage path. Using current directory instead
+[WinError 5] Access is denied: 'C:\\Users\\Lab'
+
+
+2019/12/20 11:37:07.194 - MainThread - imsaver.py.__init__.77 - WARNING
+Could not create image storage path. Using current directory instead
+[WinError 5] Access is denied: 'Z:\\Tweezer'
+
+
+2019/12/20 11:51:26.639 - MainThread - master.py.closeEvent.361 - WARNING
+camera safe shutdown failed.
+'Andor' object has no attribute 'dll'
+
+
+2019/12/20 11:51:56.378 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+Andor functions dll file not found.
+
+Traceback (most recent call last):
+  File "./andorcamera\AndorFunctions.py", line 46, in __init__
+    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
+    return self._dlltype(name)
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
+    self._handle = _dlopen(self._name, mode)
+OSError: [WinError 126] The specified module could not be found
+2019/12/20 11:51:56.433 - MainThread - cameraHandler.py.__init__.64 - WARNING
+Andor EMCCD not initialised.
+'Andor' object has no attribute 'dll'
+
+
+2019/12/20 11:51:56.482 - MainThread - imsaver.py.__init__.77 - WARNING
+Could not create image storage path. Using current directory instead
+[WinError 5] Access is denied: 'C:\\Users\\Lab'
+
+
+2019/12/20 11:51:56.514 - MainThread - imsaver.py.__init__.77 - WARNING
+Could not create image storage path. Using current directory instead
+[WinError 5] Access is denied: 'Z:\\Tweezer'
+
+
+2019/12/20 11:55:08.561 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.564 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.567 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.570 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.573 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.576 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.580 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.584 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.587 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.590 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.593 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.595 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.606 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.609 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.612 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.616 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.619 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.623 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.626 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.630 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.633 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.637 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.641 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.645 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.648 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.651 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.657 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.660 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.666 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.669 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.673 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.676 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.680 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.685 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.690 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.693 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.696 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.700 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.703 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.706 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.709 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.714 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.717 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.721 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.724 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.728 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.731 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.734 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.737 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.740 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.743 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.747 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.750 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.754 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.764 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.767 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.771 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.774 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.778 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.781 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.784 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.788 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.791 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.794 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.797 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.808 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.811 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.814 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.817 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.820 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.825 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.829 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.832 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.841 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.845 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.849 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.852 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.856 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.859 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.864 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.868 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.870 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.873 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.890 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.894 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.898 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.901 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.904 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.914 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.918 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.922 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.927 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.931 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.934 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.938 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.948 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.952 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.954 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.958 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.962 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.965 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.968 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.972 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.975 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.978 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.981 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.984 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.988 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.993 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:08.996 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.000 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.004 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.008 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.012 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.015 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.018 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.022 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.025 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.029 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.032 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.035 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.045 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.050 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.056 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.059 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.063 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.065 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.068 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.073 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.075 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.079 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.083 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.091 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.095 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.098 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.101 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.104 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.108 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.111 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.114 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.118 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.121 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.125 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.128 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.132 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.135 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.138 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.141 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.152 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.155 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.159 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.163 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.166 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.169 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.172 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.176 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.179 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.188 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.191 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.193 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.197 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.202 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.206 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.210 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.214 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.216 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.219 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.222 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.225 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.228 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.230 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.234 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.236 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.240 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.243 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.246 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.249 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.260 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.264 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.267 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.271 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.274 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.277 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.280 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.283 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.294 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.299 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.302 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.305 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.309 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.313 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.317 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.320 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.324 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.327 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.330 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.333 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.336 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.340 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.343 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.346 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.350 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.353 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.357 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.360 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.362 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.366 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.369 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.373 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.377 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.379 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.383 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.386 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.390 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.393 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.396 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.405 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.408 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.411 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.414 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.417 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.421 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.424 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.427 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.430 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.433 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.436 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.439 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.450 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.453 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.456 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.460 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.465 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.468 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.471 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.476 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.484 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.487 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.492 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.495 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.498 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.500 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.504 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.509 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.512 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.515 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.518 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.521 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.524 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.528 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.531 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.534 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.537 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.540 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.543 - Dummy-1 - networker.py.run.124 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:09.547 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2019/12/20 11:55:40.190 - Dummy-1 - networker.py.run.132 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10054] An existing connection was forcibly closed by the remote host
+
+

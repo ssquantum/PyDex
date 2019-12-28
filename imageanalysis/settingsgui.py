@@ -73,11 +73,6 @@ class settings_window(QMainWindow):
         
     def init_UI(self):
         """Create all of the widget objects required"""
-        self.centre_widget = QWidget()
-        self.centre_widget.layout = QVBoxLayout()
-        self.centre_widget.setLayout(self.centre_widget.layout)
-        self.setCentralWidget(self.centre_widget)
-        
         # validators for user input
         semico_validator = QRegExpValidator(QRegExp(r'((\d+,\d+);?)+')) # ints, semicolons and commas
         comma_validator = QRegExpValidator(QRegExp(r'([0-%s]+,?)+'%(self._m-1))) # ints and commas
@@ -116,9 +111,10 @@ class settings_window(QMainWindow):
         hist_menu.addMenu(fit_menu)
 
         #### tab for settings  ####
-        settings_tab = QWidget()
+        self.centre_widget = QWidget()
         settings_grid = QGridLayout()
-        settings_tab.setLayout(settings_grid)
+        self.centre_widget.setLayout(settings_grid)
+        self.setCentralWidget(self.centre_widget)
         
         # choose the number of image per run 
         m_label = QLabel('Number of images per run: ', self)
@@ -141,15 +137,15 @@ class settings_window(QMainWindow):
         settings_grid.addWidget(aind_label, 1,0, 1,1)
         self.a_ind_edit = QLineEdit(self)
         settings_grid.addWidget(self.a_ind_edit, 1,1, 1,1)
-        self.a_ind_edit.setText(', '.join(self.mw_inds)) # default
+        self.a_ind_edit.setText(','.join(map(str, self.mw_inds))) # default
         self.a_ind_edit.setValidator(comma_validator)
 
         # choose which histogram to use for survival probability calculations
         reim_label = QLabel('Histogram indices for re-imaging: ', self)
-        settings_grid.addWidget(reim_label, 2,0, 1,1)
+        settings_grid.addWidget(reim_label, 1,2, 1,1)
         self.reim_edit = QLineEdit(self)
-        settings_grid.addWidget(self.reim_edit, 3,1, 1,1)
-        self.reim_edit.setText('; '.join(self.rw_inds)) # default
+        settings_grid.addWidget(self.reim_edit, 1,3, 1,1)
+        self.reim_edit.setText('; '.join(map(str, self.rw_inds))) # default
         self.reim_edit.setValidator(semico_validator)
 
         # get user to set the image size in pixels
@@ -235,8 +231,8 @@ class settings_window(QMainWindow):
         settings_grid.addWidget(show_win, 8,2, 1,1)
 
         #### choose main window position and dimensions: (xpos,ypos,width,height)
-        self.setGeometry(100, 100, 850, 700)
-        self.setWindowTitle('- Single Atom Image Analyser Settings -')
+        self.setGeometry(100, 100, 850, 600)
+        self.setWindowTitle('- Settings for Single Atom Image Analysers -')
         self.setWindowIcon(QIcon('docs/tempicon.png'))
         
     #### #### user input functions #### #### 
@@ -443,16 +439,20 @@ class settings_window(QMainWindow):
     def show_analyses(self):
         """Display the instances of SAIA, filling the screen"""
         for i in range(self._a):
-            self.mw[i].setGeometry(40+i//self._m*800, 100, 850, 700)
+            self.mw[i].setGeometry(40+i//self._a*400, 100, 850, 500)
             self.mw[i].show()
         for i in range(len(self.rw_inds)):
-            self.rw[i].setGeometry(45+i//len(self.rw_inds)*800, 200, 850, 700)
+            self.rw[i].setGeometry(45+i//len(self.rw_inds)*400, 200, 850, 500)
             self.rw[i].show()
 
     def reset_analyses(self):
         """Remake the analyses instances for SAIA and re-image"""
+        QMessageBox.information(self, 'Resetting Analyses', 'Resetting image analysis windows. This may take a while.')
         for mw in self.mw + self.rw:
-            mw.hard_reset() # wipes clean the data
+            mw.image_handler.reset_arrays()
+            mw.histo_handler.reset_arrays()
+            mw.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ")
+            mw.set_bins()
             mw.close() # closes the display
         
         m, a = map(int, [self.m_edit.text(), self.a_edit.text()])
@@ -461,7 +461,7 @@ class settings_window(QMainWindow):
         if a > self._a:
             for i in range(self._a, a):
                 self.mw.append(main_window(self.results_path, self.image_storage_path, str(i)))
-                self.mw_inds.append(i if i < m else m)
+                self.mw_inds.append(i if i < m else m-1)
         self._a = a
         for mw in self.mw:
             mw.swap_signals() # reconnect signals
@@ -471,15 +471,16 @@ class settings_window(QMainWindow):
             ainds = list(map(int, self.a_ind_edit.text().split(',')))
         except ValueError as e:
             logger.warning('Invalid syntax for image analysis indices: '+self.a_ind_edit.text()+'\n'+str(e))
-            self.a_ind_edit.setText(', '.join(self.mw_inds))
         if len(ainds) != self._a: 
-            logger.warning('Warning: there are %s image indices for the %s image analysers.\n'%(len(ainds), self._a)+str(e))
+            logger.warning('Warning: there are %s image indices for the %s image analysers.\n'%(len(ainds), self._a))
         for i, a in enumerate(ainds):
             try: self.mw_inds[i] = a
             except IndexError as e: 
                 logger.warning('Cannot set image index for image analyser %s.\n'%i+str(e))
 
-        self.a_ind_edit.setValidator(QRegExpValidator(QRegExp(r'([0-%s]+,?)+'%(self._m-1))))
+        regexp_validator = QRegExpValidator(QRegExp(r'([0-%s]+,?)+'%(self._m-1)))
+        self.a_ind_edit.setValidator(regexp_validator)
+        self.a_ind_edit.setText(','.join(map(str, self.mw_inds)))
 
         rinds = self.reim_edit.text().split(';') # indices of SAIA instances used for re-imaging
         for i in range(len(rinds)): # check the list input from the user has the right syntax

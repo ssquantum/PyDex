@@ -22,6 +22,11 @@ from mythread import PyDexThread
 import logging
 logger = logging.getLogger(__name__)
 
+def checkdir(text):
+    """Shorthand for extracting a directory from the config file"""
+    path = text.split('=')[-1]
+    return path if os.path.exists(path) else '.'
+
 ####    ####    ####    ####
     
 # set up an event handler that is also a QObject through inheritance of QThread
@@ -92,13 +97,13 @@ class event_handler(PyDexThread):
             return {'Image Storage Path: ':'', 'Dexter Sync File: ':'','Results Path: ':'', 'Sequences path: ':''}
         for row in config_data:
             if "image storage path" in row:
-                image_storage_path = row.split('=')[-1] # where image files are saved
+                image_storage_path = checkdir(row) # where image files are saved
             elif "dexter sync file" in row:
-                dexter_sync_file_name = row.split('=')[-1] # where the txt from Dexter with the latest file # is saved
+                dexter_sync_file_name = checkdir(row) # where the txt from Dexter with the latest file # is saved
             elif "results path" in row:
-                results_path = row.split('=')[-1]   # where csv files and histograms will be saved
+                results_path = checkdir(row)   # where csv files and histograms will be saved
             elif 'sequences path' in row:
-                sequences_path = row.split('=')[-1] # where sequence xml files will be saved
+                sequences_path = checkdir(row) # where sequence xml files will be saved
         return {'Image Storage Path: ':image_storage_path,
                 'Dexter Sync File: ':dexter_sync_file_name,
                 'Results Path: ':results_path,

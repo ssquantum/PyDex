@@ -53,7 +53,7 @@ class reim_window(main_window):
     def adjust_UI(self):
         """Edit the widgets created by main_window"""
         # self.hist_canvas.setTitle("Histogram of CCD counts")
-        self.setWindowTitle(self.name+' - Single Atom Re-Image Analyser - ')
+        self.setWindowTitle(self.name+' - Re-Image Analyser - ')
 
         # update the histogram when getting statistics
         self.stat_update_button.clicked[bool].connect(self.get_histogram)
