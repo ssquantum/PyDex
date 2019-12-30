@@ -503,6 +503,7 @@ class main_window(QMainWindow):
         edits the text in the line edit widget"""
         if text: # can't convert '' to int
             self.image_handler.pic_size = int(text)
+            self.image_handler.create_square_mask()
             self.pic_size_label.setText(str(self.image_handler.pic_size))
 
     def CCD_stat_edit(self):
@@ -909,8 +910,8 @@ class main_window(QMainWindow):
                     else: im_list.append(im_vals)
                     self.recent_label.setText( # only updates at end of loop
                         'Just processed: '+os.path.basename(file_name)) 
-                except: # probably file size was wrong
-                    print("\n WARNING: failed to load "+file_name) 
+                except Exception as e: # probably file size was wrong
+                    logger.warning("Failed to load image file: "+file_name+'\n'+str(e)) 
             self.plot_current_hist(self.image_handler.histogram)
             self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
                         fix_thresh=self.thresh_toggle.isChecked(), method='quick')

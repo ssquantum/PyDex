@@ -84,8 +84,7 @@ class image_handler(Analysis):
         """
         full_im -= self.bias # remove the bias offset, it's arbitrary
         not_roi = full_im.copy()
-        # get the ROI
-        self.im_vals = full_im * self.mask
+        self.im_vals = full_im * self.mask # get the ROI
         not_roi *= (1-self.mask)
         # background statistics: mean count and standard deviation across image
         N = np.sum(1-self.mask)

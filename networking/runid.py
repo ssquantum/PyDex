@@ -18,12 +18,6 @@ from networker import PyServer, remove_slot, TCPENUM
 import logging
 logger = logging.getLogger(__name__)
 
-def find(target, myList):
-    """Generate the indices there target is found in myList."""
-    for i in range(len(myList)):
-        if myList[i] == target:
-            yield i
-
 class runnum(QThread):
     """Take ownership of the run number that is
     synchronised between modules of PyDex.
@@ -96,7 +90,7 @@ class runnum(QThread):
         imn = self._k % self._m # ID number of image in sequence
         self.sv.imn = str(imn) 
         self.im_save.emit(im)
-        for i in find(imn, self.sw.mw_inds): # find the histograms that use this image
+        for i in self.sw.find(imn): # find the histograms that use this image
             self.sw.mw[i].image_handler.fid = self._n
             self.sw.mw[i].event_im.emit(im)
         self._k += 1 # another image was taken
@@ -110,7 +104,7 @@ class runnum(QThread):
         self.sv.imn = str(imn) 
         self.im_save.emit(im)
         if self.seq.mr.ind % (self.seq.mr.nomit + self.seq.mr.nhist) >= self.seq.mr.nomit:
-            for i in find(imn, self.sw.mw_inds):
+            for i in self.sw.find(imn):
                 self.sw.mw[i].image_handler.fid = self._n
                 self.sw.mw[i].event_im.emit(im)
         self._k += 1 # another image was taken
@@ -210,6 +204,8 @@ class runnum(QThread):
                         self.server.msg_queue.pop(i) 
                         break
             except IndexError as e: logger.error('Pause multirun: failed to remove commands from message queue.\n'+str(e))
+            for mw in self.sw.mw + self.sw.rw:
+                mw.multirun = False
             tableitem = self.seq.mr.table.item(self.seq.mr.ind, 0)
             self.seq.mr.progress.emit(       # update progress label
                 'STOPPED - multirun measure %s: %s: %s, omit %s of %s files, %s of %s histogram files, %.3g %% complete'%(
@@ -289,6 +285,7 @@ class runnum(QThread):
                     confirm=False) # save measure file
                 # reconnect previous signals
                 mw.set_bins() # reconnects signal with given histogram binning settings
+                mw.multirun = False
             # suggest new multirun measure ID and prefix
             self.seq.mr.measures['measure'].setText(str(self.seq.mr.stats['measure']+1))
             self.seq.mr.measures['measure_prefix'].setText(str(self.seq.mr.stats['measure']+1)+'_')  

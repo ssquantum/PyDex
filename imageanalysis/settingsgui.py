@@ -8,18 +8,19 @@ import os
 import sys
 import time
 import numpy as np
+import pyqtgraph as pg
 from collections import OrderedDict
 # some python packages use PyQt4, some use PyQt5...
 try:
     from PyQt4.QtCore import pyqtSignal, QRegExp
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
             QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
-            QDoubleValidator, QIntValidator, QMenu, QActionGroup, 
+            QDoubleValidator, QIntValidator, QMenu, QActionGroup, QFont,
             QTabWidget, QVBoxLayout, QRegExpValidator) 
 except ImportError:
     from PyQt5.QtCore import pyqtSignal, QRegExp
     from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
-        QRegExpValidator)
+        QRegExpValidator, QFont)
     from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
         QFileDialog, QMessageBox, QLineEdit, QGridLayout, QWidget,
         QApplication, QPushButton, QAction, QMainWindow, QTabWidget,
@@ -71,6 +72,13 @@ class settings_window(QMainWindow):
         for mw in self.mw + self.rw:
             mw.date = date
         
+    def find(self, image_number):
+        """Generate the indices there image number is found in the list
+        of main_window Analyser image indices."""
+        for i in range(len(self.mw_inds)):
+            if self.mw_inds[i] == image_number:
+                yield i
+
     def init_UI(self):
         """Create all of the widget objects required"""
         # validators for user input
@@ -110,11 +118,34 @@ class settings_window(QMainWindow):
         self.fit_options.triggered.connect(self.set_all_windows)
         hist_menu.addMenu(fit_menu)
 
-        #### tab for settings  ####
+        # image menubar allows you to display images
+        im_menu = menubar.addMenu('Image')
+        load_im = QAction('Load Image', self) # display a loaded image
+        load_im.triggered.connect(self.load_image)
+        im_menu.addAction(load_im)
+        
+        make_im_menu = QMenu('Make Average Image', self) # display ave. image
+        make_im = QAction('From Files', self) # from image files (using file browser)
+        make_im.triggered.connect(self.make_ave_im)
+        make_im_menu.addAction(make_im)
+        # make_im_fn = QAction('From File Numbers', self) # from image file numbers
+        # make_im_fn.triggered.connect(self.make_ave_im)
+        # make_im_menu.addAction(make_im_fn)
+        im_menu.addMenu(make_im_menu)
+
+        # central widget creates container for tabs
         self.centre_widget = QWidget()
-        settings_grid = QGridLayout()
-        self.centre_widget.setLayout(settings_grid)
+        self.tabs = QTabWidget()       # make tabs for each main display 
+        self.centre_widget.layout = QVBoxLayout()
+        self.centre_widget.layout.addWidget(self.tabs)
+        self.centre_widget.setLayout(self.centre_widget.layout)
         self.setCentralWidget(self.centre_widget)
+        
+        #### tab for settings  ####
+        settings_tab = QWidget()
+        settings_grid = QGridLayout()
+        settings_tab.setLayout(settings_grid)
+        self.tabs.addTab(settings_tab, "Analysers")
         
         # choose the number of image per run 
         m_label = QLabel('Number of images per run: ', self)
@@ -122,6 +153,7 @@ class settings_window(QMainWindow):
         self.m_edit = QLineEdit(self)
         settings_grid.addWidget(self.m_edit, 0,1, 1,1)
         self.m_edit.setText(str(self._m)) # default
+        self.m_edit.editingFinished.connect(self.im_inds_validator)
         self.m_edit.setValidator(int_validator)
 
         # choose the number of SAIA instances
@@ -130,6 +162,7 @@ class settings_window(QMainWindow):
         self.a_edit = QLineEdit(self)
         settings_grid.addWidget(self.a_edit, 0,3, 1,1)
         self.a_edit.setText(str(self._a)) # default
+        self.a_edit.editingFinished.connect(self.im_inds_validator)
         self.a_edit.setValidator(int_validator)
 
         # choose which histogram to use for survival probability calculations
@@ -163,54 +196,20 @@ class settings_window(QMainWindow):
         load_im_size.resize(load_im_size.sizeHint())
         settings_grid.addWidget(load_im_size, 2,2, 1,1)
 
-        # # get ROI centre from loading an image
-        # load_roi = QPushButton('Get ROI from image', self)
-        # load_roi.clicked.connect(self.load_roi) # load roi centre from image
-        # load_roi.resize(load_im_size.sizeHint())
-        # settings_grid.addWidget(load_roi, 3,2, 1,1)
-
-        # # get user to set ROI:
-        # # centre of ROI x position
-        # roi_xc_label = QLabel('ROI x_c: ', self)
-        # settings_grid.addWidget(roi_xc_label, 3,0, 1,1)
-        # self.roi_x_edit = QLineEdit(self)
-        # settings_grid.addWidget(self.roi_x_edit, 3,1, 1,1)
-        # self.roi_x_edit.setText('0')  # default
-        # self.roi_x_edit.textEdited[str].connect(self.roi_text_edit)
-        # self.roi_x_edit.setValidator(int_validator) # only numbers
-        
-        # # centre of ROI y position
-        # roi_yc_label = QLabel('ROI y_c: ', self)
-        # settings_grid.addWidget(roi_yc_label, 4,0, 1,1)
-        # self.roi_y_edit = QLineEdit(self)
-        # settings_grid.addWidget(self.roi_y_edit, 4,1, 1,1)
-        # self.roi_y_edit.setText('0')  # default
-        # self.roi_y_edit.textEdited[str].connect(self.roi_text_edit)
-        # self.roi_y_edit.setValidator(int_validator) # only numbers
-        
-        # # ROI size
-        # roi_l_label = QLabel('ROI size: ', self)
-        # settings_grid.addWidget(roi_l_label, 5,0, 1,1)
-        # self.roi_l_edit = QLineEdit(self)
-        # settings_grid.addWidget(self.roi_l_edit, 5,1, 1,1)
-        # self.roi_l_edit.setText('1')  # default
-        # self.roi_l_edit.textEdited[str].connect(self.roi_text_edit)
-        # self.roi_l_edit.setValidator(int_validator) # only numbers
-
         # EMCCD bias offset
         bias_offset_label = QLabel('EMCCD bias offset: ', self)
-        settings_grid.addWidget(bias_offset_label, 6,0, 1,1)
+        settings_grid.addWidget(bias_offset_label, 3,0, 1,1)
         self.bias_offset_edit = QLineEdit(self)
-        settings_grid.addWidget(self.bias_offset_edit, 6,1, 1,1)
+        settings_grid.addWidget(self.bias_offset_edit, 3,1, 1,1)
         self.bias_offset_edit.setText(str(self.stats['bias'])) # default
         self.bias_offset_edit.editingFinished.connect(self.CCD_stat_edit)
         self.bias_offset_edit.setValidator(double_validator) # only floats
 
         # EMCCD readout noise
         read_noise_label = QLabel('EMCCD read-out noise: ', self)
-        settings_grid.addWidget(read_noise_label, 7,0, 1,1)
+        settings_grid.addWidget(read_noise_label, 4,0, 1,1)
         self.read_noise_edit = QLineEdit(self)
-        settings_grid.addWidget(self.read_noise_edit, 7,1, 1,1)
+        settings_grid.addWidget(self.read_noise_edit, 4,1, 1,1)
         self.read_noise_edit.setText(str(self.stats['Nr'])) # default
         self.read_noise_edit.editingFinished.connect(self.CCD_stat_edit)
         self.read_noise_edit.setValidator(double_validator) # only floats
@@ -218,17 +217,67 @@ class settings_window(QMainWindow):
         reset_win = QPushButton('Reset Analyses', self) 
         reset_win.clicked.connect(self.reset_analyses)
         reset_win.resize(reset_win.sizeHint())
-        settings_grid.addWidget(reset_win, 8,0, 1,1)
+        settings_grid.addWidget(reset_win, 5,0, 1,1)
 
         load_set = QPushButton('Reload Default Settings', self) 
         load_set.clicked.connect(self.load_settings)
         load_set.resize(load_set.sizeHint())
-        settings_grid.addWidget(load_set, 8,1, 1,1)
+        settings_grid.addWidget(load_set, 5,1, 1,1)
         
         show_win = QPushButton('Show Current Analyses', self) 
         show_win.clicked.connect(self.show_analyses)
         show_win.resize(show_win.sizeHint())
-        settings_grid.addWidget(show_win, 8,2, 1,1)
+        settings_grid.addWidget(show_win, 5,2, 1,1)
+
+        #### tab for ROI ####
+        roi_tab = QWidget()
+        roi_grid = QGridLayout()
+        roi_tab.setLayout(roi_grid)
+        self.tabs.addTab(roi_tab, "Region of Interest")
+
+        # bottom corner of ROI grid x position
+        roi_x_label = QLabel('Grid bottom xpos: ', self)
+        roi_grid.addWidget(roi_x_label, 0,0, 1,1)
+        self.roi_x_edit = QLineEdit(self)
+        roi_grid.addWidget(self.roi_x_edit, 0,1, 1,1)
+        self.roi_x_edit.setText('0')  # default
+        self.roi_x_edit.setValidator(int_validator) # only numbers
+        
+        # bottom corner of ROI grid y position
+        roi_y_label = QLabel('Grid bottom ypos: ', self)
+        roi_grid.addWidget(roi_y_label, 0,2, 1,1)
+        self.roi_y_edit = QLineEdit(self)
+        roi_grid.addWidget(self.roi_y_edit, 0,3, 1,1)
+        self.roi_y_edit.setText('0')  # default
+        self.roi_y_edit.setValidator(int_validator) # only numbers
+        
+        # ROI size
+        roi_l_label = QLabel('ROI size: ', self)
+        roi_grid.addWidget(roi_l_label, 0,4, 1,1)
+        self.roi_l_edit = QLineEdit(self)
+        roi_grid.addWidget(self.roi_l_edit, 0,5, 1,1)
+        self.roi_l_edit.setText('1')  # default
+        self.roi_l_edit.setValidator(int_validator) # only numbers
+        
+        im_widget = pg.GraphicsLayoutWidget() # containing widget
+        viewbox = im_widget.addViewBox() # plot area to display image
+        self.im_canvas = pg.ImageItem() # the image
+        viewbox.addItem(self.im_canvas)
+        roi_grid.addWidget(im_widget, 1,0, 6,8)
+        # display the ROI from each analyser
+        self.replot_rois()
+
+        # make a histogram to control the intensity scaling
+        self.im_hist = pg.HistogramLUTItem()
+        self.im_hist.setImageItem(self.im_canvas)
+        im_widget.addItem(self.im_hist)
+
+        # buttons to create a grid of ROIs
+        for i, label in enumerate(['Single ROI', 'Square grid', '2D Gaussian masks']):
+            button = QPushButton(label, self) 
+            button.clicked.connect(self.make_roi_grid)
+            button.resize(button.sizeHint())
+            roi_grid.addWidget(button, 8,i, 1,1)
 
         #### choose main window position and dimensions: (xpos,ypos,width,height)
         self.setGeometry(100, 100, 850, 600)
@@ -237,12 +286,14 @@ class settings_window(QMainWindow):
         
     #### #### user input functions #### #### 
             
-    def pic_size_text_edit(self, text):
+    def pic_size_text_edit(self, text=''):
         """Update the specified size of an image in pixels when the user 
         edits the text in the line edit widget"""
         if text: # can't convert '' to int
             self.stats['pic_size'] = int(text)
-            self.pic_size_label.setText(str(self.stats['pic_size']))
+            for mw in self.mw + self.rw:
+                mw.pic_size_edit.setText(text)
+                mw.pic_size_label.setText(text)
 
     def CCD_stat_edit(self):
         """Update the values used for the EMCCD bias offset and readout noise"""
@@ -250,8 +301,11 @@ class settings_window(QMainWindow):
             self.stats['bias'] = float(self.bias_offset_edit.text())
         if self.read_noise_edit.text():
             self.stats['Nr'] = float(self.read_noise_edit.text())
+        for mw in self.mw + self.rw:
+            mw.bias_offset_edit.setText(str(self.stats['bias']))
+            mw.read_noise_edit.setText(str(self.stats['Nr']))
 
-    def roi_text_edit(self, text):
+    def roi_text_edit(self, text=''):
         """Update the ROI position and size every time a text edit is made by
         the user to one of the line edit widgets"""
         xc, yc, l = [self.roi_x_edit.text(),
@@ -268,6 +322,53 @@ class settings_window(QMainWindow):
         if int(l) == 0:
             l = 1 # can't have zero width
         self.stats['xc'], self.stats['yc'], self.stats['roi_size'] = map(int, [xc, yc, l])
+
+    #### image display functions ####
+
+    def update_im(self, event_im):
+        """Receive the image array emitted from the event signal
+        display the image in the image canvas."""
+        self.im_canvas.setImage(event_im)
+        self.im_hist.setLevels(np.min(event_im), np.max(event_im))
+
+    def replot_rois(self):
+        """Once an ROI has been edited, redraw all of them on the image.
+        The list of ROIs are stored with labels: [(label, ROI), ...].
+        Since the labels might not be unique, we can't use a dictionary."""
+        viewbox = self.im_canvas.getViewBox()
+        self.rois = []
+        for i, mw in enumerate(self.mw + self.rw):
+            try: # change position and label of ROI
+                x0, y0 = mw.roi.pos()  # lower left corner of bounding rectangle
+                xw, yw = mw.roi.size() # widths
+                l = int(0.5*(xw+yw))   # want a square ROI
+                # note: setting the origin as bottom left but the image has origin top left
+                xc, yc = int(x0 + l//2), int(y0 + l//2)  # centre
+                self.rois[i][0].setText(mw.name)
+                self.rois[i][0].setColor(pg.intColor(i))
+                self.rois[i][0].setPos([xc, yc])
+                self.rois[i][1].setPos(mw.roi.pos())
+                self.rois[i][1].setSize(mw.roi.size())
+            except IndexError: # make new ROI
+                self.rois.append((pg.TextItem(mw.name, pg.intColor(i), anchor=(0.5,0.5)), 
+                                  pg.ROI(mw.roi.pos(), mw.roi.size(), movable=False)))
+                font = QFont()
+                font.setPixelSize(16)
+                self.rois[i][0].setFont(font)
+                viewbox.addItem(self.rois[i][0])
+                viewbox.addItem(self.rois[i][1])
+            mw.roi.sigRegionChangeFinished.connect(self.replot_rois) 
+            self.rois[i][1].setPen(pg.intColor(i), width=3) # set ROI boundary colour
+
+    def make_roi_grid(self, toggle=True):
+        """Create a grid of ROIs and assign them to analysers that are using the
+        same image. Methods:
+        Single ROI       -- make all ROIs the same as the first analyser's 
+        Square grid      -- evenly divide the image into a square region for
+            each of the analyser's on this image.  
+        2D Gaussian masks-- fit 2D Gaussians to atoms in the image."""
+        # self.find(i)
+        pass
             
     #### #### toggle functions #### #### 
 
@@ -303,6 +404,41 @@ class settings_window(QMainWindow):
                 file_name, _ = open_func(self, title, default_path, file_type)
             return file_name
         except OSError: return '' # probably user cancelled
+
+    def load_image(self, trigger=None):
+        """Prompt the user to select an image file to display."""
+        file_name = self.try_browse(file_type='Images (*.asc);;all (*)')
+        if file_name:  # avoid crash if the user cancelled
+            im_vals = self.image_handler.load_full_im(file_name)
+            self.update_im(im_vals)
+    
+    def load_images(self):
+        """Prompt the user to choose a selection of image files."""
+        im_list = []
+        file_list = self.try_browse(title='Select Files', 
+                file_type='Images(*.asc);;all (*)', 
+                open_func=QFileDialog.getOpenFileNames)
+        for fname in file_list:
+            try:
+                im_list.append(self.image_handler.load_full_im(fname))
+            except Exception as e: # probably file size was wrong
+                logger.error("Failed to load image file: "+fname+'\n'+str(e))
+        return im_list
+                
+        
+    def make_ave_im(self):
+        """Make an average image from the files selected by the user and 
+        display it."""
+        if self.sender().text() == 'From Files':
+            im_list = self.load_images()
+        else: im_list = []
+        if len(im_list):
+            aveim = np.zeros(np.shape(im_list[0]))
+        else: return 0 # no images selected
+        for im in im_list:
+            aveim += im
+        self.update_im(aveim / len(im_list))
+        return 1
 
     def load_settings(self, fname='.\\imageanalysis\\default.config'):
         """Load the default settings from a config file"""
@@ -439,11 +575,27 @@ class settings_window(QMainWindow):
     def show_analyses(self):
         """Display the instances of SAIA, filling the screen"""
         for i in range(self._a):
-            self.mw[i].setGeometry(40+i//self._a*400, 100, 850, 500)
+            self.mw[i].setGeometry(40+i*400//self._a, 100, 850, 500)
             self.mw[i].show()
         for i in range(len(self.rw_inds)):
-            self.rw[i].setGeometry(45+i//len(self.rw_inds)*400, 200, 850, 500)
+            self.rw[i].setGeometry(45+i*400//len(self.rw_inds), 200, 850, 500)
             self.rw[i].show()
+
+    def im_inds_validator(self, text=''):
+        """The validator on the 'Image indices for analysers' line edit
+        should only allow indices within the number of images per run,
+        and should be a list with length of the total number of image analysers."""
+        up = int(self.m_edit.text())-1 # upper limit
+        a = int(self.a_edit.text())
+        if up < 10: # defines which image index is allowed
+            regstr = '[0-%s]'%up
+        elif up < 100: 
+            regstr = '[0-9]|[1-%s][0-9]|%s[0-%s]'%(up//10 - 1, up//10, up%10)
+        else: regstr = r'\d+'
+        if a > 1: # must have indices for all _a analysers
+            regstr = '('+regstr+r',){0,%s}'%(a-1) + regstr
+        regexp_validator = QRegExpValidator(QRegExp(regstr))
+        self.a_ind_edit.setValidator(regexp_validator)
 
     def reset_analyses(self):
         """Remake the analyses instances for SAIA and re-image"""
@@ -478,8 +630,7 @@ class settings_window(QMainWindow):
             except IndexError as e: 
                 logger.warning('Cannot set image index for image analyser %s.\n'%i+str(e))
 
-        regexp_validator = QRegExpValidator(QRegExp(r'([0-%s]+,?)+'%(self._m-1)))
-        self.a_ind_edit.setValidator(regexp_validator)
+        self.im_inds_validator('')
         self.a_ind_edit.setText(','.join(map(str, self.mw_inds)))
 
         rinds = self.reim_edit.text().split(';') # indices of SAIA instances used for re-imaging
@@ -502,8 +653,9 @@ class settings_window(QMainWindow):
             self.rw[i].ih2 = self.mw[k].image_handler
         for i in range(len(self.rw), len(self.rw_inds)): # add new re-image instances as required
             j, k = map(int, self.rw_inds[i].split(','))
-            self.rw.append(reim_window([self.mw[j].image_handler, self.mw[k].image_handler],
-                        self.results_path, self.image_storage_path, str(i)))
+            self.rw.append(reim_window(self.mw[j].event_im,
+                    [self.mw[j].image_handler, self.mw[k].image_handler],
+                    self.results_path, self.image_storage_path, 'RW'+str(i)))
             
         self.show_analyses()
         self.m_changed.emit(m) # let other modules know the value has changed, and reconnect signals

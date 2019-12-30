@@ -226,11 +226,20 @@ class Master(QMainWindow):
             self.rn.seq.show()
         elif self.sender().text() == 'TCP Server':
             if self.rn.server.isRunning():
-                msg = "TCP server is running. %s queued message(s)."%len(self.rn.server.msg_queue)
+                info = "TCP server is running. %s queued message(s)."%len(self.rn.server.msg_queue)
+                info += 'Command Enum | Length |\t Message\n'
+                for msg in self.rn.server.msg_queue[:5]:
+                    msglen = int.from_bytes(msg[1], 'big')
+                    info += ' | '.join([str(int.from_bytes(msg[0], 'big')), 
+                            str(msglen), str(msg[2], 'mbcs')[:20]])
+                    if msglen > 20:  info += '...'
+                    info += '\n'
+                if len(self.rn.server.msg_queue) > 5:
+                    info += '...\n'
             else:
-                msg = "TCP server stopped."
+                info = "TCP server stopped."
             reply = QMessageBox.question(self, 'TCP Server Status', 
-                msg+"\nDo you want to restart the server?", 
+                info+"\nDo you want to restart the server?", 
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
                 self.rn.reset_server(force=True)
@@ -327,8 +336,9 @@ class Master(QMainWindow):
         elif 'end multirun' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
             self.end_run(msg)
-        elif '<Name>Event list cluster in</Name>' in msg: # auto save any sequence that was sent to be loaded (even if it was already an xml file)
-            self.rn.seq.save_seq_file(os.path.join(self.rn.sv.sequences_path, str(self._n) + time.strftime('_%d %B %Y_%H %M %S') + '.xml'))
+        # auto save any sequence that was sent to be loaded (even if it was already an xml file)
+        # elif '<Name>Event list cluster in</Name>' in msg: # DExTer also saves the sequences when it's run
+        #     self.rn.seq.save_seq_file(os.path.join(self.rn.sv.sequences_path, str(self._n) + time.strftime('_%d %B %Y_%H %M %S') + '.xml'))
                 
     def end_run(self, msg=''):
         """At the end of a single run or a multirun, stop the acquisition,
