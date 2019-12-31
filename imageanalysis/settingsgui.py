@@ -46,9 +46,9 @@ class settings_window(QMainWindow):
 
     def __init__(self, nsaia=1, nreim=0, results_path='.', im_store_path='.'):
         super().__init__()
-        self.types = OrderedDict([('pic_size',int), ('xc',int), ('yc',int), ('roi_size',int), 
+        self.types = OrderedDict([('pic_size',int), ('x',int), ('y',int), ('roi_size',int), 
             ('bias',float), ('Nr', float), ('image_path', str), ('results_path', str)])
-        self.stats = OrderedDict([('pic_size',1), ('xc',0), ('yc',0), ('roi_size',1), 
+        self.stats = OrderedDict([('pic_size',1), ('x',0), ('y',0), ('roi_size',1), 
             ('bias',697), ('Nr', 8.8), ('image_path', im_store_path), ('results_path', results_path)])
         self.load_settings() # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
@@ -242,6 +242,7 @@ class settings_window(QMainWindow):
         roi_grid.addWidget(self.roi_x_edit, 0,1, 1,1)
         self.roi_x_edit.setText('0')  # default
         self.roi_x_edit.setValidator(int_validator) # only numbers
+        self.roi_x_edit.editingFinished.connect(self.roi_text_edit)
         
         # bottom corner of ROI grid y position
         roi_y_label = QLabel('Grid bottom ypos: ', self)
@@ -250,6 +251,7 @@ class settings_window(QMainWindow):
         roi_grid.addWidget(self.roi_y_edit, 0,3, 1,1)
         self.roi_y_edit.setText('0')  # default
         self.roi_y_edit.setValidator(int_validator) # only numbers
+        self.roi_y_edit.editingFinished.connect(self.roi_text_edit)
         
         # ROI size
         roi_l_label = QLabel('ROI size: ', self)
@@ -258,13 +260,16 @@ class settings_window(QMainWindow):
         roi_grid.addWidget(self.roi_l_edit, 0,5, 1,1)
         self.roi_l_edit.setText('1')  # default
         self.roi_l_edit.setValidator(int_validator) # only numbers
+        self.roi_l_edit.editingFinished.connect(self.roi_text_edit)
         
         im_widget = pg.GraphicsLayoutWidget() # containing widget
         viewbox = im_widget.addViewBox() # plot area to display image
+        viewbox.enableAutoRange()
         self.im_canvas = pg.ImageItem() # the image
         viewbox.addItem(self.im_canvas)
         roi_grid.addWidget(im_widget, 1,0, 6,8)
         # display the ROI from each analyser
+        self.rois = []
         self.replot_rois()
 
         # make a histogram to control the intensity scaling
@@ -308,20 +313,15 @@ class settings_window(QMainWindow):
     def roi_text_edit(self, text=''):
         """Update the ROI position and size every time a text edit is made by
         the user to one of the line edit widgets"""
-        xc, yc, l = [self.roi_x_edit.text(),
+        x, y, l = [self.roi_x_edit.text(),
                             self.roi_y_edit.text(), self.roi_l_edit.text()]
-        if any([v == '' for v in [xc, yc, l]]):
-            xc, yc, l = 0, 0, 1 # default takes the top left pixel
+        if any([v == '' for v in [x, y, l]]):
+            x, y, l = 0, 0, 1 # default takes the bottom left pixel
         else:
-            xc, yc, l = list(map(int, [xc, yc, l])) # crashes if the user inputs float
-        
-        if (xc - l//2 < 0 or yc - l//2 < 0 
-            or xc + l//2 > self.stats['pic_size'] 
-            or yc + l//2 > self.stats['pic_size']):
-            l = 2*min([xc, yc])  # can't have the boundary go off the edge
+            x, y, l = map(int, [x, y, l]) # need to check inputs are valid
         if int(l) == 0:
             l = 1 # can't have zero width
-        self.stats['xc'], self.stats['yc'], self.stats['roi_size'] = map(int, [xc, yc, l])
+        self.stats['x'], self.stats['y'], self.stats['roi_size'] = map(int, [x, y, l])
 
     #### image display functions ####
 
@@ -336,17 +336,11 @@ class settings_window(QMainWindow):
         The list of ROIs are stored with labels: [(label, ROI), ...].
         Since the labels might not be unique, we can't use a dictionary."""
         viewbox = self.im_canvas.getViewBox()
-        self.rois = []
-        for i, mw in enumerate(self.mw + self.rw):
+        for i, mw in enumerate(self.mw):
             try: # change position and label of ROI
-                x0, y0 = mw.roi.pos()  # lower left corner of bounding rectangle
-                xw, yw = mw.roi.size() # widths
-                l = int(0.5*(xw+yw))   # want a square ROI
-                # note: setting the origin as bottom left but the image has origin top left
-                xc, yc = int(x0 + l//2), int(y0 + l//2)  # centre
                 self.rois[i][0].setText(mw.name)
                 self.rois[i][0].setColor(pg.intColor(i))
-                self.rois[i][0].setPos([xc, yc])
+                self.rois[i][0].setPos(*[p+l/2 for p, l in zip(mw.roi.pos(), mw.roi.size())])
                 self.rois[i][1].setPos(mw.roi.pos())
                 self.rois[i][1].setSize(mw.roi.size())
             except IndexError: # make new ROI
@@ -355,21 +349,70 @@ class settings_window(QMainWindow):
                 font = QFont()
                 font.setPixelSize(16)
                 self.rois[i][0].setFont(font)
+                self.rois[i][0].setPos(*[p+l/2 for p, l in zip(self.rois[i][1].pos(), self.rois[i][1].size())])
                 viewbox.addItem(self.rois[i][0])
                 viewbox.addItem(self.rois[i][1])
-            mw.roi.sigRegionChangeFinished.connect(self.replot_rois) 
+            remove_slot(mw.roi.sigRegionChangeFinished, self.replot_rois, True)
             self.rois[i][1].setPen(pg.intColor(i), width=3) # set ROI boundary colour
 
-    def make_roi_grid(self, toggle=True):
+    def make_roi_grid(self, toggle=True, method=''):
         """Create a grid of ROIs and assign them to analysers that are using the
         same image. Methods:
         Single ROI       -- make all ROIs the same as the first analyser's 
         Square grid      -- evenly divide the image into a square region for
-            each of the analyser's on this image.  
+            each of the analysers on this image.  
         2D Gaussian masks-- fit 2D Gaussians to atoms in the image."""
-        # self.find(i)
-        pass
-            
+        for mw in self.mw: # disconnect slot, otherwise signal is triggered infinitely
+            remove_slot(mw.roi.sigRegionChangeFinished, self.replot_rois, False)
+        method = method if method else self.sender().text()
+        if method == 'Single ROI':
+            pos, size = self.mw[0].roi.pos(), self.mw[0].roi.size()
+            for mw in self.mw:
+                mw.roi.setPos(pos)
+                mw.roi.setSize(size)
+        elif method == 'Square grid':
+            n = 0 # number of analysers working on image 0:
+            for i in self.find(0): n += 1 
+            X = self.stats['pic_size'] - self.stats['x'] # total available width
+            Y = self.stats['pic_size'] - self.stats['y'] # total available height
+            # pixel area of image covered by one analyser:
+            Area = X * Y // n
+            # choose the dimensions of the grid by factorising:
+            w, h = 0, 0
+            for A in reversed(range(Area+1)):
+                factors = [[i, A//i] for i in range(1, int(A**0.5) + 1) if A % i == 0]
+                closeness = [] # as close to a square as possible
+                for d0, d1 in factors:
+                    closeness.append(abs(d0/d1 - 1))
+                if factors:
+                    w, h = factors[closeness.index(min(closeness))]
+                    break
+            if X > Y:
+                width, height = max(w, h), min(w, h) # match the largest dimension
+            else:
+                width, height = min(w, h), max(w, h)
+            if width and height:
+                if self.stats['roi_size'] > width or self.stats['roi_size'] > height:
+                    logger.warning('When making square ROI grid, found ROI size %s > dimensions (%s, %s)'%(
+                        self.stats['roi_size'], width, height))
+                for i in range(self._m): # ID of image in sequence
+                    j = 0 # how many analysers have been positioned for this image
+                    for k in self.find(i): # index of analyser
+                        try:
+                            self.mw[k].roi.setPos([self.stats['x'] + width//2 + width * (j%(X//width)),
+                                self.stats['y'] + height//2 + height * (j//(X//width))])
+                            self.mw[k].roi.setSize([self.stats['roi_size'], self.stats['roi_size']])
+                            j += 1
+                        except ZeroDivisionError as e:
+                            logger.error('Invalid parameters for square ROI grid: '+
+                                'x - %s, y - %s, pic_size - %s, roi_size - %s.\n'%(
+                                    self.stats['x'], self.stats['y'], self.stats['pic_size'], self.stats['roi_size'])
+                                + 'Calculated width - %s, height - %s.\n'%(width, height) + str(e))
+            else: logger.warning('Failed to set square ROI grid.\n')
+        elif method == '2D Gaussian masks':
+            logger.warning('Setting ROI with 2D Gaussian masks is not implemented yet.\n')
+        self.replot_rois() # also reconnects slots so ROIs update from analysers
+
     #### #### toggle functions #### #### 
 
     def set_all_windows(self, action=None):
@@ -425,7 +468,6 @@ class settings_window(QMainWindow):
                 logger.error("Failed to load image file: "+fname+'\n'+str(e))
         return im_list
                 
-        
     def make_ave_im(self):
         """Make an average image from the files selected by the user and 
         display it."""
@@ -440,7 +482,7 @@ class settings_window(QMainWindow):
         self.update_im(aveim / len(im_list))
         return 1
 
-    def load_settings(self, fname='.\\imageanalysis\\default.config'):
+    def load_settings(self, toggle=True, fname='.\\imageanalysis\\default.config'):
         """Load the default settings from a config file"""
         try:
             with open(fname, 'r') as f:
@@ -463,7 +505,9 @@ class settings_window(QMainWindow):
             im_vals = np.genfromtxt(file_name, delimiter=' ')
             self.stats['pic_size'] = int(np.size(im_vals[0]) - 1)
             self.pic_size_edit.setText(str(self.stats['pic_size'])) # update loaded value
-            self.pic_size_label.setText(str(self.stats['pic_size'])) # update loaded value
+            for mw in self.mw + self.rw:
+                mw.pic_size_edit.setText(str(self.stats['pic_size']))
+                mw.pic_size_label.setText(str(self.stats['pic_size']))
 
     def load_roi(self):
         """Get the user to select an image file and then use this to get the ROI centre"""
@@ -474,11 +518,12 @@ class settings_window(QMainWindow):
             self.stats['pic_size'] = int(np.size(im_vals[0]) - 1)
             self.pic_size_edit.setText(str(self.stats['pic_size'])) # update loaded value
             # get the position of the max count
-            xcs, ycs  = np.where(im_vals == np.max(im_vals))
-            self.stats['xc'], self.stats['yc'] = xcs[0], ycs[0]
-            self.roi_x_edit.setText(str(self.stats['xc'])) 
-            self.roi_y_edit.setText(str(self.stats['yc'])) 
+            xs, ys  = np.where(im_vals == np.max(im_vals))
+            self.stats['x'], self.stats['y'] = xs[0], ys[0]
+            self.roi_x_edit.setText(str(self.stats['x'])) 
+            self.roi_y_edit.setText(str(self.stats['y'])) 
             self.roi_l_edit.setText(str(self.stats['roi_size']))
+            self.make_roi_grid(method='Single ROI')
 
     def save_hist_data(self, trigger=None, save_file_name='', confirm=True):
         """Prompt the user to give a directory to save the histogram data, then save"""
@@ -575,10 +620,12 @@ class settings_window(QMainWindow):
     def show_analyses(self):
         """Display the instances of SAIA, filling the screen"""
         for i in range(self._a):
-            self.mw[i].setGeometry(40+i*400//self._a, 100, 850, 500)
+            self.mw[i].resize(800, 400)
+            self.mw[i].setGeometry(40+i*400//self._a, 100, 800, 400)
             self.mw[i].show()
         for i in range(len(self.rw_inds)):
-            self.rw[i].setGeometry(45+i*400//len(self.rw_inds), 200, 850, 500)
+            self.rw[i].resize(800, 400)
+            self.rw[i].setGeometry(45+i*400//len(self.rw_inds), 200, 800, 400)
             self.rw[i].show()
 
     def im_inds_validator(self, text=''):
@@ -624,7 +671,7 @@ class settings_window(QMainWindow):
         except ValueError as e:
             logger.warning('Invalid syntax for image analysis indices: '+self.a_ind_edit.text()+'\n'+str(e))
         if len(ainds) != self._a: 
-            logger.warning('Warning: there are %s image indices for the %s image analysers.\n'%(len(ainds), self._a))
+            logger.warning('While creating new analysers: there are %s image indices for the %s image analysers.\n'%(len(ainds), self._a))
         for i, a in enumerate(ainds):
             try: self.mw_inds[i] = a
             except IndexError as e: 
@@ -657,6 +704,8 @@ class settings_window(QMainWindow):
                     [self.mw[j].image_handler, self.mw[k].image_handler],
                     self.results_path, self.image_storage_path, 'RW'+str(i)))
             
+        self.pic_size_text_edit(self.pic_size_edit.text())
+        self.CCD_stat_edit()
         self.show_analyses()
         self.m_changed.emit(m) # let other modules know the value has changed, and reconnect signals
         

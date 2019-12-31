@@ -234,7 +234,7 @@ class image_handler(Analysis):
                 self.xc + self.roi_size//2 + self.roi_size%2),
                 self.yc - self.roi_size//2 : (
                 self.yc + self.roi_size//2 + self.roi_size%2)
-                ] = np.ones(self.roi_size, self.roi_size)
+                ] = np.ones((self.roi_size, self.roi_size))
 
     def set_pic_size(self, im_name):
         """Set the pic size by looking at the number of columns in a file
