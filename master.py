@@ -227,7 +227,7 @@ class Master(QMainWindow):
         elif self.sender().text() == 'TCP Server':
             if self.rn.server.isRunning():
                 info = "TCP server is running. %s queued message(s)."%len(self.rn.server.msg_queue)
-                info += 'Command Enum | Length |\t Message\n'
+                info += '\nCommand Enum | Length |\t Message\n'
                 for msg in self.rn.server.msg_queue[:5]:
                     msglen = int.from_bytes(msg[1], 'big')
                     info += ' | '.join([str(int.from_bytes(msg[0], 'big')), 
