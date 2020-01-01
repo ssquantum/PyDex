@@ -399,8 +399,8 @@ class settings_window(QMainWindow):
                     j = 0 # how many analysers have been positioned for this image
                     for k in self.find(i): # index of analyser
                         try:
-                            self.mw[k].roi.setPos([self.stats['x'] + width//2 + width * (j%(X//width)),
-                                self.stats['y'] + height//2 + height * (j//(X//width))])
+                            self.mw[k].roi.setPos([self.stats['x'] + width * (j%(X//width)),
+                                self.stats['y'] + height * (j//(X//width))])
                             self.mw[k].roi.setSize([self.stats['roi_size'], self.stats['roi_size']])
                             j += 1
                         except ZeroDivisionError as e:
@@ -430,16 +430,16 @@ class settings_window(QMainWindow):
     def get_default_path(self, default_path=''):
         """Get a default path for saving/loading images
         default_path: set the default path if the function doesn't find one."""
-        return os.path.dirname(self.log_file_name) if self.log_file_name else default_path
+        return os.path.dirname(default_path) if default_path else self.results_path
 
     def try_browse(self, title='Select a File', file_type='all (*)', 
-                open_func=QFileDialog.getOpenFileName):
+                open_func=QFileDialog.getOpenFileName, defaultpath=''):
         """Open a file dialog and retrieve a file name from the browser.
         title: String to display at the top of the file browser window
         default_path: directory to open first
         file_type: types of files that can be selected
         open_func: the function to use to open the file browser"""
-        default_path = self.get_default_path()
+        default_path = self.get_default_path(defaultpath)
         try:
             if 'PyQt4' in sys.modules:
                 file_name = open_func(self, title, default_path, file_type)
@@ -450,22 +450,29 @@ class settings_window(QMainWindow):
 
     def load_image(self, trigger=None):
         """Prompt the user to select an image file to display."""
-        file_name = self.try_browse(file_type='Images (*.asc);;all (*)')
-        if file_name:  # avoid crash if the user cancelled
-            im_vals = self.image_handler.load_full_im(file_name)
-            self.update_im(im_vals)
+        fname = self.try_browse(file_type='Images (*.asc);;all (*)',
+            defaultpath=self.image_storage_path)
+        if fname:  # avoid crash if the user cancelled
+            try:
+                self.mw[0].image_handler.set_pic_size(fname)
+                self.pic_size_edit.setText(str(self.mw[0].imgae_handler.pic_size))
+                im_vals = self.mw[0].image_handler.load_full_im(fname)
+                self.update_im(im_vals)
+            except IndexError as e:
+                logger.error("Settings window failed to load image file: "+fname+'\n'+str(e))
     
     def load_images(self):
         """Prompt the user to choose a selection of image files."""
         im_list = []
         file_list = self.try_browse(title='Select Files', 
                 file_type='Images(*.asc);;all (*)', 
-                open_func=QFileDialog.getOpenFileNames)
+                open_func=QFileDialog.getOpenFileNames,
+                defaultpath=self.image_storage_path)
         for fname in file_list:
             try:
-                im_list.append(self.image_handler.load_full_im(fname))
+                im_list.append(self.mw[0].image_handler.load_full_im(fname))
             except Exception as e: # probably file size was wrong
-                logger.error("Failed to load image file: "+fname+'\n'+str(e))
+                logger.error("Settings window failed to load image file: "+fname+'\n'+str(e))
         return im_list
                 
     def make_ave_im(self):
@@ -474,13 +481,10 @@ class settings_window(QMainWindow):
         if self.sender().text() == 'From Files':
             im_list = self.load_images()
         else: im_list = []
-        if len(im_list):
-            aveim = np.zeros(np.shape(im_list[0]))
-        else: return 0 # no images selected
-        for im in im_list:
-            aveim += im
-        self.update_im(aveim / len(im_list))
-        return 1
+        if np.size(np.shape(im_list)) == 3:
+            aveim = np.mean(im_list, axis=0)
+            self.update_im(aveim / len(im_list))
+            return 1
 
     def load_settings(self, toggle=True, fname='.\\imageanalysis\\default.config'):
         """Load the default settings from a config file"""
@@ -500,7 +504,7 @@ class settings_window(QMainWindow):
 
     def load_im_size(self):
         """Get the user to select an image file and then use this to get the image size"""
-        file_name = self.try_browse(file_type='Images (*.asc);;all (*)')
+        file_name = self.try_browse(file_type='Images (*.asc);;all (*)', defaultpath=self.image_storage_path)
         if file_name:
             im_vals = np.genfromtxt(file_name, delimiter=' ')
             self.stats['pic_size'] = int(np.size(im_vals[0]) - 1)
@@ -511,7 +515,7 @@ class settings_window(QMainWindow):
 
     def load_roi(self):
         """Get the user to select an image file and then use this to get the ROI centre"""
-        file_name = self.try_browse(file_type='Images (*.asc);;all (*)')
+        file_name = self.try_browse(file_type='Images (*.asc);;all (*)', defaultpath=self.image_storage_path)
         if file_name:
             # get pic size from this image in case the user forgot to set it
             im_vals = np.genfromtxt(file_name, delimiter=' ')
@@ -524,51 +528,6 @@ class settings_window(QMainWindow):
             self.roi_y_edit.setText(str(self.stats['y'])) 
             self.roi_l_edit.setText(str(self.stats['roi_size']))
             self.make_roi_grid(method='Single ROI')
-
-    def save_hist_data(self, trigger=None, save_file_name='', confirm=True):
-        """Prompt the user to give a directory to save the histogram data, then save"""
-        if not save_file_name:
-            save_file_name = self.try_browse(title='Save File', file_type='csv(*.csv);;all (*)', 
-                        open_func=QFileDialog.getSaveFileName)
-        if save_file_name:
-            # don't update the threshold  - trust the user to have already set it
-            self.add_stats_to_plot()
-            # include most recent histogram stats as the top two lines of the header
-            # self.image_handler.save(save_file_name,
-            #              meta_head=list(self.histo_handler.temp_vals.keys()),
-            #              meta_vals=list(self.histo_handler.temp_vals.values())) # save histogram
-            try: 
-                hist_num = self.histo_handler.stats['File ID'][-1]
-            except IndexError: # if there are no values in the stats yet
-                hist_num = -1
-            if confirm:
-                msg = QMessageBox()
-                msg.setIcon(QMessageBox.Information)
-                msg.setText("File saved to "+save_file_name+"\n"+
-                        "and appended histogram %s to log file."%hist_num)
-                msg.setStandardButtons(QMessageBox.Ok)
-                msg.exec_()
-
-    def save_varplot(self, save_file_name='', confirm=True):
-        """Save the data in the current plot, which is held in the histoHandler's
-        dictionary and saved in the log file, to a new file."""
-        if not save_file_name:
-            self.try_browse(title='Save File', file_type='dat(*.dat);;all (*)',
-                            open_func=QFileDialog.getSaveFileName)
-        if save_file_name:
-            with open(save_file_name, 'w+') as f:
-                f.write('#Single Atom Image Analyser Log File: collects histogram data\n')
-                f.write('#include --[]\n')
-                f.write('#'+', '.join(self.histo_handler.stats.keys())+'\n')
-                for i in range(len(self.histo_handler.stats['File ID'])):
-                    f.write(','.join(list(map(str, [v[i] for v in 
-                        self.histo_handler.stats.values()])))+'\n')
-            if confirm:
-                msg = QMessageBox()
-                msg.setIcon(QMessageBox.Information)
-                msg.setText("Plot data saved to file "+save_file_name)
-                msg.setStandardButtons(QMessageBox.Ok)
-                msg.exec_()
         
     def check_reset(self):
         """Ask the user if they would like to reset the current data stored"""
@@ -582,23 +541,6 @@ class settings_window(QMainWindow):
                 mw.image_handler.reset_arrays() # gets rid of old data
         return 1
 
-    def load_empty_hist(self):
-        """Prompt the user with options to save the data and then reset the 
-        histogram"""
-        reply = QMessageBox.question(self, 'Confirm reset', 
-            'Save the current histogram before resetting?',
-            QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
-            QMessageBox.Cancel)
-        if reply == QMessageBox.Cancel:
-            return 0
-        elif reply == QMessageBox.Yes:
-            self.save_hist_data()  # prompt user for file name then save
-            self.image_handler.reset_arrays() # get rid of old data
-            self.hist_canvas.clear() # remove old histogram from display
-        elif reply == QMessageBox.No:
-            self.image_handler.reset_arrays() # get rid of old data
-            self.hist_canvas.clear() # remove old histogram from display
-
     #### #### testing functions #### #### 
         
     def print_times(self, unit="s"):
@@ -610,10 +552,10 @@ class settings_window(QMainWindow):
             scale *= 1e6
         else:
             unit = "s"
-        print("Image processing duration: %.4g "%(
-                self.int_time*scale)+unit)
-        print("Image plotting duration: %.4g "%(
-                self.plot_time*scale)+unit)
+        # print("Image processing duration: %.4g "%(
+        #         self.int_time*scale)+unit)
+        # print("Image plotting duration: %.4g "%(
+        #         self.plot_time*scale)+unit)
         
     #### #### UI management functions #### #### 
     
