@@ -65,14 +65,16 @@ class PyServer(QThread):
     While stop=False the server waits for a connection. Once a connection is
     made, send a message from the queue. If the queue is empty, wait until 
     there is a message in the queue before using the connection.
+    host - a string giving either the internet domain hostname, or the 
+        IPv4 address. 'localhost' uses the computer running this script. 
     port - the unique port number used for the next socket connection."""
     textin = pyqtSignal(str) # received text
     dxnum  = pyqtSignal(str) # received run number, synchronised with DExTer
     stop   = False           # toggle whether to stop listening
     
-    def __init__(self, port=8089):
+    def __init__(self, host='localhost', port=8089):
         super().__init__()
-        self.server_address = ('localhost', port)
+        self.server_address = (host, port)
         self.msg_queue = []
         
     def add_message(self, enum, text, encoding="mbcs"):
