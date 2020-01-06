@@ -50,7 +50,7 @@ class runnum(QThread):
         self.sw.m_changed.connect(self.set_m)
         self.seq = seq   # sequence editor
         
-        self.server = PyServer() # server will run continuously on a thread
+        self.server = PyServer(host='129.234.190.254') # server will run continuously on a thread
         self.server.dxnum.connect(self.set_n) # signal gives run number
         self.server.start()
 
