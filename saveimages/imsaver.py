@@ -72,15 +72,17 @@ class event_handler(PyDexThread):
             # get the date to be used for file labeling
             self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
             datepath = r'\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])
-            paths = [self.image_storage_path, self.results_path, self.sequences_path]
-            for i in range(len(paths)):
-                paths[i] += datepath
+            self.image_storage_path += datepath
+            self.results_path += datepath
+            self.sequences_path += datepath
+            for path in [self.image_storage_path, self.results_path, self.sequences_path]:
                 try: # create directory by date if it doesn't already exist
-                    os.makedirs(paths[i], exist_ok=True) # requies version > 3.2
+                    os.makedirs(path, exist_ok=True) # requies version > 3.2
                 except PermissionError as e: 
-                    paths[i] = '.' + datepath
-                    os.makedirs(paths[i], exist_ok=True) 
-                    logger.warning('Image saver could not create directory. Using current directory instead\n'+str(e))
+                    path = '.' + datepath
+                    os.makedirs(path, exist_ok=True) 
+                    logger.warning('Image saver could not create directory: '+
+                        path +'\n Using current directory instead\n'+str(e))
 
     @staticmethod # static method can be accessed without making an instance of the class
     def get_dirs(config_file='./config/config.dat'):

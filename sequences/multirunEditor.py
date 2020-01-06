@@ -133,6 +133,8 @@ class multirun_widget(QWidget):
                 default[i], vldtr[i])[1] for i in range(4)]
         self.cols_edit.textChanged[str].connect(self.change_array_size)
         self.rows_edit.textChanged[str].connect(self.change_array_size)
+        self.omit_edit.editingFinished.connect(self.update_repeats)
+        self.nhist_edit.editingFinished.connect(self.update_repeats)
 
         # choose the order
         self.order_edit = QComboBox(self)
@@ -249,7 +251,13 @@ class multirun_widget(QWidget):
         self.table.setColumnCount(self.ncols)
         self.col_val_edit[0].setValidator(QIntValidator(0,self.ncols-1))
         self.reset_array()
-
+    
+    def update_repeats(self, txt=''):
+        """Take the current values of the line edits and use them to set the
+        number of omitted and number of included runs in a histogram."""
+        self.nomit = int(self.omit_edit.text()) if self.omit_edit.text() else 0
+        self.nhist = int(self.nhist_edit.text()) if self.nhist_edit.text() else 1
+           
     def add_column_to_array(self):
         """Make a list of values and add it to the given column 
         in the multirun values array. The list is range(start, stop, step) 
@@ -258,8 +266,6 @@ class multirun_widget(QWidget):
         if all([x.text() for x in self.col_val_edit]):
             col = int(self.col_val_edit[0].text()) if self.col_val_edit[0].text() else 0
             # store the selected channels
-            self.nomit = int(self.omit_edit.text()) if self.omit_edit.text() else 0
-            self.nhist = int(self.nhist_edit.text()) if self.nhist_edit.text() else 1
             self.order = self.order_edit.currentText()
             for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix']
                 self.stats[key] = self.measures[key].text()

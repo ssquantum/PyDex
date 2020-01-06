@@ -50,7 +50,7 @@ class runnum(QThread):
         self.sw.m_changed.connect(self.set_m)
         self.seq = seq   # sequence editor
         
-        self.server = PyServer(host='129.234.190.254') # server will run continuously on a thread
+        self.server = PyServer(host='') # server will run continuously on a thread
         self.server.dxnum.connect(self.set_n) # signal gives run number
         self.server.start()
 
@@ -136,9 +136,9 @@ class runnum(QThread):
             if (rw.ih1.fid != self._n or rw.ih2.fid != self._n):
                 checks.append('Lost sync: Re-image windows # %s, %s /= run # %s'%(
                             rw.ih1.fid, rw.ih2.fid, self._n))
-        if self._k != self._n*self._m + self._k % self._m:
-            checks.append('Lost sync: %s images taken in %s runs'%(
-                    self._k, self._n))
+        # if self._k != self._n*self._m + self._k % self._m:
+        #     checks.append('Lost sync: %s images taken in %s runs'%(
+        #             self._k, self._n))
         # also check synced with DExTer
 
         if verbose:
@@ -190,6 +190,7 @@ class runnum(QThread):
             self.seq.mr.get_all_sequences()
             # save log file with the parameters used for this multirun:
             self.seq.mr.save_mr_params(os.path.join(self.sv.results_path, self.seq.mr.stats['measure_prefix']+'params.log'))
+            self._k = 0 # reset image per run count
             # insert TCP messages at the front of the queue: once the multirun starts don't interrupt it.
             self.server.priority_messages([[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[self.seq.mr.get_next_index(self.seq.mr.ind)]], 
                     [TCPENUM['Run sequence'], 'multirun run '+str(self._n)],
@@ -221,6 +222,7 @@ class runnum(QThread):
         if not 'multirun' in status: 
             remove_slot(self.cam.AcquireEnd, self.receive, False) # only receive if not in '# omit'
             remove_slot(self.cam.AcquireEnd, self.mr_receive, True)
+            self._k = 0 # reset image per run count
             self.server.priority_messages([[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[self.seq.mr.get_next_index(self.seq.mr.ind)]],
                 [TCPENUM['Run sequence'], 'multirun run '+str(self._n)],
                 [TCPENUM['TCP read'], 'multirun step '+str(self._n)+' finished']]) # adds at front of queue
@@ -236,7 +238,7 @@ class runnum(QThread):
         r = self.seq.mr.ind % (self.seq.mr.nomit + self.seq.mr.nhist)
         v = self.seq.mr.ind // (self.seq.mr.nomit + self.seq.mr.nhist)
         try:
-            uv = self.seq.mr.table.item(self.seq.mr.ind, 0).text() # get user variable
+            uv = self.seq.mr.table.item(v, 0).text() # get user variable
         except AttributeError as e: 
             logger.error('Multirun step could not extract user variable from table:\n'+str(e))
             uv = ''
@@ -259,8 +261,8 @@ class runnum(QThread):
                 mw.bins_text_edit(text='reset') # set histogram bins 
                 success = mw.update_fit(fit_method='check action') # get best fit
                 if not success:                   # if fit fails, use peak search
-                    mw.histo_handler.process(self.image_handler, uv, 
-                        fix_thresh=self.thresh_toggle.isChecked(), method='quick')
+                    mw.histo_handler.process(mw.image_handler, uv, 
+                        fix_thresh=mw.thresh_toggle.isChecked(), method='quick')
                     logger.warning('\nMultirun run %s fitting failed. '%self._n +
                         'Histogram data in '+ mw.name + self.seq.mr.stats['measure_prefix']
                         + str(v) + '.csv')
@@ -270,13 +272,13 @@ class runnum(QThread):
                 mw.image_handler.reset_arrays() # clear histogram
         
         self.seq.mr.ind += 1
-        if self.seq.mr.ind < self.seq.mr.nrows:
+        if self.seq.mr.ind < self.seq.mr.nrows*(self.seq.mr.nomit + self.seq.mr.nhist):
             newindex = self.seq.mr.get_next_index(self.seq.mr.ind)
             if index != newindex: # sequence will change
                 msgs = [[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[newindex]]]
             else: msgs = []
-            msgs.append([TCPENUM['Run sequence'], 'multirun run '+str(self._n)])
-            msgs.append([TCPENUM['TCP read'], 'multirun step '+str(self._n)+' finished'])
+            msgs.append([TCPENUM['Run sequence'], 'multirun run '+str(self._n+1)])
+            msgs.append([TCPENUM['TCP read'], 'multirun step '+str(self._n+1)+' finished'])
             self.server.priority_messages(msgs)
         else: # end of multirun:
             for mw in self.sw.rw + self.sw.mw:

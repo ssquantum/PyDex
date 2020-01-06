@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 class Andor:
     """Class containing a library of functions for operating the Andor camera."""
     
-    def __init__(self, dllpath="Z:\\Tweezer\\Code\\Python 3.5\\PyDex\\ancam\\atmcd64d"):
+    def __init__(self, dllpath="Z:\\Tweezer\\Code\\Python 3.5\\PyDex\\andorcamera\\atmcd64d"):
         super().__init__() # required for multiple inheritence
         self.OS = platform.system()
         self.architecture = platform.architecture()[0]

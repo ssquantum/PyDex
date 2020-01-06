@@ -203,7 +203,8 @@ class camera(QThread):
             with open(config_file, 'r') as config_file:
                 config_data = config_file.read().split("\n")
         except FileNotFoundError:
-            print("config.dat file not found. This file is required to load camera settings.")
+            logger.warning("Andor camera config.dat file not found. "+
+                "This file is required to load camera settings.")
             return 0
 
         cvals = []

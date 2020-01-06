@@ -1,5 +1,5 @@
 // list of required directories for SAIA
 image storage path	 =C:\Users\Lab\Documents\Andor\Camera Tests\Images
-dexter sync file	 =Y:\currentfile.txt
+dexter sync file	 =X:\Results\currentfile.txt
 results path		 =Z:\Tweezer\Experimental Results
 sequences path		 =Z:\Tweezer\Code\Python 3.5\PyDex\sequences\SequenceFiles

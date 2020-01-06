@@ -48,7 +48,7 @@ class settings_window(QMainWindow):
         super().__init__()
         self.types = OrderedDict([('pic_size',int), ('x',int), ('y',int), ('roi_size',int), 
             ('bias',float), ('Nr', float), ('image_path', str), ('results_path', str)])
-        self.stats = OrderedDict([('pic_size',1), ('x',0), ('y',0), ('roi_size',1), 
+        self.stats = OrderedDict([('pic_size',512), ('x',0), ('y',0), ('roi_size',1), 
             ('bias',697), ('Nr', 8.8), ('image_path', im_store_path), ('results_path', results_path)])
         self.load_settings() # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year

@@ -1,4 +1,4 @@
-File#=0
-Date=01,January,2020
-CameraConfig=.\\ancam\\Single_Acquisition_config.dat
+CameraConfig=.\\andorcamera\\ExExposure_config.dat
+Date=06,January,2020
+File#=834
 SaveConfig=.\\config\\config.dat

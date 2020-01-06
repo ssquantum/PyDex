@@ -83,9 +83,8 @@ class image_handler(Analysis):
         include    -- whether to include the image in further analysis
         """
         full_im -= self.bias # remove the bias offset, it's arbitrary
-        not_roi = full_im.copy()
         self.im_vals = full_im * self.mask # get the ROI
-        not_roi *= (1-self.mask)
+        not_roi = full_im * (1-self.mask)
         # background statistics: mean count and standard deviation across image
         N = np.sum(1-self.mask)
         self.stats['Mean bg count'].append(np.sum(not_roi) / N)
@@ -171,9 +170,9 @@ class image_handler(Analysis):
                 lo, hi = min(self.stats['Counts'])*0.97, max(self.stats['Counts'])*1.02
                 # scale number of bins with number of files in histogram and with separation of peaks
                 num_bins = int(25 + 5e-5 * self.ind**2 + ((hi - lo)/hi)**2*15) 
+                occ, bins = np.histogram(self.stats['Counts'], bins=np.linspace(lo, hi, num_bins+1)) # no bins provided by user
             except: 
-                lo, hi, num_bins = 0, 1, 10
-            occ, bins = np.histogram(self.stats['Counts'], bins=np.linspace(lo, hi, num_bins+1)) # no bins provided by user
+                occ, bins = np.histogram(self.stats['Counts'])
         if np.size(self.stats['Counts']): # don't do anything to an empty list
             # get the indexes of peak positions, heights, and widths
             self.peak_indexes, self.peak_heights, self.peak_widths = est_param(occ)
@@ -225,10 +224,10 @@ class image_handler(Analysis):
     def create_square_mask(self):
         """Use the current ROI dimensions to create a mask for the image.
         The square mask is zero outside the ROI and 1 inside the ROI."""
-        if (self.xc + self.roi_size < self.pic_size and 
-            self.xc - self.roi_size > 0 and 
-            self.yc + self.roi_size < self.pic_size and 
-            self.yc - self.roi_size > 0):
+        if (self.xc + self.roi_size//2 < self.pic_size and 
+                self.xc - self.roi_size//2 >= 0 and 
+                self.yc + self.roi_size//2 < self.pic_size and 
+                self.yc - self.roi_size//2 >= 0):
             self.mask = np.zeros((self.pic_size, self.pic_size))
             self.mask[self.xc - self.roi_size//2 : (
                 self.xc + self.roi_size//2 + self.roi_size%2),

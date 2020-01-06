@@ -105,8 +105,14 @@ class PyServer(QThread):
          2) the length of the message to come as int32 (4 bytes).
          3) the sent message as str."""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(self.server_address)
-            s.listen() # start the socket that waits for connections
+            try: 
+                s.bind(self.server_address)
+                s.listen() # start the socket that waits for connections
+            except OSError as e:
+                logger.error('Failed to start server at address: ' + 
+                    ', '.join(map(str, self.server_address)) + '\n' + str(e))
+                remove_slot(self.finished, self.reset_stop)
+                self.stop = True # stop the thread running
             while True:
                 if self.check_stop():
                     break # toggle

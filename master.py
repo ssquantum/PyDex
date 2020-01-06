@@ -84,12 +84,16 @@ class Master(QMainWindow):
                     results_path =sv_dirs['Results Path: '],
                     im_store_path=sv_dirs['Image Storage Path: ']), # image analysis
                 Previewer(), # sequence editor
-                n=startn, m=2, k=0) 
+                n=startn, m=m if m!=0 else 2, k=0) 
         
         self.rn.server.dxnum.connect(self.Dx_label.setText) # synchronise run number
         self.rn.server.textin.connect(self.respond) # read TCP messages
         self.status_label.setText('Initialising...')
         QTimer.singleShot(0, self.idle_state) # takes a while for other windows to load
+        
+        self.rn.seq.show()
+        self.rn.sw.show()
+        self.rn.sw.show_analyses()
 
     def idle_state(self):
         """When the master thread is not processing user events, it is in the idle states.
@@ -144,8 +148,7 @@ class Master(QMainWindow):
         show_windows = menubar.addMenu('Windows')
         menu_items = []
         for window_title in ['Image Analyser', 'Camera Status', 
-            'Image Saver', 'TCP Server', 'Sequence Previewer', 
-            'Reset Image Analyser']:
+            'Image Saver', 'TCP Server', 'Sequence Previewer']:
             menu_items.append(QAction(window_title, self)) 
             menu_items[-1].triggered.connect(self.show_window)
             show_windows.addAction(menu_items[-1])
@@ -242,6 +245,7 @@ class Master(QMainWindow):
                 info+"\nDo you want to restart the server?", 
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
+                self.action_button.setEnabled(True)
                 self.rn.reset_server(force=True)
 
     def browse_sequence(self, toggle=True):
@@ -255,7 +259,9 @@ class Master(QMainWindow):
             elif 'PyQt5' in sys.modules:
                 file_name, _ = QFileDialog.getOpenFileName(
                     self, 'Select A Sequence', '', 'Sequence (*.xml);;all (*)')
-            self.seq_edit.setText(file_name.replace('/','\\'))
+            if file_name:
+                self.seq_edit.setText(file_name.replace('/','\\'))
+                self.rn.seq.load_seq_from_file(file_name)
         except OSError:
             pass # user cancelled - file not found
 
@@ -286,15 +292,12 @@ class Master(QMainWindow):
                         the location in the 'Sequence file' label."""
         if self.rn.server.isRunning():
             action_text = self.actions.currentText()
-            # check the queued messages for planned runs
-            qd_runs = sum([bytes('single run', 'mbcs') in msg[2] or bytes('multirun', 'mbcs') 
-                            in msg[2] for msg in self.rn.server.msg_queue])
             if action_text == 'Run sequence':
-                # queue up messages: start acquisition, run sequence, then confirm finished
+                # queue up messages: start acquisition, check run number
+                self.action_button.setEnabled(False) # only process 1 run at a time
+                self.rn._k = 0 # reset image per run count 
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition') 
-                self.rn.server.add_message(TCPENUM[action_text], 'single run '+str(self.rn._n + qd_runs))
-                # this will trigger end_run to stop the camera acquisition:
-                self.rn.server.add_message(TCPENUM['TCP read'], 'run finished '+str(self.rn._n + qd_runs)) 
+                self.rn.server.add_message(TCPENUM['TCP read'], 'running') 
             elif action_text == 'Multirun run':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start measure '+str(self.rn.seq.mr.stats['measure'])) # set DExTer's message to send
                 self.rn.server.add_message(TCPENUM['TCP read'], 'check started '+str(self.rn.seq.mr.stats['measure'])) # multirun will start 
@@ -314,25 +317,39 @@ class Master(QMainWindow):
                 self.rn.server.add_message(TCPENUM[action_text], self.seq_edit.text())
             elif action_text == 'Cancel Python Mode':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off')
+                
+    def wait_for_cam(self, timeout=10):
+        """Wait (timeout / 10) ms, periodically checking whether the camera
+        has started acquiring yet."""
+        for i in range(int(timeout)):
+            if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
+                print(i, 'waited for camera')
+                break
+            else: time.sleep(timeout/10*1e-3) # wait for camera to initialise
 
     def respond(self, msg=''):
         """Read the text from a TCP message and then execute the appropriate function."""
-        if 'run finished' in msg:
+        print(self.rn._n, ': ', msg)
+        if 'finished run' in msg:
             self.end_run(msg)
         elif 'start acquisition' in msg:
             if self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
+                self.wait_for_cam() # pause a little to give the camera time to start the acquisition
             else: logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
-        elif 'single run' in msg:
-            self.status_label.setText('Running current sequence')
+            self.rn.server.priority_messages([(TCPENUM['Run sequence'], 'finished run '+str(self.rn._n)),
+                (TCPENUM['TCP read'], 'idle')]) 
         elif 'start measure' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
             if self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
+                self.wait_for_cam()
             else: logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
             self.rn.multirun_go(msg)
         elif 'multirun run' in msg:
             self.rn.multirun_step(msg)
+        elif 'multirun step' in msg and 'finished' in msg:
+            self.rn._k = 0 # reset image per run count
         elif 'end multirun' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
             self.end_run(msg)
@@ -345,6 +362,7 @@ class Master(QMainWindow):
         check for unprocessed images, and check synchronisation.
         First, disconnect the server.textin signal from this slot to it
         only triggers once."""
+        self.action_button.setEnabled(True)
         try:
             unprocessed = self.rn.cam.EmptyBuffer()
             self.rn.cam.AF.AbortAcquisition()
