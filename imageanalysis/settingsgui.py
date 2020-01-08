@@ -44,7 +44,7 @@ class settings_window(QMainWindow):
     """
     m_changed = pyqtSignal(int) # gives the number of images per run
 
-    def __init__(self, nsaia=1, nreim=0, results_path='.', im_store_path='.'):
+    def __init__(self, nsaia=1, nreim=0, results_path='', im_store_path=''):
         super().__init__()
         self.types = OrderedDict([('pic_size',int), ('x',int), ('y',int), ('roi_size',int), 
             ('bias',float), ('Nr', float), ('image_path', str), ('results_path', str)])
@@ -52,8 +52,8 @@ class settings_window(QMainWindow):
             ('bias',697), ('Nr', 8.8), ('image_path', im_store_path), ('results_path', results_path)])
         self.load_settings() # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
-        self.results_path = results_path # used for saving results
-        self.image_storage_path = im_store_path # used for loading image files
+        self.results_path = results_path if results_path else self.stats['results_path'] # used for saving results
+        self.image_storage_path = im_store_path if im_store_path else self.stats['image_path'] # used for loading image files
         self._m = nsaia # number of images per run 
         self._a = nsaia # number of SAIA instances
         self.mw = [main_window(results_path, im_store_path, str(i)) for i in range(nsaia)] # saia instances
@@ -107,13 +107,14 @@ class settings_window(QMainWindow):
         
         fit_menu = QMenu('Fitting', self) # drop down menu for fitting options
         self.fit_options = QActionGroup(fit_menu)  # group together the options
+        self.fit_methods = []
         for action_label in ['separate gaussians', 'double poissonian', 
                             'single gaussian', 'double gaussian']:
-            fit_method = QAction(action_label, fit_menu, checkable=True, 
-                checked=action_label=='double gaussian') # set default
-            fit_menu.addAction(fit_method)
-            self.fit_options.addAction(fit_method)
-        fit_method.setChecked(True) # set last method as checked: double gaussian
+            self.fit_methods.append(QAction(action_label, fit_menu, checkable=True, 
+                checked=action_label=='double gaussian')) # set default
+            fit_menu.addAction(self.fit_methods[-1])
+            self.fit_options.addAction(self.fit_methods[-1])
+        self.fit_methods[-1].setChecked(True) # set last method as checked: double gaussian
         self.fit_options.setExclusive(True) # only one option checked at a time
         self.fit_options.triggered.connect(self.set_all_windows)
         hist_menu.addMenu(fit_menu)
@@ -186,10 +187,10 @@ class settings_window(QMainWindow):
         settings_grid.addWidget(size_label, 2,0, 1,1)
         self.pic_size_edit = QLineEdit(self)
         settings_grid.addWidget(self.pic_size_edit, 2,1, 1,1)
-        self.pic_size_edit.setText(str(self.stats['pic_size'])) # default
         self.pic_size_edit.textChanged[str].connect(self.pic_size_text_edit)
         self.pic_size_edit.setValidator(int_validator)
-
+        self.pic_size_edit.setText(str(self.stats['pic_size'])) # default
+        
         # get image size from loading an image
         load_im_size = QPushButton('Load size from image', self)
         load_im_size.clicked.connect(self.load_im_size) # load image size from image
@@ -228,6 +229,15 @@ class settings_window(QMainWindow):
         show_win.clicked.connect(self.show_analyses)
         show_win.resize(show_win.sizeHint())
         settings_grid.addWidget(show_win, 5,2, 1,1)
+
+        #### set ROI for analysers from loaded default ####
+        for mw in self.mw:
+            x, y, d = self.stats['x'], self.stats['y'], self.stats['roi_size']
+            mw.roi_x_edit.setText(str(x + d//2 + d%2))
+            mw.roi_y_edit.setText(str(y + d//2 + d%2))
+            mw.roi_l_edit.setText(str(d))
+            mw.bias_offset_edit.setText(str(self.stats['bias']))
+            mw.read_noise_edit.setText(str(self.stats['Nr']))
 
         #### tab for ROI ####
         roi_tab = QWidget()
@@ -422,8 +432,8 @@ class settings_window(QMainWindow):
             for i in range(len(self.bin_actions)):
                 mw.bin_actions[i].setChecked(self.bin_actions[i].isChecked())
             mw.set_bins()
-            for i in range(len(self.fit_options)):
-                mw.fit_options[i].setChecked(self.fit_options[i].isChecked())
+            for i in range(len(self.fit_methods)):
+                mw.fit_methods[i].setChecked(self.fit_methods[i].isChecked())
 
     #### #### save and load data functions #### ####
 
@@ -491,10 +501,11 @@ class settings_window(QMainWindow):
         try:
             with open(fname, 'r') as f:
                 for line in f:
-                    key, val = line.split('=') # there should only be one = per line
-                    self.stats[key] = self.types[key](val)
+                    if len(line.split('=')) == 2:
+                        key, val = line.split('=') # there should only be one = per line
+                        self.stats[key] = self.types[key](val)
         except FileNotFoundError as e: 
-            logger.warning('Image analysis settings could not find the default config.\n'+str(e))
+            logger.warning('Image analysis settings could not find the default.config file.\n'+str(e))
     
     def save_settings(self, fname='.\\imageanalysis\\default.config'):
         """Save the current settings to a config file"""
@@ -662,10 +673,10 @@ class settings_window(QMainWindow):
                 "Save before closing?", QMessageBox.Yes |
                 QMessageBox.No | QMessageBox.Cancel, QMessageBox.Cancel)
         else: reply = QMessageBox.No
-        if reply == QMessageBox.Yes:
-            self.save_hist_data()         # save current state
-            event.accept()
-        elif reply == QMessageBox.No:
+        if reply == QMessageBox.Yes or reply == QMessageBox.No:
+            if reply == QMessageBox.Yes:
+                self.save_hist_data()   # save current state
+            for mw in self.mw + self.rw: mw.close()
             event.accept()
         else:
             event.ignore()        

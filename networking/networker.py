@@ -12,6 +12,7 @@ Stefan Spence 21/10/19
 """
 import socket
 import struct
+import time
 try:
     from PyQt4.QtCore import QThread, pyqtSignal
     from PyQt4.QtGui import QApplication
@@ -76,6 +77,8 @@ class PyServer(QThread):
         super().__init__()
         self.server_address = (host, port)
         self.msg_queue = []
+        self.ts = {label:[time.time()] for label in ['start', 'connect', 'waiting', 
+            'sent', 'received', 'disconnect']}
         
     def add_message(self, enum, text, encoding="mbcs"):
         """Append a message to the queue that will be sent by TCP connection.
@@ -104,6 +107,7 @@ class PyServer(QThread):
          1) the run number as int32 (4 bytes).
          2) the length of the message to come as int32 (4 bytes).
          3) the sent message as str."""
+        self.ts['start'] = time.time() 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try: 
                 s.bind(self.server_address)
@@ -114,11 +118,14 @@ class PyServer(QThread):
                 remove_slot(self.finished, self.reset_stop)
                 self.stop = True # stop the thread running
             while True:
+                time.sleep(1e-3) # if there is no delay then this thread takes priority over UI
                 if self.check_stop():
                     break # toggle
                 elif len(self.msg_queue):
                     enum, mes_len, message = self.msg_queue.pop(0)
                     conn, addr = s.accept() # create a new socket
+                    self.ts['connect'].append(time.time())
+                    self.ts['waiting'].append(time.time() - self.ts['disconnect'][-1])
                     with conn:
                         try:
                             conn.sendall(enum) # send enum
@@ -128,6 +135,7 @@ class PyServer(QThread):
                             self.msg_queue.insert(0, [enum, mes_len, message]) # check this doesn't infinitely add the message back
                             logger.error('Python server: client terminated connection before message was sent.' +
                                 ' Re-inserting message at front of queue.\n'+str(e))
+                        self.ts['sent'].append(time.time() - self.ts['connect'][-1])
                         try:
                             # receive current run number from DExTer as 4 bytes
                             self.dxnum.emit(str(int.from_bytes(conn.recv(4), 'big'))) # long int
@@ -136,7 +144,16 @@ class PyServer(QThread):
                             self.textin.emit(str(conn.recv(buffer_size), encoding))
                         except (ConnectionResetError, ConnectionAbortedError) as e:
                             logger.error('Python server: client terminated connection before receive.\n'+str(e))
-                    
+                        self.ts['received'].append(time.time() - self.ts['connect'][-1] - self.ts['sent'][-1])
+                        self.ts['disconnect'].append(time.time())
+                        
+    def save_times(self):
+        """Print the timings between messages."""
+        with open('networker_timings.txt', 'w') as f:
+            f.write('waiting, sent, received\n')
+            for i in range(len(self.ts['sent'])):
+                f.write(','.join(['%.4g'%(self.ts[key][i]*1e3) for key in ['waiting', 'sent', 'received']])+'\n')
+
     def check_stop(self):
         """Check the value of stop - must be a function in order to work in
         a while loop."""

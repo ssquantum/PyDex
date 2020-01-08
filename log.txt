@@ -1,641 +1,289 @@
-2020/01/01 15:29:53.175 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 434, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 356, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2020/01/01 15:29:53.217 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
+2020/01/08 10:11:41.089 - MainThread - imsaver.py.__init__.83 - WARNING
+Image saver could not create directory: X:\Sequence Log\2020\January\08
+ Using current directory instead
+[WinError 5] Access is denied: 'X:\\Sequence Log\\2020\\January\\08'
 
 
-2020/01/01 15:34:59.332 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 434, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 356, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2020/01/01 15:34:59.346 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
+2020/01/08 10:15:20.549 - MainThread - runid.py.multirun_step.243 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
 
 
-2020/01/01 15:40:20.872 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 434, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 356, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2020/01/01 15:40:20.886 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
+2020/01/08 10:27:58.026 - MainThread - runid.py.multirun_step.243 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
 
 
-2020/01/01 15:48:23.669 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 434, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 356, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2020/01/01 15:48:23.682 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
+2020/01/08 11:00:55.026 - MainThread - runid.py.multirun_step.244 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
 
 
-2020/01/01 16:02:21.335 - MainThread - settingsgui.py.reset_analyses.636 - ERROR
-Invalid syntax for re-imaging histogram indices: 
-invalid literal for int() with base 10: ''
+2020/01/08 11:10:52.598 - MainThread - runid.py.multirun_step.244 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
 
 
-2020/01/01 16:03:34.433 - MainThread - settingsgui.py.make_roi_grid.397 - WARNING
-When making square ROI grid, found ROI size 3 > dimensions (2, 11)
-
-
-2020/01/01 16:44:12.640 - MainThread - master.py.closeEvent.380 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
-
-
-2020/01/06 08:56:42.933 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\Lab\AppData\Local\Enthought\Canopy\edm\envs\PyDex\lib\ctypes\__init__.py", line 425, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\Lab\AppData\Local\Enthought\Canopy\edm\envs\PyDex\lib\ctypes\__init__.py", line 347, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2020/01/06 08:56:42.954 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2020/01/06 09:02:15.368 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\Lab\AppData\Local\Enthought\Canopy\edm\envs\PyDex\lib\ctypes\__init__.py", line 425, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\Lab\AppData\Local\Enthought\Canopy\edm\envs\PyDex\lib\ctypes\__init__.py", line 347, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2020/01/06 09:02:15.388 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2020/01/06 09:02:15.604 - Dummy-1 - networker.py.run.111 - ERROR
-Failed to start server at address: 129.234.190.202, 8089
-[WinError 10049] The requested address is not valid in its context
-
-
-2020/01/06 09:45:24.419 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\Lab\AppData\Local\Enthought\Canopy\edm\envs\PyDex\lib\ctypes\__init__.py", line 425, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\Lab\AppData\Local\Enthought\Canopy\edm\envs\PyDex\lib\ctypes\__init__.py", line 347, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2020/01/06 09:45:24.442 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2020/01/06 09:45:24.756 - Dummy-1 - networker.py.run.113 - ERROR
-Failed to start server at address: 129.234.190.202, 8089
-[WinError 10049] The requested address is not valid in its context
-
-
-2020/01/06 09:45:51.567 - MainThread - master.py.closeEvent.380 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
-
-
-2020/01/06 09:46:05.108 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\Users\Lab\AppData\Local\Enthought\Canopy\edm\envs\PyDex\lib\ctypes\__init__.py", line 425, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\Users\Lab\AppData\Local\Enthought\Canopy\edm\envs\PyDex\lib\ctypes\__init__.py", line 347, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2020/01/06 09:46:05.131 - MainThread - cameraHandler.py.__init__.64 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
-
-
-2020/01/06 10:00:06.020 - Dummy-1 - networker.py.run.130 - ERROR
+2020/01/08 11:15:09.216 - Dummy-6 - networker.py.run.136 - ERROR
 Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2020/01/06 10:00:06.062 - Dummy-1 - networker.py.run.138 - ERROR
+2020/01/08 11:15:09.323 - Dummy-6 - networker.py.run.145 - ERROR
 Python server: client terminated connection before receive.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2020/01/06 10:00:06.574 - MainThread - master.py.respond.325 - WARNING
+2020/01/08 11:17:32.306 - MainThread - runid.py.multirun_step.244 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/01/08 11:18:35.876 - Dummy-6 - networker.py.run.136 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 11:18:36.013 - Dummy-6 - networker.py.run.145 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 11:20:22.070 - MainThread - runid.py.multirun_step.244 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/01/08 11:45:22.462 - Dummy-6 - networker.py.run.136 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 11:45:22.625 - Dummy-6 - networker.py.run.145 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 11:47:13.520 - MainThread - runid.py.multirun_step.244 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/01/08 11:50:52.421 - Dummy-6 - networker.py.run.136 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 11:50:52.526 - Dummy-6 - networker.py.run.145 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 11:52:51.084 - MainThread - runid.py.multirun_step.244 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/01/08 11:59:14.762 - Dummy-6 - networker.py.run.136 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 11:59:14.847 - Dummy-6 - networker.py.run.145 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 11:59:15.073 - Dummy-6 - networker.py.run.136 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 11:59:15.253 - Dummy-6 - networker.py.run.145 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 12:00:59.949 - MainThread - runid.py.multirun_step.244 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/01/08 12:05:24.516 - Dummy-6 - networker.py.run.136 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 12:05:24.649 - Dummy-6 - networker.py.run.145 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 12:06:01.293 - Dummy-7 - networker.py.run.145 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 12:06:44.372 - MainThread - runid.py.multirun_step.244 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/01/08 12:13:37.540 - Dummy-7 - networker.py.run.136 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 12:13:37.639 - Dummy-7 - networker.py.run.145 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 12:14:07.135 - MainThread - runid.py.multirun_step.244 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/01/08 12:18:25.946 - Dummy-7 - networker.py.run.136 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 12:18:26.052 - Dummy-7 - networker.py.run.145 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/01/08 15:41:29.800 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+Andor functions dll file not found.
+
+Traceback (most recent call last):
+  File "./andorcamera\AndorFunctions.py", line 46, in __init__
+    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 434, in LoadLibrary
+    return self._dlltype(name)
+  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 356, in __init__
+    self._handle = _dlopen(self._name, mode)
+OSError: [WinError 126] The specified module could not be found
+2020/01/08 15:41:29.854 - MainThread - cameraHandler.py.__init__.63 - WARNING
+Andor EMCCD not initialised.
+'Andor' object has no attribute 'dll'
+
+
+2020/01/08 15:43:27.242 - MainThread - master.py.respond.353 - WARNING
 Run 0 started without camera acquisition.
 
 
-2020/01/06 11:39:17.351 - MainThread - master.py.closeEvent.380 - WARNING
+2020/01/08 15:44:46.105 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+Andor functions dll file not found.
+
+Traceback (most recent call last):
+  File "./andorcamera\AndorFunctions.py", line 46, in __init__
+    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 434, in LoadLibrary
+    return self._dlltype(name)
+  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 356, in __init__
+    self._handle = _dlopen(self._name, mode)
+OSError: [WinError 126] The specified module could not be found
+2020/01/08 15:44:46.165 - MainThread - cameraHandler.py.__init__.63 - WARNING
+Andor EMCCD not initialised.
+'Andor' object has no attribute 'dll'
+
+
+2020/01/08 16:40:04.429 - MainThread - runid.py.multirun_step.252 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/01/08 17:10:01.042 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+Andor functions dll file not found.
+
+Traceback (most recent call last):
+  File "./andorcamera\AndorFunctions.py", line 46, in __init__
+    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 434, in LoadLibrary
+    return self._dlltype(name)
+  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 356, in __init__
+    self._handle = _dlopen(self._name, mode)
+OSError: [WinError 126] The specified module could not be found
+2020/01/08 17:10:01.152 - MainThread - cameraHandler.py.__init__.63 - WARNING
+Andor EMCCD not initialised.
+'Andor' object has no attribute 'dll'
+
+
+2020/01/08 17:15:11.668 - MainThread - master.py.respond.353 - WARNING
+Run 0 started without camera acquisition.
+
+
+2020/01/08 17:15:22.827 - MainThread - master.py.respond.353 - WARNING
+Run 0 started without camera acquisition.
+
+
+2020/01/08 17:15:43.997 - MainThread - runid.py.multirun_step.252 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/01/08 17:20:28.121 - MainThread - master.py.respond.353 - WARNING
+Run 68 started without camera acquisition.
+
+
+2020/01/08 17:20:39.270 - MainThread - master.py.respond.353 - WARNING
+Run 68 started without camera acquisition.
+
+
+2020/01/08 17:21:04.203 - MainThread - runid.py.multirun_step.252 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/01/08 18:07:24.752 - MainThread - master.py.closeEvent.411 - WARNING
 camera safe shutdown failed.
 'Andor' object has no attribute 'dll'
 
 
-2020/01/06 11:47:47.640 - MainThread - imsaver.py.__init__.83 - WARNING
-Image saver could not create directory. Using current directory instead
-[WinError 5] Access is denied: 'X:\\Sequence Log\\2020'
+2020/01/08 18:08:12.978 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+Andor functions dll file not found.
+
+Traceback (most recent call last):
+  File "./andorcamera\AndorFunctions.py", line 46, in __init__
+    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 434, in LoadLibrary
+    return self._dlltype(name)
+  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 356, in __init__
+    self._handle = _dlopen(self._name, mode)
+OSError: [WinError 126] The specified module could not be found
+2020/01/08 18:08:13.052 - MainThread - cameraHandler.py.__init__.63 - WARNING
+Andor EMCCD not initialised.
+'Andor' object has no attribute 'dll'
 
 
-2020/01/06 11:53:07.578 - MainThread - imsaver.py.__init__.83 - WARNING
-Image saver could not create directory. Using current directory instead
-[WinError 5] Access is denied: 'X:\\Sequence Log\\2020'
-
-
-2020/01/06 12:13:00.444 - Dummy-1 - networker.py.run.130 - ERROR
+2020/01/08 18:13:26.846 - Dummy-1 - networker.py.run.137 - ERROR
 Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2020/01/06 12:13:00.486 - Dummy-1 - networker.py.run.138 - ERROR
+2020/01/08 18:13:26.895 - Dummy-1 - networker.py.run.146 - ERROR
 Python server: client terminated connection before receive.
 [WinError 10053] An established connection was aborted by the software in your host machine
 
 
-2020/01/06 12:50:10.048 - Dummy-1 - networker.py.run.130 - ERROR
-Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
-[WinError 10053] An established connection was aborted by the software in your host machine
+2020/01/08 18:13:32.228 - MainThread - master.py.respond.353 - WARNING
+Run 147 started without camera acquisition.
 
 
-2020/01/06 12:50:10.090 - Dummy-1 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 15:13:14.039 - Dummy-1 - networker.py.run.130 - ERROR
-Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 15:13:14.087 - Dummy-1 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 16:36:58.474 - Dummy-6 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 16:40:50.638 - Dummy-6 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 16:45:18.881 - MainThread - runid.py.multirun_step.241 - ERROR
+2020/01/08 18:13:43.181 - MainThread - runid.py.multirun_step.252 - ERROR
 Multirun step could not extract user variable from table:
 'NoneType' object has no attribute 'text'
 
 
-2020/01/06 16:45:20.119 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
+2020/01/08 18:13:43.618 - MainThread - master.py.end_run.380 - WARNING
+Failed to abort camera acquisition at end of run.
+'Andor' object has no attribute 'dll'
 
 
-2020/01/06 16:45:21.280 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:22.376 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:23.363 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:24.631 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:25.783 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:26.780 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:28.124 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:29.078 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:30.482 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:31.713 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:32.836 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:34.072 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:35.270 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:36.517 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:37.567 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:38.602 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:39.690 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:41.141 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:42.686 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:43.803 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:44.828 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:46.189 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:47.509 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:48.808 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:49.874 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:50.984 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:52.208 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:53.246 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:45:53.504 - Dummy-6 - networker.py.run.130 - ERROR
-Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 16:45:53.685 - Dummy-6 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 16:48:46.920 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:48:48.493 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:48:49.631 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:48:50.793 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:48:51.922 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:48:52.921 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 16:48:53.131 - Dummy-6 - networker.py.run.130 - ERROR
-Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 16:48:53.402 - Dummy-6 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 16:49:19.338 - Dummy-7 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 16:56:45.269 - Dummy-8 - networker.py.run.130 - ERROR
-Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 16:56:45.622 - Dummy-8 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:02:03.321 - Dummy-9 - networker.py.run.130 - ERROR
-Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:02:03.321 - Dummy-9 - networker.py.run.130 - ERROR
-Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:02:03.924 - Dummy-9 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:02:03.924 - Dummy-9 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:04:11.083 - Dummy-9 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:04:11.083 - Dummy-9 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:06:45.398 - Dummy-9 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:06:45.398 - Dummy-9 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:12:20.325 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:20.325 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:23.498 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:23.498 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:28.491 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:28.491 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:32.919 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:32.919 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:36.653 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:36.653 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:41.431 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:41.431 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:45.040 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:45.040 - MainThread - runid.py.multirun_step.241 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/06 17:12:47.663 - Dummy-9 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:12:47.663 - Dummy-9 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:31:02.464 - Dummy-1 - networker.py.run.130 - ERROR
-Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:31:02.513 - Dummy-1 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:33:10.458 - Dummy-1 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:49:46.019 - Dummy-1 - networker.py.run.130 - ERROR
-Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:49:46.061 - Dummy-1 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:53:53.481 - Dummy-1 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 17:56:32.748 - MainThread - settingsgui.py.reset_analyses.634 - ERROR
-Invalid syntax for re-imaging histogram indices: 
-invalid literal for int() with base 10: ''
-
-
-2020/01/06 17:57:00.555 - MainThread - settingsgui.py.make_roi_grid.411 - WARNING
-Failed to set square ROI grid.
-
-
-
-2020/01/06 17:58:44.545 - MainThread - settingsgui.py.make_roi_grid.413 - WARNING
-Setting ROI with 2D Gaussian masks is not implemented yet.
-
-
-
-2020/01/06 18:03:03.624 - MainThread - settingsgui.py.reset_analyses.634 - ERROR
-Invalid syntax for re-imaging histogram indices: 
-invalid literal for int() with base 10: ''
-
-
-2020/01/06 18:03:53.302 - Dummy-2 - networker.py.run.130 - ERROR
-Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 18:03:53.349 - Dummy-2 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 18:15:57.215 - MainThread - settingsgui.py.reset_analyses.634 - ERROR
-Invalid syntax for re-imaging histogram indices: 
-invalid literal for int() with base 10: ''
-
-
-2020/01/06 18:31:05.808 - MainThread - runid.py.multirun_step.266 - WARNING
-
-Multirun run 832 fitting failed. Histogram data in 0Meas0_1.csv
-
-
-2020/01/06 18:53:11.453 - Dummy-7 - networker.py.run.130 - ERROR
-Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/06 18:53:11.527 - Dummy-7 - networker.py.run.138 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
+2020/01/08 18:15:12.533 - MainThread - master.py.closeEvent.411 - WARNING
+camera safe shutdown failed.
+'Andor' object has no attribute 'dll'
 
 

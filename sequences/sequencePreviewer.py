@@ -181,7 +181,7 @@ class Previewer(QMainWindow):
         for label, name in [[self.routine_name, 'Routine name: '], 
                 [self.routine_desc, 'Routine description: ']]:
             layout = QHBoxLayout()
-            title = QLabel('Routine name: ', self)
+            title = QLabel(name, self)
             title.setFixedWidth(200)
             layout.addWidget(title)    
             label.setStyleSheet('border: 1px solid black')

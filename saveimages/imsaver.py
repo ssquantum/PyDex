@@ -79,10 +79,10 @@ class event_handler(PyDexThread):
                 try: # create directory by date if it doesn't already exist
                     os.makedirs(path, exist_ok=True) # requies version > 3.2
                 except PermissionError as e: 
-                    path = '.' + datepath
-                    os.makedirs(path, exist_ok=True) 
                     logger.warning('Image saver could not create directory: '+
                         path +'\n Using current directory instead\n'+str(e))
+                    path = '.' + datepath
+                    os.makedirs(path, exist_ok=True) 
 
     @staticmethod # static method can be accessed without making an instance of the class
     def get_dirs(config_file='./config/config.dat'):

@@ -63,13 +63,16 @@ class Master(QMainWindow):
     """
     def __init__(self, pop_up=1, state_config='.\\state'):
         super().__init__()
+        self.camera_pause = 0 # time in seconds to wait for camera to start acquisition.
         self.ancam_config = '.\\andorcamera\\ExExposure_config.dat' # if restore state fails
         self.save_config = '.\\config\\config.dat'
+        self.ts = {label:time.time() for label in ['init', 'waiting', 'blocking',
+            'msg start', 'msg end']}
         sv_dirs = event_handler.get_dirs(self.save_config)
         # if not any([os.path.exists(svd) for svd in sv_dirs.values()]): # ask user to choose valid config file
         startn = self.restore_state(file_name=state_config)
         # choose which image analyser to use from number images in sequence
-        self.init_UI()
+        self.init_UI(startn)
         if pop_up: # also option to choose config file?
             m, ok = QInputDialog.getInt( # user chooses image analyser
                 self, 'Initiate Image Analyser(s)',
@@ -164,7 +167,8 @@ class Master(QMainWindow):
 
         # actions that can be carried out 
         self.actions = QComboBox(self)
-        self.actions.addItems(['Run sequence', 'Multirun run', 
+        self.actions.addItems(['Run sequence', 'Multirun run',
+            'Pause multirun', 'Resume multirun', 'Cancel multirun',
             'TCP load sequence','TCP load sequence from string',
             'Cancel Python Mode'])
         self.actions.resize(self.actions.sizeHint())
@@ -201,6 +205,8 @@ class Master(QMainWindow):
             text, ok = QInputDialog.getText( self, 'Camera Status', msg, text=self.ancam_config)
             if text and ok:
                 if self.rn.cam.initialised > 2:
+                    if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
+                        self.rn.cam.AF.AbortAcquisition()
                     check = self.rn.cam.ApplySettingsFromConfig(text)
                     if not any(check):
                         self.status_label.setText('Camera settings config: '+text)
@@ -297,10 +303,8 @@ class Master(QMainWindow):
                 self.action_button.setEnabled(False) # only process 1 run at a time
                 self.rn._k = 0 # reset image per run count 
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition') 
-                self.rn.server.add_message(TCPENUM['TCP read'], 'running') 
             elif action_text == 'Multirun run':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start measure '+str(self.rn.seq.mr.stats['measure'])) # set DExTer's message to send
-                self.rn.server.add_message(TCPENUM['TCP read'], 'check started '+str(self.rn.seq.mr.stats['measure'])) # multirun will start 
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':
@@ -323,22 +327,24 @@ class Master(QMainWindow):
         has started acquiring yet."""
         for i in range(int(timeout)):
             if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
-                print(i, 'waited for camera')
+                time.sleep(self.camera_pause) # wait for camera to initialise
                 break
-            else: time.sleep(timeout/10*1e-3) # wait for camera to initialise
-
+            time.sleep(1e-4) # poll camera status to check if acquiring
+                
     def respond(self, msg=''):
         """Read the text from a TCP message and then execute the appropriate function."""
-        print(self.rn._n, ': ', msg)
+        self.ts['msg start'] = time.time()
+        self.ts['waiting'] = time.time() - self.ts['msg end']
         if 'finished run' in msg:
             self.end_run(msg)
         elif 'start acquisition' in msg:
             if self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
-                self.wait_for_cam() # pause a little to give the camera time to start the acquisition
-            else: logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
-            self.rn.server.priority_messages([(TCPENUM['Run sequence'], 'finished run '+str(self.rn._n)),
-                (TCPENUM['TCP read'], 'idle')]) 
+                self.wait_for_cam() # wait for camera to initialise before running
+            else: 
+                logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
+            self.rn.server.priority_messages([(TCPENUM['Run sequence'], 'single run '+str(self.rn._n)),
+                (TCPENUM['TCP read'], 'finished run '+str(self.rn._n))]) # second message confirms end
         elif 'start measure' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
             if self.rn.cam.initialised:
@@ -348,14 +354,18 @@ class Master(QMainWindow):
             self.rn.multirun_go(msg)
         elif 'multirun run' in msg:
             self.rn.multirun_step(msg)
-        elif 'multirun step' in msg and 'finished' in msg:
             self.rn._k = 0 # reset image per run count
         elif 'end multirun' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
+            self.rn.server.save_times()
             self.end_run(msg)
         # auto save any sequence that was sent to be loaded (even if it was already an xml file)
         # elif '<Name>Event list cluster in</Name>' in msg: # DExTer also saves the sequences when it's run
         #     self.rn.seq.save_seq_file(os.path.join(self.rn.sv.sequences_path, str(self._n) + time.strftime('_%d %B %Y_%H %M %S') + '.xml'))
+        self.ts['msg end'] = time.time()
+        self.ts['blocking'] = time.time() - self.ts['msg start']
+        print(str(self.rn._n), ': ', msg[:50])
+        self.print_times()
                 
     def end_run(self, msg=''):
         """At the end of a single run or a multirun, stop the acquisition,
@@ -378,8 +388,11 @@ class Master(QMainWindow):
         #             self.rn.receive(im[0]) 
         self.rn.synchronise()
         self.idle_state()
+        
+    def print_times(self, keys=['waiting', 'blocking']):
+        """Print the timings between messages."""
+        print(*[key + ': %.4g,\t'%self.ts[key] for key in keys])
 
-            
     def save_state(self, file_name='./state'):
         """Save the file number and date and config file paths so that they
         can be loaded again when the program is next started."""
@@ -396,6 +409,7 @@ class Master(QMainWindow):
         try:
             self.rn.cam.SafeShutdown()
         except Exception as e: logger.warning('camera safe shutdown failed.\n'+str(e))
+        self.rn.sw.save_settings('.\\imageanalysis\\default.config')
         for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, self.rn.server]:
             obj.close()
         self.save_state()

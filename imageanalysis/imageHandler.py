@@ -169,7 +169,7 @@ class image_handler(Analysis):
             try:
                 lo, hi = min(self.stats['Counts'])*0.97, max(self.stats['Counts'])*1.02
                 # scale number of bins with number of files in histogram and with separation of peaks
-                num_bins = int(25 + 5e-5 * self.ind**2 + ((hi - lo)/hi)**2*15) 
+                num_bins = int(18 + 5e-5 * self.ind**2 + ((hi - lo)/hi)**2*15) 
                 occ, bins = np.histogram(self.stats['Counts'], bins=np.linspace(lo, hi, num_bins+1)) # no bins provided by user
             except: 
                 occ, bins = np.histogram(self.stats['Counts'])

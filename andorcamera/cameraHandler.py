@@ -30,7 +30,6 @@ class camera(QThread):
     an acquisition is completed or aborted, or temperature updates."""
     AcquisitionEvent = win32event.CreateEvent(None, 0, 0, 'Acquisition')
     AcquireEnd = pyqtSignal(np.ndarray) # send to image analysis 
-    Finished = pyqtSignal(int) # emit when the acquisition thread finishes
 
     def __init__(self, config_file=".\\ExExposure_config.dat"):
         super().__init__()   # Initialise the parent classes
@@ -335,7 +334,7 @@ class camera(QThread):
                 self.Acquire()
             elif result == win32event.WAIT_TIMEOUT and self.AF.verbosity:
                 print('Acquisition timeout ', i)
-        self.Finished.emit(1)
+        self.finished.emit()
         
     def EmptyBuffer(self):
         """Get all of the images currently stored in the camera buffer

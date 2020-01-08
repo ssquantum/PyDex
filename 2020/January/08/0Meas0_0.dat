@@ -1,0 +1,5 @@
+# SAIA Log file. Include:
+# 
+# File ID,Start file #,End file #,ROI xc ; yc ; size,Counts above : below threshold,User variable,Number of images processed,Loading probability,Error in Loading probability,Lower Error in Loading probability,Upper Error in Loading probability,Background peak count,Error in Background peak count,Background peak width,sqrt(Nr^2 + Nbg),Background mean,Background standard deviation,Signal peak count,Error in Signal peak count,Signal peak width,sqrt(Nr^2 + Ns),Signal mean,Signal standard deviation,Separation,Error in Separation,Fidelity,Error in Fidelity,S/N,Error in S/N,Threshold,Include
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

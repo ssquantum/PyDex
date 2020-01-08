@@ -189,22 +189,21 @@ class runnum(QThread):
             # make list of sequences as messages to send and the order:
             self.seq.mr.get_all_sequences()
             # save log file with the parameters used for this multirun:
-            self.seq.mr.save_mr_params(os.path.join(self.sv.results_path, self.seq.mr.stats['measure_prefix']+'params.log'))
+            self.seq.mr.save_mr_params(os.path.join(self.sv.results_path, self.seq.mr.stats['measure_prefix']+'params.csv'))
             self._k = 0 # reset image per run count
             # insert TCP messages at the front of the queue: once the multirun starts don't interrupt it.
-            self.server.priority_messages([[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[self.seq.mr.get_next_index(self.seq.mr.ind)]], 
-                    [TCPENUM['Run sequence'], 'multirun run '+str(self._n)],
-                    [TCPENUM['TCP read'], 'multirun step '+str(self._n)+' finished']])
+            repeats = self.seq.mr.nomit + self.seq.mr.nhist
+            mr_queue = [] # list of TCP messages for the whole multirun
+            for v in range(self.seq.mr.nrows):
+                mr_queue += [[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]] + [
+                    [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*v)] for r in range(repeats)]
+            mr_queue += [[TCPENUM['TCP read'], 'confirm last multirun run'], [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])]]
+            self.server.priority_messages(mr_queue)
             self.seq.mr.stats['runs included'][0].append(self._n) # keep track of which runs are in the multirun.
         else: # pause the multi-run
             remove_slot(self.cam.AcquireEnd, self.mr_receive, False)
             remove_slot(self.cam.AcquireEnd, self.receive, True) # process every image
-            try:
-                for i in range(len(self.server.msg_queue)): # remove the multirun from the message queue.
-                    if bytes('multirun run '+str(self._n), 'mbcs') in self.server.msg_queue[i][2]:
-                        self.server.msg_queue.pop(i) 
-                        break
-            except IndexError as e: logger.error('Pause multirun: failed to remove commands from message queue.\n'+str(e))
+            self.server.msg_queue = [] # remove all messages from the queue 
             for mw in self.sw.mw + self.sw.rw:
                 mw.multirun = False
             tableitem = self.seq.mr.table.item(self.seq.mr.ind, 0)
@@ -219,43 +218,44 @@ class runnum(QThread):
     def multirun_resume(self, status):
         """Resume the multi-run where it was left off.
         If the multirun is already running, do nothing."""
-        if not 'multirun' in status: 
+        if 'multirun' in status: 
             remove_slot(self.cam.AcquireEnd, self.receive, False) # only receive if not in '# omit'
             remove_slot(self.cam.AcquireEnd, self.mr_receive, True)
             self._k = 0 # reset image per run count
-            self.server.priority_messages([[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[self.seq.mr.get_next_index(self.seq.mr.ind)]],
-                [TCPENUM['Run sequence'], 'multirun run '+str(self._n)],
-                [TCPENUM['TCP read'], 'multirun step '+str(self._n)+' finished']]) # adds at front of queue
+            repeats = self.seq.mr.nomit + self.seq.mr.nhist
+            r = self.seq.mr.ind % repeats  # repeat
+            v = self.seq.mr.ind // repeats # variable
+            if v > self.seq.mr.nrows - 1: v = self.seq.mr.nrows - 1
+            mr_queue = [[TCPENUM['Run sequence'], 'multirun run '+str(self._n + i)] for i in range(v + r + 1, v+1)]
+            for var in range(v, self.seq.mr.nrows):
+                mr_queue += [[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[var]]] + [
+                    [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*var)] for r in range(repeats)]
+            mr_queue += [[TCPENUM['TCP read'], 'confirm last multirun run'], [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])]]
+            self.server.priority_messages(mr_queue) # adds at front of queue
             
     def multirun_step(self, msg):
         """Execute a single run as part of a multirun.
         For the first '# omit' runs, only save the files.
         Then for '# hist' runs, add files to histogram.
-        Then save, process, and reset the histogram.
+        The data for the run is received and processed when the command for the 
+        next run is being sent, so the histogram is saved, fitted, and reset
+        based on the run number +1.
         repeat this for the user variables in the multirun list,
         then return to normal operation as set by the histogram binning"""
+        self._k = 0
         index = self.seq.mr.get_next_index(self.seq.mr.ind)
-        r = self.seq.mr.ind % (self.seq.mr.nomit + self.seq.mr.nhist)
-        v = self.seq.mr.ind // (self.seq.mr.nomit + self.seq.mr.nhist)
+        r = self.seq.mr.ind % (self.seq.mr.nomit + self.seq.mr.nhist) # repeat
+        v = self.seq.mr.ind // (self.seq.mr.nomit + self.seq.mr.nhist)# variable
         try:
             uv = self.seq.mr.table.item(v, 0).text() # get user variable
         except AttributeError as e: 
             logger.error('Multirun step could not extract user variable from table:\n'+str(e))
             uv = ''
-        
         if r >= self.seq.mr.nomit: 
             self.seq.mr.stats['runs included'][index].append(self._n) # include this run in the multirun
-        
-        self.seq.mr.progress.emit(       # update progress label
-            'multirun measure %s: %s: %s, omit %s of %s files, %s of %s histogram files, %.3g %% complete'%(
-                self.seq.mr.stats['measure'], self.seq.mr.stats['Variable label'], uv, 
-                r if r < self.seq.mr.nomit else self.seq.mr.nomit, self.seq.mr.nomit, 
-                r - self.seq.mr.nomit if r > self.seq.mr.nomit else 0, self.seq.mr.nhist, 
-                self.seq.mr.ind / (self.seq.mr.nomit + self.seq.mr.nhist) / self.seq.mr.nrows*100))
-                
-        # end of histogram: fit, save, and reset  --- could we send the command for the next run first to increase the duty cycle?
-        if self.seq.mr.ind > 0 and r == 0:
-            
+          
+        # end of histogram: fit, save, and reset --- check this doesn't miss an image if there's lag
+        if self.seq.mr.ind > 1 and r == 1:
             for mw in self.sw.rw + self.sw.mw: # make sure to do reimage windows first!
                 mw.var_edit.setText(uv) # also updates histo_handler temp vals
                 mw.bins_text_edit(text='reset') # set histogram bins 
@@ -272,27 +272,27 @@ class runnum(QThread):
                 mw.image_handler.reset_arrays() # clear histogram
         
         self.seq.mr.ind += 1
-        if self.seq.mr.ind < self.seq.mr.nrows*(self.seq.mr.nomit + self.seq.mr.nhist):
-            newindex = self.seq.mr.get_next_index(self.seq.mr.ind)
-            if index != newindex: # sequence will change
-                msgs = [[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[newindex]]]
-            else: msgs = []
-            msgs.append([TCPENUM['Run sequence'], 'multirun run '+str(self._n+1)])
-            msgs.append([TCPENUM['TCP read'], 'multirun step '+str(self._n+1)+' finished'])
-            self.server.priority_messages(msgs)
-        else: # end of multirun:
+        r = self.seq.mr.ind % (self.seq.mr.nomit + self.seq.mr.nhist)
+        self.seq.mr.progress.emit(       # update progress label
+            'multirun measure %s: %s: %s, omit %s of %s files, %s of %s histogram files, %.3g %% complete'%(
+                self.seq.mr.stats['measure'], self.seq.mr.stats['Variable label'], uv, 
+                r if r < self.seq.mr.nomit else self.seq.mr.nomit, self.seq.mr.nomit, 
+                r - self.seq.mr.nomit if r > self.seq.mr.nomit else 0, self.seq.mr.nhist, 
+                self.seq.mr.ind / (self.seq.mr.nomit + self.seq.mr.nhist) / self.seq.mr.nrows*100))
+                
+        if self.seq.mr.ind == self.seq.mr.nrows*(self.seq.mr.nomit + self.seq.mr.nhist) + 1: # process data
             for mw in self.sw.rw + self.sw.mw:
                 mw.save_varplot(save_file_name=os.path.join(
-                    self.sv.results_path, mw.name + self.seq.mr.stats['measure_prefix'] + '.dat'), 
+                    self.sv.results_path, mw.name + self.seq.mr.stats['measure_prefix']
+                    + str(self.seq.mr.stats['measure']) + '.dat'), 
                     confirm=False) # save measure file
                 # reconnect previous signals
                 mw.set_bins() # reconnects signal with given histogram binning settings
                 mw.multirun = False
             # suggest new multirun measure ID and prefix
             self.seq.mr.measures['measure'].setText(str(self.seq.mr.stats['measure']+1))
-            self.seq.mr.measures['measure_prefix'].setText(str(self.seq.mr.stats['measure']+1)+'_')  
+            self.seq.mr.measures['measure_prefix'].setText('Measure'+str(self.seq.mr.stats['measure']+1)+'_')  
             self.multirun_go(False) # reconnect signals
             self.seq.mr.ind = 0
-            self.server.priority_messages([[TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])]])
             # save over log file with the parameters used for this multirun (now including run numbers):
-            self.seq.mr.save_mr_params(os.path.join(self.sv.results_path, self.seq.mr.stats['measure_prefix']+'params.log'))
+            self.seq.mr.save_mr_params(os.path.join(self.sv.results_path, self.seq.mr.stats['measure_prefix']+'params.csv'))

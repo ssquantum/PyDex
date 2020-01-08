@@ -187,13 +187,14 @@ class main_window(QMainWindow):
         
         fit_menu = QMenu('Fitting', self) # drop down menu for fitting options
         self.fit_options = QActionGroup(fit_menu)  # group together the options
+        self.fit_methods = []
         for action_label in ['separate gaussians', 'double poissonian', 
                             'single gaussian', 'double gaussian']:
-            fit_method = QAction(action_label, fit_menu, checkable=True, 
-                checked=action_label=='double gaussian') # set default
-            fit_menu.addAction(fit_method)
-            self.fit_options.addAction(fit_method)
-        fit_method.setChecked(True) # set last method as checked: double gaussian
+            self.fit_methods.append(QAction(action_label, fit_menu, checkable=True, 
+                checked=action_label=='double gaussian')) # set default
+            fit_menu.addAction(self.fit_methods[-1])
+            self.fit_options.addAction(self.fit_methods[-1])
+        self.fit_methods[-1].setChecked(True) # set last method as checked: double gaussian
         self.fit_options.setExclusive(True) # only one option checked at a time
         hist_menu.addMenu(fit_menu)
 
@@ -826,7 +827,7 @@ class main_window(QMainWindow):
             # include most recent histogram stats as the top two lines of the header
             self.image_handler.save(save_file_name,
                          meta_head=list(self.histo_handler.temp_vals.keys()),
-                         meta_vals=list(self.histo_handler.temp_vals.values())) # save histogram
+                         meta_vals=map(str, self.histo_handler.temp_vals.values())) # save histogram
             try: 
                 hist_num = self.histo_handler.stats['File ID'][-1]
             except IndexError: # if there are no values in the stats yet
@@ -846,13 +847,8 @@ class main_window(QMainWindow):
             self.try_browse(title='Save File', file_type='dat(*.dat);;all (*)',
                             open_func=QFileDialog.getSaveFileName)
         if save_file_name:
-            with open(save_file_name, 'w+') as f:
-                f.write('#Single Atom Image Analyser Log File: collects histogram data\n')
-                f.write('#include --[]\n')
-                f.write('#'+', '.join(self.histo_handler.stats.keys())+'\n')
-                for i in range(len(self.histo_handler.stats['File ID'])):
-                    f.write(','.join(list(map(str, [v[i] for v in 
-                        self.histo_handler.stats.values()])))+'\n')
+            self.histo_handler.save(save_file_name, meta_head=['SAIA Log file. Include:'],
+                meta_vals=map(str, [i for i, incl in enumerate(self.histo_handler.stats['Include']) if incl]))
             if confirm:
                 msg = QMessageBox()
                 msg.setIcon(QMessageBox.Information)
@@ -1059,10 +1055,9 @@ class main_window(QMainWindow):
         else: reply = QMessageBox.No
         if reply == QMessageBox.Cancel:
             event.ignore()
-        elif reply == QMessageBox.Yes:
-            self.save_hist_data()         # save current state
-            event.accept()
-        elif reply == QMessageBox.No:
+        elif reply == QMessageBox.Yes or reply == QMessageBox.No:
+            if reply == QMessageBox.Yes:
+                self.save_hist_data()   # save current state
             event.accept()
         
 ####    ####    ####    #### 
