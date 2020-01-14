@@ -155,6 +155,13 @@ class Master(QMainWindow):
             menu_items.append(QAction(window_title, self)) 
             menu_items[-1].triggered.connect(self.show_window)
             show_windows.addAction(menu_items[-1])
+
+        sync_menu = menubar.addMenu('Run Synchronisation')
+        self.sync_toggle = QAction('Sync with DExTer', sync_menu, 
+                checkable=True, checked=True)
+        self.sync_toggle.setChecked(True)
+        self.sync_toggle.toggled.connect(self.sync_mode)
+        sync_menu.addAction(self.sync_toggle)
         
         #### status of the master program ####
         self.status_label = QLabel('Initiating...', self)
@@ -170,7 +177,7 @@ class Master(QMainWindow):
         self.actions.addItems(['Run sequence', 'Multirun run',
             'Pause multirun', 'Resume multirun', 'Cancel multirun',
             'TCP load sequence','TCP load sequence from string',
-            'Cancel Python Mode'])
+            'Cancel Python Mode', 'Unsync'])
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
 
@@ -222,11 +229,11 @@ class Master(QMainWindow):
         '\nEnter the path to a config file to reset the image saver: ',
         text=self.save_config)
             if text and ok:
-                self.rn.im_save.disconnect()
+                remove_slot(self.rn.im_save, self.rn.sv.process, False)
                 self.rn.sv = event_handler(text)
                 if self.rn.sv.image_storage_path:
                     self.status_label.setText('Image Saver config: '+text)
-                    self.rn.im_save.connect(self.rn.sv.process)
+                    remove_slot(self.rn.im_save, self.rn.sv.process, True)
                     self.save_config = text
                 else:
                     self.status_label.setText('Failed to find config file.')
@@ -280,7 +287,7 @@ class Master(QMainWindow):
             self.rn.cam.SafeShutdown()
         except: logger.warning('Andor camera safe shutdown failed') # probably not initialised
         self.rn.cam = camera(config_file=ancam_config) # Andor camera
-        self.rn.cam.AcquireEnd.connect(self.rn.receive)
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, True) # connect signal
         self.status_label.setText('Camera settings config: '+ancam_config)
         self.ancam_config = ancam_config
 
@@ -295,7 +302,9 @@ class Master(QMainWindow):
         TCP load sequence from string: Tell DExTer to load in the sequence
                         from a string in XML format.
         TCP load sequence:  Tell DExTer to load in the sequence file at
-                        the location in the 'Sequence file' label."""
+                        the location in the 'Sequence file' label.
+        Cancel python mode: send the text 'python mode off' which triggers
+                        DExTer to exit python mode."""
         if self.rn.server.isRunning():
             action_text = self.actions.currentText()
             if action_text == 'Run sequence':
@@ -321,6 +330,13 @@ class Master(QMainWindow):
                 self.rn.server.add_message(TCPENUM[action_text], self.seq_edit.text())
             elif action_text == 'Cancel Python Mode':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off')
+            
+    def sync_mode(self, toggle=True):
+        """Toggle whether to receive the run number from DExTer,
+        or whether to increment the run number every time the expected
+        number of images per sequence is received."""
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, toggle) 
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.unsync_receive, not toggle)
                 
     def wait_for_cam(self, timeout=10):
         """Wait (timeout / 10) ms, periodically checking whether the camera

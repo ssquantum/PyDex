@@ -1,4 +1,4 @@
-2020/01/14 10:25:52.129 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+2020/01/13 14:33:33.689 - MainThread - AndorFunctions.py.__init__.48 - ERROR
 Andor functions dll file not found.
 
 Traceback (most recent call last):
@@ -9,12 +9,25 @@ Traceback (most recent call last):
   File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 356, in __init__
     self._handle = _dlopen(self._name, mode)
 OSError: [WinError 126] The specified module could not be found
-2020/01/14 10:25:52.159 - MainThread - cameraHandler.py.__init__.63 - WARNING
+2020/01/13 14:33:33.740 - MainThread - cameraHandler.py.__init__.63 - WARNING
 Andor EMCCD not initialised.
 'Andor' object has no attribute 'dll'
 
 
-2020/01/14 10:26:11.063 - MainThread - master.py.closeEvent.427 - WARNING
+2020/01/13 14:34:59.792 - MainThread - master.py.respond.345 - WARNING
+Run 0 started without camera acquisition.
+
+
+2020/01/13 14:35:00.164 - MainThread - master.py.end_run.380 - WARNING
+Failed to abort camera acquisition at end of run.
+'Andor' object has no attribute 'dll'
+
+
+2020/01/13 14:35:09.607 - MainThread - master.py.respond.353 - WARNING
+Run 1 started without camera acquisition.
+
+
+2020/01/13 14:38:10.178 - MainThread - master.py.closeEvent.411 - WARNING
 camera safe shutdown failed.
 'Andor' object has no attribute 'dll'
 

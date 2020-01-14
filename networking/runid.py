@@ -95,6 +95,14 @@ class runnum(QThread):
             self.sw.mw[i].event_im.emit(im)
         self._k += 1 # another image was taken
 
+    def unsync_receive(self, im=0):
+        """Receive an image array to be saved and analysed.
+        Count the number of images taken and use this to set the
+        DExTer file number in all associated modules."""
+        self.receive(im)
+        if (self._k + 1) % self._m == 0:
+            self.server.dxnum.emit(str(self._n + 1)) 
+        
     def mr_receive(self, im=0):
         """Receive an image as part of a multirun.
         Update the Dexter file number in all associated modules,
