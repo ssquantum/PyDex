@@ -202,10 +202,14 @@ class runnum(QThread):
             # insert TCP messages at the front of the queue: once the multirun starts don't interrupt it.
             repeats = self.seq.mr.nomit + self.seq.mr.nhist
             mr_queue = [] # list of TCP messages for the whole multirun
-            for v in range(self.seq.mr.nrows):
-                mr_queue += [[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]] + [
+            for v in range(self.seq.mr.nrows): # use different last time step during multirun
+                mr_queue += [[TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step run']],
+                    [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]] + [
                     [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*v)] for r in range(repeats)]
-            mr_queue += [[TCPENUM['TCP read'], 'confirm last multirun run'], [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])]]
+            # reset last time step for the last run:
+            mr_queue.insert(len(mr_queue) - 1, [TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step end']])
+            mr_queue += [[TCPENUM['TCP read'], 'confirm last multirun run'], 
+                [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])]]
             self.server.priority_messages(mr_queue)
             self.seq.mr.stats['runs included'][0].append(self._n) # keep track of which runs are in the multirun.
         else: # pause the multi-run

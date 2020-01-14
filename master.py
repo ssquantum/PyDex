@@ -177,7 +177,7 @@ class Master(QMainWindow):
         self.actions.addItems(['Run sequence', 'Multirun run',
             'Pause multirun', 'Resume multirun', 'Cancel multirun',
             'TCP load sequence','TCP load sequence from string',
-            'Cancel Python Mode', 'Unsync'])
+            'Cancel Python Mode'])
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
 

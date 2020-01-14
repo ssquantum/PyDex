@@ -49,7 +49,8 @@ TCPENUM = { # enum for DExTer's producer-consumer loop cases
 'Run GPIB case':23, 
 'TCP read':24, 
 'TCP load sequence from string':25, 
-'TCP load sequence':26
+'TCP load sequence':26,
+'TCP load last time step':27
 }
 
 def remove_slot(signal, slot, reconnect=True):

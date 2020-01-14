@@ -56,3 +56,18 @@ While creating new analysers: there are 2 image indices for the 4 image analyser
 
 
 
+2020/01/14 17:39:55.024 - MainThread - multirunEditor.py.set_chan_listbox.365 - WARNING
+Couldn't set channels for the loaded multirun parameters. Load the sequence first, then load multirun parameters.
+'NoneType' object has no attribute 'setSelected'
+
+
+2020/01/14 17:50:42.794 - MainThread - runid.py.multirun_step.264 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/01/14 17:51:30.044 - MainThread - runid.py.multirun_step.264 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+

@@ -205,9 +205,9 @@ class multirun_widget(QWidget):
         # choose last time step for multirun
         lts_label = QLabel('Last time step: ', self)
         self.grid.addWidget(lts_label, 6,0, 1,1)
-        self.last_step_run_edit = self.make_label_edit('Running: ', self.grid, position=[6,1, 1,2])[1]
+        self.last_step_run_edit = self.make_label_edit('Running: ', self.grid, position=[6,1, 1,3])[1]
         self.last_step_run_edit.textChanged[str].connect(self.update_last_step)
-        self.last_step_end_edit = self.make_label_edit('End: ', self.grid, position=[6,4, 1,2])[1]
+        self.last_step_end_edit = self.make_label_edit('End: ', self.grid, position=[6,5, 1,3])[1]
         self.last_step_end_edit.textChanged[str].connect(self.update_last_step)
 
         # display current progress
@@ -490,3 +490,5 @@ class multirun_widget(QWidget):
             self.reset_array(vals)
             self.omit_edit.setText(str(self.nomit))
             self.nhist_edit.setText(str(self.nhist))
+            self.last_step_run_edit.setText(self.stats['Last time step run'])
+            self.last_step_end_edit.setText(self.stats['Last time step end'])
