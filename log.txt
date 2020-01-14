@@ -19,3 +19,24 @@ camera safe shutdown failed.
 'Andor' object has no attribute 'dll'
 
 
+2020/01/14 11:32:17.658 - MainThread - AndorFunctions.py.__init__.48 - ERROR
+Andor functions dll file not found.
+
+Traceback (most recent call last):
+  File "./andorcamera\AndorFunctions.py", line 46, in __init__
+    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 434, in LoadLibrary
+    return self._dlltype(name)
+  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 356, in __init__
+    self._handle = _dlopen(self._name, mode)
+OSError: [WinError 126] The specified module could not be found
+2020/01/14 11:32:17.675 - MainThread - cameraHandler.py.__init__.63 - WARNING
+Andor EMCCD not initialised.
+'Andor' object has no attribute 'dll'
+
+
+2020/01/14 11:32:27.714 - MainThread - master.py.closeEvent.427 - WARNING
+camera safe shutdown failed.
+'Andor' object has no attribute 'dll'
+
+

@@ -24,6 +24,8 @@ preampgain  -- Pre-amp gain setting. The value can be 1, 2 or 3.
 EMgain      -- electron-multiplying gain factor.
 ROI         -- Region of Interest on the CCD. A tuple of form:
                 (xmin, xmax, ymin, ymax) = (hstart, hend, vstart, vend).
+hbin        -- number of horizontal pixels to bin in software
+vbin        -- number of vertical pixels to bin in software
 cropMode    -- reduce the active area of the CCD to improve 
                 throughput.
                 0: off        1: on

@@ -98,9 +98,9 @@ class camera(QThread):
         
     def ApplySettings(self, setPointT=-20, coolerMode=1, shutterMode=2, 
             outamp=0, hsspeed=2, vsspeed=4, preampgain=3, EMgain=1, 
-            ROI=None, cropMode=0, readmode=4, acqumode=5, triggerMode=7,
-            frameTransf=0, fastTrigger=0, expTime=70e-6, verbosity=False,
-            numKin=1):
+            ROI=None, hbin=1, vbin=1, cropMode=0, readmode=4, acqumode=5, 
+            triggerMode=7, frameTransf=0, fastTrigger=0, expTime=70e-6, 
+            verbosity=False, numKin=1):
         """Apply user settings.
         Keyword arguments:
         setPointT   -- temperature set point in degrees Celsius. 
@@ -129,6 +129,8 @@ class camera(QThread):
         EMgain      -- electron-multiplying gain factor.
         ROI         -- Region of Interest on the CCD. A tuple of form:
                         (xmin, xmax, ymin, ymax).
+        hbin        -- number of horizontal pixels to bin in software
+        vbin        -- number of vertical pixels to bin in software
         cropMode    -- reduce the active area of the CCD to improve 
                         throughput.
                         0: off        1: on
@@ -177,7 +179,8 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.AF.SetFastExtTrigger(fastTrigger)])
         errors.append(ERROR_CODE[self.AF.SetFrameTransferMode(frameTransf)])
         # crop mode requires frame transfer and external trigger modes
-        errors.append(ERROR_CODE[self.SetROI(self.AF.ROI, crop=cropMode)])
+        errors.append(ERROR_CODE[self.SetROI(self.AF.ROI, hbin=hbin, 
+                                            vbin=vbin, crop=cropMode)])
         errors.append(ERROR_CODE[self.AF.SetExposureTime(expTime)])
         errors.append(ERROR_CODE[self.AF.GetAcquisitionTimings()])
         self.BufferSize = self.AF.GetSizeOfCircularBuffer()
@@ -208,7 +211,7 @@ class camera(QThread):
 
         cvals = []
         for row in config_data:
-            if row[:2] != '18':
+            if row[:2] != '20':
                 cvals.append(int(row.split('=')[-1]))
             else: # exposure time is a float
                 cvals.append(float(row.split('=')[-1]))
@@ -222,24 +225,25 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.AF.SetVSSpeed(cvals[5])])   
         errors.append(ERROR_CODE[self.AF.SetPreAmpGain(cvals[6])])
         errors.append(ERROR_CODE[self.AF.SetEMCCDGain(cvals[7])])
-        self.AF.ROI = (cvals[8], cvals[9], cvals[10], cvals[11])
-        errors.append(ERROR_CODE[self.AF.SetReadMode(cvals[13])])
-        errors.append(ERROR_CODE[self.AF.SetAcquisitionMode(cvals[14])])
-        if cvals[20] > 1:
-            errors.append(ERROR_CODE[self.AF.SetNumberKinetics(cvals[20])])
-        errors.append(ERROR_CODE[self.AF.SetTriggerMode(cvals[15])])
-        errors.append(ERROR_CODE[self.AF.SetFrameTransferMode(cvals[16])])
-        errors.append(ERROR_CODE[self.AF.SetFastExtTrigger(cvals[17])])
+        self.AF.ROI = (cvals[9], cvals[10], cvals[12], cvals[13])
+        errors.append(ERROR_CODE[self.AF.SetReadMode(cvals[15])])
+        errors.append(ERROR_CODE[self.AF.SetAcquisitionMode(cvals[16])])
+        if cvals[22] > 1:
+            errors.append(ERROR_CODE[self.AF.SetNumberKinetics(cvals[22])])
+        errors.append(ERROR_CODE[self.AF.SetTriggerMode(cvals[17])])
+        errors.append(ERROR_CODE[self.AF.SetFrameTransferMode(cvals[18])])
+        errors.append(ERROR_CODE[self.AF.SetFastExtTrigger(cvals[19])])
         # crop mode requires frame transfer and external trigger modes
-        errors.append(ERROR_CODE[self.SetROI(self.AF.ROI, crop=cvals[12])])
-        errors.append(ERROR_CODE[self.AF.SetExposureTime(cvals[18])])
+        errors.append(ERROR_CODE[self.SetROI(self.AF.ROI, hbin=cvals[8],
+                            vbin=cvals[11], crop=cvals[14])])
+        errors.append(ERROR_CODE[self.AF.SetExposureTime(cvals[20])])
         errors.append(ERROR_CODE[self.AF.GetAcquisitionTimings()])
         self.BufferSize = self.AF.GetSizeOfCircularBuffer()
-        if abs(cvals[18] - self.AF.exposure)/cvals[18] > 0.01:
-            print("WARNING: Tried to set exposure time %.3g s"%cvals[18] + 
+        if abs(cvals[20] - self.AF.exposure)/cvals[20] > 0.01:
+            print("WARNING: Tried to set exposure time %.3g s"%cvals[20] + 
                 " but acquisition settings require min. exposure time " +
                 "%.3g s."%self.AF.exposure)
-        self.AF.verbosity = bool(cvals[19])
+        self.AF.verbosity = bool(cvals[21])
         self.AF.kscans = 1
         check_success = [e != 'DRV_SUCCESS' for e in errors]
         if any(check_success):
@@ -247,7 +251,7 @@ class camera(QThread):
                 str(check_success.index(True)))
         return check_success
 
-    def SetROI(self, ROI, crop=0, slowcrop=1):
+    def SetROI(self, ROI, hbin=1, vbin=1, crop=0, slowcrop=1):
         """Specify an ROI on the camera to image. If none specified, use 
         the entire CCD. 
            Parameters:
@@ -268,10 +272,10 @@ class camera(QThread):
         if crop:
             error = self.AF.SetIsolatedCropModeEx(
                 crop, self.AF.ROIheight, self.AF.ROIwidth, 
-                1, 1, hstart, vstart)
+                hbin, vbin, hstart, vstart)
             self.AF.SetIsolatedCropModeType(slowcrop)
         else:
-            error = self.AF.SetImage(1,1,hstart,hend,vstart,vend)
+            error = self.AF.SetImage(hbin,vbin,hstart,hend,vstart,vend)
         return error
             
     def CheckCurrentSettings(self):

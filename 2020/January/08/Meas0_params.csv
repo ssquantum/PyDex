@@ -1,4 +1,0 @@
-Multirun list of variables:
-2.0,2.3;2.15,2.15;2.3,2.0
-measure;measure_prefix;Variable label;Type;Analogue type;Time step name;Analogue channel;runs included;# omitted;# in hist
-0;Meas0_;Testing;['Analogue voltage', 'Analogue voltage'];['Fast analogue', 'Fast analogue'];[[13, 14, 15], [13, 14, 15]];[[0], [4]];[[147, 147, 148, 149, 151, 152, 153, 155, 156, 157], [147, 147, 148, 149, 151, 152, 153, 155, 156, 157], [147, 147, 148, 149, 151, 152, 153, 155, 156, 157]];1;3
