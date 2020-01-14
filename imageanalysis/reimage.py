@@ -43,12 +43,12 @@ class reim_window(main_window):
     """
     def __init__(self, signal, imhandlers=[], results_path='.', im_store_path='.',
             name=''):
+        self.event_im = signal # uses the signal from a SAIA instance
         super().__init__(results_path=results_path, 
                         im_store_path=im_store_path, name=name)
         self.adjust_UI() # adjust widgets from main_window
 
         self.ih1, self.ih2 = imhandlers # used to get histogram data
-        self.event_im = signal # uses the signal from a SAIA instance
         
     def adjust_UI(self):
         """Edit the widgets created by main_window"""
@@ -67,7 +67,7 @@ class reim_window(main_window):
         t2 = 0
         atom = (np.array(self.ih1.stats['Counts']) // self.ih1.thresh).astype(bool)
         idxs = [i for i, val in enumerate(self.ih2.stats['File ID']) 
-                if any(val == j for j in self.ih1.stats['File ID'][atom])]
+                if any([val == v for j, v in enumerate(self.ih1.stats['File ID']) if atom[j]])]
         # take the after images when the before images contained atoms
         t1 = time.time()
         self.image_handler.stats['Mean bg count'] = [self.ih2.stats['Mean bg count'][i] for i in idxs]
@@ -78,7 +78,7 @@ class reim_window(main_window):
         self.image_handler.stats['Max xpos'] = [self.ih2.stats['Max xpos'][i] for i in idxs]
         self.image_handler.stats['Max ypos'] = [self.ih2.stats['Max ypos'][i] for i in idxs]
         self.image_handler.ind = np.size(self.image_handler.stats['Counts']) - 1
-        self.image_handler.stats['Atom detected'] = [self.ih2.stats['Atom Detected'][i] for i in idxs]
+        self.image_handler.stats['Atom detected'] = [self.ih2.stats['Atom detected'][i] for i in idxs]
         self.image_handler.thresh            = self.ih1.thresh
         t2 = time.time()
         self.int_time = t2 - t1

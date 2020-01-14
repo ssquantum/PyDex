@@ -40,3 +40,19 @@ camera safe shutdown failed.
 'Andor' object has no attribute 'dll'
 
 
+2020/01/14 13:17:08.713 - MainThread - imsaver.py.__init__.83 - WARNING
+Image saver could not create directory: X:\Sequence Log\2020\January\14
+ Using current directory instead
+[WinError 5] Access is denied: 'X:\\Sequence Log\\2020\\January\\14'
+
+
+2020/01/14 16:46:25.563 - MainThread - settingsgui.py.reset_analyses.628 - WARNING
+While creating new analysers: there are 3 image indices for the 4 image analysers.
+
+
+
+2020/01/14 16:57:21.754 - MainThread - settingsgui.py.reset_analyses.628 - WARNING
+While creating new analysers: there are 2 image indices for the 4 image analysers.
+
+
+

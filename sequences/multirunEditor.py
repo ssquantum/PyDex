@@ -81,11 +81,13 @@ class multirun_widget(QWidget):
         self.types = OrderedDict([('measure',int), ('measure_prefix',str),
             ('Variable label', str), ('Type', strlist), 
             ('Analogue type', strlist), ('Time step name', listlist), 
-            ('Analogue channel', listlist), ('runs included', listlist)])
+            ('Analogue channel', listlist), ('runs included', listlist),
+            ('Last time step run', str), ('Last time step end', str)])
         self.stats = OrderedDict([('measure',0), ('measure_prefix','0_'),
             ('Variable label', ''), ('Type', ['Time step length']*ncols), 
             ('Analogue type', ['Fast analogue']*ncols), ('Time step name', [[]]*ncols), 
-            ('Analogue channel', [[]]*ncols), ('runs included', [[]]*nrows)])
+            ('Analogue channel', [[]]*ncols), ('runs included', [[]]*nrows),
+            ('Last time step run', ''), ('Last time step end', '')])
         self.init_UI()  # make the widgets
 
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
@@ -199,17 +201,25 @@ class multirun_widget(QWidget):
         clear_vars_button.clicked.connect(self.clear_array)
         clear_vars_button.resize(clear_vars_button.sizeHint())
         self.grid.addWidget(clear_vars_button, 5,1, 1,2)
+        
+        # choose last time step for multirun
+        lts_label = QLabel('Last time step: ', self)
+        self.grid.addWidget(lts_label, 6,0, 1,1)
+        self.last_step_run_edit = self.make_label_edit('Running: ', self.grid, position=[6,1, 1,2])[1]
+        self.last_step_run_edit.textChanged[str].connect(self.update_last_step)
+        self.last_step_end_edit = self.make_label_edit('End: ', self.grid, position=[6,4, 1,2])[1]
+        self.last_step_end_edit.textChanged[str].connect(self.update_last_step)
 
         # display current progress
         multirun_progress = QLabel(
             'User variable: , omit 0 of 0 files, 0 of 100 histogram files, 0% complete')
-        self.grid.addWidget(multirun_progress, 6,0, 1,12)
+        self.grid.addWidget(multirun_progress, 7,0, 1,12)
         remove_slot(self.progress, multirun_progress.setText, True)
 
         # table stores multirun values:
         self.table = QTableWidget(self.nrows, self.ncols)
         self.reset_array()
-        self.grid.addWidget(self.table, 7,0, 20, 12)
+        self.grid.addWidget(self.table, 8,0, 20, 12)
     
         scroll.setWidget(scroll_content)
 
@@ -266,6 +276,11 @@ class multirun_widget(QWidget):
         number of omitted and number of included runs in a histogram."""
         self.nomit = int(self.omit_edit.text()) if self.omit_edit.text() else 0
         self.nhist = int(self.nhist_edit.text()) if self.nhist_edit.text() else 1
+        
+    def update_last_step(self, txt=''):
+        """Save the current values of the last time step file paths."""
+        self.stats['Last time step run'] = self.last_step_run_edit.text()
+        self.stats['Last time step end'] = self.last_step_end_edit.text()
            
     def add_column_to_array(self):
         """Make a list of values and add it to the given column 

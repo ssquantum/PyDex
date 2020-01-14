@@ -267,7 +267,7 @@ class main_window(QMainWindow):
         settings_grid.addWidget(self.bias_offset_edit, 4,1, 1,1)
         self.bias_offset_edit.setText(str(self.image_handler.bias)) # default
         self.bias_offset_edit.editingFinished.connect(self.CCD_stat_edit)
-        self.bias_offset_edit.setValidator(double_validator) # only floats
+        self.bias_offset_edit.setValidator(int_validator) # only ints
 
         # EMCCD readout noise
         read_noise_label = QLabel('EMCCD read-out noise: ', self)
@@ -510,7 +510,7 @@ class main_window(QMainWindow):
     def CCD_stat_edit(self):
         """Update the values used for the EMCCD bias offset and readout noise"""
         if self.bias_offset_edit.text(): # check the label isn't empty
-            self.image_handler.bias = float(self.bias_offset_edit.text())
+            self.image_handler.bias = int(self.bias_offset_edit.text())
         if self.read_noise_edit.text():
             self.histo_handler.Nr = float(self.read_noise_edit.text())
         
@@ -915,14 +915,14 @@ class main_window(QMainWindow):
                 self.recent_label.setText('Finished Processing')
         return im_list
 
-    def load_from_file_nums(self, trigger=None, species='Cs-133', process=1):
+    def load_from_file_nums(self, trigger=None, label='Im', process=1):
         """Prompt the user to enter a range of image file numbers.
         Use these to select the image files from the current image storage path.
         Sequentially process the images then update the histogram
         Keyword arguments:
             trigger:        Boolean passed from the QObject that triggers
                             this function.
-            species:        part of the labelling convention for image files
+            label:        part of the labelling convention for image files
             process:        1: process images and add to histogram.
                             0: return list of image arrays."""
         im_list = []
@@ -940,11 +940,11 @@ class main_window(QMainWindow):
                 minmax = file_range.split('-')
                 if np.size(minmax) == 1: # only entered one file number
                     file_list = [
-                        os.path.join(image_storage_path, species)
+                        os.path.join(image_storage_path, label)
                         + '_' + date + '_' + minmax[0].replace(' ','') + '.asc']
                 if np.size(minmax) == 2:
                     file_list = [
-                        os.path.join(image_storage_path, species)
+                        os.path.join(image_storage_path, label)
                         + '_' + date + '_' + dfn + '.asc' for dfn in list(map(str, 
                             range(int(minmax[0]), int(minmax[1]))))] 
             for file_name in file_list:

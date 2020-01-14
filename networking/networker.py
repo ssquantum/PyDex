@@ -79,6 +79,7 @@ class PyServer(QThread):
         self.msg_queue = []
         self.ts = {label:[time.time()] for label in ['start', 'connect', 'waiting', 
             'sent', 'received', 'disconnect']}
+        self.app = QApplication.instance() # the main application that's running
         
     def add_message(self, enum, text, encoding="mbcs"):
         """Append a message to the queue that will be sent by TCP connection.
@@ -118,7 +119,7 @@ class PyServer(QThread):
                 remove_slot(self.finished, self.reset_stop)
                 self.stop = True # stop the thread running
             while True:
-                time.sleep(1e-3) # if there is no delay then this thread takes priority over UI
+                self.app.processEvents() # hopefully helps prevent GUI lag
                 if self.check_stop():
                     break # toggle
                 elif len(self.msg_queue):

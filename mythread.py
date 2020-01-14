@@ -10,8 +10,10 @@ Stefan Spence 06/12/19
 """
 try:
     from PyQt4.QtCore import QThread, pyqtSignal
+    from PyQt4.QtGui import QApplication
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
+    from PyQt5.QtWidgets import QApplication 
 
 def remove_slot(signal, slot, reconnect=True):
     """Make sure all instances of slot are disconnected
@@ -30,6 +32,7 @@ class PyDexThread(QThread):
 
     def __init__(self):
         super().__init__()
+        self.app = QApplication.instance()
 
     def add_item(self, new_item, *args, **kwargs):
         """Append a new item to the queue for processing."""
@@ -43,6 +46,7 @@ class PyDexThread(QThread):
         """Run the thread continuously processing items
         from the queue until the stop bool is toggled."""
         while True:
+            self.app.processEvents() # hopefully helps prevent GUI lag
             if self.check_stop():
                 break # stop the thread running
             elif len(self.queue):

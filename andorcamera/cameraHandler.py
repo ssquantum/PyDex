@@ -96,7 +96,7 @@ class camera(QThread):
         else:
             print("Connection error: " + ERROR_CODE[err]) 
         
-    def ApplySettings(self, setPointT=-20, coolerMode=1, shutterMode=2, 
+    def ApplySettings(self, setPointT=-60, coolerMode=1, shutterMode=2, 
             outamp=0, hsspeed=2, vsspeed=4, preampgain=3, EMgain=1, 
             ROI=None, hbin=1, vbin=1, cropMode=0, readmode=4, acqumode=5, 
             triggerMode=7, frameTransf=0, fastTrigger=0, expTime=70e-6, 
@@ -267,8 +267,8 @@ class camera(QThread):
                 1, self.AF.DetectorWidth, 1, self.AF.DetectorHeight)
         else:
             hstart,hend,vstart,vend = ROI
-        self.AF.ROIwidth = hend - hstart + 1
-        self.AF.ROIheight = vend - vstart + 1
+        self.AF.ROIwidth = (hend - hstart + 1) // hbin
+        self.AF.ROIheight = (vend - vstart + 1) // vbin
         if crop:
             error = self.AF.SetIsolatedCropModeEx(
                 crop, self.AF.ROIheight, self.AF.ROIwidth, 

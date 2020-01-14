@@ -47,7 +47,7 @@ class settings_window(QMainWindow):
     def __init__(self, nsaia=1, nreim=0, results_path='', im_store_path=''):
         super().__init__()
         self.types = OrderedDict([('pic_size',int), ('x',int), ('y',int), ('roi_size',int), 
-            ('bias',float), ('Nr', float), ('image_path', str), ('results_path', str)])
+            ('bias',int), ('Nr', float), ('image_path', str), ('results_path', str)])
         self.stats = OrderedDict([('pic_size',512), ('x',0), ('y',0), ('roi_size',1), 
             ('bias',697), ('Nr', 8.8), ('image_path', im_store_path), ('results_path', results_path)])
         self.load_settings() # load default
@@ -313,12 +313,13 @@ class settings_window(QMainWindow):
     def CCD_stat_edit(self):
         """Update the values used for the EMCCD bias offset and readout noise"""
         if self.bias_offset_edit.text(): # check the label isn't empty
-            self.stats['bias'] = float(self.bias_offset_edit.text())
+            self.stats['bias'] = int(self.bias_offset_edit.text())
         if self.read_noise_edit.text():
             self.stats['Nr'] = float(self.read_noise_edit.text())
         for mw in self.mw + self.rw:
             mw.bias_offset_edit.setText(str(self.stats['bias']))
             mw.read_noise_edit.setText(str(self.stats['Nr']))
+            mw.CCD_stat_edit()
 
     def roi_text_edit(self, text=''):
         """Update the ROI position and size every time a text edit is made by
@@ -465,7 +466,7 @@ class settings_window(QMainWindow):
         if fname:  # avoid crash if the user cancelled
             try:
                 self.mw[0].image_handler.set_pic_size(fname)
-                self.pic_size_edit.setText(str(self.mw[0].imgae_handler.pic_size))
+                self.pic_size_edit.setText(str(self.mw[0].image_handler.pic_size))
                 im_vals = self.mw[0].image_handler.load_full_im(fname)
                 self.update_im(im_vals)
             except IndexError as e:

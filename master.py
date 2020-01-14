@@ -229,11 +229,11 @@ class Master(QMainWindow):
         '\nEnter the path to a config file to reset the image saver: ',
         text=self.save_config)
             if text and ok:
-                remove_slot(self.rn.im_save, self.rn.sv.process, False)
+                remove_slot(self.rn.im_save, self.rn.sv.add_item, False)
                 self.rn.sv = event_handler(text)
                 if self.rn.sv.image_storage_path:
                     self.status_label.setText('Image Saver config: '+text)
-                    remove_slot(self.rn.im_save, self.rn.sv.process, True)
+                    remove_slot(self.rn.im_save, self.rn.sv.add_item, True)
                     self.save_config = text
                 else:
                     self.status_label.setText('Failed to find config file.')
