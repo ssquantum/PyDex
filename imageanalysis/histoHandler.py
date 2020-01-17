@@ -68,7 +68,7 @@ class histo_handler(Analysis):
         lead -- a key in the stats that defines the item to sort by."""
         idxs = np.argsort(self.stats[lead])
         for key in self.stats.keys():
-            self.stats[key] = self.stats[key][idxs]
+            self.stats[key] = [self.stats[key][i] for i in idxs]
 
     def process(self, ih, user_var, fix_thresh=False, method='quick', include=True):
         """Calculate the statistics from the current histogram.
@@ -141,6 +141,8 @@ class histo_handler(Analysis):
                 except: return 0            # fit failed, do nothing
                 A0, mu0, sig0 = self.bf.ps
                 A1, mu1, sig1 = 0, 0, 0 
+                fix_thresh = True
+                ih.thresh = max(bins) # set the threshold above the counts
 
             ih.peak_heights = [A0, A1]
             ih.peak_centre = [mu0, mu1]
@@ -171,7 +173,7 @@ class histo_handler(Analysis):
 
             # store the calculated histogram statistics as temp
             self.temp_vals['File ID'] = int(self.ind)
-            file_list = [x for x in ih.stats['File ID'] if x]
+            file_list = [x for x in ih.stats['File ID'] if str(x)]
             self.temp_vals['Start file #'] = min(map(int, file_list))
             self.temp_vals['End file #'] = max(map(int, file_list))
             self.temp_vals['ROI xc ; yc ; size'] = ' ; '.join(list(map(str, [ih.xc, ih.yc, ih.roi_size])))

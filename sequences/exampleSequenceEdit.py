@@ -6,6 +6,7 @@ Stefan Spence 13/10/19
 multiple channels at the same time.
 """
 import sys
+sys.path.append('') # otherwise cwd isn't in sys.path 
 from translator import translate, event_list, header_cluster, channel_names, analogue_cluster
 from sequencePreviewer import Previewer
 try:

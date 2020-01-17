@@ -87,8 +87,9 @@ class Analysis(QThread):
         Third row is data column headings
         Then data follows.
         """
-        # data
-        out_arr = np.array([x for x in self.stats.values()], dtype=str).T
+        # data converted to the correct type
+        out_arr = np.array([self.types[key](val) 
+                for key, val in self.stats.items()], dtype=str).T
 
         header = ','.join(meta_head) + '\n'
         header += ','.join(meta_vals) + '\n'

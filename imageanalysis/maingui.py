@@ -844,7 +844,7 @@ class main_window(QMainWindow):
         """Save the data in the current plot, which is held in the histoHandler's
         dictionary and saved in the log file, to a new file."""
         if not save_file_name:
-            self.try_browse(title='Save File', file_type='dat(*.dat);;all (*)',
+            save_file_name = self.try_browse(title='Save File', file_type='dat(*.dat);;all (*)',
                             open_func=QFileDialog.getSaveFileName)
         if save_file_name:
             self.histo_handler.save(save_file_name, meta_head=['SAIA Log file. Include:'],

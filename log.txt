@@ -1,73 +1,136 @@
-2020/01/14 10:25:52.129 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 434, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 356, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2020/01/14 10:25:52.159 - MainThread - cameraHandler.py.__init__.63 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
+2020/01/15 11:30:44.176 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=sans-serif:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to DejaVu Sans ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\DejaVuSans.ttf') with score of 0.050000
 
 
-2020/01/14 10:26:11.063 - MainThread - master.py.closeEvent.427 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
+2020/01/15 11:31:22.928 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=STIXGeneral:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to STIXGeneral ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\STIXGeneral.ttf') with score of 0.050000
 
 
-2020/01/14 11:32:17.658 - MainThread - AndorFunctions.py.__init__.48 - ERROR
-Andor functions dll file not found.
-
-Traceback (most recent call last):
-  File "./andorcamera\AndorFunctions.py", line 46, in __init__
-    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
-  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 434, in LoadLibrary
-    return self._dlltype(name)
-  File "C:\ProgramData\Anaconda3\lib\ctypes\__init__.py", line 356, in __init__
-    self._handle = _dlopen(self._name, mode)
-OSError: [WinError 126] The specified module could not be found
-2020/01/14 11:32:17.675 - MainThread - cameraHandler.py.__init__.63 - WARNING
-Andor EMCCD not initialised.
-'Andor' object has no attribute 'dll'
+2020/01/15 11:31:22.931 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=STIXGeneral:style=normal:variant=normal:weight=bold:stretch=normal:size=12.0 to STIXGeneral ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\STIXGeneralBol.ttf') with score of 0.000000
 
 
-2020/01/14 11:32:27.714 - MainThread - master.py.closeEvent.427 - WARNING
-camera safe shutdown failed.
-'Andor' object has no attribute 'dll'
+2020/01/15 11:31:22.940 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=STIXSizeTwoSym:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to STIXSizeTwoSym ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\STIXSizTwoSymReg.ttf') with score of 0.050000
 
 
-2020/01/14 13:17:08.713 - MainThread - imsaver.py.__init__.83 - WARNING
-Image saver could not create directory: X:\Sequence Log\2020\January\14
- Using current directory instead
-[WinError 5] Access is denied: 'X:\\Sequence Log\\2020\\January\\14'
+2020/01/15 11:31:22.949 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=STIXSizeThreeSym:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to STIXSizeThreeSym ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\STIXSizThreeSymReg.ttf') with score of 0.050000
 
 
-2020/01/14 16:46:25.563 - MainThread - settingsgui.py.reset_analyses.628 - WARNING
-While creating new analysers: there are 3 image indices for the 4 image analysers.
+2020/01/15 11:31:22.957 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=STIXSizeFourSym:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to STIXSizeFourSym ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\STIXSizFourSymReg.ttf') with score of 0.050000
 
 
-
-2020/01/14 16:57:21.754 - MainThread - settingsgui.py.reset_analyses.628 - WARNING
-While creating new analysers: there are 2 image indices for the 4 image analysers.
-
+2020/01/15 11:31:22.965 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=STIXSizeFiveSym:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to STIXSizeFiveSym ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\STIXSizFiveSymReg.ttf') with score of 0.050000
 
 
-2020/01/14 17:39:55.024 - MainThread - multirunEditor.py.set_chan_listbox.365 - WARNING
-Couldn't set channels for the loaded multirun parameters. Load the sequence first, then load multirun parameters.
-'NoneType' object has no attribute 'setSelected'
+2020/01/15 11:31:22.973 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=STIXSizeOneSym:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to STIXSizeOneSym ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\STIXSizOneSymReg.ttf') with score of 0.050000
 
 
-2020/01/14 17:50:42.794 - MainThread - runid.py.multirun_step.264 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
+2020/01/15 11:31:22.975 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=STIXNonUnicode:style=normal:variant=normal:weight=bold:stretch=normal:size=12.0 to STIXNonUnicode ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\STIXNonUniBol.ttf') with score of 0.000000
 
 
-2020/01/14 17:51:30.044 - MainThread - runid.py.multirun_step.264 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
+2020/01/15 11:31:22.983 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=STIXNonUnicode:style=italic:variant=normal:weight=normal:stretch=normal:size=12.0 to STIXNonUnicode ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\STIXNonUniIta.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:22.993 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=STIXGeneral:style=italic:variant=normal:weight=normal:stretch=normal:size=12.0 to STIXGeneral ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\STIXGeneralItalic.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:23.000 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=STIXNonUnicode:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to STIXNonUnicode ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\STIXNonUni.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:23.009 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=cmb10:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to cmb10 ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\cmb10.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:23.017 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=cmtt10:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to cmtt10 ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\cmtt10.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:23.025 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=cmsy10:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to cmsy10 ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\cmsy10.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:23.034 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=cmr10:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to cmr10 ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\cmr10.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:23.041 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=cmex10:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to cmex10 ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\cmex10.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:23.049 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=cmmi10:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to cmmi10 ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\cmmi10.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:23.057 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=cmss10:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to cmss10 ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\cmss10.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:23.065 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=DejaVu Sans:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to DejaVu Sans ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\DejaVuSans.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:23.066 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=DejaVu Sans:style=normal:variant=normal:weight=bold:stretch=normal:size=12.0 to DejaVu Sans ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\DejaVuSans-Bold.ttf') with score of 0.000000
+
+
+2020/01/15 11:31:23.074 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=DejaVu Sans Mono:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to DejaVu Sans Mono ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\DejaVuSansMono.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:23.082 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=DejaVu Sans Display:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0 to DejaVu Sans Display ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\DejaVuSansDisplay.ttf') with score of 0.050000
+
+
+2020/01/15 11:31:23.090 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=DejaVu Sans:style=italic:variant=normal:weight=normal:stretch=normal:size=12.0 to DejaVu Sans ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\DejaVuSans-Oblique.ttf') with score of 0.150000
+
+
+2020/01/15 11:31:23.228 - MainThread - font_manager.py.findfont.1346 - DEBUG
+findfont: Matching :family=sans-serif:style=normal:variant=normal:weight=normal:stretch=normal:size=10.0 to DejaVu Sans ('C:\\Users\\Lab\\AppData\\Local\\Enthought\\Canopy\\edm\\envs\\PyDex\\lib\\site-packages\\matplotlib\\mpl-data\\fonts\\ttf\\DejaVuSans.ttf') with score of 0.050000
+
+
+2020/01/15 17:28:13.047 - MainThread - legend.py._parse_legend_args.1383 - WARNING
+No handles with labels found to put in legend.
+
+
+2020/01/15 17:28:52.320 - MainThread - legend.py._parse_legend_args.1383 - WARNING
+No handles with labels found to put in legend.
+
+
+2020/01/15 17:37:39.744 - MainThread - legend.py._parse_legend_args.1383 - WARNING
+No handles with labels found to put in legend.
+
+
+2020/01/15 17:38:00.944 - MainThread - legend.py._parse_legend_args.1383 - WARNING
+No handles with labels found to put in legend.
+
+
+2020/01/15 17:38:50.997 - MainThread - legend.py._parse_legend_args.1383 - WARNING
+No handles with labels found to put in legend.
+
+
+2020/01/15 19:13:12.578 - MainThread - legend.py._parse_legend_args.1383 - WARNING
+No handles with labels found to put in legend.
+
+
+2020/01/15 19:13:24.804 - MainThread - legend.py._parse_legend_args.1383 - WARNING
+No handles with labels found to put in legend.
+
+
+2020/01/15 19:17:30.939 - MainThread - legend.py._parse_legend_args.1383 - WARNING
+No handles with labels found to put in legend.
+
+
+2020/01/15 19:19:54.958 - MainThread - legend.py._parse_legend_args.1383 - WARNING
+No handles with labels found to put in legend.
 
 
