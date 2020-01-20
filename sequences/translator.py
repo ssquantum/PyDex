@@ -18,6 +18,7 @@ import sys
 import numpy as np
 from collections import OrderedDict
 import logging
+import os
 logger = logging.getLogger(__name__)
 
 #### #### DExTer clusters #### ####
@@ -413,6 +414,37 @@ class translate:
         esc['Sequence header middle'].insert(idx, header_mid)
         esc['Slow digital channels'].insert(idx, sd)
         esc['Slow analogue array'].insert(idx, sa)
+    def mloopmodify(self, mloopdict,mlooppath):
+        esc = self.seq_dic['Experimental sequence cluster in'] # shorthand
+        #Read exp_input.txt
+        mloopinputpath = mlooppath+'\exp_input.txt'
+        if os.path.exists(mloopinputpath):
+            with open(mloopinputpath, 'r') as f:
+                newstr = ''.join((ch if ch in '0123456789.-e' else ' ') for ch in f.read().replace(" ",""))
+                params = [float(i) for i in newstr.split()]
+                print(params)
+
+        #insert data
+        i = 0
+        for key in mloopdict.keys():
+            print(i)
+            print(key)
+            #Current Mloop Parameter
+            parameter = mloopdict[key] 
+            parameter['value'] = params[i]
+            i += 1
+            #Timestep
+            if parameter['type'] == 'timestep':
+                print('timestep '+str(parameter['timestep'])+' length '+str(parameter['value']))
+                for position in ['top', 'middle']:
+                    esc['Sequence header '+position][parameter['timestep']]['Time step length'] = parameter['value']
+            #Slow Analogue
+            if parameter['type'] == 'slowanalogue':
+                print('channel '+parameter['channelname']+' value '+str(parameter['value']))
+                channel = esc['Slow analogue names']['Name'].index(parameter['channelname'])
+                for timestep in parameter['timestep']:
+                    esc['Slow analogue array'][channel]['Voltage'][timestep] = parameter['value']
+                    print(timestep)
 
     # extra functions for checking the sequence is correct format?
 
