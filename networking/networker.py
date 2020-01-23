@@ -186,7 +186,7 @@ if __name__ == "__main__":
     
     ps = PyServer()
     ps.textin.connect(print)
-    ps.add_message('0', 'Hello world!')
+    ps.add_message('24', 'Hello world!')
     ps.start() # will keep running until you call ps.close()
     w = QWidget()
     w.setWindowTitle('Server is runnning')

@@ -415,6 +415,18 @@ class translate:
         esc['Slow digital channels'].insert(idx, sd)
         esc['Slow analogue array'].insert(idx, sa)
     def mloopmodify(self, mloopdict,mlooppath):
+        """
+        Modify the cluster based on parameters read from mloop txt file, interpreted by mloopdict nested dictionary struct
+
+        Supports two types of paramter, specified by the 'type' string
+
+        'timestep'  : Use the number as the length of a timestep
+        'slowanalouge': Use the number as a Voltage. This has aditional arguments
+            "timestep" : list of timestep numbers over which to modify the volatage
+            "channel name" : Name of the slow analouge to modify
+
+
+        """
         esc = self.seq_dic['Experimental sequence cluster in'] # shorthand
         #Read exp_input.txt
         mloopinputpath = mlooppath+'\exp_input.txt'
@@ -423,11 +435,11 @@ class translate:
                 newstr = ''.join((ch if ch in '0123456789.-e' else ' ') for ch in f.read().replace(" ",""))
                 params = [float(i) for i in newstr.split()]
                 print(params)
-
+            os.remove(mloopinputpath)
         #insert data
         i = 0
         for key in mloopdict.keys():
-            print(i)
+            
             print(key)
             #Current Mloop Parameter
             parameter = mloopdict[key] 
@@ -435,7 +447,9 @@ class translate:
             i += 1
             #Timestep
             if parameter['type'] == 'timestep':
+
                 print('timestep '+str(parameter['timestep'])+' length '+str(parameter['value']))
+                #Update esc with new timestep time
                 for position in ['top', 'middle']:
                     esc['Sequence header '+position][parameter['timestep']]['Time step length'] = parameter['value']
             #Slow Analogue
