@@ -88,7 +88,7 @@ class Analysis(QThread):
         Then data follows.
         """
         # data converted to the correct type
-        out_arr = np.array([self.types[key](val) 
+        out_arr = np.array([list(map(self.types[key], val))
                 for key, val in self.stats.items()], dtype=str).T
 
         header = ','.join(meta_head) + '\n'

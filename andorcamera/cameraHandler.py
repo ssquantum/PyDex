@@ -13,7 +13,7 @@ import numpy as np
 import win32event
 import logging
 logger = logging.getLogger(__name__)
-from AndorFunctions import Andor, ERROR_CODE # Import iXon control functions.
+from AndorFunctions import Andor, ERROR_CODE, Sensitivity, ReadNoise
 
 try:
     from PyQt4.QtCore import QThread, pyqtSignal, QEvent, pyqtSlot, QObject
@@ -30,11 +30,17 @@ class camera(QThread):
     an acquisition is completed or aborted, or temperature updates."""
     AcquisitionEvent = win32event.CreateEvent(None, 0, 0, 'Acquisition')
     AcquireEnd = pyqtSignal(np.ndarray) # send to image analysis 
+    # emit (EM gain, preamp gain, readout noise) when the acquisition settings are updated
+    SettingsChanged = pyqtSignal([float, float, float]) 
 
     def __init__(self, config_file=".\\ExExposure_config.dat"):
         super().__init__()   # Initialise the parent classes
         self.lastImage   = np.zeros((32,32)) # last acquired image
         self.BufferSize  = 0 # number of images that can fit in the buffer
+
+        self.emg = 1.0  # applied EM gain
+        self.pag = 4.50 # preamp gain sensitivity (e- per AD count)
+        self.Nr  = 8.8  # readout noise (counts)
         
         self.idle_time = 0    # time between acquisitions
         self.t0 = time.time() # time at start of acquisition
@@ -164,10 +170,20 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.AF.SetTemperature(setPointT)])
         errors.append(ERROR_CODE[self.AF.SetShutter(1, shutterMode)])
         errors.append(ERROR_CODE[self.AF.SetOutputAmplifier(outamp)])
+        AmpMode = 12*outamp # the first 12 settings are EM gain mode
         errors.append(ERROR_CODE[self.AF.SetHSSpeed(outamp, hsspeed)]) 
         errors.append(ERROR_CODE[self.AF.SetVSSpeed(vsspeed)])
         errors.append(ERROR_CODE[self.AF.SetPreAmpGain(preampgain)])
         errors.append(ERROR_CODE[self.AF.SetEMCCDGain(EMgain)])
+        self.emg = EMgain
+        try:
+            self.pag = Sensitivity[AmpMode + 3*hsspeed + preampgain - 1]
+            self.Nr  = ReadNoise[AmpMode + 3*hsspeed + preampgain - 1]
+        except IndexError as e:
+            self.pag = 4.50
+            self.Nr  = 8.8
+            logger.warning('Invalid camera acquisition settings: '+
+                'PAG '+str(preampgain)+', hsspeed '+str(hsspeed)+'\n'+str(e))
         self.AF.ROI = ROI 
         errors.append(ERROR_CODE[self.AF.SetReadMode(readmode)])
         errors.append(ERROR_CODE[self.AF.SetAcquisitionMode(acqumode)])
@@ -185,14 +201,15 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.AF.GetAcquisitionTimings()])
         self.BufferSize = self.AF.GetSizeOfCircularBuffer()
         if abs(expTime - self.AF.exposure)/expTime > 0.01:
-            print("WARNING: Tried to set exposure time %.3g s"%expTime + 
+            logger.warning("Tried to set exposure time %.3g s"%expTime + 
                 " but acquisition settings require min. exposure time " +
                 "%.3g s."%self.AF.exposure)
         self.AF.verbosity = verbosity
         check_success = [e != 'DRV_SUCCESS' for e in errors]
         if any(check_success):
-            print("WARNING: Didn't get DRV_SUCCESS for setting " + 
+            logger.warning("Didn't get DRV_SUCCESS for setting " + 
                 str(check_success.index(True)))
+        self.SettingsChanged.emit([self.emg, self.pag, self.Nr])
         return check_success
 
     def ApplySettingsFromConfig(self, config_file="./ExExposure_config.dat"):
@@ -220,11 +237,22 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.AF.CoolerON()])
         errors.append(ERROR_CODE[self.AF.SetTemperature(cvals[0])])
         errors.append(ERROR_CODE[self.AF.SetCoolerMode(cvals[1])])
-        errors.append(ERROR_CODE[self.AF.SetShutter(1, cvals[2])])    
+        errors.append(ERROR_CODE[self.AF.SetShutter(1, cvals[2])])  
+        errors.append(ERROR_CODE[self.AF.SetOutputAmplifier(cvals[3])])
+        AmpMode = 12*cvals[3] # the first 12 settings are EM gain mode  
         errors.append(ERROR_CODE[self.AF.SetHSSpeed(cvals[3], cvals[4])]) 
         errors.append(ERROR_CODE[self.AF.SetVSSpeed(cvals[5])])   
         errors.append(ERROR_CODE[self.AF.SetPreAmpGain(cvals[6])])
+        try:
+            self.pag = Sensitivity[AmpMode + 3*cvals[4] + cvals[6] - 1]
+            self.Nr  = ReadNoise[AmpMode + 3*cvals[4] + cvals[6] - 1]
+        except IndexError as e:
+            self.pag = 4.50
+            self.Nr  = 8.8
+            logger.warning('Invalid camera acquisition settings: '+
+                'PAG '+str(cvals[6])+', hsspeed '+str(cvals[4])+'\n'+str(e))
         errors.append(ERROR_CODE[self.AF.SetEMCCDGain(cvals[7])])
+        self.emg = cvals[7]
         self.AF.ROI = (cvals[9], cvals[10], cvals[12], cvals[13])
         errors.append(ERROR_CODE[self.AF.SetReadMode(cvals[15])])
         errors.append(ERROR_CODE[self.AF.SetAcquisitionMode(cvals[16])])
@@ -240,15 +268,16 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.AF.GetAcquisitionTimings()])
         self.BufferSize = self.AF.GetSizeOfCircularBuffer()
         if abs(cvals[20] - self.AF.exposure)/cvals[20] > 0.01:
-            print("WARNING: Tried to set exposure time %.3g s"%cvals[20] + 
+            logger.warning("Tried to set exposure time %.3g s"%cvals[20] + 
                 " but acquisition settings require min. exposure time " +
                 "%.3g s."%self.AF.exposure)
         self.AF.verbosity = bool(cvals[21])
         self.AF.kscans = 1
         check_success = [e != 'DRV_SUCCESS' for e in errors]
         if any(check_success):
-            print("WARNING: Didn't get DRV_SUCCESS for setting " + 
+            logger.warning("Didn't get DRV_SUCCESS for setting " + 
                 str(check_success.index(True)))
+        self.SettingsChanged.emit([self.emg, self.pag, self.Nr])
         return check_success
 
     def SetROI(self, ROI, hbin=1, vbin=1, crop=0, slowcrop=1):

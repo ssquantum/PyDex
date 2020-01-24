@@ -79,6 +79,8 @@ class main_window(QMainWindow):
         pg.setConfigOption('background', 'w') # set graph background default white
         pg.setConfigOption('foreground', 'k') # set graph foreground default black
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
+        self.log_file_name = results_path + 'log.dat' # in case init_log fails
+        self.last_path = results_path # path history helps user get to the file they want
         self.init_log(results_path) # write header to the log file that collects histograms
         self.image_storage_path = im_store_path # used for loading image files
         self.init_UI()  # make the widgets
@@ -100,6 +102,7 @@ class main_window(QMainWindow):
             os.makedirs(results_path, exist_ok=True)
 
         # log is saved in a dated subdirectory and the file name also has the date
+        self.last_path = results_path
         self.log_file_name = os.path.join(results_path, 
                    self.name+'log'+self.date[0]+self.date[1]+self.date[3]+'.dat')  
         # write the header to the log file
@@ -269,15 +272,6 @@ class main_window(QMainWindow):
         self.bias_offset_edit.editingFinished.connect(self.CCD_stat_edit)
         self.bias_offset_edit.setValidator(int_validator) # only ints
 
-        # EMCCD readout noise
-        read_noise_label = QLabel('EMCCD read-out noise: ', self)
-        settings_grid.addWidget(read_noise_label, 5,0, 1,1)
-        self.read_noise_edit = QLineEdit(self)
-        settings_grid.addWidget(self.read_noise_edit, 5,1, 1,1)
-        self.read_noise_edit.setText(str(self.histo_handler.Nr)) # default
-        self.read_noise_edit.editingFinished.connect(self.CCD_stat_edit)
-        self.read_noise_edit.setValidator(double_validator) # only floats
-        
         # label to show last file analysed
         self.recent_label = QLabel('', self)
         settings_grid.addWidget(self.recent_label, 6,0, 1,4)
@@ -470,7 +464,7 @@ class main_window(QMainWindow):
         plot_grid.addWidget(save_varplot, 5,0, 1,1)
 
         #### choose main window position and dimensions: (xpos,ypos,width,height)
-        self.setGeometry(100, 150, 850, 600)
+        self.setGeometry(100, 150, 850, 500)
         self.setWindowTitle(self.name+' - Single Atom Image Analyser -')
         self.setWindowIcon(QIcon('docs/tempicon.png'))
         
@@ -507,12 +501,13 @@ class main_window(QMainWindow):
             self.image_handler.create_square_mask()
             self.pic_size_label.setText(str(self.image_handler.pic_size))
 
-    def CCD_stat_edit(self):
+    def CCD_stat_edit(self, acq_settings=[]):
         """Update the values used for the EMCCD bias offset and readout noise"""
         if self.bias_offset_edit.text(): # check the label isn't empty
             self.image_handler.bias = int(self.bias_offset_edit.text())
-        if self.read_noise_edit.text():
-            self.histo_handler.Nr = float(self.read_noise_edit.text())
+        if acq_settings: # camera EM gain, preamp gain, read noise
+            self.hh.emg, self.hh.pag, self.hh.Nr = acq_settings
+            self.hh.dg = 2.0 if self.hh.emg > 1 else 1.0 # multiplicative noise factor
         
     def roi_text_edit(self, text):
         """Update the ROI position and size every time a text edit is made by
@@ -770,7 +765,7 @@ class main_window(QMainWindow):
     def get_default_path(self, default_path=''):
         """Get a default path for saving/loading images
         default_path: set the default path if the function doesn't find one."""
-        return os.path.dirname(self.log_file_name) if self.log_file_name else default_path
+        return os.path.dirname(self.last_path) if self.last_path else default_path
 
     def try_browse(self, title='Select a File', file_type='all (*)', 
                 open_func=QFileDialog.getOpenFileName):

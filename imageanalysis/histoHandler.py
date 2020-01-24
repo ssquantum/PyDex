@@ -36,13 +36,13 @@ class histo_handler(Analysis):
         ('Background peak count', int), 
         ('Error in Background peak count', float), 
         ('Background peak width', float),
-        ('sqrt(Nr^2 + Nbg)', float), 
+        ('sqrt(Nr^2 + Nbg*fg/A)', float), 
         ('Background mean', float), 
         ('Background standard deviation', float), 
         ('Signal peak count', int), 
         ('Error in Signal peak count', float),
         ('Signal peak width', float), 
-        ('sqrt(Nr^2 + Ns)', float),
+        ('sqrt(Nr^2 + Ns*fg/A)', float),
         ('Signal mean', float), 
         ('Signal standard deviation', float), 
         ('Separation', float),
@@ -60,6 +60,9 @@ class histo_handler(Analysis):
         self.xvals = [] # variables to plot on the x axis
         self.yvals = [] # variables to plot on the y axis
         self.Nr = 8.8   # read-out noise from EMCCD
+        self.pag = 4.50 # pre-amp gain from EMCCD
+        self.emg = 1.0  # EM gain applied by EMCCD
+        self.dg  = 2.0 if self.emg > 1 else 1.0 # multiplicative noise factor
         
     def sort_dict(self, lead='User variable'):
         """Sort the arrays in stats dict such that they are all ordered 
@@ -148,7 +151,7 @@ class histo_handler(Analysis):
             ih.peak_centre = [mu0, mu1]
             ih.peak_widths = [sig0, sig1]
 
-            if self.bf.rchisq and self.bf.rchisq > 10: include = False # bad fit
+            if self.bf.rchisq and abs(self.bf.rchisq) > 1e6: include = False # bad fit
         
             # update threshold to where fidelity is maximum
             if fix_thresh: # update thresh if not set by user
@@ -186,30 +189,30 @@ class histo_handler(Analysis):
             self.temp_vals['Upper Error in Loading probability'] = np.around(uplperr, 4)
             if np.size(ih.peak_centre) == 2:
                 self.temp_vals['Background peak count'] = int(mu0)
-                # assume bias offset is self.bias, readout noise standard deviation Nr
-                if self.Nr**2+mu0 > 0:
-                    self.temp_vals['sqrt(Nr^2 + Nbg)'] = int((
-                        ih.roi_size*self.Nr**2+mu0)**0.5)
+                # assume bias offset is self.bias, readout noise Nr
+                var = ih.roi_size*self.Nr**2 + self.dg*self.emg*mu0/self.pag
+                if var > 0:
+                    self.temp_vals['sqrt(Nr^2 + Nbg*fg/A)'] = int(var**0.5)
                 else: # don't take the sqrt of a -ve number
-                    self.temp_vals['sqrt(Nr^2 + Nbg)'] = 0
+                    self.temp_vals['sqrt(Nr^2 + Nbg*fg/A)'] = 0
                 self.temp_vals['Background peak width'] = int(sig0)
-                self.temp_vals['Error in Background peak count'] = np.around(sig0 / empty_count**0.5, 2)
+                self.temp_vals['Error in Background peak count'] = np.around(sig0 / empty_count**0.5, 2) if empty_count else 0
                 self.temp_vals['Background mean'] = np.around(np.mean(below), 1) if np.size(below) else 0
                 self.temp_vals['Background standard deviation'] = np.around(np.std(below, ddof=1), 1) if np.size(below) else 0
                 self.temp_vals['Signal peak count'] = int(mu1)
-                # assume bias offset is self.bias, readout noise standard deviation Nr
-                if self.Nr**2+mu1 > 0:
-                    self.temp_vals['sqrt(Nr^2 + Ns)'] = int((
-                        ih.roi_size*self.Nr**2+mu1)**0.5)
+                # assume bias offset is self.bias, readout noise Nr
+                var = ih.roi_size*self.Nr**2+ self.dg*self.emg*mu1/self.pag
+                if var > 0:
+                    self.temp_vals['sqrt(Nr^2 + Ns*fg/A)'] = int(var**0.5)
                 else: # don't take the sqrt of a -ve number
-                    self.temp_vals['sqrt(Nr^2 + Ns)'] = 0
+                    self.temp_vals['sqrt(Nr^2 + Ns*fg/A)'] = 0
                 self.temp_vals['Signal peak width'] = int(sig1)
-                self.temp_vals['Error in Signal peak count'] = np.around(sig1 / atom_count**0.5, 2)
+                self.temp_vals['Error in Signal peak count'] = np.around(sig1 / atom_count**0.5, 2) if atom_count else 0
                 self.temp_vals['Signal mean'] = np.around(np.mean(above), 1) if np.size(above) else 0
                 self.temp_vals['Signal standard deviation'] = np.around(np.std(above, ddof=1), 1) if np.size(above) else 0
                 sep = mu1 - mu0 # separation of fitted peaks
                 self.temp_vals['Separation'] = int(sep)
-                seperr = np.sqrt(sig0**2 / empty_count + sig1**2 / atom_count) # propagated error in separation
+                seperr = np.sqrt(sig0**2 / empty_count + sig1**2 / atom_count) if empty_count and atom_count else 0 # propagated error in separation
                 self.temp_vals['Error in Separation'] = np.around(seperr, 2)
                 self.temp_vals['Fidelity'] = ih.fidelity
                 self.temp_vals['Error in Fidelity'] = ih.err_fidelity
@@ -220,8 +223,8 @@ class histo_handler(Analysis):
                     + sig1**2/(2*atom_count - 2))/(sig0**2 + sig1**2)), 2) if (empty_count>1 and atom_count>1) else 0.0
                 self.temp_vals['Include'] = include
             else:
-                for key in ['Background peak count', 'sqrt(Nr^2 + Nbg)', 'Background peak width', 
-                'Error in Background peak count', 'Signal peak count', 'sqrt(Nr^2 + Ns)', 
+                for key in ['Background peak count', 'sqrt(Nr^2 + Nbg*fg/A)', 'Background peak width', 
+                'Error in Background peak count', 'Signal peak count', 'sqrt(Nr^2 + Ns*fg/A)', 
                 'Signal peak width', 'Error in Signal peak count', 'Separation', 'Error in Separation', 
                 'Fidelity', 'Error in Fidelity', 'S/N', 'Error in S/N', 'Include']:
                     self.temp_vals[key] = 0

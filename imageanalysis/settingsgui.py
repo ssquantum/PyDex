@@ -47,9 +47,9 @@ class settings_window(QMainWindow):
     def __init__(self, nsaia=1, nreim=0, results_path='', im_store_path=''):
         super().__init__()
         self.types = OrderedDict([('pic_size',int), ('x',int), ('y',int), ('roi_size',int), 
-            ('bias',int), ('Nr', float), ('image_path', str), ('results_path', str)])
+            ('bias',int), ('image_path', str), ('results_path', str)])
         self.stats = OrderedDict([('pic_size',512), ('x',0), ('y',0), ('roi_size',1), 
-            ('bias',697), ('Nr', 8.8), ('image_path', im_store_path), ('results_path', results_path)])
+            ('bias',697), ('image_path', im_store_path), ('results_path', results_path)])
         self.load_settings() # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.results_path = results_path if results_path else self.stats['results_path'] # used for saving results
@@ -206,15 +206,6 @@ class settings_window(QMainWindow):
         self.bias_offset_edit.editingFinished.connect(self.CCD_stat_edit)
         self.bias_offset_edit.setValidator(double_validator) # only floats
 
-        # EMCCD readout noise
-        read_noise_label = QLabel('EMCCD read-out noise: ', self)
-        settings_grid.addWidget(read_noise_label, 4,0, 1,1)
-        self.read_noise_edit = QLineEdit(self)
-        settings_grid.addWidget(self.read_noise_edit, 4,1, 1,1)
-        self.read_noise_edit.setText(str(self.stats['Nr'])) # default
-        self.read_noise_edit.editingFinished.connect(self.CCD_stat_edit)
-        self.read_noise_edit.setValidator(double_validator) # only floats
-        
         reset_win = QPushButton('Reset Analyses', self) 
         reset_win.clicked.connect(self.reset_analyses)
         reset_win.resize(reset_win.sizeHint())
@@ -237,7 +228,6 @@ class settings_window(QMainWindow):
             mw.roi_y_edit.setText(str(y + d//2 + d%2))
             mw.roi_l_edit.setText(str(d))
             mw.bias_offset_edit.setText(str(self.stats['bias']))
-            mw.read_noise_edit.setText(str(self.stats['Nr']))
 
         #### tab for ROI ####
         roi_tab = QWidget()
@@ -310,17 +300,14 @@ class settings_window(QMainWindow):
                 mw.pic_size_edit.setText(text)
                 mw.pic_size_label.setText(text)
 
-    def CCD_stat_edit(self):
-        """Update the values used for the EMCCD bias offset and readout noise"""
+    def CCD_stat_edit(self, acq_settings=[]):
+        """Update the values used for the EMCCD bias offset"""
         if self.bias_offset_edit.text(): # check the label isn't empty
             self.stats['bias'] = int(self.bias_offset_edit.text())
-        if self.read_noise_edit.text():
-            self.stats['Nr'] = float(self.read_noise_edit.text())
         for mw in self.mw + self.rw:
             mw.bias_offset_edit.setText(str(self.stats['bias']))
-            mw.read_noise_edit.setText(str(self.stats['Nr']))
-            mw.CCD_stat_edit()
-
+            mw.CCD_stat_edit(acq_settings)
+        
     def roi_text_edit(self, text=''):
         """Update the ROI position and size every time a text edit is made by
         the user to one of the line edit widgets"""

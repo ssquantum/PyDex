@@ -48,6 +48,7 @@ class runnum(QThread):
         self.sv.start()  # constantly checks queue, when an image to save is added to the queue, it saves it to a file.
         self.sw = saiaw  # image analysis settings gui
         self.sw.m_changed.connect(self.set_m)
+        self.cam.SettingsChanged.connect(self.sw.CCD_stat_edit)
         self.seq = seq   # sequence editor
         
         self.server = PyServer(host='') # server will run continuously on a thread
@@ -238,11 +239,14 @@ class runnum(QThread):
             r = self.seq.mr.ind % repeats  # repeat
             v = self.seq.mr.ind // repeats # variable
             if v > self.seq.mr.nrows - 1: v = self.seq.mr.nrows - 1
-            mr_queue = [[TCPENUM['Run sequence'], 'multirun run '+str(self._n + i)] for i in range(v + r + 1, v+1)]
+            mr_queue = [[TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step run']],
+                [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]]
+            mr_queue += [[TCPENUM['Run sequence'], 'multirun run '+str(self._n + i)] for i in range(v + r + 1, v+1)]
             for var in range(v, self.seq.mr.nrows):
                 mr_queue += [[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[var]]] + [
                     [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*var)] for r in range(repeats)]
-            mr_queue += [[TCPENUM['TCP read'], 'confirm last multirun run'], [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])]]
+            mr_queue += [[TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step end']], 
+                [TCPENUM['TCP read'], 'confirm last multirun run'], [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])]]
             self.server.priority_messages(mr_queue) # adds at front of queue
             
     def multirun_step(self, msg):

@@ -1,4 +1,4 @@
-CameraConfig=.\\andorcamera\\Default_config.dat
-SaveConfig=.\\config\\config.dat
 File#=0
-Date=15,January,2020
+Date=24,January,2020
+CameraConfig=.\\andorcamera\\FULLCCD.dat
+SaveConfig=.\\config\\config.dat
