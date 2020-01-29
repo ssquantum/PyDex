@@ -46,7 +46,7 @@ class PyDexThread(QThread):
         """Run the thread continuously processing items
         from the queue until the stop bool is toggled."""
         while True:
-            self.app.processEvents() # hopefully helps prevent GUI lag
+            self.app.processEvents() # avoids GUI lag but can cause events to be missed
             if self.check_stop():
                 break # stop the thread running
             elif len(self.queue):

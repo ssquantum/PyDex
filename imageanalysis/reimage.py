@@ -79,6 +79,7 @@ class reim_window(main_window):
         self.image_handler.stats['Max ypos'] = [self.ih2.stats['Max ypos'][i] for i in idxs]
         self.image_handler.ind = np.size(self.image_handler.stats['Counts']) - 1
         self.image_handler.stats['Atom detected'] = [self.ih2.stats['Atom detected'][i] for i in idxs]
+        self.image_handler.stats['Include']  = [self.ih2.stats['Include'][i] for i in idxs]
         self.image_handler.thresh            = self.ih1.thresh
         t2 = time.time()
         self.int_time = t2 - t1

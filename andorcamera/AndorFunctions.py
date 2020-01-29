@@ -34,6 +34,11 @@ logger = logging.getLogger(__name__)
 
 # Ctype files stored here: C:\Users\Lab\AppData\Local\Enthought\Canopy\App\appdata\canopy-2.1.9.3717.win-x86_64\Lib\ctypes
 
+# From the Andor manual: the sensitivity and read noise for a given acquisition setting
+# the ordering is as given in the Andor manual
+Sensitivity = np.array([16, 9.37, 5.1, 16.3, 8.28, 4.86, 17.9, 8.51, 4.5, 17.6, 8.68, 4.46, 4.09, 3.19, 1.52, 4.1, 3.2, 1.48, 4.18, 3.19, 1.49]) # in e- per AD count
+ReadNoise   = np.array([14.5, 17.5, 16.33, 7.18, 8.45, 11.46, 4.01, 5.56, 8.69, 1.45, 2.06, 3.43, 3.42, 3.89, 6.78, 1.77, 2.06, 3.67, 0.85, 1.01, 1.88]) # in counts
+
 class Andor:
     """Class containing a library of functions for operating the Andor camera."""
     

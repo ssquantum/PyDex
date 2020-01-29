@@ -206,8 +206,10 @@ class multirun_widget(QWidget):
         lts_label = QLabel('Last time step: ', self)
         self.grid.addWidget(lts_label, 6,0, 1,1)
         self.last_step_run_edit = self.make_label_edit('Running: ', self.grid, position=[6,1, 1,3])[1]
+        self.last_step_run_edit.setText(r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\940trapNov.evt')
         self.last_step_run_edit.textChanged[str].connect(self.update_last_step)
         self.last_step_end_edit = self.make_label_edit('End: ', self.grid, position=[6,5, 1,3])[1]
+        self.last_step_end_edit.setText(r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\End step 1.evt')
         self.last_step_end_edit.textChanged[str].connect(self.update_last_step)
 
         # display current progress
@@ -270,6 +272,15 @@ class multirun_widget(QWidget):
                 self.stats[key].append(default)
             elif len(self.stats[key]) > self.ncols:
                 self.stats[key] = self.stats[key][:self.ncols]
+                
+    def update_all_stats(self, toggle=False):
+        """Shorthand to update the values of the stats dictionary from the text
+        labels."""
+        self.update_repeats()
+        self.update_last_step()
+        for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix']
+                self.stats[key] = self.types[key](self.measures[key].text())
+        
     
     def update_repeats(self, txt=''):
         """Take the current values of the line edits and use them to set the
@@ -425,6 +436,7 @@ class multirun_widget(QWidget):
         the sequences that will be used in the multirun, then
         store these as a list of XML strings."""
         r = self.ind
+        self.msglist = []
         for i in range(self.nrows):
             self.ind = i
             self.msglist.append(self.get_next_sequence())
@@ -490,5 +502,6 @@ class multirun_widget(QWidget):
             self.reset_array(vals)
             self.omit_edit.setText(str(self.nomit))
             self.nhist_edit.setText(str(self.nhist))
-            self.last_step_run_edit.setText(self.stats['Last time step run'])
-            self.last_step_end_edit.setText(self.stats['Last time step end'])
+            runstep, endstep = self.stats['Last time step run'], self.stats['Last time step end']
+            self.last_step_run_edit.setText(runstep) # triggers update_last_step
+            self.last_step_end_edit.setText(endstep)
