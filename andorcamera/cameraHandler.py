@@ -31,7 +31,7 @@ class camera(QThread):
     AcquisitionEvent = win32event.CreateEvent(None, 0, 0, 'Acquisition')
     AcquireEnd = pyqtSignal(np.ndarray) # send to image analysis 
     # emit (EM gain, preamp gain, readout noise) when the acquisition settings are updated
-    SettingsChanged = pyqtSignal([float, float, float]) 
+    SettingsChanged = pyqtSignal([float, float, float, bool]) 
 
     def __init__(self, config_file=".\\ExExposure_config.dat"):
         super().__init__()   # Initialise the parent classes
@@ -209,7 +209,7 @@ class camera(QThread):
         if any(check_success):
             logger.warning("Didn't get DRV_SUCCESS for setting " + 
                 str(check_success.index(True)))
-        self.SettingsChanged.emit([self.emg, self.pag, self.Nr])
+        self.SettingsChanged.emit(self.emg, self.pag, self.Nr, True)
         return check_success
 
     def ApplySettingsFromConfig(self, config_file="./ExExposure_config.dat"):
@@ -277,7 +277,7 @@ class camera(QThread):
         if any(check_success):
             logger.warning("Didn't get DRV_SUCCESS for setting " + 
                 str(check_success.index(True)))
-        self.SettingsChanged.emit([self.emg, self.pag, self.Nr])
+        self.SettingsChanged.emit(self.emg, self.pag, self.Nr, True)
         return check_success
 
     def SetROI(self, ROI, hbin=1, vbin=1, crop=0, slowcrop=1):

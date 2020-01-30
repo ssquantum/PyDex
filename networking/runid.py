@@ -204,13 +204,13 @@ class runnum(QThread):
             repeats = self.seq.mr.nomit + self.seq.mr.nhist
             mr_queue = [] # list of TCP messages for the whole multirun
             for v in range(self.seq.mr.nrows): # use different last time step during multirun
-                mr_queue += [[TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step run']],
+                mr_queue += [[TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step run']+'0'*2000],
                     [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]] + [
-                    [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*v)] for r in range(repeats)]
+                    [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*v)+'0'*2000] for r in range(repeats)]
             # reset last time step for the last run:
-            mr_queue.insert(len(mr_queue) - 1, [TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step end']])
-            mr_queue += [[TCPENUM['TCP read'], 'confirm last multirun run'], 
-                [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])]]
+            mr_queue.insert(len(mr_queue) - 1, [TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step end']+'0'*2000])
+            mr_queue += [[TCPENUM['TCP read'], 'confirm last multirun run'+'0'*2000], 
+                [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])+'0'*2000]]
             self.server.priority_messages(mr_queue)
             self.seq.mr.stats['runs included'][0].append(self._n) # keep track of which runs are in the multirun.
         else: # pause the multi-run
@@ -239,14 +239,14 @@ class runnum(QThread):
             r = self.seq.mr.ind % repeats  # repeat
             v = self.seq.mr.ind // repeats # variable
             if v > self.seq.mr.nrows - 1: v = self.seq.mr.nrows - 1
-            mr_queue = [[TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step run']],
+            mr_queue = [[TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step run']+'0'*2000],
                 [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]]
-            mr_queue += [[TCPENUM['Run sequence'], 'multirun run '+str(self._n + i)] for i in range(v + r + 1, v+1)]
+            mr_queue += [[TCPENUM['Run sequence'], 'multirun run '+str(self._n + i)+'0'*2000] for i in range(v + r + 1, v+1)]
             for var in range(v, self.seq.mr.nrows):
                 mr_queue += [[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[var]]] + [
-                    [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*var)] for r in range(repeats)]
-            mr_queue += [[TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step end']], 
-                [TCPENUM['TCP read'], 'confirm last multirun run'], [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])]]
+                    [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*var)+'0'*2000] for r in range(repeats)]
+            mr_queue += [[TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step end']+'0'*2000], 
+                [TCPENUM['TCP read'], 'confirm last multirun run'], [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])+'0'*2000]]
             self.server.priority_messages(mr_queue) # adds at front of queue
             
     def multirun_step(self, msg):

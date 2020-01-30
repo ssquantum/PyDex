@@ -53,6 +53,7 @@ class settings_window(QMainWindow):
         self.load_settings() # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.results_path = results_path if results_path else self.stats['results_path'] # used for saving results
+        self.last_path = results_path # path history helps user get to the file they want
         self.image_storage_path = im_store_path if im_store_path else self.stats['image_path'] # used for loading image files
         self._m = nsaia # number of images per run 
         self._a = nsaia # number of SAIA instances
@@ -220,6 +221,11 @@ class settings_window(QMainWindow):
         show_win.clicked.connect(self.show_analyses)
         show_win.resize(show_win.sizeHint())
         settings_grid.addWidget(show_win, 5,2, 1,1)
+        
+        save_all = QPushButton('Fit, save, reset all histograms', self) 
+        save_all.clicked.connect(self.save_all_hists)
+        save_all.resize(save_all.sizeHint())
+        settings_grid.addWidget(save_all, 5,3, 1,1)
 
         #### set ROI for analysers from loaded default ####
         for mw in self.mw:
@@ -300,13 +306,15 @@ class settings_window(QMainWindow):
                 mw.pic_size_edit.setText(text)
                 mw.pic_size_label.setText(text)
 
-    def CCD_stat_edit(self, acq_settings=[]):
-        """Update the values used for the EMCCD bias offset"""
+    def CCD_stat_edit(self, emg=1, pag=4.5, Nr=8.8, acq_change=False):
+        """Update the values used for the EMCCD bias offset, EM gain, preamp
+        gain, and read noise.
+        acq_change: True if the camera acquisition settings have been changed."""
         if self.bias_offset_edit.text(): # check the label isn't empty
             self.stats['bias'] = int(self.bias_offset_edit.text())
         for mw in self.mw + self.rw:
             mw.bias_offset_edit.setText(str(self.stats['bias']))
-            mw.CCD_stat_edit(acq_settings)
+            mw.CCD_stat_edit(emg, pag, Nr, acq_change)
         
     def roi_text_edit(self, text=''):
         """Update the ROI position and size every time a text edit is made by
@@ -428,7 +436,7 @@ class settings_window(QMainWindow):
     def get_default_path(self, default_path=''):
         """Get a default path for saving/loading images
         default_path: set the default path if the function doesn't find one."""
-        return os.path.dirname(default_path) if default_path else self.results_path
+        return default_path if default_path else os.path.dirname(self.last_path)
 
     def try_browse(self, title='Select a File', file_type='all (*)', 
                 open_func=QFileDialog.getOpenFileName, defaultpath=''):
@@ -443,6 +451,7 @@ class settings_window(QMainWindow):
                 file_name = open_func(self, title, default_path, file_type)
             elif 'PyQt5' in sys.modules:
                 file_name, _ = open_func(self, title, default_path, file_type)
+            self.last_path = file_name
             return file_name
         except OSError: return '' # probably user cancelled
 
@@ -500,6 +509,32 @@ class settings_window(QMainWindow):
         with open(fname, 'w+') as f:
             for key, val in self.stats.items():
                 f.write(key+'='+str(val)+'\n')
+                
+    def save_all_hists(self, fname=''):
+        """Get a fit fromt the current histograms, then save and reset for all 
+        of the active image analyser windows, labelled by the window name."""
+        fpath = fname if fname else self.try_browse(title='Select a File Suffix', 
+                    file_type='CSV (*.csv);;all (*)',
+                    open_func=QFileDialog.getSaveFileName)
+        if fpath: # don't do anything if the user cancels
+            fdir = os.path.dirname(fpath)
+            fname = os.path.basename(fpath)
+            for i in range(len(self.rw_inds)): # save re-image windows first
+                self.rw[i].get_histogram() # since they depend on main windows
+                self.rw[i].display_fit(fit_method='check action')
+                self.rw[i].save_hist_data(
+                    save_file_name=os.path.join(fdir, self.rw[i].name + fname), 
+                    confirm=False)
+                self.rw[i].image_handler.reset_arrays() 
+                self.rw[i].hist_canvas.clear()
+            for i in range(self._a):
+                self.mw[i].display_fit(fit_method='check action')
+                self.mw[i].save_hist_data(
+                    save_file_name=os.path.join(fdir, self.mw[i].name + fname), 
+                    confirm=False)
+                self.mw[i].image_handler.reset_arrays() 
+                self.mw[i].hist_canvas.clear()
+
 
     def load_im_size(self):
         """Get the user to select an image file and then use this to get the image size"""
