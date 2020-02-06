@@ -30,7 +30,30 @@ if standalone: # if there isn't an instance, make one
     app = QApplication(sys.argv) 
     
 
+import threading as th
 
+keep_going = True
+def key_capture_thread():
+    global keep_going
+    keystroke = input()
+    if keystroke == 'c':
+        keep_going = False
+        print('Stopping...')
+
+def look_for_exp_input(mloopdict):
+    th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
+    print('Looping... type c then enter to close program')
+    while keep_going:
+        if os.path.exists(mloopinputpath+r'\exp_input.txt'):
+            
+            time.sleep(1) #Catch for file write 
+            print('Mloop file found')
+            t.mloopmodify(mloopdict,mloopinputpath)
+                
+            ps.add_message(25,t.write_to_str())
+            #print(t.write_to_str())
+            #ps.add_message(4,'run')
+            time.sleep(2)
 
 basesequencepath = r"sequences\SequenceFiles\0_17 September 2019_09 30 18.xml"
 mloopdictpath = r"sequences\mloopdict.json"
@@ -38,20 +61,17 @@ mloopdictpath = r"sequences\mloopdict.json"
 mloopdict = json.loads(open(mloopdictpath,'r').read() )
 t = translate()
 t.load_xml(r'.\\sequences\\SequenceFiles\\0_17 September 2019_09 30 18.xml')
-mloopinputpath = r"C:\Users\xxxg38\Documents\MATLAB\storage\mloop"
+mloopinputpath= r"C:\Users\xxxg38\Documents\MATLAB\storage\mloop"
 loop = True
-ps = PyServer()
+ps = PyServer('localhost')
 ps.start()
 print('server started')
-while loop:
-    
-    if os.path.exists(mloopinputpath+r'\exp_input.txt'):
-        time.sleep(1) #Catch for file write 
-        print('Mloop file found')
-        t.mloopmodify(mloopdict,mloopinputpath)
-              
-        ps.add_message(25,t.write_to_str())
-        #print(t.write_to_str())
-        ps.add_message(4,'run')
-        time.sleep(2)
+ps.add_message(24,'Communication Established.')
+t1 = time.time()
+print(t1)
+
+look_for_exp_input (mloopdict)
+
+ps.add_message(24,'python mode off')
+time.sleep(3)
 ps.close()
