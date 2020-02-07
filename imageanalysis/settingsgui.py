@@ -206,6 +206,15 @@ class settings_window(QMainWindow):
         self.bias_offset_edit.setText(str(self.stats['bias'])) # default
         self.bias_offset_edit.editingFinished.connect(self.CCD_stat_edit)
         self.bias_offset_edit.setValidator(double_validator) # only floats
+        
+        # user variable value
+        user_var_label = QLabel('User Variable: ', self)
+        settings_grid.addWidget(user_var_label, 3,2, 1,1)
+        self.var_edit = QLineEdit(self)
+        self.var_edit.editingFinished.connect(self.set_user_var)
+        settings_grid.addWidget(self.var_edit, 3,3, 1,1)
+        self.var_edit.setText('0')  # default
+        self.var_edit.setValidator(double_validator) # only numbers
 
         reset_win = QPushButton('Reset Analyses', self) 
         reset_win.clicked.connect(self.reset_analyses)
@@ -328,6 +337,14 @@ class settings_window(QMainWindow):
         if int(l) == 0:
             l = 1 # can't have zero width
         self.stats['x'], self.stats['y'], self.stats['roi_size'] = map(int, [x, y, l])
+        
+    def set_user_var(self, text=''):
+        """Update the user variable across all of the image analysers"""
+        if self.var_edit.text():
+            for mw in self.mw + self.rw:
+                mw.var_edit.setText(self.var_edit.text())
+                mw.set_user_var()
+
 
     #### image display functions ####
 
