@@ -46,8 +46,8 @@ def look_for_exp_input(mloopdict):
     while keep_going:
         if os.path.exists(mloopinputpath+r'\exp_input.txt'):
             
-            time.sleep(1) #Catch for file write 
-            print('Mloop file found')
+            time.sleep(0.01) #Catch for file write 
+            #print('Mloop file found')
             t.mloopmodify(mloopdict,mloopinputpath)
                 
             ps.add_message(25,t.write_to_str())
@@ -63,15 +63,16 @@ t = translate()
 t.load_xml(r'.\\sequences\\SequenceFiles\\0_17 September 2019_09 30 18.xml')
 mloopinputpath= r"C:\Users\xxxg38\Documents\MATLAB\storage\mloop"
 loop = True
+
+
+
 ps = PyServer('localhost')
 ps.start()
 print('server started')
-ps.add_message(24,'Communication Established.')
-t1 = time.time()
-print(t1)
-
+ps.add_message(24,'Communication Established Press Enter on communicator to continue')
+# Function which waits for mloop to write a text file, then sends data on to labview via tcp
 look_for_exp_input (mloopdict)
 
-ps.add_message(24,'python mode off')
+ps.add_message(24,'python mode off') # Command to unlock dexter. 
 time.sleep(3)
 ps.close()

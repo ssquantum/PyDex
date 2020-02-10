@@ -54,6 +54,25 @@ To change cost function change mloopoutput.m Currently it is set to maximise ato
 
 The other parts are to do with the algorithm mloop uses, and how it stores data. These are doumented at https://m-loop.readthedocs.io/en/latest/examples.html
 
+# Analysing Data
+
+M-LOOP stores data for each run with timestamped based names, If you are interested in analysing a run further copy this data out put it somewhere on the shared drive. 
+
+
+One can reproduce the mloop plots using the mloop python code as follows
+```python
+import mloop.visualizations as mlv
+import matplotlib.pyplot as plt
+
+mlv.configure_plots()
+mlv.create_controller_visualizations('controller_archive_2016-08-23_13-59.mat',file_type='mat')
+mlv.create_gaussian_process_learner_visualizations('learner_archive_2016-08-18_12-18.pkl',file_type='pkl')
+
+plt.show()
+```
+
+TODO: Expand this API to produce sensible plots with correct units etc.
+
 # Code documentation
 
 ## M-LOOP
