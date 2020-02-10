@@ -501,13 +501,13 @@ class main_window(QMainWindow):
             self.image_handler.create_square_mask()
             self.pic_size_label.setText(str(self.image_handler.pic_size))
 
-    def CCD_stat_edit(self, acq_settings=[]):
+    def CCD_stat_edit(self, emg=1, pag=4.5, Nr=8.8, acq_change=False):
         """Update the values used for the EMCCD bias offset and readout noise"""
         if self.bias_offset_edit.text(): # check the label isn't empty
             self.image_handler.bias = int(self.bias_offset_edit.text())
-        if acq_settings: # camera EM gain, preamp gain, read noise
-            self.hh.emg, self.hh.pag, self.hh.Nr = acq_settings
-            self.hh.dg = 2.0 if self.hh.emg > 1 else 1.0 # multiplicative noise factor
+        if acq_change: # If the acquisition settings have been changed by the camera
+            self.histo_handler.emg, self.histo_handler.pag, self.histo_handler.Nr = emg, pag, Nr
+            self.histo_handler.dg = 2.0 if self.histo_handler.emg > 1 else 1.0 # multiplicative noise factor
         
     def roi_text_edit(self, text):
         """Update the ROI position and size every time a text edit is made by
@@ -765,7 +765,7 @@ class main_window(QMainWindow):
     def get_default_path(self, default_path=''):
         """Get a default path for saving/loading images
         default_path: set the default path if the function doesn't find one."""
-        return os.path.dirname(self.last_path) if self.last_path else default_path
+        return default_path if default_path else os.path.dirname(self.last_path)
 
     def try_browse(self, title='Select a File', file_type='all (*)', 
                 open_func=QFileDialog.getOpenFileName):
@@ -780,6 +780,7 @@ class main_window(QMainWindow):
                 file_name = open_func(self, title, default_path, file_type)
             elif 'PyQt5' in sys.modules:
                 file_name, _ = open_func(self, title, default_path, file_type)
+            self.last_path = file_name
             return file_name
         except OSError: return '' # probably user cancelled
 
