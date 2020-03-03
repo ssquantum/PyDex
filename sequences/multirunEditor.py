@@ -83,7 +83,7 @@ class multirun_widget(QWidget):
             ('Analogue type', strlist), ('Time step name', listlist), 
             ('Analogue channel', listlist), ('runs included', listlist),
             ('Last time step run', str), ('Last time step end', str)])
-        self.stats = OrderedDict([('measure',0), ('measure_prefix','0_'),
+        self.stats = OrderedDict([('measure',0), ('measure_prefix','Measure0_'),
             ('Variable label', ''), ('Type', ['Time step length']*ncols), 
             ('Analogue type', ['Fast analogue']*ncols), ('Time step name', [[]]*ncols), 
             ('Analogue channel', [[]]*ncols), ('runs included', [[]]*nrows),
@@ -152,6 +152,7 @@ class multirun_widget(QWidget):
             label = QLabel(labels[i], self)
             self.grid.addWidget(label, i+1,0, 1,1)
             self.measures[labels[i]] = QLineEdit(defaults[i], self)
+            self.measures[labels[i]].editingFinished.connect(self.update_all_stats)
             self.grid.addWidget(self.measures[labels[i]], i+1,1, 1,3)
         self.measures['measure'].setValidator(int_validator)
 

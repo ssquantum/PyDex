@@ -586,6 +586,7 @@ class main_window(QMainWindow):
             if bf and bf.bffunc: # plot the curve on the histogram
                 xs = np.linspace(min(bf.x), max(bf.x), 200)
                 self.hist_canvas.plot(xs, bf.bffunc(xs, *bf.ps), pen='b')
+        return success
 
     def update_fit(self, toggle=True, fit_method='quick'):
         """Use the histo_handler.process function to get histogram

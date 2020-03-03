@@ -311,10 +311,10 @@ class Master(QMainWindow):
                 # queue up messages: start acquisition, check run number
                 self.action_button.setEnabled(False) # only process 1 run at a time
                 self.rn._k = 0 # reset image per run count 
-                self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition'+'0'*2000) 
+                self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000) 
             elif action_text == 'Multirun run':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start measure '
-                    + str(self.rn.seq.mr.stats['measure']) + '0'*2000) # set DExTer's message to send
+                    + str(self.rn.seq.mr.stats['measure']) +'\n'+'0'*2000) # set DExTer's message to send
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':
@@ -328,9 +328,9 @@ class Master(QMainWindow):
             elif action_text == 'TCP load sequence from string':
                 self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.seq_txt)
             elif action_text == 'TCP load sequence':
-                self.rn.server.add_message(TCPENUM[action_text], self.seq_edit.text()+'0'*2000)
+                self.rn.server.add_message(TCPENUM[action_text], self.seq_edit.text()+'\n'+'0'*2000)
             elif action_text == 'Cancel Python Mode':
-                self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off'+'0'*2000)
+                self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off\n'+'0'*2000)
             
     def sync_mode(self, toggle=True):
         """Toggle whether to receive the run number from DExTer,
@@ -374,6 +374,7 @@ class Master(QMainWindow):
             self.rn._k = 0 # reset image per run count
         elif 'end multirun' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
+            self.rn.multirun_end(msg)
             self.rn.server.save_times()
             self.end_run(msg)
         # auto save any sequence that was sent to be loaded (even if it was already an xml file)
@@ -381,8 +382,7 @@ class Master(QMainWindow):
         #     self.rn.seq.save_seq_file(os.path.join(self.rn.sv.sequences_path, str(self._n) + time.strftime('_%d %B %Y_%H %M %S') + '.xml'))
         self.ts['msg end'] = time.time()
         self.ts['blocking'] = time.time() - self.ts['msg start']
-        print(str(self.rn._n), ': ', msg[:50])
-        self.print_times()
+        # self.print_times()
                 
     def end_run(self, msg=''):
         """At the end of a single run or a multirun, stop the acquisition,

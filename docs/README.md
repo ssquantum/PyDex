@@ -234,7 +234,7 @@ Produces histograms for an image containing a either single atom or none.
 How to run Single Atom Image Analysis (SAIA):
 	• Start the file: 
 		○ Execute run_with_enthought.bat   --- a windows batch file with a hardcoded link to the Enthought python executable
-		○ Execute run_with_conda.bat           --- activate the Anaconda environment (you must first create the saiaenvironment, which can be done using create_environment.bat) and run using Anaconda.
+		○ Execute run_with_conda.bat           --- activate the Anaconda environment (you must first create the pydexenvironment, which can be done using create_environment.bat) and run using Anaconda.
 		○ Or run from a python distribution (e.g.  python main.py)
 		
 	• A window pops up showing the loaded file config and asking to start the directory watcher

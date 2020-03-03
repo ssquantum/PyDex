@@ -198,7 +198,8 @@ class runnum(QThread):
             # make list of sequences as messages to send and the order:
             self.seq.mr.get_all_sequences()
             # save log file with the parameters used for this multirun:
-            self.seq.mr.save_mr_params(os.path.join(self.sv.results_path, self.seq.mr.stats['measure_prefix']+'params.csv'))
+            self.seq.mr.save_mr_params(os.path.join(self.sv.results_path, os.path.join(self.seq.mr.stats['measure_prefix'],
+                self.seq.mr.stats['measure_prefix']+'params.csv')))
             self._k = 0 # reset image per run count
             # insert TCP messages at the front of the queue: once the multirun starts don't interrupt it.
             repeats = self.seq.mr.nomit + self.seq.mr.nhist
@@ -275,16 +276,15 @@ class runnum(QThread):
             for mw in self.sw.rw + self.sw.mw: # make sure to do reimage windows first!
                 mw.var_edit.setText(uv) # also updates histo_handler temp vals
                 mw.bins_text_edit(text='reset') # set histogram bins 
-                success = mw.update_fit(fit_method='check action') # get best fit
+                success = mw.display_fit(fit_method='check action') # get best fit
                 if not success:                   # if fit fails, use peak search
-                    mw.histo_handler.process(mw.image_handler, uv, 
-                        fix_thresh=mw.thresh_toggle.isChecked(), method='quick')
+                    mw.display_fit(fit_method='quick')
                     logger.warning('\nMultirun run %s fitting failed. '%self._n +
-                        'Histogram data in '+ mw.name + self.seq.mr.stats['measure_prefix']
-                        + str(v) + '.csv')
+                        'Histogram data in '+ self.seq.mr.stats['measure_prefix']+'\\'+mw.name + 
+                        str(v) + '.csv')
                 mw.save_hist_data(save_file_name=os.path.join(
-                    self.sv.results_path, mw.name + self.seq.mr.stats['measure_prefix'] 
-                    + str(v) + '.csv'), confirm=False) # save histogram
+                    self.sv.results_path, os.path.join(self.seq.mr.stats['measure_prefix'], mw.name + 
+                        str(v) + '.csv')), confirm=False) # save histogram
                 mw.image_handler.reset_arrays() # clear histogram
         
         self.seq.mr.ind += 1
@@ -296,19 +296,37 @@ class runnum(QThread):
                 r - self.seq.mr.nomit if r > self.seq.mr.nomit else 0, self.seq.mr.nhist, 
                 self.seq.mr.ind / (self.seq.mr.nomit + self.seq.mr.nhist) / self.seq.mr.nrows*100))
                 
-        if self.seq.mr.ind == self.seq.mr.nrows*(self.seq.mr.nomit + self.seq.mr.nhist) + 1: # process data
-            for mw in self.sw.rw + self.sw.mw:
-                mw.save_varplot(save_file_name=os.path.join(
-                    self.sv.results_path, mw.name + self.seq.mr.stats['measure_prefix']
-                    + str(self.seq.mr.stats['measure']) + '.dat'), 
-                    confirm=False) # save measure file
-                # reconnect previous signals
-                mw.set_bins() # reconnects signal with given histogram binning settings
-                mw.multirun = False
-            # suggest new multirun measure ID and prefix
-            self.seq.mr.measures['measure'].setText(str(self.seq.mr.stats['measure']+1))
-            self.seq.mr.measures['measure_prefix'].setText('Measure'+str(self.seq.mr.stats['measure']+1)+'_')  
-            self.multirun_go(False) # reconnect signals
-            self.seq.mr.ind = 0
-            # save over log file with the parameters used for this multirun (now including run numbers):
-            self.seq.mr.save_mr_params(os.path.join(self.sv.results_path, self.seq.mr.stats['measure_prefix']+'params.csv'))
+    def multirun_end(self, msg):
+        """Save the last histogram and then save a log file for the collection of histograms
+        in the multirun measure"""
+        # save histogram
+        for mw in self.sw.rw + self.sw.mw: # make sure to do reimage windows first!
+            mw.var_edit.setText(uv) # also updates histo_handler temp vals
+            mw.bins_text_edit(text='reset') # set histogram bins 
+            success = mw.display_fit(fit_method='check action') # get best fit
+            if not success:                   # if fit fails, use peak search
+                mw.display_fit(fit_method='quick')
+                logger.warning('\nMultirun run %s fitting failed. '%self._n +
+                    'Histogram data in '+ self.seq.mr.stats['measure_prefix']+'\\'+mw.name + 
+                    str(v) + '.csv')
+            mw.save_hist_data(save_file_name=os.path.join(
+                self.sv.results_path, os.path.join(self.seq.mr.stats['measure_prefix'], mw.name + 
+                    str(v) + '.csv')), confirm=False) # save histogram
+            mw.image_handler.reset_arrays() # clear histogram
+        # save plot
+        for mw in self.sw.rw + self.sw.mw:
+            mw.save_varplot(save_file_name=os.path.join(
+                self.sv.results_path, os.path.join(self.seq.mr.stats['measure_prefix'], mw.name + 
+                    str(self.seq.mr.stats['measure']) + '.dat')), 
+                confirm=False) # save measure file
+            # reconnect previous signals
+            mw.set_bins() # reconnects signal with given histogram binning settings
+            mw.multirun = False
+        # suggest new multirun measure ID and prefix
+        self.seq.mr.measures['measure'].setText(str(self.seq.mr.stats['measure']+1))
+        self.seq.mr.measures['measure_prefix'].setText('Measure'+str(self.seq.mr.stats['measure']+1)+'_')  
+        self.multirun_go(False) # reconnect signals
+        self.seq.mr.ind = 0
+        # save over log file with the parameters used for this multirun (now including run numbers):
+        self.seq.mr.save_mr_params(os.path.join(self.sv.results_path, os.path.join(self.seq.mr.stats['measure_prefix'],
+            self.seq.mr.stats['measure_prefix']+'params.csv')))

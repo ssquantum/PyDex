@@ -57,13 +57,13 @@ class settings_window(QMainWindow):
         self.image_storage_path = im_store_path if im_store_path else self.stats['image_path'] # used for loading image files
         self._m = nsaia # number of images per run 
         self._a = nsaia # number of SAIA instances
-        self.mw = [main_window(results_path, im_store_path, str(i)) for i in range(nsaia)] # saia instances
+        self.mw = [main_window(results_path, im_store_path, 'W'+str(i)+'_') for i in range(nsaia)] # saia instances
         self.mw_inds = list(range(nsaia)) # the index, m, of the image in the sequence to use 
         self.rw = [] # re-image analysis instances
         self.rw_inds = [] # which saia instances are used for the re-image instances
         if np.size(self.mw) >= nreim*2:
             self.rw = [reim_window(self.mw[2*i].event_im, [self.mw[2*i].image_handler, self.mw[2*i+1].image_handler],
-                results_path, im_store_path, 'RW'+str(i)) for i in range(nreim)]
+                results_path, im_store_path, 'RW'+str(i)+'_') for i in range(nreim)]
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(nreim)]
         self.init_UI()  # make the widgets
 
