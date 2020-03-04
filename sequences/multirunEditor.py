@@ -207,10 +207,10 @@ class multirun_widget(QWidget):
         lts_label = QLabel('Last time step: ', self)
         self.grid.addWidget(lts_label, 6,0, 1,1)
         self.last_step_run_edit = self.make_label_edit('Running: ', self.grid, position=[6,1, 1,3])[1]
-        self.last_step_run_edit.setText(r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\940trapNov.evt')
+        self.last_step_run_edit.setText(r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\RbMOTendstep.evt')
         self.last_step_run_edit.textChanged[str].connect(self.update_last_step)
         self.last_step_end_edit = self.make_label_edit('End: ', self.grid, position=[6,5, 1,3])[1]
-        self.last_step_end_edit.setText(r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\End step 1.evt')
+        self.last_step_end_edit.setText(r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\feb2020_940and812.evt')
         self.last_step_end_edit.textChanged[str].connect(self.update_last_step)
 
         # display current progress
@@ -319,7 +319,7 @@ class multirun_widget(QWidget):
                 shuffle(vals)
             for i in range(self.table.rowCount()): 
                 try: # set vals in table cells
-                    self.table.item(i, col).setText(str(vals[i]))
+                    self.table.item(i, col).setText('%.5g'%vals[i])
                 except IndexError: # occurs if invalid range
                     self.table.item(i, col).setText('')
 
@@ -405,29 +405,34 @@ class multirun_widget(QWidget):
     def get_next_index(self, rn):
         """Choose the next index from the rows of the table to use
         in the multirun, based on the order chosen.
-        rn: the ID of the current run within the multirun."""
+        rn: the ID of the current run within the multirun.
+        make rn modulo nrows so that there isn't an index error on the last run."""
         if self.order == 'unsorted':
             return rn % self.nrows
         elif self.order == 'random':
             return randint(0, self.nrows)
         else: # if descending, ascending, or coarse random, the order has already been set
-            return rn // (self.nomit + self.nhist) # ID of histogram in repetition cycle
+            return (rn // (self.nomit + self.nhist)) % self.nrows # ID of histogram in repetition cycle
 
     def get_next_sequence(self):
         """Use the values in the multirun array to make the next
         sequence to run in the multirun."""
         self.table.selectRow(self.ind) # display which row the multirun is up to in the table
         esc = self.mrtr.seq_dic['Experimental sequence cluster in'] # shorthand
-        for col in range(self.table.columnCount()): # edit the sequence
-            val = float(self.table.item(self.ind, col).text())
-            if self.stats['Type'][col] == 'Time step length':
-                for head in ['Sequence header top', 'Sequence header middle']:
+        try:
+            for col in range(self.table.columnCount()): # edit the sequence
+                val = float(self.table.item(self.ind, col).text())
+                if self.stats['Type'][col] == 'Time step length':
+                    for head in ['Sequence header top', 'Sequence header middle']:
+                        for t in self.stats['Time step name'][col]:
+                            esc[head][t]['Time step length'] = val
+                elif self.stats['Type'][col] == 'Analogue voltage':
                     for t in self.stats['Time step name'][col]:
-                        esc[head][t]['Time step length'] = val
-            elif self.stats['Type'][col] == 'Analogue voltage':
-                for t in self.stats['Time step name'][col]:
-                    for c in self.stats['Analogue channel'][col]:
-                        esc[self.stats['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
+                        for c in self.stats['Analogue channel'][col]:
+                            esc[self.stats['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
+        except IndexError as e:
+            logger.error('Multirun failed to edit sequence at ' + self.stats['Variable label']
+                + ' = ' + self.table.item(self.ind, 0).text() + '\n' + str(e))
         self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.stats['Variable label'] + \
             ': ' + self.table.item(self.ind, 0).text() + ' (%s / %s)'%(self.ind+1, self.table.rowCount())
         return self.mrtr.write_to_str()

@@ -360,8 +360,8 @@ class Master(QMainWindow):
                 self.wait_for_cam() # wait for camera to initialise before running
             else: 
                 logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
-            self.rn.server.priority_messages([(TCPENUM['Run sequence'], 'single run '+str(self.rn._n)+'0'*2000),
-                (TCPENUM['TCP read'], 'finished run '+str(self.rn._n)+'0'*2000)]) # second message confirms end
+            self.rn.server.priority_messages([(TCPENUM['Run sequence'], 'single run '+str(self.rn._n)+'\n'+'0'*2000),
+                (TCPENUM['TCP read'], 'finished run '+str(self.rn._n)+'\n'+'0'*2000)]) # second message confirms end
         elif 'start measure' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
             if self.rn.cam.initialised:
@@ -372,6 +372,8 @@ class Master(QMainWindow):
         elif 'multirun run' in msg:
             self.rn.multirun_step(msg)
             self.rn._k = 0 # reset image per run count
+        elif 'save and reset histogram' in msg:
+            self.rn.multirun_savehist(msg)
         elif 'end multirun' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
             self.rn.multirun_end(msg)

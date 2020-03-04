@@ -1,0 +1,41 @@
+2020/03/02 09:10:42.943 - MainThread - imsaver.py.__init__.83 - WARNING
+Image saver could not create directory: X:\Sequence Log\2020\March\02
+ Using current directory instead
+[WinError 5] Access is denied: 'X:\\Sequence Log\\2020\\March'
+
+
+2020/03/02 09:19:25.828 - Dummy-1 - networker.py.run.139 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/03/02 09:19:25.831 - Dummy-1 - networker.py.run.148 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/03/02 09:42:43.348 - MainThread - runid.py.multirun_step.268 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/02 09:46:18.339 - MainThread - runid.py.multirun_step.268 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/02 09:53:37.856 - Dummy-2 - networker.py.run.139 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/03/02 09:53:37.859 - Dummy-2 - networker.py.run.148 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/03/02 11:34:39.591 - MainThread - runid.py.multirun_step.268 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+

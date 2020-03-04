@@ -422,8 +422,13 @@ class settings_window(QMainWindow):
                     j = 0 # how many analysers have been positioned for this image
                     for k in self.find(i): # index of analyser
                         try:
-                            self.mw[k].roi.setPos([self.stats['x'] + width * (j%(X//width)),
-                                self.stats['y'] + height * (j//(X//width))])
+                            pos = [self.stats['x'] + width * (j%(X//width)),
+                                self.stats['y'] + height * (j//(X//width))]
+                            if any([pos[0]//self.stats['pic_size'], pos[1]//self.stats['pic_size']]):
+                                logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(pos[0], pos[1])+
+                                ' outside of the image')
+                                pos = [0,0]
+                            self.mw[k].roi.setPos(pos)
                             self.mw[k].roi.setSize([self.stats['roi_size'], self.stats['roi_size']])
                             j += 1
                         except ZeroDivisionError as e:
@@ -639,7 +644,6 @@ class settings_window(QMainWindow):
 
     def reset_analyses(self):
         """Remake the analyses instances for SAIA and re-image"""
-        QMessageBox.information(self, 'Resetting Analyses', 'Resetting image analysis windows. This may take a while.')
         for mw in self.mw + self.rw:
             mw.image_handler.reset_arrays()
             mw.histo_handler.reset_arrays()
@@ -652,7 +656,7 @@ class settings_window(QMainWindow):
         # make sure there are the right numer of main_window instances
         if a > self._a:
             for i in range(self._a, a):
-                self.mw.append(main_window(self.results_path, self.image_storage_path, str(i)))
+                self.mw.append(main_window(self.results_path, self.image_storage_path, 'W'+str(i)+'_'))
                 self.mw_inds.append(i if i < m else m-1)
         self._a = a
         for mw in self.mw:
@@ -695,7 +699,7 @@ class settings_window(QMainWindow):
             j, k = map(int, self.rw_inds[i].split(','))
             self.rw.append(reim_window(self.mw[j].event_im,
                     [self.mw[j].image_handler, self.mw[k].image_handler],
-                    self.results_path, self.image_storage_path, 'RW'+str(i)))
+                    self.results_path, self.image_storage_path, 'RW'+str(i)+'_'))
             
         self.pic_size_text_edit(self.pic_size_edit.text())
         self.CCD_stat_edit()

@@ -130,14 +130,14 @@ class image_handler(Analysis):
         each value. Choose the threshold that first gives a fidelity > 0.9999,
         or if that isn't possible, the threshold that maximises the fidelity.
         Keyword arguments:
-        p1  -- the lower limit for the threshold (the background peak mean).
+        p1  -- the background peak mean, used to guess a lower limit.
         pw1 -- the width of the background peak, used to guess an upper limit.
         p2  -- the upper limit for the threshold if it's smaller than p1+15*pw1
                 (the signal peak mean).
         n   -- the number of thresholds to take between the peaks
         """
-        uplim = min([p1 + 15*pw1, p2]) # highest possible value for the threshold 
-        threshes = np.linspace(p1, uplim, n) # n points between peaks
+        uplim = max(p1+pw1+1, min([p1+15*pw1, p2])) # highest possible value for the threshold 
+        threshes = np.linspace(p1+pw1, uplim, n) # n points between peaks
         fid, err_fid = 0, 0  # store the previous value of the fidelity
         for thresh in threshes[1:]: # threshold should never be at the background peak p1
             f, fe = self.get_fidelity(thresh) # calculate fidelity for given threshold
