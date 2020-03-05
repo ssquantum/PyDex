@@ -30,6 +30,7 @@ import logging
 logger = logging.getLogger(__name__)
 sys.path.append('..')
 from mythread import remove_slot # for dis- and re-connecting slots
+from translator import translate
 
 def strlist(text):
     """Convert a string of a list of strings back into
@@ -70,7 +71,7 @@ class multirun_widget(QWidget):
     def __init__(self, tr, nrows=10, ncols=3, order='ascending'):
         super().__init__()
         self.tr = tr # translator for the current sequence
-        self.mrtr = tr # translator for multirun sequence
+        self.mrtr = tr.copy() # translator for multirun sequence
         self.msglist = [] # list of multirun sequences as XML string
         self.ind = 0 # index for how far through the multirun we are
         self.nrows = nrows
@@ -79,12 +80,13 @@ class multirun_widget(QWidget):
         self.nomit = 0   # number of runs per histogram to omit from multirun
         self.nhist = 100 # number of runs to include in each histogram
         self.types = OrderedDict([('measure',int), ('measure_prefix',str),
-            ('Variable label', str), ('Type', strlist), 
+            ('1st hist ID', int), ('Variable label', str), ('Type', strlist), 
             ('Analogue type', strlist), ('Time step name', listlist), 
             ('Analogue channel', listlist), ('runs included', listlist),
             ('Last time step run', str), ('Last time step end', str)])
         self.stats = OrderedDict([('measure',0), ('measure_prefix','Measure0_'),
-            ('Variable label', ''), ('Type', ['Time step length']*ncols), 
+            ('1st hist ID', 0), ('Variable label', ''), 
+            ('Type', ['Time step length']*ncols), 
             ('Analogue type', ['Fast analogue']*ncols), ('Time step name', [[]]*ncols), 
             ('Analogue channel', [[]]*ncols), ('runs included', [[]]*nrows),
             ('Last time step run', ''), ('Last time step end', '')])
@@ -146,8 +148,8 @@ class multirun_widget(QWidget):
         #### create multirun list of values ####
         # metadata for the multirun list: which channels and timesteps
         self.measures = OrderedDict()
-        labels = ['Variable label', 'measure', 'measure_prefix']
-        defaults = ['Variable 0', '0', 'Measure0_']
+        labels = ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
+        defaults = ['Variable 0', '0', 'Measure0_', '0']
         for i in range(len(labels)):
             label = QLabel(labels[i], self)
             self.grid.addWidget(label, i+1,0, 1,1)
@@ -155,6 +157,7 @@ class multirun_widget(QWidget):
             self.measures[labels[i]].editingFinished.connect(self.update_all_stats)
             self.grid.addWidget(self.measures[labels[i]], i+1,1, 1,3)
         self.measures['measure'].setValidator(int_validator)
+        self.measures['1st hist ID'].setValidator(int_validator)
 
         self.chan_choices = OrderedDict()
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
@@ -164,7 +167,7 @@ class multirun_widget(QWidget):
                 [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht])), 
             ['Fast analogue', 'Slow analogue'],
             self.get_anlg_chans('Fast')]
-        positions = [[1, 4, 3, 2], [1, 6, 5, 1], [1, 7, 3, 1], [1, 8, 5, 1]]
+        positions = [[1, 4, 3, 2], [1, 6, 6, 1], [1, 7, 3, 1], [1, 8, 6, 1]]
         widgets = [QComboBox, QListWidget]
         for i in range(0, len(labels)):
             self.chan_choices[labels[i]] = widgets[i%2]()
@@ -182,7 +185,7 @@ class multirun_widget(QWidget):
         validators = [col_validator, double_validator, double_validator]
         for i in range(0, len(labels)*2, 2):
             self.col_val_edit.append(self.make_label_edit(labels[i//2], self.grid, 
-                position=[4,i, 1,1], default_text='1', 
+                position=[5,i, 1,1], default_text='1', 
                 validator=validators[i//2])[1])
         # show the previously selected channels for this column:
         self.chan_choices['Time step name'].itemClicked.connect(self.save_chan_selection)
@@ -195,34 +198,34 @@ class multirun_widget(QWidget):
         add_var_button = QPushButton('Add column', self)
         add_var_button.clicked.connect(self.add_column_to_array)
         add_var_button.resize(add_var_button.sizeHint())
-        self.grid.addWidget(add_var_button, 5,0, 1,1)
+        self.grid.addWidget(add_var_button, 6,0, 1,1)
         
         # clear the current list of user variables
         clear_vars_button = QPushButton('Clear', self)
         clear_vars_button.clicked.connect(self.clear_array)
         clear_vars_button.resize(clear_vars_button.sizeHint())
-        self.grid.addWidget(clear_vars_button, 5,1, 1,2)
+        self.grid.addWidget(clear_vars_button, 6,1, 1,2)
         
         # choose last time step for multirun
         lts_label = QLabel('Last time step: ', self)
-        self.grid.addWidget(lts_label, 6,0, 1,1)
-        self.last_step_run_edit = self.make_label_edit('Running: ', self.grid, position=[6,1, 1,3])[1]
+        self.grid.addWidget(lts_label, 7,0, 1,1)
+        self.last_step_run_edit = self.make_label_edit('Running: ', self.grid, position=[7,1, 1,3])[1]
         self.last_step_run_edit.setText(r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\RbMOTendstep.evt')
         self.last_step_run_edit.textChanged[str].connect(self.update_last_step)
-        self.last_step_end_edit = self.make_label_edit('End: ', self.grid, position=[6,5, 1,3])[1]
+        self.last_step_end_edit = self.make_label_edit('End: ', self.grid, position=[7,5, 1,3])[1]
         self.last_step_end_edit.setText(r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\feb2020_940and812.evt')
         self.last_step_end_edit.textChanged[str].connect(self.update_last_step)
 
         # display current progress
         multirun_progress = QLabel(
             'User variable: , omit 0 of 0 files, 0 of 100 histogram files, 0% complete')
-        self.grid.addWidget(multirun_progress, 7,0, 1,12)
+        self.grid.addWidget(multirun_progress, 8,0, 1,12)
         remove_slot(self.progress, multirun_progress.setText, True)
 
         # table stores multirun values:
         self.table = QTableWidget(self.nrows, self.ncols)
         self.reset_array()
-        self.grid.addWidget(self.table, 8,0, 20, 12)
+        self.grid.addWidget(self.table, 9,0, 20, 12)
     
         scroll.setWidget(scroll_content)
 
@@ -279,10 +282,10 @@ class multirun_widget(QWidget):
         labels."""
         self.update_repeats()
         self.update_last_step()
-        for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix']
+        for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
+            if self.measures[key].text(): # don't do anything if the line edit is empty
                 self.stats[key] = self.types[key](self.measures[key].text())
         
-    
     def update_repeats(self, txt=''):
         """Take the current values of the line edits and use them to set the
         number of omitted and number of included runs in a histogram."""
@@ -303,8 +306,9 @@ class multirun_widget(QWidget):
             col = int(self.col_val_edit[0].text()) if self.col_val_edit[0].text() else 0
             # store the selected channels
             self.order = self.order_edit.currentText()
-            for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix']
-                self.stats[key] = self.types[key](self.measures[key].text())
+            for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
+                if self.measures[key].text(): # don't do anything if the line edit is empty
+                    self.stats[key] = self.types[key](self.measures[key].text())
             # make the list of values:
             try:
                 vals = np.linspace(*map(float, [x.text() for x in self.col_val_edit[1:3]]), self.nrows)

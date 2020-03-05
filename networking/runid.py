@@ -49,6 +49,7 @@ class runnum(QThread):
         self.sw = saiaw  # image analysis settings gui
         self.sw.m_changed.connect(self.set_m)
         self.cam.SettingsChanged.connect(self.sw.CCD_stat_edit)
+        self.cam.ROIChanged.connect(self.sw.pic_size_text_edit)
         self.seq = seq   # sequence editor
         
         self.server = PyServer(host='') # server will run continuously on a thread
@@ -93,7 +94,7 @@ class runnum(QThread):
         self.im_save.emit(im)
         for i in self.sw.find(imn): # find the histograms that use this image
             self.sw.mw[i].image_handler.fid = self._n
-            self.sw.mw[i].event_im.emit(im.copy())
+            self.sw.mw[i].event_im.emit(im)
         self._k += 1 # another image was taken
 
     def unsync_receive(self, im=0):
@@ -115,7 +116,7 @@ class runnum(QThread):
         if self.seq.mr.ind % (self.seq.mr.nomit + self.seq.mr.nhist) >= self.seq.mr.nomit:
             for i in self.sw.find(imn):
                 self.sw.mw[i].image_handler.fid = self._n
-                self.sw.mw[i].event_im.emit(im.copy())
+                self.sw.mw[i].event_im.emit(im)
         self._k += 1 # another image was taken
 
     def reset_dates(self):
@@ -194,7 +195,7 @@ class runnum(QThread):
                     self.seq.mr.stats['measure'], self.seq.mr.stats['Variable label'], 
                     tableitem.text() if tableitem else '', 0,
                     self.seq.mr.nomit, 0, self.seq.mr.nhist))
-            self.seq.mr.mrtr = self.seq.mr.tr # take the current loaded sequence as the base for the multirun
+            self.seq.mr.mrtr = self.seq.mr.tr.copy() # take the current loaded sequence as the base for the multirun
             # make list of sequences as messages to send and the order:
             self.seq.mr.get_all_sequences()
             # save log file with the parameters used for this multirun:
@@ -211,7 +212,7 @@ class runnum(QThread):
                     [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*v)+'\n'+'0'*2000] for r in range(repeats)
                     ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]
             # reset last time step for the last run:
-            mr_queue.insert(len(mr_queue) - 1, [TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step end']+'0'*2000])
+            mr_queue.insert(len(mr_queue) - 2, [TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step end']+'0'*2000])
             mr_queue += [[TCPENUM['TCP read'], 'confirm last multirun run\n'+'0'*2000], 
                 [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])+'\n'+'0'*2000]]
             self.server.priority_messages(mr_queue)
@@ -250,8 +251,9 @@ class runnum(QThread):
                 mr_queue += [[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[var]]] + [
                     [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*var)+'\n'+'0'*2000] for r in range(repeats)
                     ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]
-            mr_queue += [[TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step end']+'0'*2000], 
-                [TCPENUM['TCP read'], 'confirm last multirun run\n'+'0'*2000], [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])+'\n'+'0'*2000]]
+            mr_queue.insert(len(mr_queue) - 2, [TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step end']+'0'*2000])
+            mr_queue += [[TCPENUM['TCP read'], 'confirm last multirun run\n'+'0'*2000], 
+                [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.stats['measure'])+'\n'+'0'*2000]]
             self.server.priority_messages(mr_queue) # adds at front of queue
             
     def multirun_step(self, msg):
@@ -287,12 +289,13 @@ class runnum(QThread):
     def multirun_savehist(self, msg):
         """end of histogram: fit, save, and reset --- check this doesn't miss an image if there's lag"""
         v = self.seq.mr.ind // (self.seq.mr.nomit + self.seq.mr.nhist) - 1 # previous variable
-        for mw in self.sw.rw + self.sw.mw: # make sure to do reimage windows first!
-            try:
-                prv = self.seq.mr.table.item(v, 0).text() # get user variable from the previous row
-            except AttributeError as e:     
-                logger.error('Multirun step could not extract user variable from table:\n'+str(e))
-                prv = ''
+        try:
+            prv = self.seq.mr.table.item(v, 0).text() # get user variable from the previous row
+        except AttributeError as e:     
+            logger.error('Multirun step could not extract user variable from table at row %s.\n'%v+str(e))
+            prv = ''
+        # get best fit on histograms, doing reimage last since their fits depend on the main hists
+        for mw in self.sw.mw + self.sw.rw: 
             mw.var_edit.setText(prv) # also updates histo_handler temp vals
             mw.set_user_var() # just in case not triggered by the signal
             mw.bins_text_edit(text='reset') # set histogram bins 
@@ -301,18 +304,20 @@ class runnum(QThread):
                 mw.display_fit(fit_method='quick')
                 logger.warning('\nMultirun run %s fitting failed. '%self._n +
                     'Histogram data in '+ self.seq.mr.stats['measure_prefix']+'\\'+mw.name + 
-                    str(v) + '.csv')
+                    str(v+self.seq.mr.stats['1st hist ID']) + '.csv')
+        # save and reset the histograms, make sure to do reimage windows first!
+        for mw in self.sw.rw + self.sw.mw: 
             mw.save_hist_data(save_file_name=os.path.join(
                 self.sv.results_path, os.path.join(self.seq.mr.stats['measure_prefix'], mw.name + 
-                    str(v) + '.csv')), confirm=False) # save histogram
+                    str(v+self.seq.mr.stats['1st hist ID']) + '.csv')), confirm=False) # save histogram
             mw.image_handler.reset_arrays() # clear histogram
         
     def multirun_end(self, msg):
         """At the end of the multirun, save the plot data and reset"""
         for mw in self.sw.rw + self.sw.mw:
             mw.save_varplot(save_file_name=os.path.join(
-                self.sv.results_path, os.path.join(self.seq.mr.stats['measure_prefix'], mw.name + 
-                    str(self.seq.mr.stats['measure_prefix']) + '.dat')), 
+                self.sv.results_path, os.path.join(self.seq.mr.stats['measure_prefix'], 
+                    mw.name + str(self.seq.mr.stats['measure_prefix']) + '.dat')), 
                 confirm=False) # save measure file
             # reconnect previous signals
             mw.set_bins() # reconnects signal with given histogram binning settings

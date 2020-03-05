@@ -88,6 +88,9 @@ class Master(QMainWindow):
                     im_store_path=sv_dirs['Image Storage Path: ']), # image analysis
                 Previewer(), # sequence editor
                 n=startn, m=m if m!=0 else 2, k=0) 
+        # now the signals are connected, send camera settings to image analysis
+        if self.rn.cam.initialised > 2:
+            check = self.rn.cam.ApplySettingsFromConfig(self.ancam_config)
         
         self.rn.server.dxnum.connect(self.Dx_label.setText) # synchronise run number
         self.rn.server.textin.connect(self.respond) # read TCP messages
@@ -177,7 +180,7 @@ class Master(QMainWindow):
         self.actions.addItems(['Run sequence', 'Multirun run',
             'Pause multirun', 'Resume multirun', 'Cancel multirun',
             'TCP load sequence','TCP load sequence from string',
-            'Cancel Python Mode'])
+            'Cancel Python Mode', 'Start acquisition'])
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
 
@@ -304,9 +307,23 @@ class Master(QMainWindow):
         TCP load sequence:  Tell DExTer to load in the sequence file at
                         the location in the 'Sequence file' label.
         Cancel python mode: send the text 'python mode off' which triggers
-                        DExTer to exit python mode."""
+                        DExTer to exit python mode.
+        Start acquisition:  start the camera acquiring without telling
+                        DExTer to run. Used in unsynced mode."""
+        action_text = self.actions.currentText()
+        if action_text == 'Start acquisition' and self.action_button.text() == 'Go':
+            self.actions.setEnabled(False) # don't process other actions in this mode
+            self.rn._k = 0 # reset image per run count
+            self.action_button.setText('Stop acquisition')
+            self.rn.cam.start() # start acquisition
+            self.wait_for_cam() # wait for camera to initialise before running
+            self.status_label.setText('Camera acquiring')
+        elif action_text == 'Start acquisition' and self.action_button.text() == 'Stop acquisition':
+            self.actions.setEnabled(True)
+            self.action_button.setText('Go')
+            self.end_run()
+
         if self.rn.server.isRunning():
-            action_text = self.actions.currentText()
             if action_text == 'Run sequence':
                 # queue up messages: start acquisition, check run number
                 self.action_button.setEnabled(False) # only process 1 run at a time

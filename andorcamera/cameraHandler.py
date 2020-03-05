@@ -31,7 +31,9 @@ class camera(QThread):
     AcquisitionEvent = win32event.CreateEvent(None, 0, 0, 'Acquisition')
     AcquireEnd = pyqtSignal(np.ndarray) # send to image analysis 
     # emit (EM gain, preamp gain, readout noise) when the acquisition settings are updated
-    SettingsChanged = pyqtSignal([float, float, float, bool]) 
+    SettingsChanged = pyqtSignal([float, float, float, bool])
+    # emit the smallest dimension of image height/width when ROI is updated
+    ROIChanged = pyqtSignal(str)
 
     def __init__(self, config_file=".\\ExExposure_config.dat"):
         super().__init__()   # Initialise the parent classes
@@ -305,6 +307,7 @@ class camera(QThread):
             self.AF.SetIsolatedCropModeType(slowcrop)
         else:
             error = self.AF.SetImage(hbin,vbin,hstart,hend,vstart,vend)
+        self.ROIChanged.emit(str(min(self.AF.ROIwidth, self.AF.ROIheight)))
         return error
             
     def CheckCurrentSettings(self):

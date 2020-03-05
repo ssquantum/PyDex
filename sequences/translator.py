@@ -414,6 +414,18 @@ class translate:
         esc['Sequence header middle'].insert(idx, header_mid)
         esc['Slow digital channels'].insert(idx, sd)
         esc['Slow analogue array'].insert(idx, sa)
+        
+    def copy(self):
+        """Create a copy of this translate object"""
+        t = translate()
+        t.nfd = self.nfd # number of fast digital channels
+        t.nfa = self.nfa # number of fast analogue
+        t.nsd = self.nsd # number of slow digital
+        t.nsa = self.nsa # number of slow analogue
+        t.seq_dic = self.seq_dic # the sequence in dictionary format
+        t.write_to_str()
+        return t
+        
     def mloopmodify(self, mloopdict,mlooppath):
         """
         Modify the cluster based on parameters read from mloop txt file, interpreted by mloopdict nested dictionary struct
