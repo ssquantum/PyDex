@@ -16,6 +16,8 @@ from scipy.signal import find_peaks
 from scipy.stats import norm
 from astropy.stats import binom_conf_interval
 from analysis import Analysis
+import logging
+logger = logging.getLogger(__name__)
 
 def est_param(h):
     """Generator function to estimate the parameters for a Guassian fit. 
@@ -75,16 +77,25 @@ class image_handler(Analysis):
         self.im_vals   = np.array([])   # the data from the last image is accessible to an image_handler instance
         self.bin_array = []             # if bins for the histogram are supplied, plotting can be faster
     
-    def process(self, full_im, include=True):
+    def process(self, im, include=True):
         """Fill in the next index of counts by integrating over
         the ROI. Append file ID, xc, yc, mean, stdv as well.
         Keyword arguments:
-        full_im    -- image array to be processed
-        include    -- whether to include the image in further analysis
+        im      -- image array to be processed
+        include -- whether to include the image in further analysis
         """
-        full_im -= self.bias # remove the bias offset, it's arbitrary
-        self.im_vals = full_im * self.mask # get the ROI
-        not_roi = full_im * (1-self.mask)
+        full_im = im - self.bias # remove the bias offset, it's arbitrary
+        try:
+            self.im_vals = full_im * self.mask # get the ROI
+            not_roi = full_im * (1-self.mask)
+        except ValueError as e:
+            s0 = np.shape(self.mask)
+            self.im_vals = np.zeros(s0)
+            not_roi = np.zeros(s0)
+            include = False
+            s1 = np.shape(im)
+            logger.error("Received image was wrong shape (%s,%s) for analyser's ROI (%s,%s)"%(
+                s1[0],s1[1],s0[0],s0[1]))
         # background statistics: mean count and standard deviation across image
         N = np.sum(1-self.mask)
         self.stats['Mean bg count'].append(np.sum(not_roi) / N)
@@ -130,14 +141,14 @@ class image_handler(Analysis):
         each value. Choose the threshold that first gives a fidelity > 0.9999,
         or if that isn't possible, the threshold that maximises the fidelity.
         Keyword arguments:
-        p1  -- the lower limit for the threshold (the background peak mean).
+        p1  -- the background peak mean, used to guess a lower limit.
         pw1 -- the width of the background peak, used to guess an upper limit.
         p2  -- the upper limit for the threshold if it's smaller than p1+15*pw1
                 (the signal peak mean).
         n   -- the number of thresholds to take between the peaks
         """
-        uplim = min([p1 + 15*pw1, p2]) # highest possible value for the threshold 
-        threshes = np.linspace(p1, uplim, n) # n points between peaks
+        uplim = max(p1+pw1+1, min([p1+15*pw1, p2])) # highest possible value for the threshold 
+        threshes = np.linspace(p1+pw1, uplim, n) # n points between peaks
         fid, err_fid = 0, 0  # store the previous value of the fidelity
         for thresh in threshes[1:]: # threshold should never be at the background peak p1
             f, fe = self.get_fidelity(thresh) # calculate fidelity for given threshold

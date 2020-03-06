@@ -88,6 +88,9 @@ class Master(QMainWindow):
                     im_store_path=sv_dirs['Image Storage Path: ']), # image analysis
                 Previewer(), # sequence editor
                 n=startn, m=m if m!=0 else 2, k=0) 
+        # now the signals are connected, send camera settings to image analysis
+        if self.rn.cam.initialised > 2:
+            check = self.rn.cam.ApplySettingsFromConfig(self.ancam_config)
         
         self.rn.server.dxnum.connect(self.Dx_label.setText) # synchronise run number
         self.rn.server.textin.connect(self.respond) # read TCP messages
@@ -177,7 +180,7 @@ class Master(QMainWindow):
         self.actions.addItems(['Run sequence', 'Multirun run',
             'Pause multirun', 'Resume multirun', 'Cancel multirun',
             'TCP load sequence','TCP load sequence from string',
-            'Cancel Python Mode'])
+            'Cancel Python Mode', 'Start acquisition'])
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
 
@@ -302,19 +305,33 @@ class Master(QMainWindow):
         TCP load sequence from string: Tell DExTer to load in the sequence
                         from a string in XML format.
         TCP load sequence:  Tell DExTer to load in the sequence file at
-                        the location in the 'Sequence file' label.
+                        the location in the 'DExTer sequence file' label.
         Cancel python mode: send the text 'python mode off' which triggers
-                        DExTer to exit python mode."""
+                        DExTer to exit python mode.
+        Start acquisition:  start the camera acquiring without telling
+                        DExTer to run. Used in unsynced mode."""
+        action_text = self.actions.currentText()
+        if action_text == 'Start acquisition' and self.action_button.text() == 'Go':
+            self.actions.setEnabled(False) # don't process other actions in this mode
+            self.rn._k = 0 # reset image per run count
+            self.action_button.setText('Stop acquisition')
+            self.rn.cam.start() # start acquisition
+            self.wait_for_cam() # wait for camera to initialise before running
+            self.status_label.setText('Camera acquiring')
+        elif action_text == 'Start acquisition' and self.action_button.text() == 'Stop acquisition':
+            self.actions.setEnabled(True)
+            self.action_button.setText('Go')
+            self.end_run()
+
         if self.rn.server.isRunning():
-            action_text = self.actions.currentText()
             if action_text == 'Run sequence':
                 # queue up messages: start acquisition, check run number
                 self.action_button.setEnabled(False) # only process 1 run at a time
                 self.rn._k = 0 # reset image per run count 
-                self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition'+'0'*2000) 
+                self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000) 
             elif action_text == 'Multirun run':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start measure '
-                    + str(self.rn.seq.mr.stats['measure']) + '0'*2000) # set DExTer's message to send
+                    + str(self.rn.seq.mr.stats['measure']) +'\n'+'0'*2000) # set DExTer's message to send
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':
@@ -328,9 +345,9 @@ class Master(QMainWindow):
             elif action_text == 'TCP load sequence from string':
                 self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.seq_txt)
             elif action_text == 'TCP load sequence':
-                self.rn.server.add_message(TCPENUM[action_text], self.seq_edit.text()+'0'*2000)
+                self.rn.server.add_message(TCPENUM[action_text], self.seq_edit.text()+'\n'+'0'*2000)
             elif action_text == 'Cancel Python Mode':
-                self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off'+'0'*2000)
+                self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off\n'+'0'*2000)
             
     def sync_mode(self, toggle=True):
         """Toggle whether to receive the run number from DExTer,
@@ -360,8 +377,8 @@ class Master(QMainWindow):
                 self.wait_for_cam() # wait for camera to initialise before running
             else: 
                 logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
-            self.rn.server.priority_messages([(TCPENUM['Run sequence'], 'single run '+str(self.rn._n)+'0'*2000),
-                (TCPENUM['TCP read'], 'finished run '+str(self.rn._n)+'0'*2000)]) # second message confirms end
+            self.rn.server.priority_messages([(TCPENUM['Run sequence'], 'single run '+str(self.rn._n)+'\n'+'0'*2000),
+                (TCPENUM['TCP read'], 'finished run '+str(self.rn._n)+'\n'+'0'*2000)]) # second message confirms end
         elif 'start measure' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
             if self.rn.cam.initialised:
@@ -372,8 +389,11 @@ class Master(QMainWindow):
         elif 'multirun run' in msg:
             self.rn.multirun_step(msg)
             self.rn._k = 0 # reset image per run count
+        elif 'save and reset histogram' in msg:
+            self.rn.multirun_savehist(msg)
         elif 'end multirun' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
+            self.rn.multirun_end(msg)
             self.rn.server.save_times()
             self.end_run(msg)
         # auto save any sequence that was sent to be loaded (even if it was already an xml file)
@@ -381,8 +401,7 @@ class Master(QMainWindow):
         #     self.rn.seq.save_seq_file(os.path.join(self.rn.sv.sequences_path, str(self._n) + time.strftime('_%d %B %Y_%H %M %S') + '.xml'))
         self.ts['msg end'] = time.time()
         self.ts['blocking'] = time.time() - self.ts['msg start']
-        print(str(self.rn._n), ': ', msg[:50])
-        self.print_times()
+        # self.print_times()
                 
     def end_run(self, msg=''):
         """At the end of a single run or a multirun, stop the acquisition,

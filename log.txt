@@ -1,58 +1,21 @@
-2020/01/27 09:01:56.712 - MainThread - cameraHandler.py.__init__.69 - WARNING
-Andor EMCCD not initialised.
-camera.SettingsChanged[float, float, float] signal has 3 argument(s) but 1 provided
-
-
-2020/01/27 09:01:56.818 - MainThread - imsaver.py.__init__.83 - WARNING
-Image saver could not create directory: X:\Sequence Log\2020\January\27
+2020/03/05 10:16:40.610 - MainThread - imsaver.py.__init__.83 - WARNING
+Image saver could not create directory: X:\Sequence Log\2020\March\05
  Using current directory instead
-[WinError 5] Access is denied: 'X:\\Sequence Log\\2020\\January\\27'
+[WinError 5] Access is denied: 'X:\\Sequence Log\\2020\\March\\05'
 
 
-2020/01/27 09:13:43.441 - MainThread - imsaver.py.__init__.83 - WARNING
-Image saver could not create directory: X:\Sequence Log\2020\January\27
- Using current directory instead
-[WinError 5] Access is denied: 'X:\\Sequence Log\\2020\\January\\27'
-
-
-2020/01/27 09:19:15.880 - MainThread - imsaver.py.__init__.83 - WARNING
-Image saver could not create directory: X:\Sequence Log\2020\January\27
- Using current directory instead
-[WinError 5] Access is denied: 'X:\\Sequence Log\\2020\\January\\27'
-
-
-2020/01/27 09:35:11.430 - MainThread - runid.py.multirun_step.268 - ERROR
+2020/03/05 13:58:16.305 - MainThread - runid.py.multirun_step.277 - ERROR
 Multirun step could not extract user variable from table:
 'NoneType' object has no attribute 'text'
 
 
-2020/01/27 09:40:22.046 - MainThread - runid.py.multirun_step.268 - ERROR
+2020/03/05 14:09:39.639 - MainThread - settingsgui.py.reset_analyses.683 - WARNING
+While creating new analysers: there are 2 image indices for the 4 image analysers.
+
+
+
+2020/03/05 14:12:25.128 - MainThread - runid.py.multirun_step.277 - ERROR
 Multirun step could not extract user variable from table:
 'NoneType' object has no attribute 'text'
-
-
-2020/01/27 09:40:59.940 - MainThread - runid.py.multirun_step.268 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/27 09:48:40.906 - MainThread - runid.py.multirun_step.268 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/27 09:53:48.315 - MainThread - runid.py.multirun_step.268 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/01/27 11:17:36.431 - Dummy-1 - networker.py.run.139 - ERROR
-Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
-[WinError 10053] An established connection was aborted by the software in your host machine
-
-
-2020/01/27 11:17:36.435 - Dummy-1 - networker.py.run.148 - ERROR
-Python server: client terminated connection before receive.
-[WinError 10053] An established connection was aborted by the software in your host machine
 
 

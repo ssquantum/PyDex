@@ -214,11 +214,19 @@ class main_window(QMainWindow):
         settings_tab.setLayout(settings_grid)
         self.tabs.addTab(settings_tab, "Settings")
 
+        # allow user to change window name
+        name_label = QLabel('Window name: ', self)
+        settings_grid.addWidget(name_label, 0,0, 1,1)
+        self.name_edit = QLineEdit(self)
+        settings_grid.addWidget(self.name_edit, 0,1, 1,1)
+        self.name_edit.setText(self.name) # default
+        self.name_edit.textChanged[str].connect(self.reset_name)
+
         # get user to set the image size in pixels
         size_label = QLabel('Image size in pixels: ', self)
-        settings_grid.addWidget(size_label, 0,0, 1,1)
+        settings_grid.addWidget(size_label, 1,0, 1,1)
         self.pic_size_edit = QLineEdit(self)
-        settings_grid.addWidget(self.pic_size_edit, 0,1, 1,1)
+        settings_grid.addWidget(self.pic_size_edit, 1,1, 1,1)
         self.pic_size_edit.setText(str(self.image_handler.pic_size)) # default
         self.pic_size_edit.textChanged[str].connect(self.pic_size_text_edit)
         self.pic_size_edit.setValidator(int_validator)
@@ -227,54 +235,54 @@ class main_window(QMainWindow):
         load_im_size = QPushButton('Load size from image', self)
         load_im_size.clicked.connect(self.load_im_size) # load image size from image
         load_im_size.resize(load_im_size.sizeHint())
-        settings_grid.addWidget(load_im_size, 0,2, 1,1)
+        settings_grid.addWidget(load_im_size, 1,2, 1,1)
 
         # get ROI centre from loading an image
         load_roi = QPushButton('Get ROI from image', self)
         load_roi.clicked.connect(self.load_roi) # load roi centre from image
         load_roi.resize(load_im_size.sizeHint())
-        settings_grid.addWidget(load_roi, 1,2, 1,1)
+        settings_grid.addWidget(load_roi, 2,2, 1,1)
 
         # get user to set ROI:
         # centre of ROI x position
         roi_xc_label = QLabel('ROI x_c: ', self)
-        settings_grid.addWidget(roi_xc_label, 1,0, 1,1)
+        settings_grid.addWidget(roi_xc_label, 2,0, 1,1)
         self.roi_x_edit = QLineEdit(self)
-        settings_grid.addWidget(self.roi_x_edit, 1,1, 1,1)
+        settings_grid.addWidget(self.roi_x_edit, 2,1, 1,1)
         self.roi_x_edit.setText('0')  # default
         self.roi_x_edit.textEdited[str].connect(self.roi_text_edit)
         self.roi_x_edit.setValidator(int_validator) # only numbers
         
         # centre of ROI y position
         roi_yc_label = QLabel('ROI y_c: ', self)
-        settings_grid.addWidget(roi_yc_label, 2,0, 1,1)
+        settings_grid.addWidget(roi_yc_label, 3,0, 1,1)
         self.roi_y_edit = QLineEdit(self)
-        settings_grid.addWidget(self.roi_y_edit, 2,1, 1,1)
+        settings_grid.addWidget(self.roi_y_edit, 3,1, 1,1)
         self.roi_y_edit.setText('0')  # default
         self.roi_y_edit.textEdited[str].connect(self.roi_text_edit)
         self.roi_y_edit.setValidator(int_validator) # only numbers
         
         # ROI size
         roi_l_label = QLabel('ROI size: ', self)
-        settings_grid.addWidget(roi_l_label, 3,0, 1,1)
+        settings_grid.addWidget(roi_l_label, 4,0, 1,1)
         self.roi_l_edit = QLineEdit(self)
-        settings_grid.addWidget(self.roi_l_edit, 3,1, 1,1)
+        settings_grid.addWidget(self.roi_l_edit, 4,1, 1,1)
         self.roi_l_edit.setText('1')  # default
         self.roi_l_edit.textEdited[str].connect(self.roi_text_edit)
         self.roi_l_edit.setValidator(int_validator) # only numbers
 
         # EMCCD bias offset
         bias_offset_label = QLabel('EMCCD bias offset: ', self)
-        settings_grid.addWidget(bias_offset_label, 4,0, 1,1)
+        settings_grid.addWidget(bias_offset_label, 5,0, 1,1)
         self.bias_offset_edit = QLineEdit(self)
-        settings_grid.addWidget(self.bias_offset_edit, 4,1, 1,1)
+        settings_grid.addWidget(self.bias_offset_edit, 5,1, 1,1)
         self.bias_offset_edit.setText(str(self.image_handler.bias)) # default
         self.bias_offset_edit.editingFinished.connect(self.CCD_stat_edit)
         self.bias_offset_edit.setValidator(int_validator) # only ints
 
         # label to show last file analysed
         self.recent_label = QLabel('', self)
-        settings_grid.addWidget(self.recent_label, 6,0, 1,4)
+        settings_grid.addWidget(self.recent_label, 7,0, 1,4)
         
         #### tab for histogram ####
         hist_tab = QWidget()
@@ -470,6 +478,11 @@ class main_window(QMainWindow):
         
     #### #### user input functions #### #### 
 
+    def reset_name(self, text=''):
+        """Take a new name for the window, display it in the window title."""
+        self.name = self.name_edit.text()
+        self.setWindowTitle(self.name+' - Single Atom Image Analyser -')
+
     def set_user_var(self, text=''):
         """When the user finishes editing the var_edit line edit, update the displayed 
         user variable and assign it in the temp_vals of the histo_handler"""
@@ -586,6 +599,7 @@ class main_window(QMainWindow):
             if bf and bf.bffunc: # plot the curve on the histogram
                 xs = np.linspace(min(bf.x), max(bf.x), 200)
                 self.hist_canvas.plot(xs, bf.bffunc(xs, *bf.ps), pen='b')
+        return success
 
     def update_fit(self, toggle=True, fit_method='quick'):
         """Use the histo_handler.process function to get histogram
@@ -809,7 +823,7 @@ class main_window(QMainWindow):
             self.yc_label.setText(str(self.image_handler.yc))
             self.l_label.setText(str(self.image_handler.roi_size))
             self.roi.setPos(self.image_handler.xc - self.image_handler.roi_size//2, 
-            self.image_handler.yc - self.image_handler.roi_size//2) # set ROI in image display
+                self.image_handler.yc - self.image_handler.roi_size//2) # set ROI in image display
             self.roi.setSize(self.image_handler.roi_size, self.image_handler.roi_size)
 
     def save_hist_data(self, trigger=None, save_file_name='', confirm=True):
