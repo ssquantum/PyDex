@@ -1,6 +1,7 @@
 ﻿#### PyDex ####
 Version 0.0
 A master python script manages independent modules for experimental control:
+A master python script manages independent modules for experimental control:
 
 Each module is a Python class that inherits QThread. We use the PyQt signal/slot architecture with TCP communication so that each module can run independently and not hold the other up. 
 
@@ -17,31 +18,42 @@ Included modules:
 	Single atom image analysis: 1) create histograms, 2) analyse histograms, 3) control settings like the ROI and multirun across histogram producers, 4) emit signal of whether there was an atom or not to monitor, and 5) emit signal of the background outside the ROI
 	• Monitor
 	Takes in the signal from a DAQ to monitor channels like beam powers. Responds to signals of atom presence to and background level to guess if the lasers are still locked.
-	• Sequences
+	• Sequences (on the main thread but is only really used when the experiment isn't running)
 	Facilitate the creation of sequences for an experiment, choose parameters to create a multirun, design experiments that optimise common parameters
 	
-## Master
+Master
 A master script manages the independent modules:
 	• Initiates camera, image saver, image analysis, and sequences and passes them to the networking manager; runid
 	• Displays current run number and status
 	• Allows the user to check the status of the individual modules and display their windows
 	• Allows the user to choose commands to send to DExTer
-	• Upon receiving the return message from DExTer, interprets it and executes the appropriate function.
+	Command	Description
+	Run sequence	execute the sequence that is currently loaded into DExTer once. Only one 'Run sequence' command can be queued at a time, so the 'Go' button will be disabled. If DExTer doesn't finish the run, then reset the TCP server to enable the 'Go' button again.
+	Multirun run	execute the multirun using the parameters stated in the sequence previewer's 'Multirun' tab. This queues up a list of run commands
+	Pause multirun	removes the queue of multirun commands waiting to be sent over TCP, so the multirun will pause after the next run
+	Resume multirun	adds the queue of multirun commands back into the networker to be sent over TCP
+	Cancel multirun	removes the queue of multirun commands and resets the counters so keeping track of the multirun's progress
+	TCP load sequence	Sends the absolute path displayed in the 'DExTer sequence file' line edit to DExTer, which subsequently tries to load the sequence from that file location
+	TCP load sequence from string	Sends the sequence displayed in the Sequence Previewer window to DExTer as an XML string to be loaded into DExTer
+	Cancel Python mode	Sends the text 'python mode off' to DExTer, which allows it to exit python mode and therefore unfreezes the GUI
+	Start acquisition	Starts the camera acquisition. This is designed for unsync mode so that you can use the DExTer GUI but still receive and process images
+		
+	• Upon receiving the return message from DExTer, Master interprets it and executes the appropriate function.
 		○ Note that using a message queue means some parameters could have changed by the time the command is executed.
 	• In a sequence:
 		○ Initiates the camera acquisition (for several images in one sequence, assume they come chronologically)
-		○ Save the sequence that was just run.
+		○ DExTer saves the sequence in its sequence log
 		○ Sends message to run sequence and receives current run number in return: set state as 'running'
-		○ Queue message 'TCP read' that will be sent when DExTer opens connection after the sequence
+		○ Queue message 'TCP read' that will be sent when DExTer opens the connection after the sequence
 		○ DExTer triggers the camera to take an image (or several images if re-imaging)
 		○ The camera manager sends a signal with the image array to the image saver and to the image analysis
 		○ Image analysis processes the image, image saver saves the image (separate threads)
-		○ Send a signal of whether there was an atom or not and the image background level to monitor module
+		○ Send a signal of whether there was an atom or not and the image background level to monitor module (not yet implemented)
 		○ DExTer opens connection and receives 'TCP read' command so that checks that run is finished: set state 'idle'
 
 	
-## Networking 
-# TCP messages
+Networking 
+TCP messages
 To facilitate communication and data processing, fix TCP message format:
 Python -> LabVIEW:
 	• Enum: 4 bytes 32-bit integer. Enum for DExTer's producer-consumer loop
@@ -50,29 +62,35 @@ Python -> LabVIEW:
 LabVIEW -> Python:
 	• DExTer run number: 4 byte 32-bit unsigned long integer 
 	• Message: A string of length up to buffer_size of bytes (default 1024)
+		○ DExTer echoes back the last python message
 
 TCP Communication for a DExTer run/multirun:
 	1. Python command: load sequence
-		a. DExTer confirms sequence is loaded and returns run number
-		b. Python saves the sequence as a timestamped xml file synced by the run number
-	2. Python command: single run
+		a. DExTer confirms sequence is loaded and returns run number.
+		b. Python could save the sequence but DExTer already does, and we don’t need duplicates.
+	2. Python internal: start acquisition
+		a. Start the camera acquisition and give it time to initialise
+	3. Python command: single run
 		a. DExTer confirms run/multirun has started (set state 'running')
-	3. Python command: 'TCP read' with message 'run finished'
+		b. Repeat for multirun
+	4. Python command: 'TCP read' with message 'run finished'
 		a. DExTer confirms run/multirun has ended (set state 'idle')
 
-# Server/client model:
+Server/client model:
 Server hosted by the master python script:
 	+ can queue up commands to send
 	+ master can receive messages from modules at any time
 	- master can't check status of module at any time because the module might be busy
-	- the message received from DExTer relates to the previous command: needs a second message to get the response to the command.
+	- the message received from DExTer is an echo of the message just sent, so a second command it required to check the progress
 	
-# Experimental sequence XML <-> dictionary
+The time taken to send a TCP message depends on the size of the string sent. It is found that strings with length < 1455 characters take a minimum of 200ms to send. For lengths above 1455 characters, the time taken increases as a function of the string length. Therefore we choose a minimum string length of 2000 characters by padding short messages with zeros.
+	
+Experimental sequence XML <-> dictionary
 In order to edit sequences in python and LabVIEW, we choose the XML format that can be accessed by both and is clear to read.
 Functions in the translator.py script allow to convert from XML to a python dictionary, which is much less verbose and much easier to edit.
 In Python the sequence is stored in an ordered dictionary where the keys correspond to the names of the clusters/arrays in DExTer. Note: the fast digital channels are stored in lists of lists with shape (# steps, # channels), but the analogue channels are stored in transposed lists of dictionaries of lists with shape (# channels, {voltage:[# steps], ramp?:[# steps]})
 
-## Andor camera
+Andor camera
 We use an Andor iXon Ultra 897 EMCCD (SN: 11707). It comes with Andor SDK written in C to control the camera. Python wrapper functions are found in AndorFunctions.py.
 We use the SDK to create a basic operation of the camera:
 	• Create a cameraHandler.camera() instance to connect to the camera. This is a subclass of QThread so that the acquisition of the camera can run independently. Upon initialising:
@@ -103,21 +121,21 @@ Frame transfer	0	Off
 Fast trigger	0	Off (only available for the external trigger mode)
 * Being in external exposure mode means that the external trigger pulse defines the start and the duration of the exposure. It also means that there are keep clean cycles between exposures, which reduces background.
 		○ With these settings the readout time (which defines the minimum possible time between taking exposures) is decided by the size of the ROI. It is therefore recommended to use the smallest ROI possible:
-ROI size	Minimum duration between exposures (ms)	Software-computed readout time (ms)
+ROI size	Minimum duration between exposures (ms) (5MHz readout rate)	Software-computed readout time (ms)
 32x32	11 	6.927
 64x64	15	10.34
 128x128	22	17.57
 256x256	36	32.03
 512x512	75	60.96
 		○ To reduce noise on the acquired image, use:
-			§ Conventional mode, 3MHz readout rate, preamp gain setting 1
-		Or if you need to increase the signal and increasing the noise isn't too much of a problem:
-			§ EM gain mode, 10MHz readout rate, preamp gain setting 1, then apply EM gain as needed.
-			§ (applying EM gain should only increase the noise by a constant multiplying factor, but currently it increases as you apply higher EM gain…)
+			§ Conventional mode, 0.08MHz readout rate, preamp gain setting 3
+		○ Sometimes noise will be sacrificed for the sake of faster readout rate or larger signal:
+			§ EM gain mode, 5MHz readout rate, preamp gain setting 3, then apply EM gain as needed
+			§ See the separate document EMCCD_noise_summary.pdf for more details
 
-## Save images
-Save a numpy array to a file that is named with a timestap and file ID number (synchronised with the run number).
-The file name follows the syntax: [label]_[day month year]_[file #]
+Save images
+Save a numpy array to a file that is named with a timestap, file ID number (synchronised with the run number), and image ID number (denoting the order of images in the sequence).
+The file name follows the syntax: [label]_[day month year]_[file #]_[Im #].asc
 Load the directories of where to save files to from a config file.
 This class inherits PyDexThread which itself inherits QThread. When the thread is started it runs like:
 	1. Check the queue for an image to save.
@@ -127,51 +145,85 @@ This class inherits PyDexThread which itself inherits QThread. When the thread i
 	3. Loop continuously as long as the thread is running.
 		○ Stop the thread by calling the inherited close() function.
 
-## Image Analysis: SAIA
+Image Analysis: SAIA
 Single atom image analysis: create histograms from collections to images, collect statistics from images and histograms.
 
 A generic Analysis class is used to standardise the structure that all analyses will take. It provides a structure of:
 	• Properties:
 		○ Stats (from an image or from a histogram) - stored as ordered dictionary of lists for clarity and speed.
-		○ Types (one for each stat) - stored as ordered dictionary for clarity 
+		○ Types (one for each stat) - stored as ordered dictionary for clarity.
 	• Methods:
 		○ Process (quickly take stats from a given image/histogram)
 		○ Save
 		○ Load 
 		○ Reset_arrays
 	
-A settings GUI controls the ROIs, bias offset, etc. for all instances. 
-	• load settings from default config file
-	• Reset signals and histograms when the user wants to have a different number of images per run
+A settings GUI controls the ROIs, bias offset, etc. for all instances. This main window manages all of the other analysis windows.
+	• Load previous settings from a default config file that is updated when the program is closed.
+	• Produce analysis windows for analysing images:
+		○ Main windows 
+			§ These receive a set image during a sequence and process the counts in a set ROI
+			§ A unique name is given to each main window to prevent overwriting files. By default this is set as:
+				□ ROI[ROI index].Im[image index].
+				□ ROI index is set for the first m windows, where m is the number of images per sequence. e.g. if 2 images are taken in a sequence, the first two main windows will be ROI0, then the two windows after that will be ROI1, etc.
+				□ Image index counts where the image comes in the sequence. e.g. if 2 images are taken in a sequence, they will be indexed as Im0 and Im1.
+		○ Re-image windows 
+			§ use the histograms from two main windows. If there was a count above threshold present in the first main window, then the corresponding image in the second main window (identified by file ID) is included in the re-image histogram.
+	• Allow the user to choose settings that apply to all analysis windows:
+	Setting	Description
+	Number of images per run	How many images will be taken in a single run of the experimental sequence.
+	Number of image analysers	Number of main windows to open which will receive and process images.
+	Image indices for analysers	List of comma-separated indices dictating which image is sent to which analyser, e.g. 0,0,1 would assign the first window Im0, second window also Im0, and the third window Im1.
+	Histogram indices for re-imaging	List of semicolon-separated indices dictating which main windows the re-image windows will use, e.g. 0,1;2,3 would create two re-image windows. The first would use main windows 0 and 1, the second would use 2 and 3.
+	Image size in pixels	The incoming image is expected to be a nxn array of this many pixels.
+	EMCCD bias offset	The number of counts to subtract from all images to account for the bias offset.
+	User variable	Sets the 'User variable' setting in all of the analysis windows, used for assigning the independent variable in a plot of histograms results.
+	• Reset the analysis windows and connect their signals to receive the appropriate images 
+	• Keep a default config file to load previous settings
+	• Provide a convenience button to fit, save, and reset the histograms in all analysis windows. Starts by fitting the main window histograms, then fitting and saving the re-image windows, then it can save and reset the main windows.
 
-SAIA image analysis:
-	• Fit a double Guassian function or a continuous approximation to two Poissonian probability disctribution functions.
-	• Use array of histograms for different ROIs.
-	• Implement independent component analysis or 2D Gaussian masks to find ROIs.
-	• Sub class for a single histogram of a given ROI for a given image in a sequence
-	• Sub class for calculating survival probability
-	• Sub class for collections of histograms in a multirun
-	• Sub class for when there's several ROIs
+Region of Interest (ROI)
+For separate images we might want a different ROI if the atom is in a different position.
+Within one image we might want several ROIs if there are several atoms.
+The ROI is defined by a mask applied to the image. The mask is an array with the same dimensions as the image containing elements with values between 0-1. For a square ROI this just sets the pixels outside of the ROI to zero. 
+The ROI can be chosen by:
+	• Individually setting it on each Single Atom Image Analyser window
+	• Setting all of the windows to use the same ROI as the first Analyser
+	• Choosing a square grid from the settings window:
+	
+		○ Divide the area of the image equally between Analysers using it.
+		○ Factorise the area into a width and a height that are as close to square as possible.
+		○ Make a grid of these areas covering the image, and assign areas to the Analysers in turn.
+	• Choosing to fit 2D Gaussian masks to an image (probably wants to be an average image).
+	• Independent component analysis of a set of images containing an array of atoms.
 
-# Data format
-Use lists to store the integrated counts and other statistics from a collection of images. Append another value for each image.
-This is the fastest method given that we can't fix the size of the list.
+Single Atom Image Analysis (SAIA)
+
+	• maingui.main_window(): GUI for a single histogram of a given ROI for a given image in a sequence
+	• reimage.reim_window(): GUI for calculating survival probability
+	• imageHandler.image_handler() inherits Analysis class: creates the histogram for a given ROI for a given image in the sequence.
+	• histoHandler.histo_handler() inherits Analysis class: for collections of histograms in a multirun that build up a plot.
+	Fit a function to the histogram in order to determine statistics like the mean count, standard deviation, ratio of counts in each peak (loading probability), etc.
+	
+An image from the camera is passed as a numpy array. We make sure not to edit the array in place as it might need to be processed by several analysers. For example, subtracting the bias offset from the array would affect all image analysers using that image, so instead a copy of the array is made by each image_handler.
+
+Data format
+Use lists to store the integrated counts and other statistics from a collection of images. Append another value for each image. This is the fastest method given that we can't fix the size of the list.
 
 Images
-ASCII file with first column as the row number 
+ASCII file with the first column as the row number 
 Histograms 
-csv with header contains last calculated fit and column headings 
+csv with the first 3 rows as a header containing the last calculated fit and column headings 
 Measure file
-Text file with header containing column headings, then rows for each histogram saved.
+Text file with the first 3 rows as a header containing column headings, then rows are appended for each histogram saved.
 Andor config settings
 Text file with ordered rows for each setting
 Image saving directory settings
 Text file with text labels indicating each setting
 
+Monitor
 
-## Monitor
-
-## Sequences
+Sequences
 DExTer sequences were originally stored in binary .seq files. Since these are inaccessible to Python, we choose .xml format instead. These can be converted to python dictionaries which are much simpler to edit, after several long functions reformatting the structure. A generic sequence has the format:
 	• ('Event list array in', [{'Event name', 'Routine specific event?', 'Event indices', 'Event path'}]*number_of_events )
 	• ('Routine name in', ''),
@@ -196,10 +248,10 @@ Note that the order of indexing between digital and analogue channels is transpo
 		○ Converts sequences XML <-> python dictionary
 	• Sequence Previewer
 		○ Uses the translator to display a sequence.
-		○ Gives a GUI for creating a multirun array of variables
+		○ Gives a GUI for creating a multirun from an array of variables
 
-# Multirun 
-A multirun is a series of runs, changing a list of variables in the sequence for each run. The format is as follows:
+Multirun 
+A multirun is a series of runs, changing a list of variables in the sequence. The format is as follows:
 	• Load the base sequence into the sequence previewer
 	• Create a list of variables to change:
 		○ For all variables:
@@ -212,59 +264,39 @@ A multirun is a series of runs, changing a list of variables in the sequence for
 			§ Analogue type: 'Fast analogues' or 'Slow analogues' (*)
 			§ List of analogue channels to change (*)
 			§ List of variables to assign to the given channels in the given time steps, one for each run in the multirun.
-*only needed if the type is 'Analogue channel'
+	(*) only needed if the type is 'Analogue channel'
+	• You can change the end step that is used while the multirun is running. This allows you to make use of the ~100ms dead time while DExTer processes after a run. During the multirun the last time step will be taken from the text edit 'Running:', then after the multirun the last time step will be reset to the one in 'End:'.
 	• Check that the variables list is valid (no empty spots, number of rows is divisible by # omitted + # in hist)
-	• Start a multirun. The number of runs per histogram in the multirun is given by the number of rows in the table of variables. The total number of runs is this multiplied by the number of repeats.
-		○ Since there could be a queue of commands sent to DExTer, wait for confirmation before connecting the slots
+	• Start a multirun using the command from the master window. The number of runs per histogram in the multirun is given by the number of rows in the table of variables. The total number of runs is this multiplied by the number of repeats.
+		○ Since there could be a queue of commands sent to DExTer, the master waits for confirmation before connecting the slots
 			§ Send a message 'start measure '… to confirm DExTer is ready to start the multirun
+		○ Load the last time step for running the multirun.
 		○ Update the sequence and then add a single run to the queue:
-			§ Receive message 'start measure' or 'single run' from the previous run in the multirun
-			§ Send message to load the new sequence 
-			§ Send message to run the new sequence (since the first base sequence is already loaded - run it before editing it)
-			§ Use the run number to decide whether to include this run in the histogram, reset the histogram, or omit.
-			§ Change the channels/timesteps in the sequence specified by the list of variables
-			§ Confirm run finished, then repeat
-	• Finish multirun: save log file with the variable list and associated run numbers.
+			i. Receive message 'start measure' command by TCP
+			ii. Send message to load the new sequence 
+			iii. Send message to run the new sequence (since the first base sequence is already loaded - run it before editing it)
+			iv. Run the sequence for the given number of omits and repeats
+			v. Save and reset the histogram
+			vi. Change the channels/timesteps in the sequence specified by the list of variables
+			vii. Repeat from step ii.
+		○ Send 'confirm last multirun run' command with 'TCP read' enum.
+		○ Send 'end multirun' command with 'TCP read' enum and receive the 'confirm last multirun run' message.
+		○ Save a multirun parameters file with the variable list and associated run numbers. Save the plot data from each of the image analysis windows. Reset the signals to show that the multirun has finished.
 
 #####  SAIA1  ##### - image analysis
 **** Version 1.3 ****
 Produces histograms for an image containing a either single atom or none.
-**** ****
-
-How to run Single Atom Image Analysis (SAIA):
-	• Start the file: 
-		○ Execute run_with_enthought.bat   --- a windows batch file with a hardcoded link to the Enthought python executable
-		○ Execute run_with_conda.bat           --- activate the Anaconda environment (you must first create the saiaenvironment, which can be done using create_environment.bat) and run using Anaconda.
-		○ Or run from a python distribution (e.g.  python main.py)
-		
-	• A window pops up showing the loaded file config and asking to start the directory watcher
-		○ 'Yes' will start the directory watcher to process file creation events from a directory.
-		○ 'No' starts up the program without the directory watcher (it can be initiated later)
-Image storage path	Where SAIA will save images to (in subdirectories by date)
-Log file path	Where SAIA will save log files to (in subdirectories by date, collects histogram statistics)
-Dexter sync file	Absolute path to the file where Dexter stores the current file number
-Image read path	Absolute path to the folder where Andor will save new image files to (note that no other file creation events should occur in this folder, or they will be processed by the directory watcher as well)
-Results path	The default location to open the file browser for saving csv files
-	
+**** ****	
 	• Note that the image size in pixels must be set before any images are processed. 
 		○ If the image size is known, type it into the 'Image size in pixels:' text edit
 		○ The image size can also be taken from an image file by clicking 'Load size from image'
 		○ The 'Get ROI from image' button implicitly gets the image size and then centres the ROI on the max intensity pixel
-		
-	• There are several running modes:
-		○ Active directory watcher (real time processing of images straight after the file is saved to the image read path. Copies then deletes images)
-		○ Passive directory watcher (real time processing of images straight after the file is saved to the image read path. Doesn't alter the file)
-		○ Load data from csv (the format is: file#, counts, atom detected?, max count, pixel x position, pixel y position, mean count, standard deviation)
-		○ Load data from a selection of image files
-		○ No Update histogram binning (directory watcher still saves/moves image files, but they are not processed for the histogram)
-		
-	• Note that when loading in new data it will use the current ROI settings on display. It will ask whether you want to clear the current array, which will prevent mixing of data with different ROI settings.
 	
 	• For the current histogram there are several binning options:
 Automatic Binning (Default)	the number of bins is taken to be 17 + 5e-5 * N^2 + 20 * ((max-min)/max)^2, where N is the number of images in the histogram and max/min are the extreme counts in the histogram.
 Manual	When the Max, Min, and #Bins text edits are populated, the histogram will be set with those limits. Otherwise do automatic binning.
-No Display	The directory watcher will still run and files will still be processed, but the histogram will not be replotted (speeds up processing)
-No Update	The directory watcher still runs, so files are saved/moved, but not processed for the histogram
+No Display	Images will still be processed, but the histogram will not be replotted (speeds up processing)
+No Update	Images are not processed for the histogram
 
 	• Selecting 'Auto-Display Last Image' plots a 2D colourmap of the image file last processed.
 		○ This can take up to 1s for 512x512 images and so causes lag if file events occur faster than this.
@@ -428,75 +460,6 @@ Clear plot	Reset the arrays storing the histogram statistics data so that the pl
 Save plot data	Save the arrays of histogram statistics used in the current plot to a new measure file in the same format as the log file.
 
 
-
-Experimental Procedure:
-	• Make a Rb MOT, load a Rb atom in its tweezer 
-	• Take an image to confirm Rb was loaded (save to Rb image directory) - process with SAIA 1.0
-	• Make a Cs MOT, load a Cs atom in its tweezer 
-	• Take an image of both atoms (save to different image read path) - process with SAIA 2.0
-	• Experiment (vary hold time?)
-	• Final image to check if atoms are still trapped (save to another different image path) - process with a different SAIA 2.0
-Note that running several SAIA programs at the same time will require them all to have different directories where images are saved to/loaded from.
-
-For any experiment you should make a record of the camera settings (screenshot), the ROI used, and any relevant Dexter parameters.
-
-Possible Architectures
-Original method:
-	Experiment run by Dexter in loop -> Andor running in loop receives trigger (saves images) -> Python runs a loop checking for file changes -> python processes the new file, then plots a histogram
-	Needs several threads to run in parallel – a directory watcher to notice created files, and a graph plotter to process the data. Working version using pyqt
-
-Andor Trigger Method 1:
-	Experiment run by Dexter in loop -> Andor running in loop receives trigger (saves images) -> triggers Python with TTL to process new image file
-	Maybe Python only updates the histogram every [x] number of runs? Python still needs to run continuously waiting for a trigger from Andor if we want it to retain data, but is told when files are saved rather than having to watch and wait.
-	Python could send a trigger to start the next Dexter run
-	
-Andor Trigger Method 2:
-	Experiment run by Dexter in a loop -> Andor running in loop receives trigger (saves images with Dexter file #) 
-	Python script runs independently analysing files. Since Andor would save separate files with their Dexter label, then if python lags behind it will not lose sync. This requires Andor staying in sync with the Dexter file #
-	
-Dexter Saves Method:
-	Write a .vi in LabView that gets Dexter to control the camera instead of Andor SDK. Then Dexter can save the files with its Dexter file # and we have no problem with syncing. Analysing the data can then be done separately with no time pressure. The Strontium project already do this with their MPD SPC3 SPAD.
-	This is the ideal method that will be implemented at some point.
-
-Input:
-Andor saves an image to a set directory as it's running. 
-Background subtraction is probably not necessary since it would just shift the histogram along the x axis.
-The Andor camera will be set to take an image of a Region of Interest (ROI) around the atom.
-The Andor camera can also bin pixels to combine their counts (eg. 4x4 pixel array -> 1 binned pixel) but we might do this binning in post-processing.
-
-Original Method:
-1) scan Andor output directory for presence of a new file (dir watcher)
-	Wait until file has finished being written
-2) save the image with a new label (dir watcher emits signal to dir watcher: on_created)
-	[species]_[date]_[dexter file #]
-	^requires synchronisation with dexter for file #. Might be slow over the network, or if the network drops then it goes out of sync.
-	For multiruns we can get the file numbers from Dexter's outputted measure file
-	Wait until file has finished being copied
-	Then delete the old image file so that a new one can be saved with the same name.
-3) load image (dir watcher emits signal to image handler)
-	• Takes 10 - 50 ms but will miss files and crash with an exception is the rate is too fast (works for 0.5s delays but crashes for 0 delay)
-4) Find the position of the atom. Not really necessary if we've already selected an ROI.
-	• Fit a Gaussian (should only be over a couple of pixels, fitting makes it slower...)
-	• Locate the brightest pixel
-5) Integrate the atom signal into a count
-6) determine whether a single atom is present through reference to a threshold count
-	Need some way to estimate parameters of peaks to separate them 
-	The separation between peaks (1 atom, 2 atoms, etc) should be the same
-	Could estimate threshold as:   
-		○ midway between peaks 
-		○ The middle of the gap between peaks
-		○ Where there is maximum curvature (not robust)
-		○ A set number of standard deviations above background (this method is used since it fixes our statistical confidence in the atom signal)
-7) plot the integrated count in a histogram (image handler emits signal to histogram plotter)
-	Preferably real-time but if that's too slow then every 100 shots or so.
-	Would also be good to display the image but again might be too slow for each shot.
-	Takes 10 - 50 ms (including loading image)
-8) use the histogram to update threshold values (contained in the image handler)
-	might need upper bound for two atoms trapped as well as lower bound for no atoms trapped
-9) save the histogram with references to the image files so that the data can be re-analysed later as well
-	Preferably also storing the input parameters, where available (dexter measure file saves input parameters for a multirun)
-	10) Collect histogram statistics in a log file and add them to a plot each time a histogram is saved
-
 Output:
 	• A directory with subdirectories ordered by date storing all of the labelled image files
 	• A real-time display of the histogram 
@@ -505,60 +468,3 @@ Output:
 			§ File label (dexter #)
 			§ Integrated counts
 			§ Variable (if possible - taken from dexter multirun)
-
-
-Side tasks and notes:
-	• Test the camera computing speed – how fast can it output files? It's faster with just an ROI
-	• Will need to test timings: how fast can you process an image? How fast can you plot? How fast does the experiment run? How fast does the andor camera output the file? How fast are files saved? How fast can they be accessed over the network?
-	• Long term stability - will it go out of sync if the network goes down?
-	• Simulate acquiring an image using the red guide beam
-		○ randomly fire/don't fire the AOM (requires an analog channel) – then we can test the success rate of identifying an 'atom'
-		○ Set the exposure to the anticipated experimental value (20ms) and include MOT beams etc. To simulate experimental background.
-	• Different ways to trigger; in order to time the imaging we need a trigger sent from the andor software (TTL)
-		○ We can connect a TTL to python from Andor and from python to dexter via USB.
-		○ After Andor camera script runs -> TTL to python 
-		○ After python script runs -> TTL to dexter
-		○ Then the next dexter experimental run could be started without losing sync (but has to wait)
-	• We could measure one of the TTL channels on an oscilloscope, get the time between its triggers and subtract off the duration of the python script and the experiment duration. This would give us the time from camera trigger to python script starting (which is taking the images then saving the files).
-		○ However this might not include the time that windows processes files after Andor tells them to be saved
-		○ Further, subtracting similar numbers increases the relative numerical error
-	• we could send an auxout TTL from the camera after the images have been taken to give readout speed. Then after the files have been saved to test that duration.
-
-
-Timing for the image analysis program:
-	• Time to update plot (2s between image creation): 3 – 4 ms
-	• Time to make histogram (2s between image creation): 2 – 230 ms
-	• Time to copy file: (2s between image creation): 8 – 12 ms (sometimes tries to access an empty file because the copying isn't finished)
-Updated timings:
-	• Plotting: 10-15ms
-	• Make histogram: 
-		○ 250-350ms while live plotting (512x512) (probably because of lag from interface)
-		○ 10ms while live plotting (64x64)
-	• File copying event: 
-		○ Occasionally seen to take 200-300ms when there is lag from live plotting
-		○ 1-4ms while live plotting (64x64) and (512x512)
-		○ wrote a function to wait until the previous file has been written:
-			○ Up to 250 ms between noticing file creation event and the image file being written (done by Andor)
-			○ Up to 12 ms copying the file to the new folder
-		
-	
-
-Timing for the camera:
-	• Time to take images (readout - change with ROI?): 512x512 – 800ms, 64x64 - 300ms
-	• Time to save images: 4ms
-
-
-Debugging:
-	• Care had to be taken to ensure that the directory watcher was stopped when the program was closed, otherwise its thread would keep running in the background which could cause overwriting of files.
-	• It was found that when the directory watcher triggered on file modified events, it would recognise several events for the same image being saved (i.e. for one experimental run it would try and save the image up to 8 times). Particularly problematic was that the first of these would be before the Dexter sync file had been updated, and so it would overwrite the file with the previous Dexter number as well as writing to the current one.
-		○ This was solved by making adding some delays and making the directory watcher trigger on file creation events only, then delete the file after a copy has been saved
-	• Sometimes when the experiment is running fast the dir watcher processes the file event before Dexter has changed the current file number. This causes python to go out of sync and could possibly overwrite the previous file.
-
-Future Developments:
-	• Set several ROIs and make one of a set of TTLs high if an atom is detected in a particular ROI. Could be used as a trigger for the next Dexter run
-	• Decluttering the display of a single image (removing histogram at the side)
-	• Fix the intensity and zoom of an image for comparison when new images come in
-
-Python script can read in/out TTL through USB
-Use to check timings like an oscilloscope
-Dexter can wait for a TTL signal from python

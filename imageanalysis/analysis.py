@@ -15,6 +15,8 @@ try:
     from PyQt4.QtCore import QThread
 except ImportError:
     from PyQt5.QtCore import QThread
+import logging
+logger = logging.getLogger(__name__)
 
 ####    ####    ####    ####
         
@@ -94,5 +96,8 @@ class Analysis(QThread):
         header = ','.join(meta_head) + '\n'
         header += ','.join(meta_vals) + '\n'
         header += ','.join(list(self.stats.keys()))
-
-        np.savetxt(file_name, out_arr, fmt='%s', delimiter=',', header=header)
+        
+        try:
+            np.savetxt(file_name, out_arr, fmt='%s', delimiter=',', header=header)
+        except PermissionError as e:
+            logger.error('Analysis denied permission to save file: \n'+str(e))

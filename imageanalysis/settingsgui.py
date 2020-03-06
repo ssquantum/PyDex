@@ -57,15 +57,17 @@ class settings_window(QMainWindow):
         self.image_storage_path = im_store_path if im_store_path else self.stats['image_path'] # used for loading image files
         self._m = nsaia # number of images per run 
         self._a = nsaia # number of SAIA instances
-        self.mw = [main_window(results_path, im_store_path, str(i)) for i in range(nsaia)] # saia instances
+        self.mw = [main_window(results_path, im_store_path, 
+            'ROI' + str(i//self._m) + '.Im' + str(i%self._m) + '.') for i in range(nsaia)] # saia instances
         self.mw_inds = list(range(nsaia)) # the index, m, of the image in the sequence to use 
         self.rw = [] # re-image analysis instances
         self.rw_inds = [] # which saia instances are used for the re-image instances
         if np.size(self.mw) >= nreim*2:
             self.rw = [reim_window(self.mw[2*i].event_im, [self.mw[2*i].image_handler, self.mw[2*i+1].image_handler],
-                results_path, im_store_path, 'RW'+str(i)) for i in range(nreim)]
+                results_path, im_store_path, 'ROI'+str(i)+'_Re_') for i in range(nreim)]
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(nreim)]
         self.init_UI()  # make the widgets
+        self.replot_rois()
 
     def reset_dates(self, date):
         """Reset the dates in all of the saia instances"""
@@ -188,9 +190,9 @@ class settings_window(QMainWindow):
         settings_grid.addWidget(size_label, 2,0, 1,1)
         self.pic_size_edit = QLineEdit(self)
         settings_grid.addWidget(self.pic_size_edit, 2,1, 1,1)
+        self.pic_size_edit.setText(str(self.stats['pic_size'])) # default
         self.pic_size_edit.textChanged[str].connect(self.pic_size_text_edit)
         self.pic_size_edit.setValidator(int_validator)
-        self.pic_size_edit.setText(str(self.stats['pic_size'])) # default
         
         # get image size from loading an image
         load_im_size = QPushButton('Load size from image', self)
@@ -324,6 +326,11 @@ class settings_window(QMainWindow):
         for mw in self.mw + self.rw:
             mw.bias_offset_edit.setText(str(self.stats['bias']))
             mw.CCD_stat_edit(emg, pag, Nr, acq_change)
+            
+    def CCD_ROI_edit(self, hbin=1, vbin=1, h0=1, h1=512, v0=1, v1=512):
+        """Take the image size from the ROI defined in the Andor software for
+        the CCD camera."""
+        
         
     def roi_text_edit(self, text=''):
         """Update the ROI position and size every time a text edit is made by
@@ -357,26 +364,35 @@ class settings_window(QMainWindow):
     def replot_rois(self):
         """Once an ROI has been edited, redraw all of them on the image.
         The list of ROIs are stored with labels: [(label, ROI), ...].
-        Since the labels might not be unique, we can't use a dictionary."""
+        Since the labels might not be unique, we can't use a dictionary.
+        Each ROI is applied to _m windows for _m images per sequence."""
         viewbox = self.im_canvas.getViewBox()
         for i, mw in enumerate(self.mw):
+            j = i // self._m   # apply the ROI to _m windows
+            roimw = self.mw[j*self._m] # the first of the _m windows defines the ROI
             try: # change position and label of ROI
-                self.rois[i][0].setText(mw.name)
-                self.rois[i][0].setColor(pg.intColor(i))
-                self.rois[i][0].setPos(*[p+l/2 for p, l in zip(mw.roi.pos(), mw.roi.size())])
-                self.rois[i][1].setPos(mw.roi.pos())
-                self.rois[i][1].setSize(mw.roi.size())
+                if i % self._m: # link the ROIs 
+                    # disconnect slot while updating ROI to avoid recursion
+                    remove_slot(mw.roi.sigRegionChangeFinished, self.replot_rois, False) 
+                    mw.roi.setPos(roimw.roi.pos())
+                    mw.roi.translatable = False
+                else:
+                    self.rois[j][0].setText('ROI'+str(j))
+                    self.rois[j][0].setColor(pg.intColor(j))
+                    self.rois[j][0].setPos(*[p+l/2 for p, l in zip(mw.roi.pos(), mw.roi.size())])
+                    self.rois[j][1].setPos(mw.roi.pos())
+                    self.rois[j][1].setSize(mw.roi.size())
             except IndexError: # make new ROI
-                self.rois.append((pg.TextItem(mw.name, pg.intColor(i), anchor=(0.5,0.5)), 
-                                  pg.ROI(mw.roi.pos(), mw.roi.size(), movable=False)))
+                self.rois.append((pg.TextItem('ROI'+str(j), pg.intColor(j), anchor=(0.5,0.5)), 
+                                  pg.ROI(roimw.roi.pos(), roimw.roi.size(), movable=False)))
                 font = QFont()
                 font.setPixelSize(16)
-                self.rois[i][0].setFont(font)
-                self.rois[i][0].setPos(*[p+l/2 for p, l in zip(self.rois[i][1].pos(), self.rois[i][1].size())])
-                viewbox.addItem(self.rois[i][0])
-                viewbox.addItem(self.rois[i][1])
+                self.rois[j][0].setFont(font)
+                self.rois[j][0].setPos(*[p+l/2 for p, l in zip(self.rois[j][1].pos(), self.rois[j][1].size())])
+                viewbox.addItem(self.rois[j][0])
+                viewbox.addItem(self.rois[j][1])
             remove_slot(mw.roi.sigRegionChangeFinished, self.replot_rois, True)
-            self.rois[i][1].setPen(pg.intColor(i), width=3) # set ROI boundary colour
+            self.rois[j][1].setPen(pg.intColor(j), width=3) # set ROI boundary colour
 
     def make_roi_grid(self, toggle=True, method=''):
         """Create a grid of ROIs and assign them to analysers that are using the
@@ -422,8 +438,13 @@ class settings_window(QMainWindow):
                     j = 0 # how many analysers have been positioned for this image
                     for k in self.find(i): # index of analyser
                         try:
-                            self.mw[k].roi.setPos([self.stats['x'] + width * (j%(X//width)),
-                                self.stats['y'] + height * (j//(X//width))])
+                            pos = [self.stats['x'] + width * (j%(X//width)),
+                                self.stats['y'] + height * (j//(X//width))]
+                            if any([pos[0]//self.stats['pic_size'], pos[1]//self.stats['pic_size']]):
+                                logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(pos[0], pos[1])+
+                                ' outside of the image')
+                                pos = [0,0]
+                            self.mw[k].roi.setPos(pos)
                             self.mw[k].roi.setSize([self.stats['roi_size'], self.stats['roi_size']])
                             j += 1
                         except ZeroDivisionError as e:
@@ -536,7 +557,9 @@ class settings_window(QMainWindow):
         if fpath: # don't do anything if the user cancels
             fdir = os.path.dirname(fpath)
             fname = os.path.basename(fpath)
-            for i in range(len(self.rw_inds)): # save re-image windows first
+            for i in range(self._a): # fit main windows first
+                self.mw[i].display_fit(fit_method='check action')
+            for i in range(len(self.rw_inds)): # save re-image windows 
                 self.rw[i].get_histogram() # since they depend on main windows
                 self.rw[i].display_fit(fit_method='check action')
                 self.rw[i].save_hist_data(
@@ -544,8 +567,7 @@ class settings_window(QMainWindow):
                     confirm=False)
                 self.rw[i].image_handler.reset_arrays() 
                 self.rw[i].hist_canvas.clear()
-            for i in range(self._a):
-                self.mw[i].display_fit(fit_method='check action')
+            for i in range(self._a): # then can save and reset main windows
                 self.mw[i].save_hist_data(
                     save_file_name=os.path.join(fdir, self.mw[i].name + fname), 
                     confirm=False)
@@ -558,11 +580,8 @@ class settings_window(QMainWindow):
         file_name = self.try_browse(file_type='Images (*.asc);;all (*)', defaultpath=self.image_storage_path)
         if file_name:
             im_vals = np.genfromtxt(file_name, delimiter=' ')
-            self.stats['pic_size'] = int(np.size(im_vals[0]) - 1)
-            self.pic_size_edit.setText(str(self.stats['pic_size'])) # update loaded value
-            for mw in self.mw + self.rw:
-                mw.pic_size_edit.setText(str(self.stats['pic_size']))
-                mw.pic_size_label.setText(str(self.stats['pic_size']))
+            # update loaded value - changing the text edit triggers pic_size_text_edit()
+            self.pic_size_edit.setText(str(int(np.size(im_vals[0]) - 1))) 
 
     def load_roi(self):
         """Get the user to select an image file and then use this to get the ROI centre"""
@@ -570,8 +589,8 @@ class settings_window(QMainWindow):
         if file_name:
             # get pic size from this image in case the user forgot to set it
             im_vals = np.genfromtxt(file_name, delimiter=' ')
-            self.stats['pic_size'] = int(np.size(im_vals[0]) - 1)
-            self.pic_size_edit.setText(str(self.stats['pic_size'])) # update loaded value
+            # update loaded value - changing the text edit triggers pic_size_text_edit()
+            self.pic_size_edit.setText(str(int(np.size(im_vals[0]) - 1))) 
             # get the position of the max count
             xs, ys  = np.where(im_vals == np.max(im_vals))
             self.stats['x'], self.stats['y'] = xs[0], ys[0]
@@ -639,7 +658,6 @@ class settings_window(QMainWindow):
 
     def reset_analyses(self):
         """Remake the analyses instances for SAIA and re-image"""
-        QMessageBox.information(self, 'Resetting Analyses', 'Resetting image analysis windows. This may take a while.')
         for mw in self.mw + self.rw:
             mw.image_handler.reset_arrays()
             mw.histo_handler.reset_arrays()
@@ -652,8 +670,9 @@ class settings_window(QMainWindow):
         # make sure there are the right numer of main_window instances
         if a > self._a:
             for i in range(self._a, a):
-                self.mw.append(main_window(self.results_path, self.image_storage_path, str(i)))
-                self.mw_inds.append(i if i < m else m-1)
+                self.mw.append(main_window(self.results_path, self.image_storage_path, 
+                    'ROI' + str(i//self._m) + '.Im' + str(i%self._m) + '.'))
+                self.mw_inds.append(i%self._m)
         self._a = a
         for mw in self.mw:
             mw.swap_signals() # reconnect signals
@@ -666,26 +685,29 @@ class settings_window(QMainWindow):
         if len(ainds) != self._a: 
             logger.warning('While creating new analysers: there are %s image indices for the %s image analysers.\n'%(len(ainds), self._a))
         for i, a in enumerate(ainds):
-            try: self.mw_inds[i] = a
+            try: 
+                self.mw_inds[i] = a
+                self.mw[i].name_edit.setText('ROI' + str(i//self._m) + '.Im' + str(a) + '.')
             except IndexError as e: 
                 logger.warning('Cannot set image index for image analyser %s.\n'%i+str(e))
 
         self.im_inds_validator('')
         self.a_ind_edit.setText(','.join(map(str, self.mw_inds)))
 
-        rinds = self.reim_edit.text().split(';') # indices of SAIA instances used for re-imaging
-        for i in range(len(rinds)): # check the list input from the user has the right syntax
-            try: 
-                j, k = map(int, rinds[i].split(','))
-                if j >= self._a or k >= self._a:
+        if self.reim_edit.text(): # don't do anything if the line edit is empty
+            rinds = self.reim_edit.text().split(';') # indices of SAIA instances used for re-imaging
+            for i in range(len(rinds)): # check the list input from the user has the right syntax
+                try: 
+                    j, k = map(int, rinds[i].split(','))
+                    if j >= self._a or k >= self._a:
+                        rind = rinds.pop(i)
+                        logger.warning('Invalid histogram indices for re-imaging: '+rind)
+                except ValueError as e:
                     rind = rinds.pop(i)
-                    logger.warning('Invalid histogram indices for re-imaging: '+rind)
-            except ValueError as e:
-                rind = rinds.pop(i)
-                logger.error('Invalid syntax for re-imaging histogram indices: '+rind+'\n'+str(e))    
-            except IndexError:
-                break # since we're popping elements from the list its length shortens
-        self.rw_inds = rinds
+                    logger.error('Invalid syntax for re-imaging histogram indices: '+rind+'\n'+str(e))    
+                except IndexError:
+                    break # since we're popping elements from the list its length shortens
+            self.rw_inds = rinds
         
         for i in range(min(len(self.rw_inds), len(self.rw))): # update current re-image instances
             j, k = map(int, self.rw_inds[i].split(','))
@@ -695,10 +717,11 @@ class settings_window(QMainWindow):
             j, k = map(int, self.rw_inds[i].split(','))
             self.rw.append(reim_window(self.mw[j].event_im,
                     [self.mw[j].image_handler, self.mw[k].image_handler],
-                    self.results_path, self.image_storage_path, 'RW'+str(i)))
+                    self.results_path, self.image_storage_path, 'ROI'+str(i)+'_Re_'))
             
         self.pic_size_text_edit(self.pic_size_edit.text())
         self.CCD_stat_edit()
+        self.replot_rois()
         self.show_analyses()
         self.m_changed.emit(m) # let other modules know the value has changed, and reconnect signals
         

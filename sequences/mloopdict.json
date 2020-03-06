@@ -1,0 +1,3 @@
+{"Param 1": 
+    {"type": "timestep", "timestep": 0, "value": 0},
+ "Param 2": {"type": "slowanalogue", "timestep": [12, 13, 14], "channelname": "E/W shims (X)", "value": 0}}
