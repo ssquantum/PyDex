@@ -1,0 +1,21 @@
+2020/03/05 10:16:40.610 - MainThread - imsaver.py.__init__.83 - WARNING
+Image saver could not create directory: X:\Sequence Log\2020\March\05
+ Using current directory instead
+[WinError 5] Access is denied: 'X:\\Sequence Log\\2020\\March\\05'
+
+
+2020/03/05 13:58:16.305 - MainThread - runid.py.multirun_step.277 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/05 14:09:39.639 - MainThread - settingsgui.py.reset_analyses.683 - WARNING
+While creating new analysers: there are 2 image indices for the 4 image analysers.
+
+
+
+2020/03/05 14:12:25.128 - MainThread - runid.py.multirun_step.277 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+

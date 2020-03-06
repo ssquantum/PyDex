@@ -1,21 +1,21 @@
-2020/03/05 10:16:40.610 - MainThread - imsaver.py.__init__.83 - WARNING
-Image saver could not create directory: X:\Sequence Log\2020\March\05
- Using current directory instead
-[WinError 5] Access is denied: 'X:\\Sequence Log\\2020\\March\\05'
+2020/03/06 11:54:53.908 - MainThread - AndorFunctions.py.__init__.53 - ERROR
+Andor functions dll file not found.
+
+Traceback (most recent call last):
+  File "./andorcamera\AndorFunctions.py", line 51, in __init__
+    self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 442, in LoadLibrary
+    return self._dlltype(name)
+  File "C:\Users\qgtx64\.conda\envs\pydexenv\lib\ctypes\__init__.py", line 364, in __init__
+    self._handle = _dlopen(self._name, mode)
+OSError: [WinError 126] The specified module could not be found
+2020/03/06 11:54:53.925 - MainThread - cameraHandler.py.__init__.71 - WARNING
+Andor EMCCD not initialised.
+'Andor' object has no attribute 'dll'
 
 
-2020/03/05 13:58:16.305 - MainThread - runid.py.multirun_step.277 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
-
-
-2020/03/05 14:09:39.639 - MainThread - settingsgui.py.reset_analyses.683 - WARNING
-While creating new analysers: there are 2 image indices for the 4 image analysers.
-
-
-
-2020/03/05 14:12:25.128 - MainThread - runid.py.multirun_step.277 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
+2020/03/06 12:15:18.958 - MainThread - master.py.closeEvent.447 - WARNING
+camera safe shutdown failed.
+'Andor' object has no attribute 'dll'
 
 
