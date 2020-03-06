@@ -557,7 +557,9 @@ class settings_window(QMainWindow):
         if fpath: # don't do anything if the user cancels
             fdir = os.path.dirname(fpath)
             fname = os.path.basename(fpath)
-            for i in range(len(self.rw_inds)): # save re-image windows first
+            for i in range(self._a): # fit main windows first
+                self.mw[i].display_fit(fit_method='check action')
+            for i in range(len(self.rw_inds)): # save re-image windows 
                 self.rw[i].get_histogram() # since they depend on main windows
                 self.rw[i].display_fit(fit_method='check action')
                 self.rw[i].save_hist_data(
@@ -565,8 +567,7 @@ class settings_window(QMainWindow):
                     confirm=False)
                 self.rw[i].image_handler.reset_arrays() 
                 self.rw[i].hist_canvas.clear()
-            for i in range(self._a):
-                self.mw[i].display_fit(fit_method='check action')
+            for i in range(self._a): # then can save and reset main windows
                 self.mw[i].save_hist_data(
                     save_file_name=os.path.join(fdir, self.mw[i].name + fname), 
                     confirm=False)

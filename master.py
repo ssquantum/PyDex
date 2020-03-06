@@ -305,7 +305,7 @@ class Master(QMainWindow):
         TCP load sequence from string: Tell DExTer to load in the sequence
                         from a string in XML format.
         TCP load sequence:  Tell DExTer to load in the sequence file at
-                        the location in the 'Sequence file' label.
+                        the location in the 'DExTer sequence file' label.
         Cancel python mode: send the text 'python mode off' which triggers
                         DExTer to exit python mode.
         Start acquisition:  start the camera acquiring without telling
