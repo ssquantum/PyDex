@@ -49,16 +49,16 @@ class runnum(QThread):
         self.sw = saiaw  # image analysis settings gui
         self.sw.m_changed.connect(self.set_m)
         self.cam.SettingsChanged.connect(self.sw.CCD_stat_edit)
-        self.cam.ROIChanged.connect(self.sw.pic_size_text_edit)
+        self.cam.ROIChanged.connect(self.sw.pic_size_edit.setText) # triggers pic_size_text_edit()
         self.seq = seq   # sequence editor
         
         self.server = PyServer(host='') # server will run continuously on a thread
         self.server.dxnum.connect(self.set_n) # signal gives run number
         self.server.start()
 
-        # set a timer to update the dates 1s after midnight:
+        # set a timer to update the dates 2s before midnight:
         t0 = time.localtime()
-        QTimer.singleShot((86401 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
+        QTimer.singleShot((86398 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates)
             
     def reset_server(self, force=False):
@@ -123,11 +123,11 @@ class runnum(QThread):
         """Make sure that the dates in the image saving and analysis 
         programs are correct."""
         t0 = time.localtime()
-        self.sv.date = time.strftime(
-                "%d %b %B %Y", t0).split(" ") # day short_month long_month year
+        self.sv.reset_dates(self.sv.config_fn)
         self.sw.reset_dates(self.sv.date)
-        QTimer.singleShot((86401 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
+        QTimer.singleShot((86398 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates) # set the next timer to reset dates
+        return time.strftime("%d %B %Y", t0)
     
     def synchronise(self, option='', verbose=0):
         """Check the run number in each of the associated modules.

@@ -55,6 +55,9 @@ class reim_window(main_window):
         # self.hist_canvas.setTitle("Histogram of CCD counts")
         self.setWindowTitle(self.name+' - Re-Image Analyser - ')
 
+        # take the threshold from the second image handler
+        self.thresh_toggle.setChecked(True)
+
         # update the histogram when getting statistics
         self.stat_update_button.clicked[bool].connect(self.get_histogram)
         self.fit_update_button.clicked[bool].connect(self.get_histogram)
@@ -80,7 +83,7 @@ class reim_window(main_window):
         self.image_handler.ind = np.size(self.image_handler.stats['Counts']) - 1
         self.image_handler.stats['Atom detected'] = [self.ih2.stats['Atom detected'][i] for i in idxs]
         self.image_handler.stats['Include']  = [self.ih2.stats['Include'][i] for i in idxs]
-        self.image_handler.thresh            = self.ih1.thresh
+        self.image_handler.thresh = int(self.thresh_edit.text()) if self.thresh_edit.text() else self.ih2.thresh
         t2 = time.time()
         self.int_time = t2 - t1
         return t2
@@ -104,7 +107,7 @@ class reim_window(main_window):
         threshold value."""
         t2 = self.get_histogram()
         # display the name of the most recent file
-        if self.image_handler.im_num > 0:
+        if self.image_handler.ind > 0:
             self.recent_label.setText('Just processed image '
                         + self.image_handler.stats['File ID'][-1])
         self.plot_current_hist(self.image_handler.histogram) # update the displayed plot

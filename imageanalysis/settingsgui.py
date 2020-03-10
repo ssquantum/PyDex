@@ -48,7 +48,7 @@ class settings_window(QMainWindow):
         super().__init__()
         self.types = OrderedDict([('pic_size',int), ('x',int), ('y',int), ('roi_size',int), 
             ('bias',int), ('image_path', str), ('results_path', str)])
-        self.stats = OrderedDict([('pic_size',512), ('x',0), ('y',0), ('roi_size',1), 
+        self.stats = OrderedDict([('pic_size',512), ('x',1), ('y',1), ('roi_size',1), 
             ('bias',697), ('image_path', im_store_path), ('results_path', results_path)])
         self.load_settings() # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
@@ -74,6 +74,11 @@ class settings_window(QMainWindow):
         self.date = date
         for mw in self.mw + self.rw:
             mw.date = date
+            try:
+                results_path = mw.log_file_name.split('\\')[:-4]
+                mw.init_log('\\'.join(results_path))
+            except IndexError as e:
+                logger.error('Settings window failed to re-initialise log file.\n'+str(e))
         
     def find(self, image_number):
         """Generate the indices there image number is found in the list
@@ -338,7 +343,7 @@ class settings_window(QMainWindow):
         x, y, l = [self.roi_x_edit.text(),
                             self.roi_y_edit.text(), self.roi_l_edit.text()]
         if any([v == '' for v in [x, y, l]]):
-            x, y, l = 0, 0, 1 # default takes the bottom left pixel
+            x, y, l = 1, 1, 1 # default 
         else:
             x, y, l = map(int, [x, y, l]) # need to check inputs are valid
         if int(l) == 0:
@@ -376,6 +381,9 @@ class settings_window(QMainWindow):
                     remove_slot(mw.roi.sigRegionChangeFinished, self.replot_rois, False) 
                     mw.roi.setPos(roimw.roi.pos())
                     mw.roi.translatable = False
+                    mw.roi_x_edit.setEnabled(False) # only the first MW changes the ROI
+                    mw.roi_y_edit.setEnabled(False)
+                    mw.roi_l_edit.setEnabled(False)
                 else:
                     self.rois[j][0].setText('ROI'+str(j))
                     self.rois[j][0].setColor(pg.intColor(j))
@@ -528,7 +536,7 @@ class settings_window(QMainWindow):
         else: im_list = []
         if np.size(np.shape(im_list)) == 3:
             aveim = np.mean(im_list, axis=0)
-            self.update_im(aveim / len(im_list))
+            self.update_im(aveim)
             return 1
 
     def load_settings(self, toggle=True, fname='.\\imageanalysis\\default.config'):

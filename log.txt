@@ -1,20 +1,1791 @@
-2020/03/05 10:16:40.610 - MainThread - imsaver.py.__init__.83 - WARNING
-Image saver could not create directory: X:\Sequence Log\2020\March\05
- Using current directory instead
-[WinError 5] Access is denied: 'X:\\Sequence Log\\2020\\March\\05'
+2020/03/10 10:38:16.674 - MainThread - cameraHandler.py.ApplySettingsFromConfig.281 - WARNING
+Didn't get DRV_SUCCESS for setting 14
 
 
-2020/03/05 13:58:16.305 - MainThread - runid.py.multirun_step.277 - ERROR
-Multirun step could not extract user variable from table:
-'NoneType' object has no attribute 'text'
+2020/03/10 10:40:00.700 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
 
 
-2020/03/05 14:09:39.639 - MainThread - settingsgui.py.reset_analyses.683 - WARNING
+2020/03/10 10:40:00.710 - MainThread - imageHandler.py.process.113 - ERROR
+ROI centre (317, 243) outside of image size 15
+
+
+2020/03/10 10:40:00.824 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 10:40:00.835 - MainThread - imageHandler.py.process.113 - ERROR
+ROI centre (313, 239) outside of image size 15
+
+
+2020/03/10 10:40:01.570 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 10:40:01.580 - MainThread - imageHandler.py.process.113 - ERROR
+ROI centre (317, 243) outside of image size 15
+
+
+2020/03/10 10:40:01.695 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 10:40:01.704 - MainThread - imageHandler.py.process.113 - ERROR
+ROI centre (313, 239) outside of image size 15
+
+
+2020/03/10 10:40:02.434 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 10:40:02.443 - MainThread - imageHandler.py.process.113 - ERROR
+ROI centre (317, 243) outside of image size 15
+
+
+2020/03/10 10:40:02.559 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 10:40:02.568 - MainThread - imageHandler.py.process.113 - ERROR
+ROI centre (313, 239) outside of image size 15
+
+
+2020/03/10 10:40:03.290 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 10:40:03.298 - MainThread - imageHandler.py.process.113 - ERROR
+ROI centre (317, 243) outside of image size 15
+
+
+2020/03/10 10:40:03.415 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 10:40:03.425 - MainThread - imageHandler.py.process.113 - ERROR
+ROI centre (313, 239) outside of image size 15
+
+
+2020/03/10 10:40:04.146 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 10:40:04.155 - MainThread - imageHandler.py.process.113 - ERROR
+ROI centre (317, 243) outside of image size 15
+
+
+2020/03/10 10:40:04.270 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 10:40:04.279 - MainThread - imageHandler.py.process.113 - ERROR
+ROI centre (313, 239) outside of image size 15
+
+
+2020/03/10 12:15:56.889 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 12:15:56.961 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 12:16:39.902 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 12:16:39.976 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 12:16:41.159 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 12:16:41.234 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 12:17:10.009 - MainThread - imageHandler.py.process.98 - ERROR
+Received image was wrong shape (15,15) for analyser's ROI (512,512)
+
+
+2020/03/10 12:19:55.090 - MainThread - settingsgui.py.reset_analyses.689 - WARNING
 While creating new analysers: there are 2 image indices for the 4 image analysers.
 
 
 
-2020/03/05 14:12:25.128 - MainThread - runid.py.multirun_step.277 - ERROR
+2020/03/10 12:31:58.485 - Dummy-1 - networker.py.run.139 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/03/10 12:31:58.488 - Dummy-1 - networker.py.run.148 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/03/10 12:35:07.438 - MainThread - settingsgui.py.reset_analyses.689 - WARNING
+While creating new analysers: there are 2 image indices for the 4 image analysers.
+
+
+
+2020/03/10 13:13:39.152 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:39.758 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:40.337 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:40.944 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:41.458 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:42.034 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:42.684 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:43.198 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:43.849 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:44.458 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:45.043 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:45.638 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:46.150 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:46.796 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:47.310 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:47.969 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:48.578 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:49.170 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:49.782 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:50.384 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:50.971 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:51.560 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:52.158 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:52.769 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:53.358 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:53.867 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:54.501 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:55.015 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:55.684 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:56.263 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:56.854 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:57.437 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:57.948 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:58.610 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:59.205 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:13:59.804 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:00.383 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:00.970 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:01.575 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:02.158 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:02.745 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:03.360 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:03.947 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:04.546 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:05.138 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:05.646 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:06.212 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:06.870 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:07.474 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:08.054 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:08.648 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:09.232 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:09.741 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:10.371 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:10.964 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:11.564 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:12.162 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:12.758 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:13.359 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:13.959 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:14.542 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:15.124 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:15.725 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:16.334 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:16.918 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:17.428 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:18.081 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:18.665 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:19.251 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:19.845 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:20.437 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:21.037 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:21.621 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:22.203 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:22.783 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:23.395 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:23.988 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:24.567 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:25.165 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:25.679 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:26.357 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:26.956 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:27.549 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:28.139 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:28.750 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:29.345 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:29.930 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:30.570 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:31.165 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:31.755 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:32.367 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:32.883 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:33.548 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:34.158 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:34.766 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:35.360 - MainThread - runid.py.multirun_savehist.295 - ERROR
+Multirun step could not extract user variable from table at row 20.
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:35.781 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:36.109 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:36.618 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:37.290 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:37.890 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:38.478 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:39.069 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:39.673 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:40.272 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:40.856 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:41.450 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:42.044 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:42.642 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:43.225 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:43.836 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:44.441 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:45.040 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:45.624 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:46.215 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:46.812 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:47.414 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:48.015 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:48.524 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:49.175 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:49.757 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:50.341 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:50.928 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:51.509 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:52.096 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:52.603 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:53.110 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:53.619 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:54.258 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:54.837 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:55.427 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:56.026 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:56.617 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:57.215 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:57.809 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:58.394 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:58.995 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:14:59.587 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:00.185 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:00.769 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:01.277 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:01.782 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:02.294 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:02.940 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:03.525 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:04.149 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:04.733 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:05.324 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:05.923 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:06.431 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:07.067 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:07.662 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:08.245 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:08.835 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:09.425 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:10.014 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:10.524 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:11.156 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:11.746 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:12.360 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:12.968 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:13.554 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:14.146 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:14.656 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:15.318 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:15.914 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:16.512 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:17.127 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:17.718 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:18.227 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:18.880 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:19.479 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:20.065 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:20.657 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:21.252 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:21.866 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:22.380 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:23.048 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:23.634 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:24.226 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:24.816 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:25.432 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:25.947 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:26.541 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:27.243 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:27.850 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:28.444 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:29.074 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:29.658 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:30.164 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:30.676 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:31.328 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:31.979 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:32.570 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:33.164 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:33.760 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:34.271 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:34.945 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:35.457 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:36.121 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:36.720 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:37.328 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:37.917 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:38.506 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:39.092 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:39.675 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:40.256 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:40.844 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:41.425 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:42.016 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:42.524 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:43.167 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:43.758 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:44.356 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:44.946 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:45.553 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:46.140 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:46.648 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:47.308 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:47.895 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:48.480 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:49.069 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:49.651 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:50.237 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:50.744 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:51.408 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:51.997 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:52.588 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:53.175 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:53.760 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:54.347 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:54.859 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:55.494 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:56.083 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:56.682 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:57.264 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:57.869 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:58.455 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:58.966 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:15:59.633 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:00.146 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:00.794 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:01.381 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:01.970 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:02.562 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:03.070 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:03.696 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:04.276 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:04.855 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:05.447 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:06.040 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:06.642 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:07.236 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:07.816 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:08.395 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:08.980 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:09.595 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:10.182 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:10.764 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:11.354 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:11.862 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:12.510 - MainThread - runid.py.multirun_savehist.295 - ERROR
+Multirun step could not extract user variable from table at row 21.
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:12.937 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:13.288 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:13.877 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:14.473 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:14.982 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:15.616 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:16.195 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:16.803 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:17.386 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:18.000 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:18.582 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:19.091 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:19.802 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:20.382 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:20.969 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:21.555 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:22.152 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:22.661 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:23.306 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:23.895 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:24.492 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:25.086 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:25.672 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:26.182 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:26.834 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:27.411 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:28.033 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:28.626 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:29.230 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:29.820 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:30.328 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:30.987 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:31.587 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:32.192 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:32.772 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:33.368 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:33.953 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:34.462 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:35.092 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:35.607 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:36.311 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:36.912 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:37.516 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:38.100 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:38.612 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:39.260 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:39.873 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:40.479 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:41.154 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:41.759 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:42.283 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:42.975 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:43.560 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:44.149 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:44.759 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:45.346 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:45.855 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:46.363 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:47.003 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:47.588 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:48.201 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:48.787 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:49.382 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:16:49.966 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:46:57.716 - MainThread - runid.py.multirun_step.278 - ERROR
+Multirun step could not extract user variable from table:
+'NoneType' object has no attribute 'text'
+
+
+2020/03/10 13:58:34.390 - Dummy-1 - networker.py.run.139 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/03/10 13:58:34.393 - Dummy-1 - networker.py.run.148 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/03/10 14:01:57.956 - Dummy-1 - networker.py.run.139 - ERROR
+Python server: client terminated connection before message was sent. Re-inserting message at front of queue.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/03/10 14:01:57.959 - Dummy-1 - networker.py.run.148 - ERROR
+Python server: client terminated connection before receive.
+[WinError 10053] An established connection was aborted by the software in your host machine
+
+
+2020/03/10 14:58:37.932 - MainThread - runid.py.multirun_step.278 - ERROR
 Multirun step could not extract user variable from table:
 'NoneType' object has no attribute 'text'
 

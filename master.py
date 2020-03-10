@@ -165,6 +165,10 @@ class Master(QMainWindow):
         self.sync_toggle.setChecked(True)
         self.sync_toggle.toggled.connect(self.sync_mode)
         sync_menu.addAction(self.sync_toggle)
+
+        reset_date = QAction('Reset date', sync_menu, checkable=False)
+        reset_date.triggered.connect(self.reset_dates)
+        sync_menu.addAction(reset_date)
         
         #### status of the master program ####
         self.status_label = QLabel('Initiating...', self)
@@ -202,6 +206,12 @@ class Master(QMainWindow):
         self.setGeometry(50, 50, 800, 150)
         self.setWindowTitle('PyDex Master')
         self.setWindowIcon(QIcon('docs/pydexicon.png'))
+
+    def reset_dates(self):
+        """Reset the date in the image saving and analysis, 
+        then display the updated date."""
+        date = self.rn.reset_dates()
+        msg = QMessageBox(self, 'PyDex Dates Reset', 'Date: '+date)
 
     def show_window(self):
         """Show the window of the submodule or adjust its settings."""

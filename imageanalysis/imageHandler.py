@@ -67,8 +67,8 @@ class image_handler(Analysis):
         self.fidelity     = 0           # fidelity of detecting atom presence
         self.err_fidelity = 0           # error in fidelity
         self.mask      = np.zeros((1,1))# normalised mask to apply to image for ROI
-        self.xc        = 0              # ROI centre x position 
-        self.yc        = 0              # ROI centre y position
+        self.xc        = 1              # ROI centre x position 
+        self.yc        = 1              # ROI centre y position
         self.roi_size  = 1              # ROI length in pixels. default 1 takes top left pixel
         self.pic_size  = 512            # number of pixels in an image
         self.thresh    = 1              # initial threshold for atom detection
@@ -106,7 +106,12 @@ class image_handler(Analysis):
         # file ID number should be updated externally before each event
         self.stats['File ID'].append(str(self.fid))  
         # the pixel value at the centre of the ROI
-        self.stats['ROI centre count'].append(full_im[self.xc, self.yc])
+        try:
+            self.stats['ROI centre count'].append(full_im[self.xc, self.yc])
+        except IndexError as e:
+            logger.error('ROI centre (%s, %s) outside of image size %s'%(
+                self.xc, self.yc, self.pic_size))
+            self.stats['ROI centre count'].append(0)
         # position of the (first) max intensity pixel
         xmax, ymax = np.unravel_index(np.argmax(full_im), full_im.shape)
         self.stats['Max xpos'].append(xmax)

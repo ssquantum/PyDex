@@ -123,11 +123,9 @@ class main_window(QMainWindow):
         self.setCentralWidget(self.centre_widget)
         
         # validators for user input
-        # this regex needs work to disallow -1-1
-        reg_exp = QRegExp(r'(-?[0-9]+(\.[0-9]+)?,?)+')
-        comma_validator = QRegExpValidator(reg_exp) # floats and commas
         double_validator = QDoubleValidator() # floats
-        int_validator = QIntValidator()       # integers
+        int_validator    = QIntValidator()    # integers
+        int_validator.setBottom(0) # don't allow -ve numbers
 
         # change font size
         font = QFont()
@@ -249,7 +247,7 @@ class main_window(QMainWindow):
         settings_grid.addWidget(roi_xc_label, 2,0, 1,1)
         self.roi_x_edit = QLineEdit(self)
         settings_grid.addWidget(self.roi_x_edit, 2,1, 1,1)
-        self.roi_x_edit.setText('0')  # default
+        self.roi_x_edit.setText('1')  # default
         self.roi_x_edit.textEdited[str].connect(self.roi_text_edit)
         self.roi_x_edit.setValidator(int_validator) # only numbers
         
@@ -258,7 +256,7 @@ class main_window(QMainWindow):
         settings_grid.addWidget(roi_yc_label, 3,0, 1,1)
         self.roi_y_edit = QLineEdit(self)
         settings_grid.addWidget(self.roi_y_edit, 3,1, 1,1)
-        self.roi_y_edit.setText('0')  # default
+        self.roi_y_edit.setText('1')  # default
         self.roi_y_edit.textEdited[str].connect(self.roi_text_edit)
         self.roi_y_edit.setValidator(int_validator) # only numbers
         
@@ -304,7 +302,7 @@ class main_window(QMainWindow):
         self.min_counts_edit = QLineEdit(self)
         hist_grid.addWidget(self.min_counts_edit, 0,1, 1,1)
         self.min_counts_edit.textChanged[str].connect(self.bins_text_edit)
-        self.min_counts_edit.setValidator(double_validator)
+        self.min_counts_edit.setValidator(int_validator)
         
         # max counts:
         max_counts_label = QLabel('Max. Counts: ', self)
@@ -312,7 +310,7 @@ class main_window(QMainWindow):
         self.max_counts_edit = QLineEdit(self)
         hist_grid.addWidget(self.max_counts_edit, 0,3, 1,1)
         self.max_counts_edit.textChanged[str].connect(self.bins_text_edit)
-        self.max_counts_edit.setValidator(double_validator)
+        self.max_counts_edit.setValidator(int_validator)
         
         # number of bins
         num_bins_label = QLabel('# Bins: ', self)
@@ -320,7 +318,7 @@ class main_window(QMainWindow):
         self.num_bins_edit = QLineEdit(self)
         hist_grid.addWidget(self.num_bins_edit, 0,5, 1,1)
         self.num_bins_edit.textChanged[str].connect(self.bins_text_edit)
-        self.num_bins_edit.setValidator(double_validator)
+        self.num_bins_edit.setValidator(int_validator)
 
         # user can set the threshold
         self.thresh_toggle = QPushButton('User Threshold: ', self)
@@ -331,7 +329,7 @@ class main_window(QMainWindow):
         self.thresh_edit = QLineEdit(self)
         hist_grid.addWidget(self.thresh_edit, 0,7, 1,1)
         self.thresh_edit.textChanged[str].connect(self.bins_text_edit)
-        self.thresh_edit.setValidator(double_validator)
+        self.thresh_edit.setValidator(int_validator)
         
         #### tab for current histogram statistics ####
         stat_tab = QWidget()
@@ -410,7 +408,8 @@ class main_window(QMainWindow):
         im_grid.addWidget(im_widget, 1,im_grid_pos, 6,8)
         # make an ROI that the user can drag
         self.roi = pg.ROI([0,0], [1,1]) 
-        self.roi.addScaleHandle([1,1], [0.5,0.5]) # allow user to adjust ROI size
+        if 'Im0' in self.name: # allow user to adjust ROI size for the first window doing the ROI
+            self.roi.addScaleHandle([1,1], [0.5,0.5]) 
         viewbox.addItem(self.roi)
         self.roi.setZValue(10)   # make sure the ROI is drawn above the image
         # signal emitted when user stops dragging ROI
@@ -528,9 +527,12 @@ class main_window(QMainWindow):
         xc, yc, l = [self.roi_x_edit.text(),
                             self.roi_y_edit.text(), self.roi_l_edit.text()]
         if any([v == '' for v in [xc, yc, l]]):
-            xc, yc, l = 0, 0, 1 # default takes the top left pixel
+            xc, yc, l = 1, 1, 1 # default 
         else:
             xc, yc, l = list(map(int, [xc, yc, l])) # crashes if the user inputs float
+            
+        if any([v > self.image_handler.pic_size for v in [xc, yc, l]]):
+            xc, yc, l = 1, 1, 1
         
         if (xc - l//2 < 0 or yc - l//2 < 0 
             or xc + l//2 > self.image_handler.pic_size 
@@ -604,10 +606,13 @@ class main_window(QMainWindow):
     def update_fit(self, toggle=True, fit_method='quick'):
         """Use the histo_handler.process function to get histogram
         statistics and a best fit from the current data."""
-        if fit_method == 'check action' or self.sender().text() == 'Get best fit':
+        sendertext = ''
+        if hasattr(self.sender(), 'text'): # could be called by a different sender
+            sendertext = self.sender().text()
+        if fit_method == 'check action' or sendertext == 'Get best fit':
             try: fit_method = self.fit_options.checkedAction().text()
             except AttributeError: fit_method = 'quick'
-        elif self.sender().text() == 'Update statistics':
+        elif sendertext == 'Update statistics':
             fit_method = 'quick'
         return self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
             fix_thresh=self.thresh_toggle.isChecked(), method=fit_method)
@@ -936,6 +941,10 @@ class main_window(QMainWindow):
             process:        1: process images and add to histogram.
                             0: return list of image arrays."""
         im_list = []
+        try: # which image in the sequence is being used
+            imid = str(int(self.name.split('Im')[1].replace('.','')))
+        except:
+            imid = '0'
         default_range = ''
         image_storage_path = self.image_storage_path + '\%s\%s\%s'%(
                 self.date[3],self.date[2],self.date[0])  
@@ -950,12 +959,12 @@ class main_window(QMainWindow):
                 minmax = file_range.split('-')
                 if np.size(minmax) == 1: # only entered one file number
                     file_list = [
-                        os.path.join(image_storage_path, label)
-                        + '_' + date + '_' + minmax[0].replace(' ','') + '.asc']
+                        os.path.join(image_storage_path, label) + '_' + date + '_' + 
+                        minmax[0].replace(' ','') + '_' + imid + '.asc']
                 if np.size(minmax) == 2:
                     file_list = [
-                        os.path.join(image_storage_path, label)
-                        + '_' + date + '_' + dfn + '.asc' for dfn in list(map(str, 
+                        os.path.join(image_storage_path, label) + '_' + date + '_' + 
+                        dfn + '_' + imid + '.asc' for dfn in list(map(str, 
                             range(int(minmax[0]), int(minmax[1]))))] 
             for file_name in file_list:
                 try:
