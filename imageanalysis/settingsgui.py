@@ -5,6 +5,7 @@ Stefan Spence 26/02/19
  - update other image statistics like read noise, bias offset
 """
 import os
+import re
 import sys
 import time
 import numpy as np
@@ -16,7 +17,7 @@ try:
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
             QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
             QDoubleValidator, QIntValidator, QMenu, QActionGroup, QFont,
-            QTabWidget, QVBoxLayout, QRegExpValidator) 
+            QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QRegExpValidator) 
 except ImportError:
     from PyQt5.QtCore import pyqtSignal, QRegExp
     from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
@@ -24,11 +25,25 @@ except ImportError:
     from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
         QFileDialog, QMessageBox, QLineEdit, QGridLayout, QWidget,
         QApplication, QPushButton, QAction, QMainWindow, QTabWidget,
-        QLabel)
+        QTableWidget, QTableWidgetItem, QLabel)
 import logging
 logger = logging.getLogger(__name__)
 from maingui import main_window, remove_slot # single atom image analysis
 from reimage import reim_window # analysis for survival probability
+
+####    ####    ####    ####
+
+def intstrlist(text):
+    """Convert a string of a list of ints back into a list:
+    (str) '[1, 2, 3]' -> (list) [1,2,3]"""
+    try:
+        return list(map(int, text[1:-1].split(',')))
+    except ValueError: return []
+
+def listlist(text):
+    """Convert a string of nested lists into a
+    list of lists."""
+    return list(map(intstrlist, re.findall('\[[\d\s,]*\]', text)))
 
 ####    ####    ####    ####
 
@@ -46,9 +61,9 @@ class settings_window(QMainWindow):
 
     def __init__(self, nsaia=1, nreim=0, results_path='', im_store_path=''):
         super().__init__()
-        self.types = OrderedDict([('pic_size',int), ('x',int), ('y',int), ('roi_size',int), 
+        self.types = OrderedDict([('pic_size',int), ('ROIs',intstrlist), 
             ('bias',int), ('image_path', str), ('results_path', str)])
-        self.stats = OrderedDict([('pic_size',512), ('x',1), ('y',1), ('roi_size',1), 
+        self.stats = OrderedDict([('pic_size',512), ('ROIs',[[1,1,1]]), 
             ('bias',697), ('image_path', im_store_path), ('results_path', results_path)])
         self.load_settings() # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
@@ -126,6 +141,18 @@ class settings_window(QMainWindow):
         self.fit_options.setExclusive(True) # only one option checked at a time
         self.fit_options.triggered.connect(self.set_all_windows)
         hist_menu.addMenu(fit_menu)
+
+        fit_all = QAction('Fit all', self) 
+        fit_all.triggered.connect(self.all_hists)
+        hist_menu.addAction(fit_all)
+
+        reset_all = QAction('Reset all', self) 
+        reset_all.triggered.connect(self.all_hists)
+        hist_menu.addAction(reset_all)
+
+        save_all = QAction('Fit, Save, Reset all', self) 
+        save_all.triggered.connect(self.all_hists)
+        hist_menu.addAction(save_all)
 
         # image menubar allows you to display images
         im_menu = menubar.addMenu('Image')
@@ -238,51 +265,16 @@ class settings_window(QMainWindow):
         show_win.resize(show_win.sizeHint())
         settings_grid.addWidget(show_win, 5,2, 1,1)
         
-        save_all = QPushButton('Fit, save, reset all histograms', self) 
-        save_all.clicked.connect(self.save_all_hists)
-        save_all.resize(save_all.sizeHint())
-        settings_grid.addWidget(save_all, 5,3, 1,1)
-
-        #### set ROI for analysers from loaded default ####
-        for mw in self.mw:
-            x, y, d = self.stats['x'], self.stats['y'], self.stats['roi_size']
-            mw.roi_x_edit.setText(str(x + d//2 + d%2))
-            mw.roi_y_edit.setText(str(y + d//2 + d%2))
-            mw.roi_l_edit.setText(str(d))
-            mw.bias_offset_edit.setText(str(self.stats['bias']))
-
         #### tab for ROI ####
         roi_tab = QWidget()
         roi_grid = QGridLayout()
         roi_tab.setLayout(roi_grid)
         self.tabs.addTab(roi_tab, "Region of Interest")
 
-        # bottom corner of ROI grid x position
-        roi_x_label = QLabel('Grid bottom xpos: ', self)
-        roi_grid.addWidget(roi_x_label, 0,0, 1,1)
-        self.roi_x_edit = QLineEdit(self)
-        roi_grid.addWidget(self.roi_x_edit, 0,1, 1,1)
-        self.roi_x_edit.setText('0')  # default
-        self.roi_x_edit.setValidator(int_validator) # only numbers
-        self.roi_x_edit.editingFinished.connect(self.roi_text_edit)
+        # table to set ROIs for main windows
         
-        # bottom corner of ROI grid y position
-        roi_y_label = QLabel('Grid bottom ypos: ', self)
-        roi_grid.addWidget(roi_y_label, 0,2, 1,1)
-        self.roi_y_edit = QLineEdit(self)
-        roi_grid.addWidget(self.roi_y_edit, 0,3, 1,1)
-        self.roi_y_edit.setText('0')  # default
-        self.roi_y_edit.setValidator(int_validator) # only numbers
-        self.roi_y_edit.editingFinished.connect(self.roi_text_edit)
-        
-        # ROI size
-        roi_l_label = QLabel('ROI size: ', self)
-        roi_grid.addWidget(roi_l_label, 0,4, 1,1)
-        self.roi_l_edit = QLineEdit(self)
-        roi_grid.addWidget(self.roi_l_edit, 0,5, 1,1)
-        self.roi_l_edit.setText('1')  # default
-        self.roi_l_edit.setValidator(int_validator) # only numbers
-        self.roi_l_edit.editingFinished.connect(self.roi_text_edit)
+        self.roi_table = QTableWidget(self._a//self._m, 4)
+        self.reset_table()
         
         im_widget = pg.GraphicsLayoutWidget() # containing widget
         viewbox = im_widget.addViewBox() # plot area to display image
@@ -291,7 +283,31 @@ class settings_window(QMainWindow):
         viewbox.addItem(self.im_canvas)
         roi_grid.addWidget(im_widget, 1,0, 6,8)
         # display the ROI from each analyser
+        #### set ROI for analysers from loaded default ####
         self.rois = []
+        for j in range(len(self.mw)):
+            i = j // self._m
+            try: 
+                x, y, d = self.stats['ROIs'][i] # xc, yc, size
+            except IndexError:
+                x, y, d = 1, 1, 1
+            if not j % self._m: # for the first window in each set of _m
+                self.rois.append((pg.TextItem('ROI'+str(i), pg.intColor(i), anchor=(0.5,0.5)), 
+                    pg.ROI((x-d//2-d%2, y-d//2-d%2), (d,d), movable=True)))
+                self.rois[i][1].sigRegionChangeFinished.connect(self.user_roi) 
+                self.rois[i][1].setZValue(10)   # make sure the ROI is drawn above the image
+                font = QFont()
+                font.setPixelSize(16)
+                self.rois[i][0].setFont(font)
+                self.rois[i][0].setPos(x, y)
+                viewbox.addItem(self.rois[i][0])
+                viewbox.addItem(self.rois[i][1])
+                self.rois[i][1].setPen(pg.intColor(i), width=3)
+            self.mw[j].roi_x_edit.setText(str(x))
+            self.mw[j].roi_y_edit.setText(str(y))
+            self.mw[j].roi_l_edit.setText(str(d))
+            self.mw[j].bias_offset_edit.setText(str(self.stats['bias']))
+
         self.replot_rois()
 
         # make a histogram to control the intensity scaling
@@ -328,27 +344,10 @@ class settings_window(QMainWindow):
         acq_change: True if the camera acquisition settings have been changed."""
         if self.bias_offset_edit.text(): # check the label isn't empty
             self.stats['bias'] = int(self.bias_offset_edit.text())
+        print(emg, pag, Nr)
         for mw in self.mw + self.rw:
             mw.bias_offset_edit.setText(str(self.stats['bias']))
             mw.CCD_stat_edit(emg, pag, Nr, acq_change)
-            
-    def CCD_ROI_edit(self, hbin=1, vbin=1, h0=1, h1=512, v0=1, v1=512):
-        """Take the image size from the ROI defined in the Andor software for
-        the CCD camera."""
-        
-        
-    def roi_text_edit(self, text=''):
-        """Update the ROI position and size every time a text edit is made by
-        the user to one of the line edit widgets"""
-        x, y, l = [self.roi_x_edit.text(),
-                            self.roi_y_edit.text(), self.roi_l_edit.text()]
-        if any([v == '' for v in [x, y, l]]):
-            x, y, l = 1, 1, 1 # default 
-        else:
-            x, y, l = map(int, [x, y, l]) # need to check inputs are valid
-        if int(l) == 0:
-            l = 1 # can't have zero width
-        self.stats['x'], self.stats['y'], self.stats['roi_size'] = map(int, [x, y, l])
         
     def set_user_var(self, text=''):
         """Update the user variable across all of the image analysers"""
@@ -358,13 +357,28 @@ class settings_window(QMainWindow):
                 mw.set_user_var()
 
 
-    #### image display functions ####
+    #### image display and ROI functions ####
 
     def update_im(self, event_im):
         """Receive the image array emitted from the event signal
         display the image in the image canvas."""
         self.im_canvas.setImage(event_im)
         self.im_hist.setLevels(np.min(event_im), np.max(event_im))
+
+    def user_roi(self, pos):
+        """The user drags an ROI and this updates the ROI centre and width"""
+        # x0, y0 = self.roi.pos()  # lower left corner of bounding rectangle
+        # xw, yw = self.roi.size() # widths
+        # l = int(0.5*(xw+yw))  # want a square ROI
+        # # note: setting the origin as bottom left but the image has origin top left
+        # xc, yc = int(x0 + l//2), int(y0 + l//2)  # centre
+        # self.image_handler.set_roi(dimensions=[xc, yc, l])
+        # self.xc_label.setText('ROI x_c = '+str(xc)) 
+        # self.yc_label.setText('ROI y_c = '+str(yc))
+        # self.l_label.setText('ROI size = '+str(l))
+        # self.roi_x_edit.setText(str(xc))
+        # self.roi_y_edit.setText(str(yc))
+        # self.roi_l_edit.setText(str(l))
 
     def replot_rois(self):
         """Once an ROI has been edited, redraw all of them on the image.
@@ -374,33 +388,10 @@ class settings_window(QMainWindow):
         viewbox = self.im_canvas.getViewBox()
         for i, mw in enumerate(self.mw):
             j = i // self._m   # apply the ROI to _m windows
-            roimw = self.mw[j*self._m] # the first of the _m windows defines the ROI
             try: # change position and label of ROI
-                if i % self._m: # link the ROIs 
-                    # disconnect slot while updating ROI to avoid recursion
-                    remove_slot(mw.roi.sigRegionChangeFinished, self.replot_rois, False) 
-                    mw.roi.setPos(roimw.roi.pos())
-                    mw.roi.translatable = False
-                    mw.roi_x_edit.setEnabled(False) # only the first MW changes the ROI
-                    mw.roi_y_edit.setEnabled(False)
-                    mw.roi_l_edit.setEnabled(False)
-                else:
-                    self.rois[j][0].setText('ROI'+str(j))
-                    self.rois[j][0].setColor(pg.intColor(j))
-                    self.rois[j][0].setPos(*[p+l/2 for p, l in zip(mw.roi.pos(), mw.roi.size())])
-                    self.rois[j][1].setPos(mw.roi.pos())
-                    self.rois[j][1].setSize(mw.roi.size())
-            except IndexError: # make new ROI
-                self.rois.append((pg.TextItem('ROI'+str(j), pg.intColor(j), anchor=(0.5,0.5)), 
-                                  pg.ROI(roimw.roi.pos(), roimw.roi.size(), movable=False)))
-                font = QFont()
-                font.setPixelSize(16)
-                self.rois[j][0].setFont(font)
-                self.rois[j][0].setPos(*[p+l/2 for p, l in zip(self.rois[j][1].pos(), self.rois[j][1].size())])
-                viewbox.addItem(self.rois[j][0])
-                viewbox.addItem(self.rois[j][1])
-            remove_slot(mw.roi.sigRegionChangeFinished, self.replot_rois, True)
-            self.rois[j][1].setPen(pg.intColor(j), width=3) # set ROI boundary colour
+                mw.roi.setPos(self.rois[j][1].pos())
+            except IndexError as e:
+                logger.error('Failed to set main window ROI.\n'+str(e))
 
     def make_roi_grid(self, toggle=True, method=''):
         """Create a grid of ROIs and assign them to analysers that are using the
@@ -464,6 +455,17 @@ class settings_window(QMainWindow):
         elif method == '2D Gaussian masks':
             logger.warning('Setting ROI with 2D Gaussian masks is not implemented yet.\n')
         self.replot_rois() # also reconnects slots so ROIs update from analysers
+
+    def reset_table(self, newvals=None):
+        """Resize the table of ."""
+        self.roi_table.setHorizontalHeaderLabels(['ROI', 'xc', 'yc', 'size'])
+        # self._a//self._m
+        if not newvals:
+            newvals = [['']*self.ncols]*self.nrows
+        for i in range(self.roi_table.rowCount()):
+            for j in range(self.roi_table.columnCount()):
+                self.roi_table.setItem(i, j, QTableWidgetItem())
+                self.roi_table.item(i, j).setText(newvals[i][j])
 
     #### #### toggle functions #### #### 
 
@@ -556,12 +558,22 @@ class settings_window(QMainWindow):
             for key, val in self.stats.items():
                 f.write(key+'='+str(val)+'\n')
                 
-    def save_all_hists(self, fname=''):
-        """Get a fit fromt the current histograms, then save and reset for all 
-        of the active image analyser windows, labelled by the window name."""
-        fpath = fname if fname else self.try_browse(title='Select a File Suffix', 
+    def save_all_hists(self, fname='', action=''):
+        """Get a fit from the current histograms, then, if action
+        specifies it, save and reset the histograms for all 
+        of the active image analyser windows, labelled by the window name.
+        action: 'Fit'  - just get the best fit
+                'Save' - fit then save the histograms
+                'Reset'- fit then reset the histograms
+           'Save Reset'- fit, save, then reset the histograms 
+        """
+        if hasattr(self.sender(), 'text') and not action:
+            action = self.sender().text()
+        if 'Save' in action:
+            fpath = fname if fname else self.try_browse(title='Select a File Suffix', 
                     file_type='CSV (*.csv);;all (*)',
                     open_func=QFileDialog.getSaveFileName)
+        else: fpath = 'notsaving'
         if fpath: # don't do anything if the user cancels
             fdir = os.path.dirname(fpath)
             fname = os.path.basename(fpath)
@@ -570,17 +582,21 @@ class settings_window(QMainWindow):
             for i in range(len(self.rw_inds)): # save re-image windows 
                 self.rw[i].get_histogram() # since they depend on main windows
                 self.rw[i].display_fit(fit_method='check action')
-                self.rw[i].save_hist_data(
-                    save_file_name=os.path.join(fdir, self.rw[i].name + fname), 
-                    confirm=False)
-                self.rw[i].image_handler.reset_arrays() 
-                self.rw[i].hist_canvas.clear()
+                if 'Save' in action:
+                    self.rw[i].save_hist_data(
+                        save_file_name=os.path.join(fdir, self.rw[i].name + fname), 
+                        confirm=False)
+                if 'Reset' in action:
+                    self.rw[i].image_handler.reset_arrays() 
+                    self.rw[i].hist_canvas.clear()
             for i in range(self._a): # then can save and reset main windows
-                self.mw[i].save_hist_data(
-                    save_file_name=os.path.join(fdir, self.mw[i].name + fname), 
-                    confirm=False)
-                self.mw[i].image_handler.reset_arrays() 
-                self.mw[i].hist_canvas.clear()
+                if 'Save' in action:
+                    self.mw[i].save_hist_data(
+                        save_file_name=os.path.join(fdir, self.mw[i].name + fname), 
+                        confirm=False)
+                if 'Reset' in action:
+                    self.mw[i].image_handler.reset_arrays() 
+                    self.mw[i].hist_canvas.clear()
 
 
     def load_im_size(self):

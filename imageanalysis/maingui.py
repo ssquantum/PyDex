@@ -407,13 +407,9 @@ class main_window(QMainWindow):
         viewbox.addItem(self.im_canvas)
         im_grid.addWidget(im_widget, 1,im_grid_pos, 6,8)
         # make an ROI that the user can drag
-        self.roi = pg.ROI([0,0], [1,1]) 
-        if 'Im0' in self.name: # allow user to adjust ROI size for the first window doing the ROI
-            self.roi.addScaleHandle([1,1], [0.5,0.5]) 
+        self.roi = pg.ROI([0,0], [1,1], movable=False) 
         viewbox.addItem(self.roi)
         self.roi.setZValue(10)   # make sure the ROI is drawn above the image
-        # signal emitted when user stops dragging ROI
-        self.roi.sigRegionChangeFinished.connect(self.user_roi) 
         # make a histogram to control the intensity scaling
         self.im_hist = pg.HistogramLUTItem()
         self.im_hist.setImageItem(self.im_canvas)
@@ -489,21 +485,6 @@ class main_window(QMainWindow):
             self.histo_handler.temp_vals['User variable'
                 ] = self.histo_handler.types['User variable'](self.var_edit.text())
         self.stat_labels['User variable'].setText(self.var_edit.text())
-
-    def user_roi(self, pos):
-        """The user drags an ROI and this updates the ROI centre and width"""
-        x0, y0 = self.roi.pos()  # lower left corner of bounding rectangle
-        xw, yw = self.roi.size() # widths
-        l = int(0.5*(xw+yw))  # want a square ROI
-        # note: setting the origin as bottom left but the image has origin top left
-        xc, yc = int(x0 + l//2), int(y0 + l//2)  # centre
-        self.image_handler.set_roi(dimensions=[xc, yc, l])
-        self.xc_label.setText('ROI x_c = '+str(xc)) 
-        self.yc_label.setText('ROI y_c = '+str(yc))
-        self.l_label.setText('ROI size = '+str(l))
-        self.roi_x_edit.setText(str(xc))
-        self.roi_y_edit.setText(str(yc))
-        self.roi_l_edit.setText(str(l))
             
     def pic_size_text_edit(self, text):
         """Update the specified size of an image in pixels when the user 
