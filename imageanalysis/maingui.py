@@ -408,6 +408,7 @@ class main_window(QMainWindow):
         im_grid.addWidget(im_widget, 1,im_grid_pos, 6,8)
         # make an ROI that the user can drag
         self.roi = pg.ROI([0,0], [1,1], movable=False) 
+        self.roi.sigRegionChangeFinished.connect(self.user_roi)
         viewbox.addItem(self.roi)
         self.roi.setZValue(10)   # make sure the ROI is drawn above the image
         # make a histogram to control the intensity scaling
@@ -529,6 +530,21 @@ class main_window(QMainWindow):
         # note: setting the origin as top left because image is inverted
         self.roi.setPos(xc - l//2, yc - l//2)
         self.roi.setSize(l, l)
+
+    def user_roi(self, pos):
+        """Update position of ROI"""
+        x0, y0 = self.roi.pos()  # lower left corner of bounding rectangle
+        xw, yw = self.roi.size() # widths
+        l = int(0.5*(xw+yw))  # want a square ROI
+        # note: setting the origin as bottom left but the image has origin top left
+        xc, yc = int(x0 + l//2), int(y0 + l//2)  # centre
+        self.image_handler.set_roi(dimensions=[xc, yc, l])
+        self.xc_label.setText('ROI x_c = '+str(xc)) 
+        self.yc_label.setText('ROI y_c = '+str(yc))
+        self.l_label.setText('ROI size = '+str(l))
+        self.roi_x_edit.setText(str(xc))
+        self.roi_y_edit.setText(str(yc))
+        self.roi_l_edit.setText(str(l))
         
     def bins_text_edit(self, text):
         """Update the histogram bins every time a text edit is made by the user

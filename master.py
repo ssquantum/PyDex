@@ -211,7 +211,7 @@ class Master(QMainWindow):
         """Reset the date in the image saving and analysis, 
         then display the updated date."""
         date = self.rn.reset_dates()
-        msg = QMessageBox(self, 'PyDex Dates Reset', 'Date: '+date)
+        msg = QMessageBox.information(self, 'PyDex Dates Reset', 'Date: '+date)
 
     def show_window(self):
         """Show the window of the submodule or adjust its settings."""

@@ -48,6 +48,7 @@ class runnum(QThread):
         self.sv.start()  # constantly checks queue, when an image to save is added to the queue, it saves it to a file.
         self.sw = saiaw  # image analysis settings gui
         self.sw.m_changed.connect(self.set_m)
+        self.sw.CCD_stat_edit(self.cam.emg, self.cam.pag, self.cam.Nr, True) # give image analysis the camera settings
         self.cam.SettingsChanged.connect(self.sw.CCD_stat_edit)
         self.cam.ROIChanged.connect(self.sw.pic_size_edit.setText) # triggers pic_size_text_edit()
         self.seq = seq   # sequence editor
