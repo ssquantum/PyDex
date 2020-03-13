@@ -66,11 +66,12 @@ class main_window(QMainWindow):
     im_store_path -- the directory where images are saved.
     name          -- an ID for this window, prepended to saved files.
     im_handler    -- an instance of image_handler
-    hist_handler  -- an instance of histo_handler"""
+    hist_handler  -- an instance of histo_handler
+    edit_ROI      -- whether the user can edit the ROI"""
     event_im = pyqtSignal(np.ndarray)
 
     def __init__(self, results_path='.', im_store_path='.', name='',
-                im_handler=None, hist_handler=None):
+                im_handler=None, hist_handler=None, edit_ROI=False):
         super().__init__()
         self.name = name  # name is displayed in the window title
         self.image_handler = im_handler if im_handler else ih.image_handler() # class to process images
@@ -83,7 +84,7 @@ class main_window(QMainWindow):
         self.last_path = results_path # path history helps user get to the file they want
         self.init_log(results_path) # write header to the log file that collects histograms
         self.image_storage_path = im_store_path # used for loading image files
-        self.init_UI()  # make the widgets
+        self.init_UI(edit_ROI)  # make the widgets
         self.t0 = time.time() # time of initiation
         self.int_time = 0     # time taken to process an image
         self.plot_time = 0    # time taken to plot the graph
@@ -113,8 +114,9 @@ class main_window(QMainWindow):
                 f.write('#'+', '.join(self.histo_handler.stats.keys())+'\n')
        
 
-    def init_UI(self):
-        """Create all of the widget objects required"""
+    def init_UI(self, edit_ROI=False):
+        """Create all of the widget objects required
+        edit_ROI - toggle whether the user can change the ROI"""
         self.centre_widget = QWidget()
         self.tabs = QTabWidget()       # make tabs for each main display 
         self.centre_widget.layout = QVBoxLayout()
@@ -228,18 +230,19 @@ class main_window(QMainWindow):
         self.pic_size_edit.setText(str(self.image_handler.pic_size)) # default
         self.pic_size_edit.textChanged[str].connect(self.pic_size_text_edit)
         self.pic_size_edit.setValidator(int_validator)
+        self.pic_size_edit.setEnabled(edit_ROI) 
 
         # get image size from loading an image
-        load_im_size = QPushButton('Load size from image', self)
-        load_im_size.clicked.connect(self.load_im_size) # load image size from image
-        load_im_size.resize(load_im_size.sizeHint())
-        settings_grid.addWidget(load_im_size, 1,2, 1,1)
+        # load_im_size = QPushButton('Load size from image', self)
+        # load_im_size.clicked.connect(self.load_im_size) # load image size from image
+        # load_im_size.resize(load_im_size.sizeHint())
+        # settings_grid.addWidget(load_im_size, 1,2, 1,1)
 
-        # get ROI centre from loading an image
-        load_roi = QPushButton('Get ROI from image', self)
-        load_roi.clicked.connect(self.load_roi) # load roi centre from image
-        load_roi.resize(load_im_size.sizeHint())
-        settings_grid.addWidget(load_roi, 2,2, 1,1)
+        # # get ROI centre from loading an image
+        # load_roi = QPushButton('Get ROI from image', self)
+        # load_roi.clicked.connect(self.load_roi) # load roi centre from image
+        # load_roi.resize(load_im_size.sizeHint())
+        # settings_grid.addWidget(load_roi, 2,2, 1,1)
 
         # get user to set ROI:
         # centre of ROI x position
@@ -250,6 +253,8 @@ class main_window(QMainWindow):
         self.roi_x_edit.setText('1')  # default
         self.roi_x_edit.textEdited[str].connect(self.roi_text_edit)
         self.roi_x_edit.setValidator(int_validator) # only numbers
+        # whether or not the user can change this window's ROI
+        self.roi_x_edit.setEnabled(edit_ROI) 
         
         # centre of ROI y position
         roi_yc_label = QLabel('ROI y_c: ', self)
@@ -259,6 +264,7 @@ class main_window(QMainWindow):
         self.roi_y_edit.setText('1')  # default
         self.roi_y_edit.textEdited[str].connect(self.roi_text_edit)
         self.roi_y_edit.setValidator(int_validator) # only numbers
+        self.roi_y_edit.setEnabled(edit_ROI)
         
         # ROI size
         roi_l_label = QLabel('ROI size: ', self)
@@ -268,6 +274,7 @@ class main_window(QMainWindow):
         self.roi_l_edit.setText('1')  # default
         self.roi_l_edit.textEdited[str].connect(self.roi_text_edit)
         self.roi_l_edit.setValidator(int_validator) # only numbers
+        self.roi_l_edit.setEnabled(edit_ROI)
 
         # EMCCD bias offset
         bias_offset_label = QLabel('EMCCD bias offset: ', self)
@@ -342,7 +349,7 @@ class main_window(QMainWindow):
         stat_grid.addWidget(user_var_label, 0,0, 1,1)
         self.var_edit = QLineEdit(self)
         self.var_edit.editingFinished.connect(self.set_user_var)
-        stat_grid.addWidget(self.var_edit, 0,1, 1,1)
+        stat_grid.addWidget(self.var_edit, 0,1, 1,3)
         self.var_edit.setText('0')  # default
         self.var_edit.setValidator(double_validator) # only numbers
 
@@ -357,17 +364,17 @@ class main_window(QMainWindow):
         # update statistics
         self.stat_update_button = QPushButton('Update statistics', self)
         self.stat_update_button.clicked[bool].connect(self.display_fit)
-        stat_grid.addWidget(self.stat_update_button, i+2,0, 1,1)
+        stat_grid.addWidget(self.stat_update_button, i+3,0, 1,1)
 
         # do Gaussian/Poissonian fit - peaks and widths
         self.fit_update_button = QPushButton('Get best fit', self)
         self.fit_update_button.clicked[bool].connect(self.display_fit)
-        stat_grid.addWidget(self.fit_update_button, i+2,1, 1,1)
+        stat_grid.addWidget(self.fit_update_button, i+3,1, 1,1)
 
         # quickly add the current histogram statistics to the plot
         add_to_plot = QPushButton('Add to plot', self)
         add_to_plot.clicked[bool].connect(self.add_stats_to_plot)
-        stat_grid.addWidget(add_to_plot, i+3,1, 1,1)
+        stat_grid.addWidget(add_to_plot, i+3,2, 1,1)
 
         #### tab for viewing images ####
         im_tab = QWidget()
@@ -580,9 +587,9 @@ class main_window(QMainWindow):
                     self.image_handler.thresh = float(self.thresh_edit.text())
                     self.stat_labels['Threshold'].setText(str(int(self.image_handler.thresh)))
                 except ValueError: pass # user switched toggle before inputing text
-                self.plot_current_hist(self.image_handler.histogram) # doesn't update thresh
+                self.plot_current_hist(self.image_handler.histogram, self.hist_canvas) # doesn't update thresh
             else:
-                self.plot_current_hist(self.image_handler.hist_and_thresh) # updates thresh
+                self.plot_current_hist(self.image_handler.hist_and_thresh, self.hist_canvas) # updates thresh
             
     #### #### toggle functions #### #### 
 
@@ -593,7 +600,7 @@ class main_window(QMainWindow):
         if success: 
             for key in self.histo_handler.stats.keys(): # update the text labels
                 self.stat_labels[key].setText(str(self.histo_handler.temp_vals[key]))
-            self.plot_current_hist(self.image_handler.histogram)
+            self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
             bf = self.histo_handler.bf # short hand
             if bf and bf.bffunc: # plot the curve on the histogram
                 xs = np.linspace(min(bf.x), max(bf.x), 200)
@@ -689,9 +696,9 @@ class main_window(QMainWindow):
                 self.image_handler.bin_array = []
                 if self.image_handler.ind > 0:
                     if self.thresh_toggle.isChecked():
-                        self.plot_current_hist(self.image_handler.histogram)
+                        self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
                     else:
-                        self.plot_current_hist(self.image_handler.hist_and_thresh)
+                        self.plot_current_hist(self.image_handler.hist_and_thresh, self.hist_canvas)
             elif self.bin_actions[2].isChecked() or self.bin_actions[3].isChecked(): # No Display or No Update
                 remove_slot(self.event_im, self.update_plot, False)
                 remove_slot(self.event_im, self.update_plot_only, False)
@@ -709,16 +716,17 @@ class main_window(QMainWindow):
         self.recent_label.setText('Most recent image: '
                             + str(self.image_handler.fid))
 
-    def plot_current_hist(self, hist_function):
-        """Reset the plot to show the current data stored in the image handler.
+    def plot_current_hist(self, hist_function, hist_canvas):
+        """Plot the histogram from the given image_handler on
+        the given histogram canvas hist_canvas.
         hist_function is used to make the histogram and allows the toggling of
         different functions that may or may not update the threshold value."""
         # update the histogram and threshold estimate
         bins, occ, thresh = hist_function()
-        self.hist_canvas.clear()
-        self.hist_canvas.plot(bins, occ, stepMode=True, pen='k',
+        hist_canvas.clear()
+        hist_canvas.plot(bins, occ, stepMode=True, pen='k',
                                 fillLevel=0, brush = (220,220,220,220)) # histogram
-        self.hist_canvas.plot([thresh]*2, [0, max(occ)], pen='r') # threshold line
+        hist_canvas.plot([thresh]*2, [0, max(occ)], pen='r') # threshold line
     
     def update_im(self, event_im):
         """Receive the image array emitted from the event signal
@@ -743,7 +751,7 @@ class main_window(QMainWindow):
         # display the name of the most recent file
         self.recent_label.setText('Just processed image '
                             + str(self.image_handler.fid))
-        self.plot_current_hist(self.image_handler.hist_and_thresh) # update the displayed plot
+        self.plot_current_hist(self.image_handler.hist_and_thresh, self.hist_canvas) # update the displayed plot
         self.plot_time = time.time() - t2
 
     def update_plot_only(self, event_im):
@@ -758,7 +766,7 @@ class main_window(QMainWindow):
         # display the name of the most recent file
         self.recent_label.setText('Just processed image '
                             + str(self.image_handler.fid))
-        self.plot_current_hist(self.image_handler.histogram) # update the displayed plot
+        self.plot_current_hist(self.image_handler.histogram, self.hist_canvas) # update the displayed plot
         self.plot_time = time.time() - t2
 
     def add_stats_to_plot(self, toggle=True):
@@ -920,7 +928,7 @@ class main_window(QMainWindow):
                         'Just processed: '+os.path.basename(file_name)) 
                 except Exception as e: # probably file size was wrong
                     logger.warning("Failed to load image file: "+file_name+'\n'+str(e)) 
-            self.plot_current_hist(self.image_handler.histogram)
+            self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
             self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
                         fix_thresh=self.thresh_toggle.isChecked(), method='quick')
             if self.recent_label.text == 'Processing files...':
@@ -973,7 +981,7 @@ class main_window(QMainWindow):
                         'Just processed: '+os.path.basename(file_name)) # only updates at end of loop
                 except:
                     print("\n WARNING: failed to load "+file_name) # probably file size was wrong
-            self.plot_current_hist(self.image_handler.histogram)
+            self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
             self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
                         fix_thresh=self.thresh_toggle.isChecked(), method='quick')
             if self.recent_label.text == 'Processing files...':
@@ -991,7 +999,7 @@ class main_window(QMainWindow):
                     self.histo_handler.process(self.image_handler, 
                         self.stat_labels['User variable'].text(), 
                         fix_thresh=self.thresh_toggle.isChecked(), method='quick')
-                    self.plot_current_hist(self.image_handler.histogram)
+                    self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
 
     def load_image(self, trigger=None):
         """Prompt the user to select an image file to display"""

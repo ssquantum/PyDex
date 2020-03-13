@@ -83,7 +83,9 @@ class settings_window(QMainWindow):
         self.rw = [] # re-image analysis instances
         self.rw_inds = [] # which saia instances are used for the re-image instances
         if np.size(self.mw) >= nreim*2:
-            self.rw = [reim_window(self.mw[2*i].event_im, [self.mw[2*i].image_handler, self.mw[2*i+1].image_handler],
+            self.rw = [reim_window(self.mw[2*i].event_im, 
+                [self.mw[2*i].image_handler, self.mw[2*i+1].image_handler],
+                [self.mw[2*i].histo_handler, self.mw[2*i+1].histo_handler],
                 results_path, im_store_path, 'ROI'+str(i)+'_Re_') for i in range(nreim)]
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(nreim)]
         self.init_UI()  # make the widgets
@@ -632,6 +634,8 @@ class settings_window(QMainWindow):
                 if 'Reset' in action:
                     self.rw[i].image_handler.reset_arrays() 
                     self.rw[i].hist_canvas.clear()
+                    self.rw[i].hist1_canvas.clear()
+                    self.rw[i].hist2_canvas.clear()
             for i in range(self._a): # then can save and reset main windows
                 if 'Save' in action:
                     self.mw[i].save_hist_data(
@@ -786,6 +790,7 @@ class settings_window(QMainWindow):
             j, k = map(int, self.rw_inds[i].split(','))
             self.rw.append(reim_window(self.mw[j].event_im,
                     [self.mw[j].image_handler, self.mw[k].image_handler],
+                    [self.mw[j].histo_handler, self.mw[k].histo_handler],
                     self.results_path, self.image_storage_path, 'ROI'+str(i)+'_Re_'))
             
         self.pic_size_text_edit(self.pic_size_edit.text())

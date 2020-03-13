@@ -16140,7 +16140,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16152,7 +16152,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16164,7 +16164,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16176,7 +16176,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16188,7 +16188,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16200,7 +16200,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16212,7 +16212,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16224,7 +16224,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16236,7 +16236,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16248,7 +16248,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16260,7 +16260,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16272,7 +16272,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16284,7 +16284,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16296,7 +16296,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16308,19 +16308,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0.7</Val>
-				</DBL>
-			</Cluster>
-			<Cluster>
-				<Name>Analogue cluster</Name>
-				<NumElts>2</NumElts>
-				<Boolean>
-					<Name>Ramp?</Name>
-					<Val>0</Val>
-				</Boolean>
-				<DBL>
-					<Name>Voltage</Name>
-					<Val>0.60000000000000</Val>
+					<Val>0.05</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16344,7 +16332,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>0.60000000000000</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16356,7 +16344,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16368,7 +16356,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16380,7 +16368,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16392,7 +16380,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16404,7 +16392,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16416,7 +16404,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16428,7 +16416,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16440,7 +16428,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16452,7 +16440,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16464,7 +16452,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16476,7 +16464,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16488,7 +16476,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16500,7 +16488,7 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
-					<Val>0</Val>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>
@@ -16512,7 +16500,19 @@
 				</Boolean>
 				<DBL>
 					<Name>Voltage</Name>
+					<Val>-0.005</Val>
+				</DBL>
+			</Cluster>
+			<Cluster>
+				<Name>Analogue cluster</Name>
+				<NumElts>2</NumElts>
+				<Boolean>
+					<Name>Ramp?</Name>
 					<Val>0</Val>
+				</Boolean>
+				<DBL>
+					<Name>Voltage</Name>
+					<Val>-0.005</Val>
 				</DBL>
 			</Cluster>
 			<Cluster>

@@ -226,7 +226,7 @@ class camera(QThread):
         except FileNotFoundError:
             logger.warning("Andor camera config.dat file not found. "+
                 "This file is required to load camera settings.")
-            return 0
+            return [1]
 
         cvals = []
         for row in config_data:
