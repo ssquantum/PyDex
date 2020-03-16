@@ -88,6 +88,7 @@ class event_handler(PyDexThread):
                         path +'\n Using current directory instead\n'+str(e))
                     path = '.' + datepath
                     os.makedirs(path, exist_ok=True) 
+        else: logger.warning('Image saver could not load paths from config file: '+config_file)
 
     @staticmethod # static method can be accessed without making an instance of the class
     def get_dirs(config_file='./config/config.dat'):

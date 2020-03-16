@@ -56,9 +56,9 @@ class runnum(QThread):
         self.server.dxnum.connect(self.set_n) # signal gives run number
         self.server.start()
 
-        # set a timer to update the dates 2s before midnight:
+        # set a timer to update the dates 2s after midnight:
         t0 = time.localtime()
-        QTimer.singleShot((86398 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
+        QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates)
             
     def reset_server(self, force=False):
@@ -123,11 +123,12 @@ class runnum(QThread):
         """Make sure that the dates in the image saving and analysis 
         programs are correct."""
         t0 = time.localtime()
-        self.sv.reset_dates(self.sv.config_fn)
-        self.sw.reset_dates(self.sv.date)
-        QTimer.singleShot((86398 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
+        date = time.strftime("%d %b %B %Y", t0).split(" ")
+        self.sv.reset_dates(self.sv.config_fn, date=date)
+        self.sw.reset_dates(date)
+        QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates) # set the next timer to reset dates
-        return time.strftime("%d %B %Y", t0)
+        return ' '.join([date[0]] + date[2:])
     
     def synchronise(self, option='', verbose=0):
         """Check the run number in each of the associated modules.
