@@ -5,6 +5,7 @@ Stefan Spence 26/02/19
  - update other image statistics like read noise, bias offset
 """
 import os
+import re
 import sys
 import time
 import numpy as np
@@ -16,7 +17,7 @@ try:
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
             QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
             QDoubleValidator, QIntValidator, QMenu, QActionGroup, QFont,
-            QTabWidget, QVBoxLayout, QRegExpValidator) 
+            QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QRegExpValidator) 
 except ImportError:
     from PyQt5.QtCore import pyqtSignal, QRegExp
     from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
@@ -24,11 +25,25 @@ except ImportError:
     from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
         QFileDialog, QMessageBox, QLineEdit, QGridLayout, QWidget,
         QApplication, QPushButton, QAction, QMainWindow, QTabWidget,
-        QLabel)
+        QTableWidget, QTableWidgetItem, QLabel)
 import logging
 logger = logging.getLogger(__name__)
 from maingui import main_window, remove_slot # single atom image analysis
 from reimage import reim_window # analysis for survival probability
+
+####    ####    ####    ####
+
+def intstrlist(text):
+    """Convert a string of a list of ints back into a list:
+    (str) '[1, 2, 3]' -> (list) [1,2,3]"""
+    try:
+        return list(map(int, text[1:-1].split(',')))
+    except ValueError: return []
+
+def listlist(text):
+    """Convert a string of nested lists into a
+    list of lists."""
+    return list(map(intstrlist, re.findall('\[[\d\s,]*\]', text)))
 
 ####    ####    ####    ####
 
@@ -41,33 +56,39 @@ class settings_window(QMainWindow):
     nreim         -- number of reimage.reim_window instances to create
     results_path  -- the directory where result csv or dat files are saved.
     im_store_path -- the directory where images are saved. Default
+    config_file   -- file name to load default configuration from
     """
     m_changed = pyqtSignal(int) # gives the number of images per run
 
-    def __init__(self, nsaia=1, nreim=0, results_path='', im_store_path=''):
+    def __init__(self, nsaia=1, nreim=0, results_path='', im_store_path='', 
+            config_file='.\\imageanalysis\\default.config'):
         super().__init__()
-        self.types = OrderedDict([('pic_size',int), ('x',int), ('y',int), ('roi_size',int), 
+        self.types = OrderedDict([('pic_size',int), ('ROIs',listlist), 
             ('bias',int), ('image_path', str), ('results_path', str)])
-        self.stats = OrderedDict([('pic_size',512), ('x',1), ('y',1), ('roi_size',1), 
+        self.stats = OrderedDict([('pic_size',512), ('ROIs',[[1,1,1]]), 
             ('bias',697), ('image_path', im_store_path), ('results_path', results_path)])
-        self.load_settings() # load default
+        self.load_settings(fname=config_file) # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.results_path = results_path if results_path else self.stats['results_path'] # used for saving results
         self.last_path = results_path # path history helps user get to the file they want
         self.image_storage_path = im_store_path if im_store_path else self.stats['image_path'] # used for loading image files
         self._m = nsaia # number of images per run 
         self._a = nsaia # number of SAIA instances
+        if len(self.stats['ROIs']) < self._a // self._m: # make the correct number of ROIs
+            for i in range(len(self.stats['ROIs']), self._a // self._m):
+                self.stats['ROIs'].append([1,1,1])
         self.mw = [main_window(results_path, im_store_path, 
             'ROI' + str(i//self._m) + '.Im' + str(i%self._m) + '.') for i in range(nsaia)] # saia instances
         self.mw_inds = list(range(nsaia)) # the index, m, of the image in the sequence to use 
         self.rw = [] # re-image analysis instances
         self.rw_inds = [] # which saia instances are used for the re-image instances
         if np.size(self.mw) >= nreim*2:
-            self.rw = [reim_window(self.mw[2*i].event_im, [self.mw[2*i].image_handler, self.mw[2*i+1].image_handler],
+            self.rw = [reim_window(self.mw[2*i].event_im, 
+                [self.mw[2*i].image_handler, self.mw[2*i+1].image_handler],
+                [self.mw[2*i].histo_handler, self.mw[2*i+1].histo_handler],
                 results_path, im_store_path, 'ROI'+str(i)+'_Re_') for i in range(nreim)]
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(nreim)]
         self.init_UI()  # make the widgets
-        self.replot_rois()
 
     def reset_dates(self, date):
         """Reset the dates in all of the saia instances"""
@@ -126,6 +147,18 @@ class settings_window(QMainWindow):
         self.fit_options.setExclusive(True) # only one option checked at a time
         self.fit_options.triggered.connect(self.set_all_windows)
         hist_menu.addMenu(fit_menu)
+
+        fit_all = QAction('Fit all', self) 
+        fit_all.triggered.connect(self.all_hists)
+        hist_menu.addAction(fit_all)
+
+        reset_all = QAction('Reset all', self) 
+        reset_all.triggered.connect(self.all_hists)
+        hist_menu.addAction(reset_all)
+
+        save_all = QAction('Fit, Save, Reset all', self) 
+        save_all.triggered.connect(self.all_hists)
+        hist_menu.addAction(save_all)
 
         # image menubar allows you to display images
         im_menu = menubar.addMenu('Image')
@@ -238,61 +271,29 @@ class settings_window(QMainWindow):
         show_win.resize(show_win.sizeHint())
         settings_grid.addWidget(show_win, 5,2, 1,1)
         
-        save_all = QPushButton('Fit, save, reset all histograms', self) 
-        save_all.clicked.connect(self.save_all_hists)
-        save_all.resize(save_all.sizeHint())
-        settings_grid.addWidget(save_all, 5,3, 1,1)
-
-        #### set ROI for analysers from loaded default ####
-        for mw in self.mw:
-            x, y, d = self.stats['x'], self.stats['y'], self.stats['roi_size']
-            mw.roi_x_edit.setText(str(x + d//2 + d%2))
-            mw.roi_y_edit.setText(str(y + d//2 + d%2))
-            mw.roi_l_edit.setText(str(d))
-            mw.bias_offset_edit.setText(str(self.stats['bias']))
-
         #### tab for ROI ####
         roi_tab = QWidget()
         roi_grid = QGridLayout()
         roi_tab.setLayout(roi_grid)
         self.tabs.addTab(roi_tab, "Region of Interest")
 
-        # bottom corner of ROI grid x position
-        roi_x_label = QLabel('Grid bottom xpos: ', self)
-        roi_grid.addWidget(roi_x_label, 0,0, 1,1)
-        self.roi_x_edit = QLineEdit(self)
-        roi_grid.addWidget(self.roi_x_edit, 0,1, 1,1)
-        self.roi_x_edit.setText('0')  # default
-        self.roi_x_edit.setValidator(int_validator) # only numbers
-        self.roi_x_edit.editingFinished.connect(self.roi_text_edit)
-        
-        # bottom corner of ROI grid y position
-        roi_y_label = QLabel('Grid bottom ypos: ', self)
-        roi_grid.addWidget(roi_y_label, 0,2, 1,1)
-        self.roi_y_edit = QLineEdit(self)
-        roi_grid.addWidget(self.roi_y_edit, 0,3, 1,1)
-        self.roi_y_edit.setText('0')  # default
-        self.roi_y_edit.setValidator(int_validator) # only numbers
-        self.roi_y_edit.editingFinished.connect(self.roi_text_edit)
-        
-        # ROI size
-        roi_l_label = QLabel('ROI size: ', self)
-        roi_grid.addWidget(roi_l_label, 0,4, 1,1)
-        self.roi_l_edit = QLineEdit(self)
-        roi_grid.addWidget(self.roi_l_edit, 0,5, 1,1)
-        self.roi_l_edit.setText('1')  # default
-        self.roi_l_edit.setValidator(int_validator) # only numbers
-        self.roi_l_edit.editingFinished.connect(self.roi_text_edit)
-        
+        # display the ROI from each analyser
         im_widget = pg.GraphicsLayoutWidget() # containing widget
         viewbox = im_widget.addViewBox() # plot area to display image
         viewbox.enableAutoRange()
         self.im_canvas = pg.ImageItem() # the image
         viewbox.addItem(self.im_canvas)
-        roi_grid.addWidget(im_widget, 1,0, 6,8)
-        # display the ROI from each analyser
+        roi_grid.addWidget(im_widget, 4,0, 6,8)
+
+        # table to set ROIs for main windows
+        self.roi_table = QTableWidget(self._a//self._m, 4)
+        self.roi_table.setHorizontalHeaderLabels(['ROI', 'xc', 'yc', 'size'])
+        roi_grid.addWidget(self.roi_table, 0,0, 3,6)
+        self.reset_table() # connects itemChanged signal to roi_table_edit()
+
+        # set ROI for analysers from loaded default
         self.rois = []
-        self.replot_rois()
+        self.create_rois()
 
         # make a histogram to control the intensity scaling
         self.im_hist = pg.HistogramLUTItem()
@@ -304,7 +305,7 @@ class settings_window(QMainWindow):
             button = QPushButton(label, self) 
             button.clicked.connect(self.make_roi_grid)
             button.resize(button.sizeHint())
-            roi_grid.addWidget(button, 8,i, 1,1)
+            roi_grid.addWidget(button, 11,i, 1,1)
 
         #### choose main window position and dimensions: (xpos,ypos,width,height)
         self.setGeometry(100, 100, 850, 600)
@@ -331,24 +332,6 @@ class settings_window(QMainWindow):
         for mw in self.mw + self.rw:
             mw.bias_offset_edit.setText(str(self.stats['bias']))
             mw.CCD_stat_edit(emg, pag, Nr, acq_change)
-            
-    def CCD_ROI_edit(self, hbin=1, vbin=1, h0=1, h1=512, v0=1, v1=512):
-        """Take the image size from the ROI defined in the Andor software for
-        the CCD camera."""
-        
-        
-    def roi_text_edit(self, text=''):
-        """Update the ROI position and size every time a text edit is made by
-        the user to one of the line edit widgets"""
-        x, y, l = [self.roi_x_edit.text(),
-                            self.roi_y_edit.text(), self.roi_l_edit.text()]
-        if any([v == '' for v in [x, y, l]]):
-            x, y, l = 1, 1, 1 # default 
-        else:
-            x, y, l = map(int, [x, y, l]) # need to check inputs are valid
-        if int(l) == 0:
-            l = 1 # can't have zero width
-        self.stats['x'], self.stats['y'], self.stats['roi_size'] = map(int, [x, y, l])
         
     def set_user_var(self, text=''):
         """Update the user variable across all of the image analysers"""
@@ -357,8 +340,19 @@ class settings_window(QMainWindow):
                 mw.var_edit.setText(self.var_edit.text())
                 mw.set_user_var()
 
+    def roi_table_edit(self, item):
+        """When the user edits one of the cells in the table, update
+        the corresponding ROI and display the new ROI."""
+        if item.text():
+            try:
+                self.stats['ROIs'][item.row()][item.column()-1] = int(item.text())
+                self.create_rois()
+            except ValueError as e:
+                logger.error('Invalid ROI value from table: '+item.text()+'\n'+str(e))
+            except IndexError as e:
+                logger.error('Not enough ROIs for table item %s\n'%item.row()+str(e))
 
-    #### image display functions ####
+    #### image display and ROI functions ####
 
     def update_im(self, event_im):
         """Receive the image array emitted from the event signal
@@ -366,41 +360,69 @@ class settings_window(QMainWindow):
         self.im_canvas.setImage(event_im)
         self.im_hist.setLevels(np.min(event_im), np.max(event_im))
 
+    def user_roi(self, roi):
+        """The user drags an ROI and this updates the ROI centre and width"""
+        # find which ROI was dragged
+        i = 0
+        for j, pair in enumerate(self.rois):
+            if pair[1] == roi:
+                i = j
+                break
+        x0, y0 = roi.pos()  # lower left corner of bounding rectangle
+        xw, yw = roi.size() # widths
+        l = int(0.5*(xw+yw))  # want a square ROI
+        # note: setting the origin as bottom left but the image has origin top left
+        xc, yc = int(x0 + l//2), int(y0 + l//2)  # centre
+        self.stats['ROIs'][i] = [xc, yc, l] # should never be indexerror
+        self.rois[i][0].setPos(xc, yc) # move label to same position
+        self.replot_rois() # updates image analysis windows
+        self.reset_table() # diplays ROI in table
+
+    def create_rois(self):
+        """Given xc, yc, and size from stats['ROIs'], create the
+        ROIs that are displayed in the ROI tab and assign them to
+        the image analysis windows."""
+        viewbox = self.im_canvas.getViewBox()
+        for i, mw in enumerate(self.mw):
+            j = i // self._m
+            try: 
+                x, y, d = self.stats['ROIs'][j] # xc, yc, size
+            except IndexError as e:
+                logger.error('Not enough ROIs for main windows: %s\n'%j+str(e))
+                self.stats['ROIs'].append([1,1,1])
+                x, y, d = 1, 1, 1
+            if not i % self._m: # for the first window in each set of _m
+                try:
+                    self.rois[j][0].setPos(x+d/2, y+d/2)
+                    self.rois[j][1].setPos(x-d//2, y-d//2)
+                    self.rois[j][1].setSize(d, d)
+                except IndexError: # make a new ROI 
+                    self.rois.append((pg.TextItem('ROI'+str(i), pg.intColor(j), anchor=(0.5,0.5)), 
+                        pg.ROI((x-d//2, y-d//2), (d,d), movable=True)))
+                    self.rois[j][1].sigRegionChangeFinished.connect(self.user_roi) 
+                    self.rois[j][1].setZValue(10)   # make sure the ROI is drawn above the image
+                    font = QFont()
+                    font.setPixelSize(16)
+                    self.rois[j][0].setFont(font)
+                    self.rois[j][0].setPos(x, y)
+                    viewbox.addItem(self.rois[j][0])
+                    viewbox.addItem(self.rois[j][1])
+                    self.rois[j][1].setPen(pg.intColor(j), width=3)
+            mw.roi_x_edit.setText(str(x)) # triggers roi_text_edit()
+            mw.roi_y_edit.setText(str(y))
+            mw.roi_l_edit.setText(str(d))
+            mw.bias_offset_edit.setText(str(self.stats['bias']))
+
     def replot_rois(self):
         """Once an ROI has been edited, redraw all of them on the image.
         The list of ROIs are stored with labels: [(label, ROI), ...].
-        Since the labels might not be unique, we can't use a dictionary.
         Each ROI is applied to _m windows for _m images per sequence."""
-        viewbox = self.im_canvas.getViewBox()
         for i, mw in enumerate(self.mw):
             j = i // self._m   # apply the ROI to _m windows
-            roimw = self.mw[j*self._m] # the first of the _m windows defines the ROI
-            try: # change position and label of ROI
-                if i % self._m: # link the ROIs 
-                    # disconnect slot while updating ROI to avoid recursion
-                    remove_slot(mw.roi.sigRegionChangeFinished, self.replot_rois, False) 
-                    mw.roi.setPos(roimw.roi.pos())
-                    mw.roi.translatable = False
-                    mw.roi_x_edit.setEnabled(False) # only the first MW changes the ROI
-                    mw.roi_y_edit.setEnabled(False)
-                    mw.roi_l_edit.setEnabled(False)
-                else:
-                    self.rois[j][0].setText('ROI'+str(j))
-                    self.rois[j][0].setColor(pg.intColor(j))
-                    self.rois[j][0].setPos(*[p+l/2 for p, l in zip(mw.roi.pos(), mw.roi.size())])
-                    self.rois[j][1].setPos(mw.roi.pos())
-                    self.rois[j][1].setSize(mw.roi.size())
-            except IndexError: # make new ROI
-                self.rois.append((pg.TextItem('ROI'+str(j), pg.intColor(j), anchor=(0.5,0.5)), 
-                                  pg.ROI(roimw.roi.pos(), roimw.roi.size(), movable=False)))
-                font = QFont()
-                font.setPixelSize(16)
-                self.rois[j][0].setFont(font)
-                self.rois[j][0].setPos(*[p+l/2 for p, l in zip(self.rois[j][1].pos(), self.rois[j][1].size())])
-                viewbox.addItem(self.rois[j][0])
-                viewbox.addItem(self.rois[j][1])
-            remove_slot(mw.roi.sigRegionChangeFinished, self.replot_rois, True)
-            self.rois[j][1].setPen(pg.intColor(j), width=3) # set ROI boundary colour
+            try: # update the ROI in the image analysis windows
+                mw.roi.setPos(*self.stats['ROIs'][j][:2]) # triggers user_roi()
+            except IndexError as e:
+                logger.error('Failed to set main window ROI.\n'+str(e))
 
     def make_roi_grid(self, toggle=True, method=''):
         """Create a grid of ROIs and assign them to analysers that are using the
@@ -409,21 +431,21 @@ class settings_window(QMainWindow):
         Square grid      -- evenly divide the image into a square region for
             each of the analysers on this image.  
         2D Gaussian masks-- fit 2D Gaussians to atoms in the image."""
-        for mw in self.mw: # disconnect slot, otherwise signal is triggered infinitely
-            remove_slot(mw.roi.sigRegionChangeFinished, self.replot_rois, False)
+        for roi in self.rois: # disconnect slot, otherwise signal is triggered infinitely
+            remove_slot(roi[1].sigRegionChangeFinished, self.user_roi, False)
         method = method if method else self.sender().text()
+        pos, size = self.rois[0][1].pos(), self.rois[0][1].size()
+        size = 0.5*(size[0] + size[1])
         if method == 'Single ROI':
-            pos, size = self.mw[0].roi.pos(), self.mw[0].roi.size()
-            for mw in self.mw:
-                mw.roi.setPos(pos)
-                mw.roi.setSize(size)
+            for roi in self.rois:
+                roi[0].setPos(pos[0]+size//2, pos[1]+size//2)
+                roi[1].setPos(pos)
+                roi[1].setSize(size)
         elif method == 'Square grid':
-            n = 0 # number of analysers working on image 0:
-            for i in self.find(0): n += 1 
-            X = self.stats['pic_size'] - self.stats['x'] # total available width
-            Y = self.stats['pic_size'] - self.stats['y'] # total available height
+            X = self.stats['pic_size'] - pos[0] # total available width
+            Y = self.stats['pic_size'] - pos[1] # total available height
             # pixel area of image covered by one analyser:
-            Area = X * Y // n
+            Area = int(X * Y // self._m)
             # choose the dimensions of the grid by factorising:
             w, h = 0, 0
             for A in reversed(range(Area+1)):
@@ -439,31 +461,53 @@ class settings_window(QMainWindow):
             else:
                 width, height = min(w, h), max(w, h)
             if width and height:
-                if self.stats['roi_size'] > width or self.stats['roi_size'] > height:
+                if size > width or size > height:
                     logger.warning('When making square ROI grid, found ROI size %s > dimensions (%s, %s)'%(
-                        self.stats['roi_size'], width, height))
-                for i in range(self._m): # ID of image in sequence
-                    j = 0 # how many analysers have been positioned for this image
-                    for k in self.find(i): # index of analyser
-                        try:
-                            pos = [self.stats['x'] + width * (j%(X//width)),
-                                self.stats['y'] + height * (j//(X//width))]
-                            if any([pos[0]//self.stats['pic_size'], pos[1]//self.stats['pic_size']]):
-                                logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(pos[0], pos[1])+
-                                ' outside of the image')
-                                pos = [0,0]
-                            self.mw[k].roi.setPos(pos)
-                            self.mw[k].roi.setSize([self.stats['roi_size'], self.stats['roi_size']])
-                            j += 1
-                        except ZeroDivisionError as e:
-                            logger.error('Invalid parameters for square ROI grid: '+
-                                'x - %s, y - %s, pic_size - %s, roi_size - %s.\n'%(
-                                    self.stats['x'], self.stats['y'], self.stats['pic_size'], self.stats['roi_size'])
-                                + 'Calculated width - %s, height - %s.\n'%(width, height) + str(e))
+                        size, width, height))
+                for i in range(self._m): # ID of ROI
+                    try:
+                        newpos = [pos[0] + width * (i%(X//width)),
+                                pos[1] + height * (i//(X//width))]
+                        if any([newpos[0]//self.stats['pic_size'], newpos[1]//self.stats['pic_size']]):
+                            logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(pos[0], pos[1])+
+                            ' outside of the image')
+                            newpos = [0,0]
+                        self.rois[i][0].setPos(*newpos)
+                        self.rois[i][1].setPos(*newpos)
+                        self.rois[i][1].setSize(size, size)   
+                    except ZeroDivisionError as e:
+                        logger.error('Invalid parameters for square ROI grid: '+
+                            'x - %s, y - %s, pic_size - %s, roi_size - %s.\n'%(
+                                newpos[0], newpos[1], self.stats['pic_size'], size)
+                            + 'Calculated width - %s, height - %s.\n'%(width, height) + str(e))
             else: logger.warning('Failed to set square ROI grid.\n')
         elif method == '2D Gaussian masks':
             logger.warning('Setting ROI with 2D Gaussian masks is not implemented yet.\n')
-        self.replot_rois() # also reconnects slots so ROIs update from analysers
+        self.reset_table()
+        self.replot_rois()
+        for roi in self.rois: # reconnect slot
+            remove_slot(roi[1].sigRegionChangeFinished, self.user_roi, True)
+
+    def reset_table(self, newvals=None):
+        """Resize the table of ROIs and then fill it with the ROIs stored in
+        stats['ROIs']. While doing so, disconnect the table's itemChanged signal
+        so that there isn't recurssion with create_rois() and user_roi()."""
+        remove_slot(self.roi_table.itemChanged, self.roi_table_edit, False) # disconnect
+        self.roi_table.setRowCount(self._a//self._m) # num windows / num images per sequence
+        for i in range(self.roi_table.rowCount()):
+            try:
+                data = [str(i)] + list(map(str, self.stats['ROIs'][i]))
+                for j in range(self.roi_table.columnCount()):    
+                    self.roi_table.setItem(i, j, QTableWidgetItem())
+                    self.roi_table.item(i, j).setText(data[j])
+            except IndexError as e:
+                self.stats['ROIs'].append([1,1,1])
+                data = [str(i)] + ['1', '1', '1']
+                for j in range(self.roi_table.columnCount()):
+                    self.roi_table.setItem(i, j, QTableWidgetItem())
+                    self.roi_table.item(i, j).setText(data[j])
+                logger.error('Not enough ROIs for main windows in table: %s\n'%j+str(e))
+        remove_slot(self.roi_table.itemChanged, self.roi_table_edit, True) # reconnect
 
     #### #### toggle functions #### #### 
 
@@ -545,8 +589,11 @@ class settings_window(QMainWindow):
             with open(fname, 'r') as f:
                 for line in f:
                     if len(line.split('=')) == 2:
-                        key, val = line.split('=') # there should only be one = per line
-                        self.stats[key] = self.types[key](val)
+                        key, val = line.replace('\n','').split('=') # there should only be one = per line
+                        try:
+                            self.stats[key] = self.types[key](val)
+                        except KeyError as e:
+                            logger.warning('Image analysis default config file line: '+line+'\n'+str(e))
         except FileNotFoundError as e: 
             logger.warning('Image analysis settings could not find the default.config file.\n'+str(e))
     
@@ -556,12 +603,22 @@ class settings_window(QMainWindow):
             for key, val in self.stats.items():
                 f.write(key+'='+str(val)+'\n')
                 
-    def save_all_hists(self, fname=''):
-        """Get a fit fromt the current histograms, then save and reset for all 
-        of the active image analyser windows, labelled by the window name."""
-        fpath = fname if fname else self.try_browse(title='Select a File Suffix', 
+    def all_hists(self, fname='', action=''):
+        """Get a fit from the current histograms, then, if action
+        specifies it, save and reset the histograms for all 
+        of the active image analyser windows, labelled by the window name.
+        action: 'Fit'  - just get the best fit
+                'Save' - fit then save the histograms
+                'Reset'- fit then reset the histograms
+           'Save Reset'- fit, save, then reset the histograms 
+        """
+        if hasattr(self.sender(), 'text') and not action:
+            action = self.sender().text()
+        if 'Save' in action:
+            fpath = fname if fname else self.try_browse(title='Select a File Suffix', 
                     file_type='CSV (*.csv);;all (*)',
                     open_func=QFileDialog.getSaveFileName)
+        else: fpath = 'notsaving'
         if fpath: # don't do anything if the user cancels
             fdir = os.path.dirname(fpath)
             fname = os.path.basename(fpath)
@@ -570,17 +627,23 @@ class settings_window(QMainWindow):
             for i in range(len(self.rw_inds)): # save re-image windows 
                 self.rw[i].get_histogram() # since they depend on main windows
                 self.rw[i].display_fit(fit_method='check action')
-                self.rw[i].save_hist_data(
-                    save_file_name=os.path.join(fdir, self.rw[i].name + fname), 
-                    confirm=False)
-                self.rw[i].image_handler.reset_arrays() 
-                self.rw[i].hist_canvas.clear()
+                if 'Save' in action:
+                    self.rw[i].save_hist_data(
+                        save_file_name=os.path.join(fdir, self.rw[i].name + fname), 
+                        confirm=False)
+                if 'Reset' in action:
+                    self.rw[i].image_handler.reset_arrays() 
+                    self.rw[i].hist_canvas.clear()
+                    self.rw[i].hist1_canvas.clear()
+                    self.rw[i].hist2_canvas.clear()
             for i in range(self._a): # then can save and reset main windows
-                self.mw[i].save_hist_data(
-                    save_file_name=os.path.join(fdir, self.mw[i].name + fname), 
-                    confirm=False)
-                self.mw[i].image_handler.reset_arrays() 
-                self.mw[i].hist_canvas.clear()
+                if 'Save' in action:
+                    self.mw[i].save_hist_data(
+                        save_file_name=os.path.join(fdir, self.mw[i].name + fname), 
+                        confirm=False)
+                if 'Reset' in action:
+                    self.mw[i].image_handler.reset_arrays() 
+                    self.mw[i].hist_canvas.clear()
 
 
     def load_im_size(self):
@@ -601,10 +664,8 @@ class settings_window(QMainWindow):
             self.pic_size_edit.setText(str(int(np.size(im_vals[0]) - 1))) 
             # get the position of the max count
             xs, ys  = np.where(im_vals == np.max(im_vals))
-            self.stats['x'], self.stats['y'] = xs[0], ys[0]
-            self.roi_x_edit.setText(str(self.stats['x'])) 
-            self.roi_y_edit.setText(str(self.stats['y'])) 
-            self.roi_l_edit.setText(str(self.stats['roi_size']))
+            self.stats['ROIs'][0] = [xs[0], ys[0], self.stats['pic_size']]
+            self.create_rois()
             self.make_roi_grid(method='Single ROI')
         
     def check_reset(self):
@@ -681,9 +742,13 @@ class settings_window(QMainWindow):
                 self.mw.append(main_window(self.results_path, self.image_storage_path, 
                     'ROI' + str(i//self._m) + '.Im' + str(i%self._m) + '.'))
                 self.mw_inds.append(i%self._m)
+                if len(self.stats['ROIs']) < (i // self._m)+1: # starting a new ROI
+                    self.stats['ROIs'].append([1,1,1])
         self._a = a
         for mw in self.mw:
             mw.swap_signals() # reconnect signals
+        self.create_rois() # display ROIs on image
+        self.reset_table() # display (xc, yc, size) of ROIs in table
 
         ainds = []
         try: # set which images in the sequence each image analyser will use.
@@ -725,6 +790,7 @@ class settings_window(QMainWindow):
             j, k = map(int, self.rw_inds[i].split(','))
             self.rw.append(reim_window(self.mw[j].event_im,
                     [self.mw[j].image_handler, self.mw[k].image_handler],
+                    [self.mw[j].histo_handler, self.mw[k].histo_handler],
                     self.results_path, self.image_storage_path, 'ROI'+str(i)+'_Re_'))
             
         self.pic_size_text_edit(self.pic_size_edit.text())
@@ -762,7 +828,7 @@ def run():
     if standalone: # if there isn't an instance, make one
         app = QApplication(sys.argv) 
         
-    main_win = settings_window()
+    main_win = settings_window(config_file='default.config')
     main_win.show()
     if standalone: # if an app instance was made, execute it
         sys.exit(app.exec_()) # when the window is closed, the python code also stops
