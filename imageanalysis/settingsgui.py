@@ -228,8 +228,8 @@ class settings_window(QMainWindow):
         settings_grid.addWidget(size_label, 2,0, 1,1)
         self.pic_size_edit = QLineEdit(self)
         settings_grid.addWidget(self.pic_size_edit, 2,1, 1,1)
-        self.pic_size_edit.setText(str(self.stats['pic_size'])) # default
         self.pic_size_edit.textChanged[str].connect(self.pic_size_text_edit)
+        self.pic_size_edit.setText(str(self.stats['pic_size'])) # default
         self.pic_size_edit.setValidator(int_validator)
         
         # get image size from loading an image

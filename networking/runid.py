@@ -185,7 +185,7 @@ class runnum(QThread):
         r = self.seq.mr.ind % (self.seq.mr.nomit + self.seq.mr.nhist) # ID of run in repetition cycle
         if toggle and self.seq.mr.check_table() and self.sw.check_reset():
             for mw in self.sw.mw + self.sw.rw:
-                mw.plot_current_hist(mw.image_handler.histogram)
+                mw.plot_current_hist(mw.image_handler.histogram, mw.hist_canvas)
                 mw.clear_varplot()
                 mw.multirun = True
             remove_slot(self.cam.AcquireEnd, self.receive, False) # only receive if not in '# omit'

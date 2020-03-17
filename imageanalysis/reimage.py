@@ -146,7 +146,7 @@ class reim_window(main_window):
                 for key in hh.stats.keys(): # update the text labels
                     labels[key].setText(str(hh.temp_vals[key]))
                 self.plot_current_hist(ih.histogram, canv)
-                if hh.bf and hh.bf.bffunc: # plot the curve on the histogram
+                if hh.bf and hh.bf.bffunc and hh.bf.ps: # plot the curve on the histogram
                     xs = np.linspace(min(hh.bf.x), max(hh.bf.x), 200)
                     canv.plot(xs, hh.bf.bffunc(xs, *hh.bf.ps), pen='b')
         return success

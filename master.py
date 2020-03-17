@@ -322,12 +322,18 @@ class Master(QMainWindow):
                         DExTer to run. Used in unsynced mode."""
         action_text = self.actions.currentText()
         if action_text == 'Start acquisition' and self.action_button.text() == 'Go':
-            self.actions.setEnabled(False) # don't process other actions in this mode
-            self.rn._k = 0 # reset image per run count
-            self.action_button.setText('Stop acquisition')
-            self.rn.cam.start() # start acquisition
-            self.wait_for_cam() # wait for camera to initialise before running
-            self.status_label.setText('Camera acquiring')
+            if self.rn.cam.initialised > 2:
+                if self.sync_toggle.isChecked():
+                    QMessageBox.warning(self, 'Unscyned acquisition', 
+                        'Warning: started acquisition in synced mode. Without messages to DExTer, the file ID will not update.'+
+                        '\nTry unchecking: "Run Synchronisation" > "Sync with DExTer".')
+                self.actions.setEnabled(False) # don't process other actions in this mode
+                self.rn._k = 0 # reset image per run count
+                self.action_button.setText('Stop acquisition')
+                self.rn.cam.start() # start acquisition
+                self.wait_for_cam() # wait for camera to initialise before running
+                self.status_label.setText('Camera acquiring')
+            else: logger.warning('Master: Tried to start camera acquisition but camera is not initialised.')
         elif action_text == 'Start acquisition' and self.action_button.text() == 'Stop acquisition':
             self.actions.setEnabled(True)
             self.action_button.setText('Go')

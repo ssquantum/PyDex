@@ -602,7 +602,7 @@ class main_window(QMainWindow):
                 self.stat_labels[key].setText(str(self.histo_handler.temp_vals[key]))
             self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
             bf = self.histo_handler.bf # short hand
-            if bf and bf.bffunc: # plot the curve on the histogram
+            if bf and bf.bffunc and bf.ps: # plot the curve on the histogram
                 xs = np.linspace(min(bf.x), max(bf.x), 200)
                 self.hist_canvas.plot(xs, bf.bffunc(xs, *bf.ps), pen='b')
         return success
