@@ -633,9 +633,10 @@ class settings_window(QMainWindow):
                         confirm=False)
                 if 'Reset' in action:
                     self.rw[i].image_handler.reset_arrays() 
+                    self.rw[i].histo_handler.bf = None
                     self.rw[i].hist_canvas.clear()
-                    self.rw[i].hist1_canvas.clear()
-                    self.rw[i].hist2_canvas.clear()
+                    self.rw[i].hist1.clear()
+                    self.rw[i].hist2.clear()
             for i in range(self._a): # then can save and reset main windows
                 if 'Save' in action:
                     self.mw[i].save_hist_data(
@@ -643,6 +644,7 @@ class settings_window(QMainWindow):
                         confirm=False)
                 if 'Reset' in action:
                     self.mw[i].image_handler.reset_arrays() 
+                    self.mw[i].histo_handler.bf = None
                     self.mw[i].hist_canvas.clear()
 
 

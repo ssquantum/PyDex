@@ -245,11 +245,12 @@ class runnum(QThread):
             r = self.seq.mr.ind % repeats  # repeat
             v = self.seq.mr.ind // repeats # variable
             if v > self.seq.mr.nrows - 1: v = self.seq.mr.nrows - 1
+            # finish this histogram
             mr_queue = [[TCPENUM['TCP load last time step'], self.seq.mr.stats['Last time step run']+'0'*2000],
                 [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]]
-            mr_queue += [[TCPENUM['Run sequence'], 'multirun run '+str(self._n + i)+'\n'+'0'*2000] for i in range(v + r + 1, v+1)
+            mr_queue += [[TCPENUM['Run sequence'], 'multirun run '+str(self._n + i)+'\n'+'0'*2000] for i in range(repeats - r + 1)
                 ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]
-            for var in range(v, self.seq.mr.nrows):
+            for var in range(v+1, self.seq.mr.nrows): # add the rest of the multirun
                 mr_queue += [[TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[var]]] + [
                     [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*var)+'\n'+'0'*2000] for r in range(repeats)
                     ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]

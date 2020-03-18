@@ -22,7 +22,7 @@ class fit:
     erry  -- errors in the dependent variable array
     param -- optional best fit parameter estimate
     func  -- a function used for best fits"""
-    def __init__(self, xdat=0, ydat=0, erry=None, param=[], func=None):
+    def __init__(self, xdat=0, ydat=0, erry=None, param=None, func=None):
         self.x    = xdat   # independent variable
         self.y    = ydat   # measured dependent variable
         self.yerr = erry   # errors in dependent variable

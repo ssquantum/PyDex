@@ -63,6 +63,7 @@ class histo_handler(Analysis):
         self.pag = 4.50 # pre-amp gain from EMCCD
         self.emg = 1.0  # EM gain applied by EMCCD
         self.dg  = 2.0 if self.emg > 1 else 1.0 # multiplicative noise factor
+        self.bf = None
         
     def sort_dict(self, lead='User variable'):
         """Sort the arrays in stats dict such that they are all ordered 
