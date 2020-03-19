@@ -275,6 +275,9 @@ class Previewer(QMainWindow):
         mrsave = QAction('Save Parameters', self) 
         mrsave.triggered.connect(self.mr.save_mr_params)
         mr_menu.addAction(mrsave)
+        mrqueue = QAction('View Queue', self)
+        mrqueue.triggered.connect(self.mr.view_mr_queue)
+        mr_menu.addAction(mrqueue)
         
         # choose main window position and dimensions: (xpos,ypos,width,height)
         self.setGeometry(60, 60, 1000, 800)

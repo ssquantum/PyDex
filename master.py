@@ -346,8 +346,15 @@ class Master(QMainWindow):
                 self.rn._k = 0 # reset image per run count 
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000) 
             elif action_text == 'Multirun run':
-                self.rn.server.add_message(TCPENUM['TCP read'], 'start measure '
-                    + str(self.rn.seq.mr.stats['measure']) +'\n'+'0'*2000) # set DExTer's message to send
+                if self.rn.seq.mr.check_table():
+                    self.rn.seq.mr.mr_queue.append([self.rn.seq.mr.ui_param.copy(),
+                        self.rn.seq.mr.tr.copy(), self.rn.seq.mr.get_table()]) # add parameters to queue
+                    # suggest new multirun measure ID and prefix
+                    self.rn.seq.mr.measures['measure'].setText(str(self.rn.seq.mr.mr_param['measure']+1))
+                    self.rn.seq.mr.measures['measure_prefix'].setText('Measure'+str(self.rn.seq.mr.mr_param['measure']+1)+'_')  
+                    self.rn.server.add_message(TCPENUM['TCP read'], 'start measure '
+                        + str(self.rn.seq.mr.mr_param['measure']) +'\n'+'0'*2000) # set DExTer's message to send
+                else: logger.warning('Tried to start multirun with invalid values. Check the table.\n')
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':
