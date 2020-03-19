@@ -410,7 +410,7 @@ class Master(QMainWindow):
         elif 'end multirun' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
             self.rn.multirun_end(msg)
-            self.rn.server.save_times()
+            # self.rn.server.save_times()
             self.end_run(msg)
         # auto save any sequence that was sent to be loaded (even if it was already an xml file)
         # elif '<Name>Event list cluster in</Name>' in msg: # DExTer also saves the sequences when it's run
