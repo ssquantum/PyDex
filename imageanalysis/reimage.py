@@ -160,8 +160,8 @@ class reim_window(main_window):
         if self.image_handler.ind > 0:
             self.recent_label.setText('Just processed image '
                         + self.image_handler.stats['File ID'][-1])
-        for imh, hc in [[self.ih1.hist_and_thresh, self.hist1], 
-                        [self.ih2.hist_and_thresh, self.hist2], 
+        for imh, hc in [[self.ih1.histogram, self.hist1], # thresh for ih1, ih2 set in main window
+                        [self.ih2.histogram, self.hist2], 
                         [self.image_handler.hist_and_thresh, self.hist_canvas]]:
             self.plot_current_hist(imh, hc) # update the displayed plot
         self.plot_time = time.time() - t2

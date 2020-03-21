@@ -83,12 +83,13 @@ class multirun_widget(QWidget):
             ('Analogue channel', listlist), ('runs included', listlist),
             ('Last time step run', str), ('Last time step end', str),
             ('# omitted', int), ('# in hist', int)])
-        self.ui_param = OrderedDict([('measure',0), ('measure_prefix','Measure0_'),
+        self.ui_param = OrderedDict([('measure',0), ('measure_prefix','Measure0'),
             ('1st hist ID', 0), ('Variable label', ''), 
             ('Type', ['Time step length']*ncols), 
             ('Analogue type', ['Fast analogue']*ncols), ('Time step name', [[]]*ncols), 
             ('Analogue channel', [[]]*ncols), ('runs included', [[]]*nrows),
-            ('Last time step run', ''), ('Last time step end', ''),
+            ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\RbMOTendstep.evt'), 
+            ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\feb2020_940and812.evt'),
             ('# omitted', 0), ('# in hist', 100)])
         self.mr_param = self.ui_param.copy() # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
@@ -152,12 +153,12 @@ class multirun_widget(QWidget):
         # metadata for the multirun list: which channels and timesteps
         self.measures = OrderedDict()
         labels = ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
-        defaults = ['Variable 0', '0', 'Measure0_', '0']
+        defaults = ['Variable 0', '0', 'Measure0', '0']
         for i in range(len(labels)):
             label = QLabel(labels[i], self)
             self.grid.addWidget(label, i+1,0, 1,1)
             self.measures[labels[i]] = QLineEdit(defaults[i], self)
-            self.measures[labels[i]].editingFinished.connect(self.update_all_stats)
+            self.measures[labels[i]].textChanged.connect(self.update_all_stats)
             self.grid.addWidget(self.measures[labels[i]], i+1,1, 1,3)
         self.measures['measure'].setValidator(int_validator)
         self.measures['1st hist ID'].setValidator(int_validator)
@@ -213,10 +214,10 @@ class multirun_widget(QWidget):
         lts_label = QLabel('Last time step: ', self)
         self.grid.addWidget(lts_label, 7,0, 1,1)
         self.last_step_run_edit = self.make_label_edit('Running: ', self.grid, position=[7,1, 1,3])[1]
-        self.last_step_run_edit.setText(r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\RbMOTendstep.evt')
+        self.last_step_run_edit.setText(self.ui_param['Last time step run'])
         self.last_step_run_edit.textChanged[str].connect(self.update_last_step)
         self.last_step_end_edit = self.make_label_edit('End: ', self.grid, position=[7,5, 1,3])[1]
-        self.last_step_end_edit.setText(r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\feb2020_940and812.evt')
+        self.last_step_end_edit.setText(self.ui_param['Last time step end'])
         self.last_step_end_edit.textChanged[str].connect(self.update_last_step)
 
         # display current progress
@@ -462,6 +463,13 @@ class multirun_widget(QWidget):
 
     def view_mr_queue(self):
         """Pop up message box displays the queued multiruns"""
+        text = 'Would you like to clear the following list of queued multiruns?\n'
+        for params, _, _ in self.mr_queue:
+            text += params['measure_prefix'] + '\t' + params['Variable label'] + '\n'
+        reply = QMessageBox.question(self, 'Queued Multiruns',
+            text, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.mr_queue = []
 
     def try_browse(self, title='Select a File', file_type='all (*)', 
                 open_func=QFileDialog.getOpenFileName):
@@ -485,12 +493,15 @@ class multirun_widget(QWidget):
             save_file_name = self.try_browse(title='Save File', file_type='csv(*.csv);;all (*)', 
                         open_func=QFileDialog.getSaveFileName)
         if save_file_name:
+            if hasattr(self.sender(), 'text') and self.sender().text() == 'Save Parameters':
+                params, vals = self.ui_param, self.get_table() # save from UI
+            else: params, vals = self.mr_param, self.mr_vals # save from multirun
             with open(save_file_name, 'w+') as f:
                 f.write('Multirun list of variables:\n')
-                f.write(';'.join([','.join([self.mr_vals[row][col] 
-                    for col in range(len(self.mr_vals[0]))]) for row in range(len(self.mr_vals))]) + '\n')
-                f.write(';'.join(self.mr_param.keys()))
-                f.write(';'.join(map(str, list(self.mr_param.values()))))
+                f.write(';'.join([','.join([vals[row][col] 
+                    for col in range(len(vals[0]))]) for row in range(len(vals))]) + '\n')
+                f.write(';'.join(params.keys())+'\n')
+                f.write(';'.join(map(str, list(params.values()))))
 
     def load_mr_params(self, load_file_name=''):
         """Load the multirun variables array from a file."""
@@ -505,7 +516,10 @@ class multirun_widget(QWidget):
                 params = f.readline().split(';')
             for i in range(len(header)):
                 if header[i] in self.ui_param:
-                    self.ui_param[header[i]] = self.types[header[i]](params[i])
+                    try:
+                        self.ui_param[header[i]] = self.types[header[i]](params[i])
+                    except ValueError as e:
+                        logger.error('Multirun editor could not load parameter: %s\n'%params[i]+str(e))
             for key in self.measures.keys(): # update variable label and measure
                 self.measures[key].setText(str(self.ui_param[key]))
             nrows, ncols = np.shape(vals) # update array of values

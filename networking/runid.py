@@ -188,7 +188,7 @@ class runnum(QThread):
         except IndexError as e:
             logger.error('runid.py could not start multirun because no multirun was queued.\n'+str(e))
             return 0
-        if toggle and self.seq.mr.check_table() and self.sw.check_reset():
+        if toggle and self.sw.check_reset():
             for mw in self.sw.mw + self.sw.rw:
                 mw.plot_current_hist(mw.image_handler.histogram, mw.hist_canvas)
                 mw.clear_varplot()
