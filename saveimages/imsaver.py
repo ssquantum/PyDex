@@ -62,6 +62,11 @@ class event_handler(PyDexThread):
         self.end_t   = time.time() # time at end of event
         self.idle_t  = 0           # time between events
         self.write_t = 0           # time taken to watch a file being written
+        self.config_fn = config_file  # remember which file was last used for config settings 
+        self.reset_dates(config_file) # create the required directories
+
+    def reset_dates(self, config_file='./config/config.dat', 
+            date=time.strftime("%d %b %B %Y", time.localtime()).split(" ")):
         # load paths used from config.dat
         self.dirs_dict = self.get_dirs(config_file) # handy dict contains them all
         self.image_storage_path = self.dirs_dict['Image Storage Path: ']
@@ -70,7 +75,7 @@ class event_handler(PyDexThread):
         self.sequences_path = self.dirs_dict['Sequences path: ']
         if self.image_storage_path: # =0 if get_dirs couldn't find config.dat, else continue
             # get the date to be used for file labeling
-            self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
+            self.date = date # day short_month long_month year
             datepath = r'\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])
             self.image_storage_path += datepath
             self.results_path += datepath
@@ -83,6 +88,7 @@ class event_handler(PyDexThread):
                         path +'\n Using current directory instead\n'+str(e))
                     path = '.' + datepath
                     os.makedirs(path, exist_ok=True) 
+        else: logger.warning('Image saver could not load paths from config file: '+config_file)
 
     @staticmethod # static method can be accessed without making an instance of the class
     def get_dirs(config_file='./config/config.dat'):

@@ -63,6 +63,7 @@ class histo_handler(Analysis):
         self.pag = 4.50 # pre-amp gain from EMCCD
         self.emg = 1.0  # EM gain applied by EMCCD
         self.dg  = 2.0 if self.emg > 1 else 1.0 # multiplicative noise factor
+        self.bf = None
         
     def sort_dict(self, lead='User variable'):
         """Sort the arrays in stats dict such that they are all ordered 
@@ -104,7 +105,12 @@ class histo_handler(Analysis):
                 self.bf.p0 = [ih.ind, 0.6, ih.peak_centre[0], ih.peak_widths[0],
                         ih.peak_centre[1], ih.peak_widths[1]]
                 try:
-                    self.bf.getBestFit(self.bf.double_gauss) # get best fit parameters
+                    if fix_thresh: # bound the lower peak to below threshold
+                        self.bf.getBestFit(self.bf.double_gauss, bounds=(
+                            np.array([0, 0, 0, 0, ih.thresh, 0]),
+                            np.array([np.inf, 1, ih.thresh, np.inf, np.inf, np.inf]))) 
+                    else: # get unbounded best fit parameters
+                        self.bf.getBestFit(self.bf.double_gauss)
                 except: return 0  # fit failed, do nothing
                 if self.bf.ps[1] < self.bf.ps[4]:
                     N, A1, mu0, sig0, mu1, sig1 = self.bf.ps
@@ -153,8 +159,8 @@ class histo_handler(Analysis):
 
             if self.bf.rchisq and abs(self.bf.rchisq) > 1e6: include = False # bad fit
         
-            # update threshold to where fidelity is maximum
-            if fix_thresh: # update thresh if not set by user
+            # update threshold to where fidelity is maximum if not set by user
+            if fix_thresh: 
                 ih.fidelity, ih.err_fidelity = np.around(ih.get_fidelity(), 4) # round to 4 d.p.
             else:
                 ih.search_fidelity(mu0, sig0, mu1, n=100)

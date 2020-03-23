@@ -77,19 +77,23 @@ class multirun_widget(QWidget):
         self.nrows = nrows
         self.ncols = ncols
         self.order = order
-        self.nomit = 0   # number of runs per histogram to omit from multirun
-        self.nhist = 100 # number of runs to include in each histogram
         self.types = OrderedDict([('measure',int), ('measure_prefix',str),
             ('1st hist ID', int), ('Variable label', str), ('Type', strlist), 
             ('Analogue type', strlist), ('Time step name', listlist), 
             ('Analogue channel', listlist), ('runs included', listlist),
-            ('Last time step run', str), ('Last time step end', str)])
-        self.stats = OrderedDict([('measure',0), ('measure_prefix','Measure0_'),
+            ('Last time step run', str), ('Last time step end', str),
+            ('# omitted', int), ('# in hist', int)])
+        self.ui_param = OrderedDict([('measure',0), ('measure_prefix','Measure0'),
             ('1st hist ID', 0), ('Variable label', ''), 
             ('Type', ['Time step length']*ncols), 
             ('Analogue type', ['Fast analogue']*ncols), ('Time step name', [[]]*ncols), 
             ('Analogue channel', [[]]*ncols), ('runs included', [[]]*nrows),
-            ('Last time step run', ''), ('Last time step end', '')])
+            ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\RbMOTendstep.evt'), 
+            ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\feb2020_940and812.evt'),
+            ('# omitted', 0), ('# in hist', 100)])
+        self.mr_param = self.ui_param.copy() # parameters used for current multirun
+        self.mr_vals  = [] # multirun values for the current multirun
+        self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
         self.init_UI()  # make the widgets
 
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
@@ -149,12 +153,12 @@ class multirun_widget(QWidget):
         # metadata for the multirun list: which channels and timesteps
         self.measures = OrderedDict()
         labels = ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
-        defaults = ['Variable 0', '0', 'Measure0_', '0']
+        defaults = ['Variable 0', '0', 'Measure0', '0']
         for i in range(len(labels)):
             label = QLabel(labels[i], self)
             self.grid.addWidget(label, i+1,0, 1,1)
             self.measures[labels[i]] = QLineEdit(defaults[i], self)
-            self.measures[labels[i]].editingFinished.connect(self.update_all_stats)
+            self.measures[labels[i]].textChanged.connect(self.update_all_stats)
             self.grid.addWidget(self.measures[labels[i]], i+1,1, 1,3)
         self.measures['measure'].setValidator(int_validator)
         self.measures['1st hist ID'].setValidator(int_validator)
@@ -210,10 +214,10 @@ class multirun_widget(QWidget):
         lts_label = QLabel('Last time step: ', self)
         self.grid.addWidget(lts_label, 7,0, 1,1)
         self.last_step_run_edit = self.make_label_edit('Running: ', self.grid, position=[7,1, 1,3])[1]
-        self.last_step_run_edit.setText(r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\RbMOTendstep.evt')
+        self.last_step_run_edit.setText(self.ui_param['Last time step run'])
         self.last_step_run_edit.textChanged[str].connect(self.update_last_step)
         self.last_step_end_edit = self.make_label_edit('End: ', self.grid, position=[7,5, 1,3])[1]
-        self.last_step_end_edit.setText(r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\feb2020_940and812.evt')
+        self.last_step_end_edit.setText(self.ui_param['Last time step end'])
         self.last_step_end_edit.textChanged[str].connect(self.update_last_step)
 
         # display current progress
@@ -246,10 +250,10 @@ class multirun_widget(QWidget):
     def clear_array(self):
         """Empty the table of its values and reset the selected channels."""
         self.reset_array()
-        self.stats['Type'] = ['Time step length']*self.ncols
-        self.stats['Analogue type'] = ['Fast analogue']*self.ncols
-        self.stats['Time step name'] = [[]]*self.ncols
-        self.stats['Analogue channel'] = [[]]*self.ncols
+        self.ui_param['Type'] = ['Time step length']*self.ncols
+        self.ui_param['Analogue type'] = ['Fast analogue']*self.ncols
+        self.ui_param['Time step name'] = [[]]*self.ncols
+        self.ui_param['Analogue channel'] = [[]]*self.ncols
         self.set_chan_listbox(0)
         
     def check_table(self):
@@ -257,6 +261,11 @@ class multirun_widget(QWidget):
         return all(self.table.item(i, j).text() 
                     for i in range(self.table.rowCount()) 
                     for j in range(self.table.columnCount()))
+
+    def get_table(self):
+        """Return a list of all the values in the multirun array table"""
+        return [[self.table.item(i, j).text() for j in range(self.table.columnCount())]
+                    for i in range(self.table.rowCount())]
     
     def change_array_size(self):
         """Update the size of the multirun array based on the number of rows
@@ -269,13 +278,13 @@ class multirun_widget(QWidget):
         if self.col_val_edit[0].text() and int(self.col_val_edit[0].text()) > self.ncols-1:
             self.col_val_edit[0].setText(str(self.ncols-1))
         self.reset_array()
-        self.stats['runs included'] = [[]]*self.nrows
+        self.ui_param['runs included'] = [[]]*self.nrows
         for key, default in zip(['Type', 'Analogue type', 'Time step name', 'Analogue channel'],
             ['Time step length', 'Fast analogue', [], []]):
-            if len(self.stats[key]) < self.ncols: # these lists must be reshaped
-                self.stats[key].append(default)
-            elif len(self.stats[key]) > self.ncols:
-                self.stats[key] = self.stats[key][:self.ncols]
+            if len(self.ui_param[key]) < self.ncols: # these lists must be reshaped
+                self.ui_param[key].append(default)
+            elif len(self.ui_param[key]) > self.ncols:
+                self.ui_param[key] = self.ui_param[key][:self.ncols]
                 
     def update_all_stats(self, toggle=False):
         """Shorthand to update the values of the stats dictionary from the text
@@ -284,18 +293,18 @@ class multirun_widget(QWidget):
         self.update_last_step()
         for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
             if self.measures[key].text(): # don't do anything if the line edit is empty
-                self.stats[key] = self.types[key](self.measures[key].text())
+                self.ui_param[key] = self.types[key](self.measures[key].text())
         
     def update_repeats(self, txt=''):
         """Take the current values of the line edits and use them to set the
         number of omitted and number of included runs in a histogram."""
-        self.nomit = int(self.omit_edit.text()) if self.omit_edit.text() else 0
-        self.nhist = int(self.nhist_edit.text()) if self.nhist_edit.text() else 1
+        self.ui_param['# omitted'] = int(self.omit_edit.text()) if self.omit_edit.text() else 0
+        self.ui_param['# in hist'] = int(self.nhist_edit.text()) if self.nhist_edit.text() else 1
         
     def update_last_step(self, txt=''):
         """Save the current values of the last time step file paths."""
-        self.stats['Last time step run'] = self.last_step_run_edit.text()
-        self.stats['Last time step end'] = self.last_step_end_edit.text()
+        self.ui_param['Last time step run'] = self.last_step_run_edit.text()
+        self.ui_param['Last time step end'] = self.last_step_end_edit.text()
            
     def add_column_to_array(self):
         """Make a list of values and add it to the given column 
@@ -308,7 +317,7 @@ class multirun_widget(QWidget):
             self.order = self.order_edit.currentText()
             for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
                 if self.measures[key].text(): # don't do anything if the line edit is empty
-                    self.stats[key] = self.types[key](self.measures[key].text())
+                    self.ui_param[key] = self.types[key](self.measures[key].text())
             # make the list of values:
             try:
                 vals = np.linspace(*map(float, [x.text() for x in self.col_val_edit[1:3]]), self.nrows)
@@ -349,9 +358,9 @@ class multirun_widget(QWidget):
         changes the column and then comes back."""
         col = int(self.col_val_edit[0].text()) if self.col_val_edit[0].text() else 0
         for key in ['Type', 'Analogue type']:
-            self.stats[key][col] = self.chan_choices[key].currentText()
+            self.ui_param[key][col] = self.chan_choices[key].currentText()
         for key in ['Time step name', 'Analogue channel']:
-            self.stats[key][col] = list(map(self.chan_choices[key].row, self.chan_choices[key].selectedItems()))
+            self.ui_param[key][col] = list(map(self.chan_choices[key].row, self.chan_choices[key].selectedItems()))
         
     def set_chan_listbox(self, col):
         """Set the selected channels and timesteps with the values
@@ -360,10 +369,10 @@ class multirun_widget(QWidget):
         reset the selection."""
         try:
             col = int(col) if col else 0
-            mrtype = self.stats['Type'][col]
-            antype = self.stats['Analogue type'][col]
-            sel = {'Time step name':self.stats['Time step name'][col],
-                'Analogue channel':self.stats['Analogue channel'][col] if mrtype=='Analogue voltage' else []}
+            mrtype = self.ui_param['Type'][col]
+            antype = self.ui_param['Analogue type'][col]
+            sel = {'Time step name':self.ui_param['Time step name'][col],
+                'Analogue channel':self.ui_param['Analogue channel'][col] if mrtype=='Analogue voltage' else []}
         except IndexError:
             mrtype, antype = 'Time step length', 'Fast analogue'
             sel = {'Time step name':[], 'Analogue channel':[]}
@@ -416,43 +425,51 @@ class multirun_widget(QWidget):
         elif self.order == 'random':
             return randint(0, self.nrows)
         else: # if descending, ascending, or coarse random, the order has already been set
-            return (rn // (self.nomit + self.nhist)) % self.nrows # ID of histogram in repetition cycle
+            return (rn // (self.ui_param['# omitted'] + self.ui_param['# in hist'])) % self.nrows # ID of histogram in repetition cycle
 
-    def get_next_sequence(self):
+    def get_next_sequence(self, i=None):
         """Use the values in the multirun array to make the next
-        sequence to run in the multirun."""
-        self.table.selectRow(self.ind) # display which row the multirun is up to in the table
+        sequence to run in the multirun. Uses saved mr_param not UI"""
+        if i == None: i = self.ind # row index
         esc = self.mrtr.seq_dic['Experimental sequence cluster in'] # shorthand
         try:
-            for col in range(self.table.columnCount()): # edit the sequence
-                val = float(self.table.item(self.ind, col).text())
-                if self.stats['Type'][col] == 'Time step length':
+            for col in range(len(self.mr_vals[i])): # edit the sequence
+                val = float(self.mr_vals[i][col])
+                if self.mr_param['Type'][col] == 'Time step length':
                     for head in ['Sequence header top', 'Sequence header middle']:
-                        for t in self.stats['Time step name'][col]:
+                        for t in self.mr_param['Time step name'][col]:
                             esc[head][t]['Time step length'] = val
-                elif self.stats['Type'][col] == 'Analogue voltage':
-                    for t in self.stats['Time step name'][col]:
-                        for c in self.stats['Analogue channel'][col]:
-                            esc[self.stats['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
+                elif self.mr_param['Type'][col] == 'Analogue voltage':
+                    for t in self.mr_param['Time step name'][col]:
+                        for c in self.mr_param['Analogue channel'][col]:
+                            esc[self.mr_param['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
+
+            self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
+                    ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
         except IndexError as e:
-            logger.error('Multirun failed to edit sequence at ' + self.stats['Variable label']
-                + ' = ' + self.table.item(self.ind, 0).text() + '\n' + str(e))
-        self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.stats['Variable label'] + \
-            ': ' + self.table.item(self.ind, 0).text() + ' (%s / %s)'%(self.ind+1, self.table.rowCount())
+            logger.error('Multirun failed to edit sequence at ' + self.mr_param['Variable label']
+                + ' = ' + self.mr_vals[i][0] + '\n' + str(e))
         return self.mrtr.write_to_str()
 
     def get_all_sequences(self):
-        """Use the values in the multirun array to make all of
+        """Use the multirun array vals to make all of
         the sequences that will be used in the multirun, then
         store these as a list of XML strings."""
-        r = self.ind
         self.msglist = []
-        for i in range(self.nrows):
-            self.ind = i
-            self.msglist.append(self.get_next_sequence())
-        self.ind = r 
+        for i in range(len(self.mr_vals)):
+            self.msglist.append(self.get_next_sequence(i))
 
     #### save and load parameters ####
+
+    def view_mr_queue(self):
+        """Pop up message box displays the queued multiruns"""
+        text = 'Would you like to clear the following list of queued multiruns?\n'
+        for params, _, _ in self.mr_queue:
+            text += params['measure_prefix'] + '\t' + params['Variable label'] + '\n'
+        reply = QMessageBox.question(self, 'Queued Multiruns',
+            text, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.mr_queue = []
 
     def try_browse(self, title='Select a File', file_type='all (*)', 
                 open_func=QFileDialog.getOpenFileName):
@@ -476,12 +493,15 @@ class multirun_widget(QWidget):
             save_file_name = self.try_browse(title='Save File', file_type='csv(*.csv);;all (*)', 
                         open_func=QFileDialog.getSaveFileName)
         if save_file_name:
+            if hasattr(self.sender(), 'text') and self.sender().text() == 'Save Parameters':
+                params, vals = self.ui_param, self.get_table() # save from UI
+            else: params, vals = self.mr_param, self.mr_vals # save from multirun
             with open(save_file_name, 'w+') as f:
                 f.write('Multirun list of variables:\n')
-                f.write(';'.join([','.join([self.table.item(row, col).text() 
-                    for col in range(self.table.columnCount())]) for row in range(self.table.rowCount())]) + '\n')
-                f.write(';'.join(self.stats.keys()) + ';# omitted;# in hist\n')
-                f.write(';'.join(map(str, list(self.stats.values()) + [self.nomit, self.nhist])))
+                f.write(';'.join([','.join([vals[row][col] 
+                    for col in range(len(vals[0]))]) for row in range(len(vals))]) + '\n')
+                f.write(';'.join(params.keys())+'\n')
+                f.write(';'.join(map(str, list(params.values()))))
 
     def load_mr_params(self, load_file_name=''):
         """Load the multirun variables array from a file."""
@@ -495,14 +515,13 @@ class multirun_widget(QWidget):
                 header = f.readline().split(';')
                 params = f.readline().split(';')
             for i in range(len(header)):
-                if header[i] in self.stats:
-                    self.stats[header[i]] = self.types[header[i]](params[i])
-                elif '# omitted' in header[i]:
-                    self.nomit = int(params[i])
-                elif '# in hist' in header[i]: 
-                    self.nhist = int(params[i])
+                if header[i] in self.ui_param:
+                    try:
+                        self.ui_param[header[i]] = self.types[header[i]](params[i])
+                    except ValueError as e:
+                        logger.error('Multirun editor could not load parameter: %s\n'%params[i]+str(e))
             for key in self.measures.keys(): # update variable label and measure
-                self.measures[key].setText(str(self.stats[key]))
+                self.measures[key].setText(str(self.ui_param[key]))
             nrows, ncols = np.shape(vals) # update array of values
             col = int(self.col_val_edit[0].text()) if self.col_val_edit[0].text() else 0
             self.set_chan_listbox(col if col < ncols else 0)
@@ -510,8 +529,8 @@ class multirun_widget(QWidget):
             self.cols_edit.setText(str(ncols))
             self.change_array_size() # don't wait for it to be triggered
             self.reset_array(vals)
-            self.omit_edit.setText(str(self.nomit))
-            self.nhist_edit.setText(str(self.nhist))
-            runstep, endstep = self.stats['Last time step run'], self.stats['Last time step end']
+            self.omit_edit.setText(str(self.ui_param['# omitted']))
+            self.nhist_edit.setText(str(self.ui_param['# in hist']))
+            runstep, endstep = self.ui_param['Last time step run'], self.ui_param['Last time step end']
             self.last_step_run_edit.setText(runstep) # triggers update_last_step
             self.last_step_end_edit.setText(endstep)

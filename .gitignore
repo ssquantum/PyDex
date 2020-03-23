@@ -1,8 +1,11 @@
 # ignore the following directories
-2019/
-imageanalysis/2019/
+2020/
+imageanalysis/2020/
+__pycache__/
 .*/__pycache__/
 
 # ignore the following files
 log.txt
+log.txt*
 *.pyc
+*.pyo

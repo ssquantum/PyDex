@@ -165,6 +165,10 @@ class Master(QMainWindow):
         self.sync_toggle.setChecked(True)
         self.sync_toggle.toggled.connect(self.sync_mode)
         sync_menu.addAction(self.sync_toggle)
+
+        reset_date = QAction('Reset date', sync_menu, checkable=False)
+        reset_date.triggered.connect(self.reset_dates)
+        sync_menu.addAction(reset_date)
         
         #### status of the master program ####
         self.status_label = QLabel('Initiating...', self)
@@ -202,6 +206,12 @@ class Master(QMainWindow):
         self.setGeometry(50, 50, 800, 150)
         self.setWindowTitle('PyDex Master')
         self.setWindowIcon(QIcon('docs/pydexicon.png'))
+
+    def reset_dates(self):
+        """Reset the date in the image saving and analysis, 
+        then display the updated date."""
+        date = self.rn.reset_dates()
+        msg = QMessageBox.information(self, 'PyDex Dates Reset', 'Date: '+date)
 
     def show_window(self):
         """Show the window of the submodule or adjust its settings."""
@@ -312,12 +322,18 @@ class Master(QMainWindow):
                         DExTer to run. Used in unsynced mode."""
         action_text = self.actions.currentText()
         if action_text == 'Start acquisition' and self.action_button.text() == 'Go':
-            self.actions.setEnabled(False) # don't process other actions in this mode
-            self.rn._k = 0 # reset image per run count
-            self.action_button.setText('Stop acquisition')
-            self.rn.cam.start() # start acquisition
-            self.wait_for_cam() # wait for camera to initialise before running
-            self.status_label.setText('Camera acquiring')
+            if self.rn.cam.initialised > 2:
+                if self.sync_toggle.isChecked():
+                    QMessageBox.warning(self, 'Unscyned acquisition', 
+                        'Warning: started acquisition in synced mode. Without messages to DExTer, the file ID will not update.'+
+                        '\nTry unchecking: "Run Synchronisation" > "Sync with DExTer".')
+                self.actions.setEnabled(False) # don't process other actions in this mode
+                self.rn._k = 0 # reset image per run count
+                self.action_button.setText('Stop acquisition')
+                self.rn.cam.start() # start acquisition
+                self.wait_for_cam() # wait for camera to initialise before running
+                self.status_label.setText('Camera acquiring')
+            else: logger.warning('Master: Tried to start camera acquisition but camera is not initialised.')
         elif action_text == 'Start acquisition' and self.action_button.text() == 'Stop acquisition':
             self.actions.setEnabled(True)
             self.action_button.setText('Go')
@@ -330,8 +346,16 @@ class Master(QMainWindow):
                 self.rn._k = 0 # reset image per run count 
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000) 
             elif action_text == 'Multirun run':
-                self.rn.server.add_message(TCPENUM['TCP read'], 'start measure '
-                    + str(self.rn.seq.mr.stats['measure']) +'\n'+'0'*2000) # set DExTer's message to send
+                if self.rn.seq.mr.check_table():
+                    self.rn.seq.mr.mr_queue.append([self.rn.seq.mr.ui_param.copy(),
+                        self.rn.seq.mr.tr.copy(), self.rn.seq.mr.get_table()]) # add parameters to queue
+                    # suggest new multirun measure ID and prefix
+                    n = len(self.rn.seq.mr.mr_queue)
+                    self.rn.seq.mr.measures['measure'].setText(str(self.rn.seq.mr.mr_param['measure']+n))
+                    self.rn.seq.mr.measures['measure_prefix'].setText('Measure'+str(self.rn.seq.mr.mr_param['measure']+n))  
+                    self.rn.server.add_message(TCPENUM['TCP read'], 'start measure '
+                        + str(self.rn.seq.mr.mr_param['measure']) +'\n'+'0'*2000) # set DExTer's message to send
+                else: logger.warning('Tried to start multirun with invalid values. Check the table.\n')
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':
@@ -394,7 +418,7 @@ class Master(QMainWindow):
         elif 'end multirun' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
             self.rn.multirun_end(msg)
-            self.rn.server.save_times()
+            # self.rn.server.save_times()
             self.end_run(msg)
         # auto save any sequence that was sent to be loaded (even if it was already an xml file)
         # elif '<Name>Event list cluster in</Name>' in msg: # DExTer also saves the sequences when it's run

@@ -72,7 +72,7 @@ for timestep in [7, 8, 9]:
 
 # use list.index('') to find a channel by its name
 channel_names = ['E/W shims (X)', 'U/D shims (Y)', 'N/S shims (Z)']
-shim_values = [0.5, 0.7, 0]
+shim_values = [0.5, 0.05, -0.005]
 for timestep in range(2, len(esc['Sequence header top'])):
     for i in range(len(shim_values)):
         channel = esc['Slow analogue names']['Name'].index(channel_names[i])
