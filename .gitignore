@@ -5,3 +5,4 @@ imageanalysis/2019/
 
 # ignore the following files
 log.txt
+*.pyc
