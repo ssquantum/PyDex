@@ -347,6 +347,10 @@ class Master(QMainWindow):
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000) 
             elif action_text == 'Multirun run':
                 if self.rn.seq.mr.check_table():
+                    if not self.sync_toggle.isChecked():
+                        self.sync_toggle.setChecked(True) # it's better to multirun in synced mode
+                        QMessageBox.warning(self, 'Synced acquisition', 
+                            'Multirun has changed the sync with DExTer setting.')
                     self.rn.seq.mr.mr_queue.append([self.rn.seq.mr.ui_param.copy(),
                         self.rn.seq.mr.tr.copy(), self.rn.seq.mr.get_table()]) # add parameters to queue
                     # suggest new multirun measure ID and prefix

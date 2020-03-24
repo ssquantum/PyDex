@@ -157,7 +157,7 @@ class histo_handler(Analysis):
             ih.peak_centre = [mu0, mu1]
             ih.peak_widths = [sig0, sig1]
 
-            if self.bf.rchisq and abs(self.bf.rchisq) > 1e6: include = False # bad fit
+            if self.bf.rchisq and abs(self.bf.rchisq) > 1e9: include = False # bad fit
         
             # update threshold to where fidelity is maximum if not set by user
             if fix_thresh: 
