@@ -182,12 +182,21 @@ class runnum(QThread):
         repeat for the user variables in the list. A new sequence is generated for 
         each multirun run. These are sent via TCP and then run. Once the multirun
         has started it"""
-        r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # ID of run in repetition cycle
         try: # take the multirun parameters from the queue (they're added to the queue in master.py)
             self.seq.mr.mr_param, self.seq.mr.mrtr, self.seq.mr.mr_vals = self.seq.mr.mr_queue.pop(0) # parameters, sequence, values
         except IndexError as e:
             logger.error('runid.py could not start multirun because no multirun was queued.\n'+str(e))
             return 0
+            
+        results_path = os.path.join(self.sv.results_path, self.seq.mr.mr_param['measure_prefix'])
+        if os.path.isdir(results_path): # measure exists, check if user wants to overwrite
+            reply = QMessageBox.question(self, 'Confirm Overwrite',
+                "Results path already exists, do you want to overwrite the files?\n"+results_path,
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.No:
+                return 0
+
+        r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # ID of run in repetition cycle
         if toggle and self.sw.check_reset():
             for mw in self.sw.mw + self.sw.rw:
                 mw.plot_current_hist(mw.image_handler.histogram, mw.hist_canvas)
@@ -204,12 +213,11 @@ class runnum(QThread):
                     self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label'], 
                     uv, 0, self.seq.mr.mr_param['# omitted'], 0, self.seq.mr.mr_param['# in hist']))
             
+            # save log file with the parameters used for this multirun:
+            os.makedirs(results_path, exist_ok=True)
             # make list of sequences as messages to send and the order:
             self.seq.mr.get_all_sequences()
-            # save log file with the parameters used for this multirun:
-            os.makedirs(os.path.join(self.sv.results_path, self.seq.mr.mr_param['measure_prefix']), exist_ok=True)
-            self.seq.mr.save_mr_params(os.path.join(self.sv.results_path, os.path.join(self.seq.mr.mr_param['measure_prefix'],
-                self.seq.mr.mr_param['measure_prefix']+'params.csv')))
+            self.seq.mr.save_mr_params(os.path.join(results_path, self.seq.mr.mr_param['measure_prefix']+'params.csv'))
             self._k = 0 # reset image per run count
             # insert TCP messages at the front of the queue: once the multirun starts don't interrupt it.
             repeats = self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']
