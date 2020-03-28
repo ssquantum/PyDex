@@ -572,7 +572,7 @@ class main_window(QMainWindow):
                 new_vals[1] = max(self.image_handler.stats['Counts'])
             if new_vals[2] == '' and self.image_handler.ind > 0: # num bins
                 # min 17 bins. Increase with # images and with separation
-                new_vals[2] = int(17 + 5e-5 * self.image_handler.ind**2 + 
+                new_vals[2] = int(17 + self.image_handler.ind//100 + 
                     ((float(new_vals[1]) - float(new_vals[0]))/float(new_vals[1]))**2 * 15)
             if any([v == '' for v in new_vals]) and self.image_handler.ind == 0:
                 new_vals = [0, 1, 10] # catch all
@@ -997,11 +997,8 @@ class main_window(QMainWindow):
             if file_name:
                 header = self.image_handler.load(file_name)
                 if self.image_handler.ind > 0:
-                    self.histo_handler.process(self.image_handler, 
-                        self.stat_labels['User variable'].text(), 
-                        fix_thresh=self.thresh_toggle.isChecked(), method='quick')
-                    self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
-
+                    self.display_fit()
+                    
     def load_image(self, trigger=None):
         """Prompt the user to select an image file to display"""
         file_name = self.try_browse(file_type='Images (*.asc);;all (*)')

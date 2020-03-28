@@ -163,7 +163,7 @@ class histo_handler(Analysis):
             if fix_thresh: 
                 ih.fidelity, ih.err_fidelity = np.around(ih.get_fidelity(), 4) # round to 4 d.p.
             else:
-                ih.search_fidelity(mu0, sig0, mu1, n=100)
+                ih.hist_and_thresh()
 
             # update atom statistics
             ih.stats['Atom detected'] = [count // ih.thresh for count in ih.stats['Counts']]
