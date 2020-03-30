@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import re
+import copy
 import numpy as np
 from collections import OrderedDict
 from random import shuffle, randint
@@ -91,7 +92,7 @@ class multirun_widget(QWidget):
             ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\RbMOTendstep.evt'), 
             ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\feb2020_940and812.evt'),
             ('# omitted', 0), ('# in hist', 100)])
-        self.mr_param = self.ui_param.copy() # parameters used for current multirun
+        self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
         self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
         self.init_UI()  # make the widgets
@@ -128,8 +129,8 @@ class multirun_widget(QWidget):
         #### validators for user input ####
         double_validator = QDoubleValidator() # floats
         int_validator = QIntValidator()       # integers
-        nat_validator = QIntValidator(1,999999)# natural numbers
-        col_validator = QIntValidator(0,self.ncols-1) # for number of columns
+        nat_validator = QIntValidator(1,10000)# natural numbers
+        col_validator = QIntValidator(1,self.ncols-1) # for number of columns
 
         #### table dimensions and ordering ####
         # choose the number of rows = number of multirun steps
@@ -274,7 +275,7 @@ class multirun_widget(QWidget):
         self.table.setRowCount(self.nrows)
         self.ncols = int(self.cols_edit.text()) if self.cols_edit.text() else 1
         self.table.setColumnCount(self.ncols)
-        self.col_val_edit[0].setValidator(QIntValidator(0,self.ncols-1))
+        self.col_val_edit[0].setValidator(QIntValidator(1,self.ncols-1))
         if self.col_val_edit[0].text() and int(self.col_val_edit[0].text()) > self.ncols-1:
             self.col_val_edit[0].setText(str(self.ncols-1))
         self.reset_array()
@@ -373,7 +374,7 @@ class multirun_widget(QWidget):
             antype = self.ui_param['Analogue type'][col]
             sel = {'Time step name':self.ui_param['Time step name'][col],
                 'Analogue channel':self.ui_param['Analogue channel'][col] if mrtype=='Analogue voltage' else []}
-        except IndexError:
+        except (IndexError, ValueError):
             mrtype, antype = 'Time step length', 'Fast analogue'
             sel = {'Time step name':[], 'Analogue channel':[]}
         self.chan_choices['Type'].setCurrentText(mrtype)

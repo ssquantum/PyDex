@@ -5,6 +5,7 @@ __pycache__/
 .*/__pycache__/
 
 # ignore the following files
+state
 log.txt
 log.txt*
 *.pyc

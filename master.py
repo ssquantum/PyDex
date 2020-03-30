@@ -11,6 +11,7 @@ Stefan Spence 30/08/19
 import os
 import sys
 import time
+import copy
 import numpy as np
 try:
     from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
@@ -351,7 +352,7 @@ class Master(QMainWindow):
                         self.sync_toggle.setChecked(True) # it's better to multirun in synced mode
                         QMessageBox.warning(self, 'Synced acquisition', 
                             'Multirun has changed the sync with DExTer setting.')
-                    self.rn.seq.mr.mr_queue.append([self.rn.seq.mr.ui_param.copy(),
+                    self.rn.seq.mr.mr_queue.append([copy.deepcopy(self.rn.seq.mr.ui_param),
                         self.rn.seq.mr.tr.copy(), self.rn.seq.mr.get_table()]) # add parameters to queue
                     # suggest new multirun measure ID and prefix
                     n = len(self.rn.seq.mr.mr_queue)

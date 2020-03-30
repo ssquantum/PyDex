@@ -89,7 +89,12 @@ class settings_window(QMainWindow):
                 results_path, im_store_path, 'ROI'+str(i)+'_Re_') for i in range(nreim)]
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(nreim)]
         self.init_UI()  # make the widgets
-        self.show_analyses(False) # close unwanted windows 
+        # make sure the analysis windows have the default settings:
+        self.pic_size_text_edit(self.pic_size_edit.text())
+        self.set_thresh()
+        self.CCD_stat_edit()
+        self.replot_rois()
+        self.show_analyses(show_all=False)
 
     def reset_dates(self, date):
         """Reset the dates in all of the saia instances"""
