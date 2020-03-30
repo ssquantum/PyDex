@@ -227,20 +227,27 @@ class settings_window(QMainWindow):
         # self.reim_edit.setValidator(semico_validator)
 
         # get user to set the image size in pixels
-        size_label = QLabel('Image size in pixels: ', self)
-        settings_grid.addWidget(size_label, 2,0, 1,1)
+        load_im_size = QPushButton('Image size in pixels: ', self)
+        load_im_size.clicked.connect(self.load_im_size) # load image size from image
+        load_im_size.resize(load_im_size.sizeHint())
+        settings_grid.addWidget(load_im_size, 2,0, 1,1)
         self.pic_size_edit = QLineEdit(self)
         settings_grid.addWidget(self.pic_size_edit, 2,1, 1,1)
         self.pic_size_edit.textChanged[str].connect(self.pic_size_text_edit)
         self.pic_size_edit.setText(str(self.stats['pic_size'])) # default
         self.pic_size_edit.setValidator(int_validator)
         
-        # get image size from loading an image
-        load_im_size = QPushButton('Load size from image', self)
-        load_im_size.clicked.connect(self.load_im_size) # load image size from image
-        load_im_size.resize(load_im_size.sizeHint())
-        settings_grid.addWidget(load_im_size, 2,2, 1,1)
-
+        # user sets threshold for all analyses
+        self.thresh_toggle = QPushButton('User Threshold: ', self)
+        self.thresh_toggle.setCheckable(True)
+        self.thresh_toggle.clicked.connect(self.set_thresh)
+        settings_grid.addWidget(self.thresh_toggle, 2,2, 1,1)
+        # user inputs threshold
+        self.thresh_edit = QLineEdit(self)
+        settings_grid.addWidget(self.thresh_edit, 2,3, 1,1)
+        self.thresh_edit.textChanged.connect(self.set_thresh)
+        self.thresh_edit.setValidator(int_validator)
+        
         # EMCCD bias offset
         bias_offset_label = QLabel('EMCCD bias offset: ', self)
         settings_grid.addWidget(bias_offset_label, 3,0, 1,1)
@@ -316,6 +323,17 @@ class settings_window(QMainWindow):
         self.setWindowIcon(QIcon('docs/tempicon.png'))
         
     #### #### user input functions #### #### 
+
+    def set_thresh(self, arg=''):
+        """Sets the threshold in all of the analyser windows."""
+        if not self.bin_actions[1].isChecked():
+            msg = QMessageBox.information(self, 'Binning Mode', 
+                'The histogram binning must be in manual mode in order to set the threshold.')
+        for mw in self.mw + self.rw:
+            if self.thresh_edit.text():
+                mw.thresh_edit.setText(self.thresh_edit.text())
+            mw.thresh_toggle.setChecked(self.thresh_toggle.isChecked())
+            mw.set_thresh(self.thresh_toggle.isChecked()) # also calls bins_text_edit
             
     def pic_size_text_edit(self, text=''):
         """Update the specified size of an image in pixels when the user 
@@ -815,6 +833,7 @@ class settings_window(QMainWindow):
             self.rw[i].setWindowTitle(self.rw[i].name + ' - Re-Image Analaysing hists %s, %s'%(j,k))
             
         self.pic_size_text_edit(self.pic_size_edit.text())
+        self.set_thresh()
         self.CCD_stat_edit()
         self.replot_rois()
         self.show_analyses(show_all=False)

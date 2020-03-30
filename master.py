@@ -69,7 +69,7 @@ class Master(QMainWindow):
         self.ts = {label:time.time() for label in ['init', 'waiting', 'blocking',
             'msg start', 'msg end']}
         sv_dirs = event_handler.get_dirs(self.save_config)
-        # if not any([os.path.exists(svd) for svd in sv_dirs.values()]): # ask user to choose valid config file
+        # if not any(os.path.exists(svd) for svd in sv_dirs.values()): # ask user to choose valid config file
         startn = self.restore_state(file_name=state_config)
         # choose which image analyser to use from number images in sequence
         self.init_UI(startn)

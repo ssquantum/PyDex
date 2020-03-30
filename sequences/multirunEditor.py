@@ -311,7 +311,7 @@ class multirun_widget(QWidget):
         in the multirun values array. The list is range(start, stop, step) 
         repeated a set number of times, ordered according to the 
         ComboBox text. The selected channels are stored in lists."""
-        if all([x.text() for x in self.col_val_edit]):
+        if all(x.text() for x in self.col_val_edit):
             col = int(self.col_val_edit[0].text()) if self.col_val_edit[0].text() else 0
             # store the selected channels
             self.order = self.order_edit.currentText()

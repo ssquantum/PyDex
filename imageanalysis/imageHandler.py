@@ -168,35 +168,36 @@ class image_handler(Analysis):
         """Make a histogram of the photon counts and determine a threshold for 
         single atom presence by iteratively checking the fidelity."""
         bins, occ, _ = self.histogram()
-        self.thresh = np.mean(bins) # initial guess
-        self.peaks_and_thresh() # in case peak calculation fails
-        # if np.size(self.peak_indexes) == 2: # est_param will only find one peak if the number of bins is small
-        #     # set the threshold where the fidelity is max
-        #     self.search_fidelity(self.peak_centre[0], self.peak_widths[0] ,self.peak_centre[1])
-        try: 
-            thresh = threshold_minimum(np.array(self.stats['Counts']), len(bins))
-        except RuntimeError as e:
-            thresh = -1
-        if thresh > 0: 
-            self.thresh = thresh
-        # atom is present if the counts are above threshold
-        self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
-        self.fidelity, self. err_fidelity = np.around(self.get_fidelity(), 4)
+        if np.size(self.stats['Counts']): # don't do anything to an empty list
+            self.thresh = np.mean(bins) # initial guess
+            self.peaks_and_thresh() # in case peak calculation fails
+            # if np.size(self.peak_indexes) == 2: # est_param will only find one peak if the number of bins is small
+            #     # set the threshold where the fidelity is max
+            #     self.search_fidelity(self.peak_centre[0], self.peak_widths[0] ,self.peak_centre[1])
+            try: 
+                thresh = threshold_minimum(np.array(self.stats['Counts']), len(bins))
+            except RuntimeError as e:
+                thresh = -1
+            if thresh > 0: 
+                self.thresh = thresh
+            # atom is present if the counts are above threshold
+            self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
+            self.fidelity, self. err_fidelity = np.around(self.get_fidelity(), 4)
         return bins, occ, self.thresh
 
     def histogram(self):
         """Make a histogram of the photon counts but don't update the threshold"""
-        if np.size(self.bin_array) > 0: 
-            occ, bins = np.histogram(self.stats['Counts'], self.bin_array) # fixed bins. 
-        else:
-            try:
-                lo, hi = min(self.stats['Counts'])*0.97, max(self.stats['Counts'])*1.02
-                # scale number of bins with number of files in histogram and with separation of peaks
-                num_bins = int(15 + self.ind//100 + (abs(hi - abs(lo))/hi)**2*15) 
-                occ, bins = np.histogram(self.stats['Counts'], bins=np.linspace(lo, hi, num_bins+1)) # no bins provided by user
-            except: 
-                occ, bins = np.histogram(self.stats['Counts'])
         if np.size(self.stats['Counts']): # don't do anything to an empty list
+            if np.size(self.bin_array) > 0: 
+                occ, bins = np.histogram(self.stats['Counts'], self.bin_array) # fixed bins. 
+            else:
+                try:
+                    lo, hi = min(self.stats['Counts'])*0.97, max(self.stats['Counts'])*1.02
+                    # scale number of bins with number of files in histogram and with separation of peaks
+                    num_bins = int(15 + self.ind//100 + (abs(hi - abs(lo))/hi)**2*15) 
+                    occ, bins = np.histogram(self.stats['Counts'], bins=np.linspace(lo, hi, num_bins+1)) # no bins provided by user
+                except: 
+                    occ, bins = np.histogram(self.stats['Counts'])
             # get the indexes of peak positions, heights, and widths
             self.peak_indexes, self.peak_heights, self.peak_widths = est_param(occ)
             if np.size(self.peak_indexes) == 2: # est_param will only find one peak if the number of bins is small
@@ -210,10 +211,10 @@ class image_handler(Analysis):
                 mid = len(cs) // 2 # index of the middle of the counts array
                 self.peak_heights = [np.max(occ), np.max(occ)]
                 self.peak_centre = [np.mean(cs[:mid]), np.mean(cs[mid:])]
-                self.peak_widths = [np.std(cs[:mid]), np.std(cs[mid:])]
-                
+                self.peak_widths = [np.std(cs[:mid]), np.std(cs[mid:])]  
             # atom is present if the counts are above threshold
             self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
+        else: occ, bins = np.zeros(10), np.arange(0,1.1,0.1)
         return bins, occ, self.thresh
         
     def peaks_and_thresh(self):
