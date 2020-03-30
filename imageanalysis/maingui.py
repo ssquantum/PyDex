@@ -515,12 +515,12 @@ class main_window(QMainWindow):
         the user to one of the line edit widgets"""
         xc, yc, l = [self.roi_x_edit.text(),
                             self.roi_y_edit.text(), self.roi_l_edit.text()]
-        if any([v == '' for v in [xc, yc, l]]):
+        if any(v == '' for v in [xc, yc, l]):
             xc, yc, l = 1, 1, 1 # default 
         else:
             xc, yc, l = list(map(int, [xc, yc, l])) # crashes if the user inputs float
             
-        if any([v > self.image_handler.pic_size for v in [xc, yc, l]]):
+        if any(v > self.image_handler.pic_size for v in [xc, yc, l]):
             xc, yc, l = 1, 1, 1
         
         if (xc - l//2 < 0 or yc - l//2 < 0 
@@ -567,14 +567,14 @@ class main_window(QMainWindow):
                 new_vals[0] = min(self.image_handler.stats['Counts'])
             if new_vals[1] == '' and self.image_handler.ind > 0: # max
                 new_vals[1] = max(self.image_handler.stats['Counts'])
-            elif not any([v == '' for v in new_vals[:2]]) and int(new_vals[1]) < int(new_vals[0]):
+            elif not any(v == '' for v in new_vals[:2]) and int(new_vals[1]) < int(new_vals[0]):
                 # can't have max < min
                 new_vals[1] = max(self.image_handler.stats['Counts'])
             if new_vals[2] == '' and self.image_handler.ind > 0: # num bins
                 # min 17 bins. Increase with # images and with separation
-                new_vals[2] = int(17 + 5e-5 * self.image_handler.ind**2 + 
+                new_vals[2] = int(17 + self.image_handler.ind//100 + 
                     ((float(new_vals[1]) - float(new_vals[0]))/float(new_vals[1]))**2 * 15)
-            if any([v == '' for v in new_vals]) and self.image_handler.ind == 0:
+            if any(v == '' for v in new_vals) and self.image_handler.ind == 0:
                 new_vals = [0, 1, 10] # catch all
             if int(new_vals[2] if new_vals[2] else 0) < 2:  # 0 bins causes value error
                 new_vals[2] = 10
@@ -997,11 +997,8 @@ class main_window(QMainWindow):
             if file_name:
                 header = self.image_handler.load(file_name)
                 if self.image_handler.ind > 0:
-                    self.histo_handler.process(self.image_handler, 
-                        self.stat_labels['User variable'].text(), 
-                        fix_thresh=self.thresh_toggle.isChecked(), method='quick')
-                    self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
-
+                    self.display_fit()
+                    
     def load_image(self, trigger=None):
         """Prompt the user to select an image file to display"""
         file_name = self.try_browse(file_type='Images (*.asc);;all (*)')

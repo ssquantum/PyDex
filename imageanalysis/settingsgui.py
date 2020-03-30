@@ -60,7 +60,7 @@ class settings_window(QMainWindow):
     """
     m_changed = pyqtSignal(int) # gives the number of images per run
 
-    def __init__(self, nsaia=1, nreim=0, results_path='', im_store_path='', 
+    def __init__(self, nsaia=1, nreim=1, results_path='', im_store_path='', 
             config_file='.\\imageanalysis\\default.config'):
         super().__init__()
         self.types = OrderedDict([('pic_size',int), ('ROIs',listlist), 
@@ -89,6 +89,7 @@ class settings_window(QMainWindow):
                 results_path, im_store_path, 'ROI'+str(i)+'_Re_') for i in range(nreim)]
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(nreim)]
         self.init_UI()  # make the widgets
+        self.show_analyses(False) # close unwanted windows 
 
     def reset_dates(self, date):
         """Reset the dates in all of the saia instances"""
@@ -216,28 +217,37 @@ class settings_window(QMainWindow):
         self.a_ind_edit.setValidator(comma_validator)
 
         # choose which histogram to use for survival probability calculations
-        reim_label = QLabel('Histogram indices for re-imaging: ', self)
+        reim_label = QLabel('Number of re-image analysers', self)
         settings_grid.addWidget(reim_label, 1,2, 1,1)
         self.reim_edit = QLineEdit(self)
         settings_grid.addWidget(self.reim_edit, 1,3, 1,1)
-        self.reim_edit.setText('; '.join(map(str, self.rw_inds))) # default
-        self.reim_edit.setValidator(semico_validator)
+        self.reim_edit.setText(str(len(self.rw_inds)))
+        self.reim_edit.setValidator(int_validator)
+        # self.reim_edit.setText('; '.join(map(str, self.rw_inds))) # default # 'Histogram indices for re-imaging: '
+        # self.reim_edit.setValidator(semico_validator)
 
         # get user to set the image size in pixels
-        size_label = QLabel('Image size in pixels: ', self)
-        settings_grid.addWidget(size_label, 2,0, 1,1)
+        load_im_size = QPushButton('Image size in pixels: ', self)
+        load_im_size.clicked.connect(self.load_im_size) # load image size from image
+        load_im_size.resize(load_im_size.sizeHint())
+        settings_grid.addWidget(load_im_size, 2,0, 1,1)
         self.pic_size_edit = QLineEdit(self)
         settings_grid.addWidget(self.pic_size_edit, 2,1, 1,1)
         self.pic_size_edit.textChanged[str].connect(self.pic_size_text_edit)
         self.pic_size_edit.setText(str(self.stats['pic_size'])) # default
         self.pic_size_edit.setValidator(int_validator)
         
-        # get image size from loading an image
-        load_im_size = QPushButton('Load size from image', self)
-        load_im_size.clicked.connect(self.load_im_size) # load image size from image
-        load_im_size.resize(load_im_size.sizeHint())
-        settings_grid.addWidget(load_im_size, 2,2, 1,1)
-
+        # user sets threshold for all analyses
+        self.thresh_toggle = QPushButton('User Threshold: ', self)
+        self.thresh_toggle.setCheckable(True)
+        self.thresh_toggle.clicked.connect(self.set_thresh)
+        settings_grid.addWidget(self.thresh_toggle, 2,2, 1,1)
+        # user inputs threshold
+        self.thresh_edit = QLineEdit(self)
+        settings_grid.addWidget(self.thresh_edit, 2,3, 1,1)
+        self.thresh_edit.textChanged.connect(self.set_thresh)
+        self.thresh_edit.setValidator(int_validator)
+        
         # EMCCD bias offset
         bias_offset_label = QLabel('EMCCD bias offset: ', self)
         settings_grid.addWidget(bias_offset_label, 3,0, 1,1)
@@ -313,6 +323,17 @@ class settings_window(QMainWindow):
         self.setWindowIcon(QIcon('docs/tempicon.png'))
         
     #### #### user input functions #### #### 
+
+    def set_thresh(self, arg=''):
+        """Sets the threshold in all of the analyser windows."""
+        if not self.bin_actions[1].isChecked():
+            msg = QMessageBox.information(self, 'Binning Mode', 
+                'The histogram binning must be in manual mode in order to set the threshold.')
+        for mw in self.mw + self.rw:
+            if self.thresh_edit.text():
+                mw.thresh_edit.setText(self.thresh_edit.text())
+            mw.thresh_toggle.setChecked(self.thresh_toggle.isChecked())
+            mw.set_thresh(self.thresh_toggle.isChecked()) # also calls bins_text_edit
             
     def pic_size_text_edit(self, text=''):
         """Update the specified size of an image in pixels when the user 
@@ -383,7 +404,7 @@ class settings_window(QMainWindow):
         ROIs that are displayed in the ROI tab and assign them to
         the image analysis windows."""
         viewbox = self.im_canvas.getViewBox()
-        for i, mw in enumerate(self.mw):
+        for i, mw in enumerate(self.mw[:self._a+1]):
             j = i // self._m
             try: 
                 x, y, d = self.stats['ROIs'][j] # xc, yc, size
@@ -397,7 +418,7 @@ class settings_window(QMainWindow):
                     self.rois[j][1].setPos(x-d//2, y-d//2)
                     self.rois[j][1].setSize(d, d)
                 except IndexError: # make a new ROI 
-                    self.rois.append((pg.TextItem('ROI'+str(i), pg.intColor(j), anchor=(0.5,0.5)), 
+                    self.rois.append((pg.TextItem('ROI'+str(j), pg.intColor(j), anchor=(0,1)), 
                         pg.ROI((x-d//2, y-d//2), (d,d), movable=True)))
                     self.rois[j][1].sigRegionChangeFinished.connect(self.user_roi) 
                     self.rois[j][1].setZValue(10)   # make sure the ROI is drawn above the image
@@ -464,7 +485,7 @@ class settings_window(QMainWindow):
                 if size > width or size > height:
                     logger.warning('When making square ROI grid, found ROI size %s > dimensions (%s, %s)'%(
                         size, width, height))
-                for i in range(self._m): # ID of ROI
+                for i in range(self._a // self._m): # ID of ROI
                     try:
                         newpos = [pos[0] + width * (i%(X//width)),
                                 pos[1] + height * (i//(X//width))]
@@ -478,7 +499,7 @@ class settings_window(QMainWindow):
                     except ZeroDivisionError as e:
                         logger.error('Invalid parameters for square ROI grid: '+
                             'x - %s, y - %s, pic_size - %s, roi_size - %s.\n'%(
-                                newpos[0], newpos[1], self.stats['pic_size'], size)
+                                pos[0], pos[1], self.stats['pic_size'], size)
                             + 'Calculated width - %s, height - %s.\n'%(width, height) + str(e))
             else: logger.warning('Failed to set square ROI grid.\n')
         elif method == '2D Gaussian masks':
@@ -700,12 +721,20 @@ class settings_window(QMainWindow):
         
     #### #### UI management functions #### #### 
     
-    def show_analyses(self):
-        """Display the instances of SAIA, filling the screen"""
+    def show_analyses(self, show_all=True):
+        """Display the instances of SAIA, displaced from the left of the screen.
+        show_all -- True: display all main windows and reimage windows.
+                   False: if main window is used for reimage, don't display."""
+        if show_all:
+            hide = []
+        else: hide = [int(ind) for pair in self.rw_inds for ind in pair.split(',')]
         for i in range(self._a):
-            self.mw[i].resize(800, 400)
-            self.mw[i].setGeometry(40+i*400//self._a, 100, 800, 400)
-            self.mw[i].show()
+            if i in hide:
+                self.mw[i].close()
+            else:
+                self.mw[i].resize(800, 400)
+                self.mw[i].setGeometry(40+i*400//self._a, 100, 800, 400)
+                self.mw[i].show()
         for i in range(len(self.rw_inds)):
             self.rw[i].resize(800, 400)
             self.rw[i].setGeometry(45+i*400//len(self.rw_inds), 200, 800, 400)
@@ -770,35 +799,44 @@ class settings_window(QMainWindow):
         self.a_ind_edit.setText(','.join(map(str, self.mw_inds)))
 
         if self.reim_edit.text(): # don't do anything if the line edit is empty
-            rinds = self.reim_edit.text().split(';') # indices of SAIA instances used for re-imaging
-            for i in range(len(rinds)): # check the list input from the user has the right syntax
-                try: 
-                    j, k = map(int, rinds[i].split(','))
-                    if j >= self._a or k >= self._a:
-                        rind = rinds.pop(i)
-                        logger.warning('Invalid histogram indices for re-imaging: '+rind)
-                except ValueError as e:
-                    rind = rinds.pop(i)
-                    logger.error('Invalid syntax for re-imaging histogram indices: '+rind+'\n'+str(e))    
-                except IndexError:
-                    break # since we're popping elements from the list its length shortens
-            self.rw_inds = rinds
+            # rinds = self.reim_edit.text().split(';') # indices of SAIA instances used for re-imaging
+            # for i in range(len(rinds)): # check the list input from the user has the right syntax
+            #     try: 
+            #         j, k = map(int, rinds[i].split(','))
+            #         if j >= self._a or k >= self._a:
+            #             rind = rinds.pop(i)
+            #             logger.warning('Invalid histogram indices for re-imaging: '+rind)
+            #     except ValueError as e:
+            #         rind = rinds.pop(i)
+            #         logger.error('Invalid syntax for re-imaging histogram indices: '+rind+'\n'+str(e))    
+            #     except IndexError:
+            #         break # since we're popping elements from the list its length shortens
+            # self.rw_inds = rinds
+            self.rw_inds = []
+            for i in range(int(self.reim_edit.text())):
+                if 2*i+1 < self._a:
+                    self.rw_inds.append(str(2*i)+','+str(2*i+1))
+                else:
+                    self.rw_inds.append('0,1')
         
         for i in range(min(len(self.rw_inds), len(self.rw))): # update current re-image instances
             j, k = map(int, self.rw_inds[i].split(','))
             self.rw[i].ih1 = self.mw[j].image_handler
             self.rw[i].ih2 = self.mw[k].image_handler
+            self.rw[i].setWindowTitle(self.rw[i].name + ' - Re-Image Analaysing hists %s, %s'%(j,k))
         for i in range(len(self.rw), len(self.rw_inds)): # add new re-image instances as required
             j, k = map(int, self.rw_inds[i].split(','))
             self.rw.append(reim_window(self.mw[j].event_im,
                     [self.mw[j].image_handler, self.mw[k].image_handler],
                     [self.mw[j].histo_handler, self.mw[k].histo_handler],
                     self.results_path, self.image_storage_path, 'ROI'+str(i)+'_Re_'))
+            self.rw[i].setWindowTitle(self.rw[i].name + ' - Re-Image Analaysing hists %s, %s'%(j,k))
             
         self.pic_size_text_edit(self.pic_size_edit.text())
+        self.set_thresh()
         self.CCD_stat_edit()
         self.replot_rois()
-        self.show_analyses()
+        self.show_analyses(show_all=False)
         self.m_changed.emit(m) # let other modules know the value has changed, and reconnect signals
         
     def closeEvent(self, event, confirm=False):

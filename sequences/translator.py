@@ -19,6 +19,7 @@ import numpy as np
 from collections import OrderedDict
 import logging
 import os
+import copy
 logger = logging.getLogger(__name__)
 
 #### #### DExTer clusters #### ####
@@ -422,7 +423,7 @@ class translate:
         t.nfa = self.nfa # number of fast analogue
         t.nsd = self.nsd # number of slow digital
         t.nsa = self.nsa # number of slow analogue
-        t.seq_dic = self.seq_dic # the sequence in dictionary format
+        t.seq_dic = copy.deepcopy(self.seq_dic) # need deep copy of dict because values are mutable
         t.write_to_str()
         return t
         

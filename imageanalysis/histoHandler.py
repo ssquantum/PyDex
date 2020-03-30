@@ -157,13 +157,13 @@ class histo_handler(Analysis):
             ih.peak_centre = [mu0, mu1]
             ih.peak_widths = [sig0, sig1]
 
-            if self.bf.rchisq and abs(self.bf.rchisq) > 1e6: include = False # bad fit
+            if self.bf.rchisq and abs(self.bf.rchisq) > 1e9: include = False # bad fit
         
             # update threshold to where fidelity is maximum if not set by user
             if fix_thresh: 
                 ih.fidelity, ih.err_fidelity = np.around(ih.get_fidelity(), 4) # round to 4 d.p.
             else:
-                ih.search_fidelity(mu0, sig0, mu1, n=100)
+                ih.hist_and_thresh()
 
             # update atom statistics
             ih.stats['Atom detected'] = [count // ih.thresh for count in ih.stats['Counts']]
