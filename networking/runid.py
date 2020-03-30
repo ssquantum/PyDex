@@ -190,7 +190,7 @@ class runnum(QThread):
             
         results_path = os.path.join(self.sv.results_path, self.seq.mr.mr_param['measure_prefix'])
         if os.path.isdir(results_path): # measure exists, check if user wants to overwrite
-            reply = QMessageBox.question(self, 'Confirm Overwrite',
+            reply = QMessageBox.question(self.seq.mr, 'Confirm Overwrite',
                 "Results path already exists, do you want to overwrite the files?\n"+results_path,
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.No:

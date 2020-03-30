@@ -91,7 +91,6 @@ class settings_window(QMainWindow):
         self.init_UI()  # make the widgets
         # make sure the analysis windows have the default settings:
         self.pic_size_text_edit(self.pic_size_edit.text())
-        self.set_thresh()
         self.CCD_stat_edit()
         self.replot_rois()
         self.show_analyses(show_all=False)
@@ -730,7 +729,7 @@ class settings_window(QMainWindow):
         """Display the instances of SAIA, displaced from the left of the screen.
         show_all -- True: display all main windows and reimage windows.
                    False: if main window is used for reimage, don't display."""
-        if show_all:
+        if not show_all:
             hide = []
         else: hide = [int(ind) for pair in self.rw_inds for ind in pair.split(',')]
         for i in range(self._a):
