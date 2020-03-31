@@ -273,6 +273,7 @@ class Master(QMainWindow):
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
                 self.action_button.setEnabled(True)
+                self.rn.seq.mr.mr_queue = []
                 self.rn.reset_server(force=True)
 
     def browse_sequence(self, toggle=True):
@@ -344,6 +345,8 @@ class Master(QMainWindow):
             if action_text == 'Run sequence':
                 # queue up messages: start acquisition, check run number
                 self.action_button.setEnabled(False) # only process 1 run at a time
+                self.rn.seq.tr.write_to_file(os.path.join(self.rn.sv.sequences_path, 
+                        str(self.rn._n) + time.strftime("_%d %B %Y_%H %M %S.xml"))) # save sequence
                 self.rn._k = 0 # reset image per run count 
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000) 
             elif action_text == 'Multirun run':
@@ -355,11 +358,10 @@ class Master(QMainWindow):
                     self.rn.seq.mr.mr_queue.append([copy.deepcopy(self.rn.seq.mr.ui_param),
                         self.rn.seq.mr.tr.copy(), self.rn.seq.mr.get_table()]) # add parameters to queue
                     # suggest new multirun measure ID and prefix
-                    n = len(self.rn.seq.mr.mr_queue)
-                    self.rn.seq.mr.measures['measure'].setText(str(self.rn.seq.mr.mr_param['measure']+n))
-                    self.rn.seq.mr.measures['measure_prefix'].setText('Measure'+str(self.rn.seq.mr.mr_param['measure']+n))  
-                    self.rn.server.add_message(TCPENUM['TCP read'], 'start measure '
-                        + str(self.rn.seq.mr.mr_param['measure']) +'\n'+'0'*2000) # set DExTer's message to send
+                    n = self.rn.seq.mr.mr_param['measure'] + len(self.rn.seq.mr.mr_queue)
+                    self.rn.seq.mr.measures['measure'].setText(str(n))
+                    self.rn.seq.mr.measures['measure_prefix'].setText('Measure'+str(n))  
+                    self.check_mr_queue() # prevent multiple multiruns occurring simultaneously
                 else: logger.warning('Tried to start multirun with invalid values. Check the table.\n')
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
@@ -370,7 +372,7 @@ class Master(QMainWindow):
                 if 'multirun' in self.status_label.text():
                     self.rn.multirun_go(False)
                     self.rn.seq.mr.ind = 0
-                    self.rn.seq.mr.reset_sequence(self.rn.seq.tr)
+                    self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
             elif action_text == 'TCP load sequence from string':
                 self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.seq_txt)
             elif action_text == 'TCP load sequence':
@@ -393,7 +395,17 @@ class Master(QMainWindow):
                 time.sleep(self.camera_pause) # wait for camera to initialise
                 break
             time.sleep(1e-4) # poll camera status to check if acquiring
-                
+
+    def check_mr_queue(self):
+        """Check whether it is appropriate to start the queued multiruns.
+        This prevents multiple multiruns being sent to DExTer at the same time."""
+        num_mrs = len(self.rn.seq.mr.mr_queue) # number of multiruns queued
+        if num_mrs:
+            if 'multirun' not in self.status_label.text() and num_mrs < 2: 
+                self.rn.server.add_message(TCPENUM['TCP read'], # send the first multirun to DExTer
+                    'start measure %s'%(self.rn.seq.mr.mr_param['measure'] + num_mrs - 1)+'\n'+'0'*2000)
+            else: QTimer.singleShot(10e3, self.check_mr_queue) # check again in 10s.
+            
     def respond(self, msg=''):
         """Read the text from a TCP message and then execute the appropriate function."""
         self.ts['msg start'] = time.time()

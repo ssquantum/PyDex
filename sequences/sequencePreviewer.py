@@ -40,6 +40,16 @@ def bl(string):
     try: return bool(int(string))
     except ValueError: return bool(string)
 
+def fmt(val, p):
+    """Reformat the string so that it is displayed better.
+    with p=5, converts '5.11111111e-2' -> '0.051'
+    val: the value to convert
+    p:   number of s.f. to include (warning: includes leading zeros) """
+    try:
+        return str(float(val))[:p]
+    except ValueError:
+        return str(val)[:p]
+
 #### #### Edit sequences #### ####
 
 # class Editor(QMainWindow):
@@ -356,21 +366,21 @@ class Previewer(QMainWindow):
                     'Time unit', 'Digital or analogue trigger?', 'Trigger this time step?', 
                     'Channel', 'Analogue voltage (V)', 'GPIB event name', 'GPIB on/off?']):
                 if key == 'Time step length' or key == 'Analogue voltage (V)':
-                    self.head_top.item(j, i).setText(str(esc['Sequence header top'][i][key])[:self.p])  # to 'p' s.f.
-                    self.head_mid.item(j, i).setText(str(esc['Sequence header middle'][i][key])[:self.p])
+                    self.head_top.item(j, i).setText(fmt(esc['Sequence header top'][i][key], self.p))  # to 'p' s.f.
+                    self.head_mid.item(j, i).setText(fmt(esc['Sequence header middle'][i][key], self.p))
                 else:
                     self.head_top.item(j, i).setText(str(esc['Sequence header top'][i][key]))
                     self.head_mid.item(j, i).setText(str(esc['Sequence header middle'][i][key]))
             for j in range(self.tr.nfd):
                 self.fd_chans.item(j, i).setBackground(Qt.green if bl(esc['Fast digital channels'][i][j]) else Qt.red)
             for j in range(self.tr.nfa):
-                self.fa_chans.item(j, 2*i).setText(str(esc['Fast analogue array'][j]['Voltage'][i])[:self.p])
+                self.fa_chans.item(j, 2*i).setText(fmt(esc['Fast analogue array'][j]['Voltage'][i], self.p))
                 self.fa_chans.item(j, 2*i+1).setText(
                     'Ramp' if bl(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
             for j in range(self.tr.nsd):
                 self.sd_chans.item(j, i).setBackground(Qt.green if bl(esc['Slow digital channels'][i][j]) else Qt.red)
             for j in range(self.tr.nsa):
-                self.sa_chans.item(j, 2*i).setText(str(esc['Slow analogue array'][j]['Voltage'][i])[:self.p])
+                self.sa_chans.item(j, 2*i).setText(fmt(esc['Slow analogue array'][j]['Voltage'][i], self.p))
                 self.sa_chans.item(j, 2*i+1).setText(
                     'Ramp' if bl(esc['Slow analogue array'][j]['Ramp?'][i]) else '')
 
