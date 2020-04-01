@@ -79,7 +79,7 @@ class event_handler(PyDexThread):
             datepath = r'\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])
             self.image_storage_path = self.check_path(self.image_storage_path, datepath)
             self.results_path = self.check_path(self.results_path, datepath)
-            self.sequences_path = self.check_path(self.sequence_path, datepath)
+            self.sequences_path = self.check_path(self.sequences_path, datepath)
         else: logger.warning('Image saver could not load paths from config file: '+config_file)
 
     def check_path(self, path, datepath):

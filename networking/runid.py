@@ -38,9 +38,10 @@ class runnum(QThread):
 
     def __init__(self, camra, saver, saiaw, seq, n=0, m=1, k=0):
         super().__init__()
-        self._n = n # the run #
+        self._n = n # the run number
         self._m = m # # images per run
         self._k = k # # images received
+        self.multirun = False # status of whether in multirun or not
         self.cam = camra # Andor camera control
         self.cam.AcquireEnd.connect(self.receive) # receive the most recent image
         self.sv = saver  # image saver
@@ -199,6 +200,8 @@ class runnum(QThread):
                 if reply == QMessageBox.No:
                     return 0
             for mw in self.sw.mw + self.sw.rw:
+                mw.image_handler.reset_arrays() # gets rid of old data
+                mw.histo_handler.bf = None
                 mw.plot_current_hist(mw.image_handler.histogram, mw.hist_canvas)
                 mw.clear_varplot()
                 mw.multirun = True
@@ -215,7 +218,8 @@ class runnum(QThread):
             
             # save log file with the parameters used for this multirun:
             os.makedirs(results_path, exist_ok=True)
-            # make list of sequences as messages to send and the order:
+            # save sequences and make list of messages to send and the order:
+            self.seq.mr.mrtr.write_to_file(os.path.join(results_path, self.seq.mr.mr_param['measure_prefix'] + '_base.xml'))
             self.seq.mr.get_all_sequences(save_dir=results_path)
             self.seq.mr.save_mr_params(os.path.join(results_path, self.seq.mr.mr_param['measure_prefix']+'params.csv'))
             self._k = 0 # reset image per run count
@@ -333,6 +337,7 @@ class runnum(QThread):
                 confirm=False) # save measure file
             # reconnect previous signals
             mw.set_bins() # reconnects signal with given histogram binning settings
+            mw.display_fit() # display the empty histograms
             mw.multirun = False
         self.multirun_go(False) # reconnect signals
         self.seq.mr.ind = 0
@@ -341,3 +346,4 @@ class runnum(QThread):
             self.seq.mr.mr_param['measure_prefix']+'params.csv')))
         self.seq.mr.progress.emit(       # update progress label
             'Finished measure %s: %s.'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label']))
+        self.multirun = False

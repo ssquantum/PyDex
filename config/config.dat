@@ -2,4 +2,4 @@
 image storage path	 =C:\Users\Lab\Documents\atom_images
 dexter sync file	 =X:\Results\currentfile.txt
 results path		 =Z:\Tweezer\Experimental Results
-sequences path		 =X:\Sequence Log
+sequences path		 =.\sequences\SequenceFiles

@@ -153,6 +153,8 @@ class histo_handler(Analysis):
                 fix_thresh = True
                 ih.thresh = max(bins) # set the threshold above the counts
 
+            try: list(map(int, [A0, A1, mu0, mu1, sig0, sig1])) # check for NaN or inf
+            except (ValueError, OverflowError): return 0
             ih.peak_heights = [A0, A1]
             ih.peak_centre = [mu0, mu1]
             ih.peak_widths = [sig0, sig1]

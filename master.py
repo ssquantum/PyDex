@@ -30,6 +30,8 @@ except ImportError:
         QVBoxLayout)
 # change directory to this file's location
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
+# import warnings
+# warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
 import logging
 import logerrs
 logerrs.setup_log()
@@ -101,6 +103,8 @@ class Master(QMainWindow):
         self.rn.seq.show()
         self.rn.sw.show()
         self.rn.sw.show_analyses()
+        if self.rn.server.isRunning():
+            self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
 
     def idle_state(self):
         """When the master thread is not processing user events, it is in the idle states.
@@ -185,7 +189,7 @@ class Master(QMainWindow):
         self.actions.addItems(['Run sequence', 'Multirun run',
             'Pause multirun', 'Resume multirun', 'Cancel multirun',
             'TCP load sequence','TCP load sequence from string',
-            'Cancel Python Mode', 'Start acquisition'])
+            'Cancel Python Mode', 'Resync DExTer', 'Start acquisition'])
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
 
@@ -274,6 +278,7 @@ class Master(QMainWindow):
             if reply == QMessageBox.Yes:
                 self.action_button.setEnabled(True)
                 self.rn.seq.mr.mr_queue = []
+                self.rn.multirun = False
                 self.rn.reset_server(force=True)
 
     def browse_sequence(self, toggle=True):
@@ -320,6 +325,7 @@ class Master(QMainWindow):
                         the location in the 'DExTer sequence file' label.
         Cancel python mode: send the text 'python mode off' which triggers
                         DExTer to exit python mode.
+        Resync DExTer:  send a null message just to resync the run number.
         Start acquisition:  start the camera acquiring without telling
                         DExTer to run. Used in unsynced mode."""
         action_text = self.actions.currentText()
@@ -379,6 +385,8 @@ class Master(QMainWindow):
                 self.rn.server.add_message(TCPENUM[action_text], self.seq_edit.text()+'\n'+'0'*2000)
             elif action_text == 'Cancel Python Mode':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off\n'+'0'*2000)
+            elif action_text ==  'Resync DExTer':
+                self.rn.server.add_message(TCPENUM['TCP read'], 'Resync DExTer\n'+'0'*2000)
             
     def sync_mode(self, toggle=True):
         """Toggle whether to receive the run number from DExTer,
@@ -401,7 +409,8 @@ class Master(QMainWindow):
         This prevents multiple multiruns being sent to DExTer at the same time."""
         num_mrs = len(self.rn.seq.mr.mr_queue) # number of multiruns queued
         if num_mrs:
-            if 'multirun' not in self.status_label.text() and num_mrs < 2: 
+            if not self.rn.multirun and num_mrs < 2: 
+                self.rn.multirun = True
                 self.rn.server.add_message(TCPENUM['TCP read'], # send the first multirun to DExTer
                     'start measure %s'%(self.rn.seq.mr.mr_param['measure'] + num_mrs - 1)+'\n'+'0'*2000)
             else: QTimer.singleShot(10e3, self.check_mr_queue) # check again in 10s.

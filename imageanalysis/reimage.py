@@ -101,7 +101,7 @@ class reim_window(main_window):
     def get_histogram(self):
         """Take the histogram from the 'after' images where the 'before' images
         contained an atom"""
-        atom = (np.array(self.ih1.stats['Counts']) // self.ih1.thresh).astype(bool)
+        atom = np.where(np.array(self.ih1.stats['Counts']) // self.ih1.thresh > 0, True, False)
         idxs = [i for i, val in enumerate(self.ih2.stats['File ID']) 
                 if any([val == v for j, v in enumerate(self.ih1.stats['File ID']) if atom[j]])]
         # take the after images when the before images contained atoms
@@ -113,7 +113,7 @@ class reim_window(main_window):
         self.image_handler.stats['ROI centre count'] = [self.ih2.stats['ROI centre count'][i] for i in idxs]
         self.image_handler.stats['Max xpos'] = [self.ih2.stats['Max xpos'][i] for i in idxs]
         self.image_handler.stats['Max ypos'] = [self.ih2.stats['Max ypos'][i] for i in idxs]
-        self.image_handler.ind = np.size(self.image_handler.stats['Counts']) - 1
+        self.image_handler.ind = np.size(self.image_handler.stats['Counts'])
         self.image_handler.stats['Atom detected'] = [self.ih2.stats['Atom detected'][i] for i in idxs]
         self.image_handler.stats['Include']  = [self.ih2.stats['Include'][i] for i in idxs]
         self.image_handler.thresh = int(self.thresh_edit.text()) if self.thresh_edit.text() else self.ih2.thresh
@@ -152,17 +152,16 @@ class reim_window(main_window):
         return success
     
     def update_plot(self, event_im):
-        """Receive the event path emitted from the system event handler signal.
-        Take the histogram from the 'after' images where the 'before' images
-        contained an atom and then update the figure."""
+        """Same as update_plot_only because we want the threshold to be taken
+        from the second histogram (after image), not calculated in this reimage histogram."""
         t2 = self.get_histogram()
         # display the name of the most recent file
-        if self.image_handler.ind > 0:
+        if self.image_handler.ind > 1:
             self.recent_label.setText('Just processed image '
                         + self.image_handler.stats['File ID'][-1])
         for imh, hc in [[self.ih1.histogram, self.hist1], # thresh for ih1, ih2 set in main window
                         [self.ih2.histogram, self.hist2], 
-                        [self.image_handler.hist_and_thresh, self.hist_canvas]]:
+                        [self.image_handler.histogram, self.hist_canvas]]:
             self.plot_current_hist(imh, hc) # update the displayed plot
         self.plot_time = time.time() - t2
 
@@ -173,7 +172,7 @@ class reim_window(main_window):
         threshold value."""
         t2 = self.get_histogram()
         # display the name of the most recent file
-        if self.image_handler.ind > 0:
+        if self.image_handler.ind > 1:
             self.recent_label.setText('Just processed image '
                         + self.image_handler.stats['File ID'][-1])
         for imh, hc in [[self.ih1.histogram, self.hist1], 

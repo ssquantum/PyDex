@@ -386,9 +386,7 @@ class multirun_widget(QWidget):
                 for i in sel[key]: # select items at the stored indices
                     self.chan_choices[key].item(i).setSelected(True)
             except IndexError: pass # perhaps sequence was updated but using old selection indices
-            except AttributeError as e: 
-                logger.warning("Couldn't set channels for the loaded multirun parameters." + 
-                    " Load the sequence first, then load multirun parameters.\n"+str(e))
+            except AttributeError as e: pass # logger.warning("Couldn't set channels for the loaded multirun parameters. Load the sequence first, then load multirun parameters.\n"+str(e))
         
     def get_anlg_chans(self, speed):
         """Return a list of name labels for the analogue channels.
