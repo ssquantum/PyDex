@@ -1,4 +1,4 @@
-"""Single Atom Image Analysis (SAIA) Multirun Editor
+"""PyDex Multirun Editor
 Stefan Spence 26/02/19
 
  - Provide a visual representation for multirun values
@@ -29,6 +29,7 @@ except ImportError:
         QFileDialog)
 import logging
 logger = logging.getLogger(__name__)
+sys.path.append('.')
 sys.path.append('..')
 from mythread import remove_slot # for dis- and re-connecting slots
 from translator import translate
@@ -386,7 +387,7 @@ class multirun_widget(QWidget):
                 for i in sel[key]: # select items at the stored indices
                     self.chan_choices[key].item(i).setSelected(True)
             except IndexError: pass # perhaps sequence was updated but using old selection indices
-            except AttributeError as e: pass # logger.warning("Couldn't set channels for the loaded multirun parameters. Load the sequence first, then load multirun parameters.\n"+str(e))
+            except AttributeError as e: logger.warning("Couldn't set channels for the loaded multirun parameters. Load the sequence first, then load multirun parameters.\n"+str(e))
         
     def get_anlg_chans(self, speed):
         """Return a list of name labels for the analogue channels.
@@ -446,7 +447,8 @@ class multirun_widget(QWidget):
             self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
                     ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
             if save_dir:
-                self.mrtr.write_to_file(os.path.join(save_dir, self.mr_param['measure_prefix'] + '_' + str(i) + '.xml'))
+                self.mrtr.write_to_file(os.path.join(save_dir, self.mr_param['measure_prefix'] + '_' + 
+                    str(i + self.mr_param['1st hist ID']) + '.xml'))
         except IndexError as e:
             logger.error('Multirun failed to edit sequence at ' + self.mr_param['Variable label']
                 + ' = ' + self.mr_vals[i][0] + '\n' + str(e))

@@ -14,6 +14,7 @@ with open('filename', 'r') as f:
 """
 import sys
 import numpy as np
+from distutils.util import strtobool
 try:
     from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer, Qt
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel,
@@ -33,12 +34,12 @@ from multirunEditor import multirun_widget
 import logging
 logger = logging.getLogger(__name__)
 
-
-def bl(string):
-    """Convert a string of a boolean to a boolean.
-    This corrects for bool('0')=True."""
-    try: return bool(int(string))
-    except ValueError: return bool(string)
+def BOOL(x):
+    """Fix the conversion from string to Boolean.
+    Any string with nonzero length evaluates as true 
+    e.g. bool('False') is True. So we need strtobool."""
+    try: return strtobool(x)
+    except AttributeError: return bool(x)
 
 def fmt(val, p):
     """Reformat the string so that it is displayed better.
@@ -290,7 +291,6 @@ class Previewer(QMainWindow):
         mr_menu.addAction(mrqueue)
         
         # choose main window position and dimensions: (xpos,ypos,width,height)
-        self.setGeometry(60, 60, 1000, 800)
         self.setWindowTitle('Sequence Preview')
         self.setWindowIcon(QIcon('docs/previewicon.png'))
 
@@ -329,9 +329,11 @@ class Previewer(QMainWindow):
         """Choose a file name, load the sequence and then show it in the previewer."""
         if not fname: fname = self.try_browse(file_type='XML (*.xml);;all (*)')
         if fname:
-            self.tr.load_xml(fname)
-            self.reset_UI()
-            self.set_sequence()
+            try:
+                self.tr.load_xml(fname)
+                self.reset_UI()
+                self.set_sequence()
+            except TypeError as e: logger.error("Tried to load invalid sequence")
 
     def save_seq_file(self, fname=''):
         """Save the current sequence to an xml file."""
@@ -372,17 +374,17 @@ class Previewer(QMainWindow):
                     self.head_top.item(j, i).setText(str(esc['Sequence header top'][i][key]))
                     self.head_mid.item(j, i).setText(str(esc['Sequence header middle'][i][key]))
             for j in range(self.tr.nfd):
-                self.fd_chans.item(j, i).setBackground(Qt.green if bl(esc['Fast digital channels'][i][j]) else Qt.red)
+                self.fd_chans.item(j, i).setBackground(Qt.green if BOOL(esc['Fast digital channels'][i][j]) else Qt.red)
             for j in range(self.tr.nfa):
                 self.fa_chans.item(j, 2*i).setText(fmt(esc['Fast analogue array'][j]['Voltage'][i], self.p))
                 self.fa_chans.item(j, 2*i+1).setText(
-                    'Ramp' if bl(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
+                    'Ramp' if BOOL(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
             for j in range(self.tr.nsd):
-                self.sd_chans.item(j, i).setBackground(Qt.green if bl(esc['Slow digital channels'][i][j]) else Qt.red)
+                self.sd_chans.item(j, i).setBackground(Qt.green if BOOL(esc['Slow digital channels'][i][j]) else Qt.red)
             for j in range(self.tr.nsa):
                 self.sa_chans.item(j, 2*i).setText(fmt(esc['Slow analogue array'][j]['Voltage'][i], self.p))
                 self.sa_chans.item(j, 2*i+1).setText(
-                    'Ramp' if bl(esc['Slow analogue array'][j]['Ramp?'][i]) else '')
+                    'Ramp' if BOOL(esc['Slow analogue array'][j]['Ramp?'][i]) else '')
 
 
     def choose_multirun_dir(self):

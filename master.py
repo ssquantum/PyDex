@@ -13,6 +13,7 @@ import sys
 import time
 import copy
 import numpy as np
+from collections import OrderedDict
 try:
     from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, 
@@ -48,6 +49,15 @@ from networking.networker import TCPENUM, remove_slot # enum for DExTer produce-
 sys.path.append('./sequences')
 from sequences.sequencePreviewer import Previewer
 
+def intstrlist(text):
+    """Convert a string of a list of ints back into a list:
+    (str) '[1, 2, 3]' -> (list) [1,2,3]"""
+    try:
+        return list(map(int, text[1:-1].split(',')))
+    except ValueError: return []
+
+####    ####    ####    ####
+
 class Master(QMainWindow):
     """A manager to synchronise and control experiment modules.
     
@@ -66,12 +76,18 @@ class Master(QMainWindow):
     """
     def __init__(self, pop_up=1, state_config='.\\state'):
         super().__init__()
+        self.types = OrderedDict([('File#',int), ('Date',str), ('CameraConfig',str), 
+            ('SaveConfig',str), ('MasterGeometry',intstrlist), ('AnalysisGeometry',intstrlist), 
+            ('SequencesGeometry',intstrlist)])
+        self.stats = OrderedDict([('File#', 0), ('Date', time.strftime("%d,%B,%Y")), 
+            ('CameraConfig', '.\\andorcamera\\ExExposure_config.dat'), 
+            ('SaveConfig', '.\\config\\config.dat'), ('MasterGeometry', [10, 10, 500, 150]), 
+            ('AnalysisGeometry', [1400, 400, 600, 500]), 
+            ('SequencesGeometry', [20, 100, 1000, 800])])
         self.camera_pause = 0 # time in seconds to wait for camera to start acquisition.
-        self.ancam_config = '.\\andorcamera\\ExExposure_config.dat' # if restore state fails
-        self.save_config = '.\\config\\config.dat'
         self.ts = {label:time.time() for label in ['init', 'waiting', 'blocking',
             'msg start', 'msg end']}
-        sv_dirs = event_handler.get_dirs(self.save_config)
+        sv_dirs = event_handler.get_dirs(self.stats['SaveConfig'])
         # if not any(os.path.exists(svd) for svd in sv_dirs.values()): # ask user to choose valid config file
         startn = self.restore_state(file_name=state_config)
         # choose which image analyser to use from number images in sequence
@@ -84,8 +100,8 @@ class Master(QMainWindow):
         else:
             m = 0
         # initialise the thread controlling run # and emitting images
-        self.rn = runnum(camera(config_file=self.ancam_config), # Andor camera
-                event_handler(self.save_config), # image saver
+        self.rn = runnum(camera(config_file=self.stats['CameraConfig']), # Andor camera
+                event_handler(self.stats['SaveConfig']), # image saver
                 settings_window(nsaia=m if m!=0 else 2, nreim=1 if m==0 else 1,
                     results_path =sv_dirs['Results Path: '],
                     im_store_path=sv_dirs['Image Storage Path: ']), # image analysis
@@ -93,18 +109,25 @@ class Master(QMainWindow):
                 n=startn, m=m if m!=0 else 2, k=0) 
         # now the signals are connected, send camera settings to image analysis
         if self.rn.cam.initialised > 2:
-            check = self.rn.cam.ApplySettingsFromConfig(self.ancam_config)
+            check = self.rn.cam.ApplySettingsFromConfig(self.stats['CameraConfig'])
         
         self.rn.server.dxnum.connect(self.Dx_label.setText) # synchronise run number
         self.rn.server.textin.connect(self.respond) # read TCP messages
         self.status_label.setText('Initialising...')
         QTimer.singleShot(0, self.idle_state) # takes a while for other windows to load
         
+        self.rn.seq.setGeometry(*self.stats['SequencesGeometry'])
         self.rn.seq.show()
+        self.rn.sw.setGeometry(*self.stats['AnalysisGeometry'])
         self.rn.sw.show()
-        self.rn.sw.show_analyses()
+        self.rn.sw.show_analyses(show_all=True)
         if self.rn.server.isRunning():
             self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
+        
+        # set a timer to update the dates 2s after midnight:
+        t0 = time.localtime()
+        QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
+            self.reset_dates)
 
     def idle_state(self):
         """When the master thread is not processing user events, it is in the idle states.
@@ -113,20 +136,20 @@ class Master(QMainWindow):
 
     def restore_state(self, file_name='./state'):
         """Use the data stored in the given file to restore the file # for
-        synchronisation if it is the same day, and use the same config 
-        files."""
-        with open(file_name, 'r') as f:
-            for row in f:
-                if 'File#' in row:
-                    nfn = int(row.split('=')[-1])
-                elif 'Date' in row:
-                    nd  = row.split('=')[-1].replace('\n','')
-                elif 'CameraConfig' in row:
-                    self.ancam_config = row.split('=')[-1].replace('\n','')
-                elif 'SaveConfig' in row:
-                    self.save_config = row.split('=')[-1].replace('\n','')
-        if nd == time.strftime("%d,%B,%Y", time.localtime()): # restore file number
-            return nfn # [Py]DExTer file number
+        synchronisation if it is the same day, and use the same config files."""
+        try:
+            with open(file_name, 'r') as f:
+                for line in f:
+                    if len(line.split('=')) == 2: # there should only be one = per line
+                        key, val = line.replace('\n','').split('=') 
+                        try:
+                            self.stats[key] = self.types[key](val)
+                        except KeyError as e:
+                            logger.warning('Failed to load PyDex state line: '+line+'\n'+str(e))
+        except FileNotFoundError as e: 
+            logger.warning('PyDex master settings could not find the state file.\n'+str(e))
+        if self.stats['Date'] == time.strftime("%d,%B,%Y"): # restore file number
+            return self.stats['File#'] # [Py]DExTer file number
         else: return 0
         
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
@@ -189,7 +212,8 @@ class Master(QMainWindow):
         self.actions.addItems(['Run sequence', 'Multirun run',
             'Pause multirun', 'Resume multirun', 'Cancel multirun',
             'TCP load sequence','TCP load sequence from string',
-            'Cancel Python Mode', 'Resync DExTer', 'Start acquisition'])
+            'Save DExTer sequence', 'Cancel Python Mode', 
+            'Resync DExTer', 'Start acquisition'])
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
 
@@ -208,15 +232,19 @@ class Master(QMainWindow):
         self.centre_widget.layout.addWidget(self.seq_browse, 3,2, 1,1)
         
         #### choose main window position, dimensions: (xpos,ypos,width,height)
-        self.setGeometry(50, 50, 800, 150)
+        self.setGeometry(*self.stats['MasterGeometry'])
         self.setWindowTitle('PyDex Master')
         self.setWindowIcon(QIcon('docs/pydexicon.png'))
 
     def reset_dates(self):
         """Reset the date in the image saving and analysis, 
         then display the updated date."""
-        date = self.rn.reset_dates()
-        msg = QMessageBox.information(self, 'PyDex Dates Reset', 'Date: '+date)
+        t0 = time.localtime()
+        self.stats['Date'] = time.strftime("%d,%B,%Y", t0)
+        date = self.rn.reset_dates(t0)
+        QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
+            self.reset_dates) # set the next timer to reset dates
+        logger.info(time.strftime("Date reset: %d %B %Y", t0))
 
     def show_window(self):
         """Show the window of the submodule or adjust its settings."""
@@ -227,7 +255,7 @@ class Master(QMainWindow):
             if self.rn.cam.initialised:
                 msg = 'Current state: ' + self.rn.cam.AF.GetStatus() + '\nChoose a new config file: '
             else: msg = 'Camera not initialised. See log file for details. Press OK to retry.'
-            text, ok = QInputDialog.getText( self, 'Camera Status', msg, text=self.ancam_config)
+            text, ok = QInputDialog.getText( self, 'Camera Status', msg, text=self.stats['CameraConfig'])
             if text and ok:
                 if self.rn.cam.initialised > 2:
                     if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
@@ -235,7 +263,7 @@ class Master(QMainWindow):
                     check = self.rn.cam.ApplySettingsFromConfig(text)
                     if not any(check):
                         self.status_label.setText('Camera settings config: '+text)
-                        self.ancam_config = text
+                        self.stats['CameraConfig'] = text
                     else:
                         self.status_label.setText('Failed to update camera settings.')
                 else: self.reset_camera(text)
@@ -245,14 +273,14 @@ class Master(QMainWindow):
                 self, 'Image Saver',
                 self.rn.sv.print_dirs(self.rn.sv.dirs_dict.items()) + 
         '\nEnter the path to a config file to reset the image saver: ',
-        text=self.save_config)
+        text=self.stats['SaveConfig'])
             if text and ok:
                 remove_slot(self.rn.im_save, self.rn.sv.add_item, False)
                 self.rn.sv = event_handler(text)
                 if self.rn.sv.image_storage_path:
                     self.status_label.setText('Image Saver config: '+text)
                     remove_slot(self.rn.im_save, self.rn.sv.add_item, True)
-                    self.save_config = text
+                    self.stats['SaveConfig'] = text
                 else:
                     self.status_label.setText('Failed to find config file.')
 
@@ -309,7 +337,7 @@ class Master(QMainWindow):
         self.rn.cam = camera(config_file=ancam_config) # Andor camera
         remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, True) # connect signal
         self.status_label.setText('Camera settings config: '+ancam_config)
-        self.ancam_config = ancam_config
+        self.stats['CameraConfig'] = ancam_config
 
     def start_action(self):
         """Perform the action currently selected in the actions combobox.
@@ -351,8 +379,6 @@ class Master(QMainWindow):
             if action_text == 'Run sequence':
                 # queue up messages: start acquisition, check run number
                 self.action_button.setEnabled(False) # only process 1 run at a time
-                self.rn.seq.tr.write_to_file(os.path.join(self.rn.sv.sequences_path, 
-                        str(self.rn._n) + time.strftime("_%d %B %Y_%H %M %S.xml"))) # save sequence
                 self.rn._k = 0 # reset image per run count 
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000) 
             elif action_text == 'Multirun run':
@@ -383,8 +409,11 @@ class Master(QMainWindow):
                 self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.seq_txt)
             elif action_text == 'TCP load sequence':
                 self.rn.server.add_message(TCPENUM[action_text], self.seq_edit.text()+'\n'+'0'*2000)
+            elif action_text == 'Save DExTer sequence':
+                self.rn.server.add_message(TCPENUM['Save sequence'], 'save log file automatic name\n'+'0'*2000)
             elif action_text == 'Cancel Python Mode':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off\n'+'0'*2000)
+                self.rn.server.add_message(TCPENUM['TCP read'], 'Resync DExTer\n'+'0'*2000) # for when it reconnects
             elif action_text ==  'Resync DExTer':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Resync DExTer\n'+'0'*2000)
             
@@ -427,7 +456,8 @@ class Master(QMainWindow):
                 self.wait_for_cam() # wait for camera to initialise before running
             else: 
                 logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
-            self.rn.server.priority_messages([(TCPENUM['Run sequence'], 'single run '+str(self.rn._n)+'\n'+'0'*2000),
+            self.rn.server.priority_messages([(TCPENUM['Save sequence'], 'save log file automatic name\n'+'0'*2000),
+                (TCPENUM['Run sequence'], 'single run '+str(self.rn._n)+'\n'+'0'*2000),
                 (TCPENUM['TCP read'], 'finished run '+str(self.rn._n)+'\n'+'0'*2000)]) # second message confirms end
         elif 'start measure' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
@@ -482,12 +512,8 @@ class Master(QMainWindow):
     def save_state(self, file_name='./state'):
         """Save the file number and date and config file paths so that they
         can be loaded again when the program is next started."""
-        state = {'File#':self.rn._n,
-                        'Date':time.strftime("%d,%B,%Y", time.localtime()),
-                'CameraConfig':self.ancam_config,
-                  'SaveConfig':self.save_config}
         with open(file_name, 'w+') as f:
-            for key, val in state.items():
+            for key, val in self.stats.items():
                 f.write(key+'='+str(val)+'\n')
 
     def closeEvent(self, event):
@@ -496,6 +522,9 @@ class Master(QMainWindow):
             self.rn.cam.SafeShutdown()
         except Exception as e: logger.warning('camera safe shutdown failed.\n'+str(e))
         self.rn.sw.save_settings('.\\imageanalysis\\default.config')
+        for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
+            ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:
+            self.stats[key] = [g.x(), g.y(), g.width(), g.height()]
         for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, self.rn.server]:
             obj.close()
         self.save_state()

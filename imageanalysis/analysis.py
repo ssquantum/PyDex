@@ -11,12 +11,22 @@ https://apps.dtic.mil/dtic/tr/fulltext/u2/1010895.pdf
 """
 import numpy as np
 from collections import OrderedDict
+from distutils.util import strtobool
 try:
     from PyQt4.QtCore import QThread
 except ImportError:
     from PyQt5.QtCore import QThread
 import logging
 logger = logging.getLogger(__name__)
+
+####    ####    ####    ####
+
+def BOOL(x):
+    """Fix the conversion from string to Boolean.
+    Any string with nonzero length evaluates as true 
+    e.g. bool('False') is True. So we need strtobool."""
+    try: return strtobool(x)
+    except AttributeError: return bool(x)
 
 ####    ####    ####    ####
         
@@ -76,9 +86,9 @@ class Analysis(QThread):
         for key in self.stats.keys():
             index = np.where([k == key for k in head[2]])[0]
             if np.size(index): # if the key is in the header
-                self.stats[key] += list(map(self.types[key], data[:,index]))
+                self.stats[key] += list(map(self.types[key], data[:,index[0]]))
             else: # keep lists the same size: fill with zeros.
-                self.stats[key] += list(np.zeros(n, dtype=self.types[key]))
+                self.stats[key] += list(map(self.types[key], [0]*n))
         self.ind = np.size(self.stats[key]) # length of last array
         return head # success
 

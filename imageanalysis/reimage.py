@@ -101,24 +101,27 @@ class reim_window(main_window):
     def get_histogram(self):
         """Take the histogram from the 'after' images where the 'before' images
         contained an atom"""
-        atom = np.where(np.array(self.ih1.stats['Counts']) // self.ih1.thresh > 0, True, False)
-        idxs = [i for i, val in enumerate(self.ih2.stats['File ID']) 
-                if any([val == v for j, v in enumerate(self.ih1.stats['File ID']) if atom[j]])]
-        # take the after images when the before images contained atoms
-        t1 = time.time()
-        self.image_handler.stats['Mean bg count'] = [self.ih2.stats['Mean bg count'][i] for i in idxs]
-        self.image_handler.stats['Bg s.d.']  = [self.ih2.stats['Bg s.d.'][i] for i in idxs]
-        self.image_handler.stats['Counts']   = [self.ih2.stats['Counts'][i] for i in idxs]
-        self.image_handler.stats['File ID']  = [self.ih2.stats['File ID'][i] for i in idxs]
-        self.image_handler.stats['ROI centre count'] = [self.ih2.stats['ROI centre count'][i] for i in idxs]
-        self.image_handler.stats['Max xpos'] = [self.ih2.stats['Max xpos'][i] for i in idxs]
-        self.image_handler.stats['Max ypos'] = [self.ih2.stats['Max ypos'][i] for i in idxs]
-        self.image_handler.ind = np.size(self.image_handler.stats['Counts'])
-        self.image_handler.stats['Atom detected'] = [self.ih2.stats['Atom detected'][i] for i in idxs]
-        self.image_handler.stats['Include']  = [self.ih2.stats['Include'][i] for i in idxs]
-        self.image_handler.thresh = int(self.thresh_edit.text()) if self.thresh_edit.text() else self.ih2.thresh
-        t2 = time.time()
-        self.int_time = t2 - t1
+        try:
+            int(np.log(self.ih1.thresh)) # don't do anything if threshold is < 1
+            atom = np.where(np.array(self.ih1.stats['Counts']) // self.ih1.thresh > 0, True, False)
+            idxs = [i for i, val in enumerate(self.ih2.stats['File ID']) 
+                    if any([val == v for j, v in enumerate(self.ih1.stats['File ID']) if atom[j]])]
+            # take the after images when the before images contained atoms
+            t1 = time.time()
+            self.image_handler.stats['Mean bg count'] = [self.ih2.stats['Mean bg count'][i] for i in idxs]
+            self.image_handler.stats['Bg s.d.']  = [self.ih2.stats['Bg s.d.'][i] for i in idxs]
+            self.image_handler.stats['Counts']   = [self.ih2.stats['Counts'][i] for i in idxs]
+            self.image_handler.stats['File ID']  = [self.ih2.stats['File ID'][i] for i in idxs]
+            self.image_handler.stats['ROI centre count'] = [self.ih2.stats['ROI centre count'][i] for i in idxs]
+            self.image_handler.stats['Max xpos'] = [self.ih2.stats['Max xpos'][i] for i in idxs]
+            self.image_handler.stats['Max ypos'] = [self.ih2.stats['Max ypos'][i] for i in idxs]
+            self.image_handler.ind = np.size(self.image_handler.stats['Counts'])
+            self.image_handler.stats['Atom detected'] = [self.ih2.stats['Atom detected'][i] for i in idxs]
+            self.image_handler.stats['Include']  = [self.ih2.stats['Include'][i] for i in idxs]
+            self.image_handler.thresh = int(self.thresh_edit.text()) if self.thresh_edit.text() else self.ih2.thresh
+            t2 = time.time()
+            self.int_time = t2 - t1
+        except (ValueError, OverflowError): t2 = 0 # invalid threshold, don't process
         return t2
 
     #### #### Overridden display functions #### ####
@@ -151,21 +154,21 @@ class reim_window(main_window):
                     canv.plot(xs, hh.bf.bffunc(xs, *hh.bf.ps), pen='b')
         return success
     
-    def update_plot(self, event_im):
+    def update_plot(self, im, include=True):
         """Same as update_plot_only because we want the threshold to be taken
         from the second histogram (after image), not calculated in this reimage histogram."""
         t2 = self.get_histogram()
         # display the name of the most recent file
         if self.image_handler.ind > 1:
             self.recent_label.setText('Just processed image '
-                        + self.image_handler.stats['File ID'][-1])
+                        + str(self.image_handler.stats['File ID'][-1]))
         for imh, hc in [[self.ih1.histogram, self.hist1], # thresh for ih1, ih2 set in main window
                         [self.ih2.histogram, self.hist2], 
                         [self.image_handler.histogram, self.hist_canvas]]:
             self.plot_current_hist(imh, hc) # update the displayed plot
         self.plot_time = time.time() - t2
 
-    def update_plot_only(self, event_im):
+    def update_plot_only(self, im, include=True):
         """Receive the event path emitted from the system event handler signal.
         Take the histogram from the 'after' images where the 'before' images
         contained an atom and then update the figure without changing the 
@@ -174,7 +177,7 @@ class reim_window(main_window):
         # display the name of the most recent file
         if self.image_handler.ind > 1:
             self.recent_label.setText('Just processed image '
-                        + self.image_handler.stats['File ID'][-1])
+                        + str(self.image_handler.stats['File ID'][-1]))
         for imh, hc in [[self.ih1.histogram, self.hist1], 
                         [self.ih2.histogram, self.hist2], 
                         [self.image_handler.histogram, self.hist_canvas]]:

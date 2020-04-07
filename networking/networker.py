@@ -1,4 +1,4 @@
-"""Dextr - communication over the network
+"""networker - communication over TCP
 Stefan Spence 21/10/19
 
  - A server that makes TCP connections

@@ -1,4 +1,4 @@
-"""Single Atom Image Analysis (SAIA) Settings
+"""PyDex Image Analysis Settings
 Stefan Spence 26/02/19
 
  - control the ROIs across all SAIA instances
@@ -63,10 +63,11 @@ class settings_window(QMainWindow):
     def __init__(self, nsaia=1, nreim=1, results_path='', im_store_path='', 
             config_file='.\\imageanalysis\\default.config'):
         super().__init__()
-        self.types = OrderedDict([('pic_size',int), ('ROIs',listlist), 
-            ('bias',int), ('image_path', str), ('results_path', str)])
-        self.stats = OrderedDict([('pic_size',512), ('ROIs',[[1,1,1]]), 
-            ('bias',697), ('image_path', im_store_path), ('results_path', results_path)])
+        self.types = OrderedDict([('pic_width',int), ('pic_height',int), ('ROIs',listlist), 
+            ('bias',int), ('image_path', str), ('results_path', str), ('window_pos',intstrlist)])
+        self.stats = OrderedDict([('pic_width',512), ('pic_height',512), ('ROIs',[[1,1,1]]), 
+            ('bias',697), ('image_path', im_store_path), ('results_path', results_path),
+            ('window_pos', [550, 20, 10, 200, 600, 400])])
         self.load_settings(fname=config_file) # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.results_path = results_path if results_path else self.stats['results_path'] # used for saving results
@@ -90,10 +91,9 @@ class settings_window(QMainWindow):
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(nreim)]
         self.init_UI()  # make the widgets
         # make sure the analysis windows have the default settings:
-        self.pic_size_text_edit(self.pic_size_edit.text())
+        self.pic_size_text_edit()
         self.CCD_stat_edit()
         self.replot_rois()
-        self.show_analyses(show_all=False)
 
     def reset_dates(self, date):
         """Reset the dates in all of the saia instances"""
@@ -231,42 +231,45 @@ class settings_window(QMainWindow):
         # self.reim_edit.setValidator(semico_validator)
 
         # get user to set the image size in pixels
-        load_im_size = QPushButton('Image size in pixels: ', self)
-        load_im_size.clicked.connect(self.load_im_size) # load image size from image
-        load_im_size.resize(load_im_size.sizeHint())
-        settings_grid.addWidget(load_im_size, 2,0, 1,1)
-        self.pic_size_edit = QLineEdit(self)
-        settings_grid.addWidget(self.pic_size_edit, 2,1, 1,1)
-        self.pic_size_edit.textChanged[str].connect(self.pic_size_text_edit)
-        self.pic_size_edit.setText(str(self.stats['pic_size'])) # default
-        self.pic_size_edit.setValidator(int_validator)
+        self.pic_width_edit = QLineEdit(self)
+        self.pic_height_edit = QLineEdit(self)
+        for i, label in enumerate([['Image width: ', self.pic_width_edit, 'pic_width'], 
+                ['Image height', self.pic_height_edit, 'pic_height']]):
+            button = QPushButton(label[0], self)
+            button.clicked.connect(self.load_im_size) # load image size from image
+            button.resize(button.sizeHint())
+            settings_grid.addWidget(button, 2,2*i, 1,1)
+            settings_grid.addWidget(label[1], 2,2*i+1, 1,1)
+            label[1].textChanged.connect(self.pic_size_text_edit)
+            label[1].setText(str(self.stats[label[2]])) # default
+            label[1].setValidator(int_validator)
         
         # user sets threshold for all analyses
         self.thresh_toggle = QPushButton('User Threshold: ', self)
         self.thresh_toggle.setCheckable(True)
         self.thresh_toggle.clicked.connect(self.set_thresh)
-        settings_grid.addWidget(self.thresh_toggle, 2,2, 1,1)
+        settings_grid.addWidget(self.thresh_toggle, 3,0, 1,1)
         # user inputs threshold
         self.thresh_edit = QLineEdit(self)
-        settings_grid.addWidget(self.thresh_edit, 2,3, 1,1)
+        settings_grid.addWidget(self.thresh_edit, 3,1, 1,1)
         self.thresh_edit.textChanged.connect(self.set_thresh)
         self.thresh_edit.setValidator(int_validator)
         
         # EMCCD bias offset
         bias_offset_label = QLabel('EMCCD bias offset: ', self)
-        settings_grid.addWidget(bias_offset_label, 3,0, 1,1)
+        settings_grid.addWidget(bias_offset_label, 4,0, 1,1)
         self.bias_offset_edit = QLineEdit(self)
-        settings_grid.addWidget(self.bias_offset_edit, 3,1, 1,1)
+        settings_grid.addWidget(self.bias_offset_edit, 4,1, 1,1)
         self.bias_offset_edit.setText(str(self.stats['bias'])) # default
         self.bias_offset_edit.editingFinished.connect(self.CCD_stat_edit)
         self.bias_offset_edit.setValidator(double_validator) # only floats
         
         # user variable value
         user_var_label = QLabel('User Variable: ', self)
-        settings_grid.addWidget(user_var_label, 3,2, 1,1)
+        settings_grid.addWidget(user_var_label, 4,2, 1,1)
         self.var_edit = QLineEdit(self)
         self.var_edit.editingFinished.connect(self.set_user_var)
-        settings_grid.addWidget(self.var_edit, 3,3, 1,1)
+        settings_grid.addWidget(self.var_edit, 4,3, 1,1)
         self.var_edit.setText('0')  # default
         self.var_edit.setValidator(double_validator) # only numbers
 
@@ -322,7 +325,6 @@ class settings_window(QMainWindow):
             roi_grid.addWidget(button, 11,i, 1,1)
 
         #### choose main window position and dimensions: (xpos,ypos,width,height)
-        self.setGeometry(100, 100, 850, 600)
         self.setWindowTitle('- Settings for Single Atom Image Analysers -')
         self.setWindowIcon(QIcon('docs/tempicon.png'))
         
@@ -342,11 +344,14 @@ class settings_window(QMainWindow):
     def pic_size_text_edit(self, text=''):
         """Update the specified size of an image in pixels when the user 
         edits the text in the line edit widget"""
-        if text: # can't convert '' to int
-            self.stats['pic_size'] = int(text)
+        width, height = self.pic_width_edit.text(), self.pic_height_edit.text()
+        if width and height: # can't convert '' to int
+            self.stats['pic_width'] = int(width)
+            self.stats['pic_height'] = int(height)
             for mw in self.mw + self.rw:
-                mw.pic_size_edit.setText(text)
-                mw.pic_size_label.setText(text)
+                mw.pic_width_edit.setText(width)
+                mw.pic_height_edit.setText(height)
+                mw.pic_size_label.setText('('+width+', '+height+')')
 
     def CCD_stat_edit(self, emg=1, pag=4.5, Nr=8.8, acq_change=False):
         """Update the values used for the EMCCD bias offset, EM gain, preamp
@@ -379,11 +384,16 @@ class settings_window(QMainWindow):
 
     #### image display and ROI functions ####
 
+    def cam_pic_size_changed(self, width, height):
+        """Take the new image dimensions from the camera."""
+        self.pic_width_edit.setText(width) # triggers pic_size_text_edit
+        self.pic_height_edit.setText(height)
+
     def update_im(self, event_im):
         """Receive the image array emitted from the event signal
         display the image in the image canvas."""
-        self.im_canvas.setImage(event_im)
-        self.im_hist.setLevels(np.min(event_im), np.max(event_im))
+        self.im_canvas.setImage(event_im[0])
+        self.im_hist.setLevels(np.min(event_im[0]), np.max(event_im[0]))
 
     def user_roi(self, roi):
         """The user drags an ROI and this updates the ROI centre and width"""
@@ -467,8 +477,8 @@ class settings_window(QMainWindow):
                 roi[1].setPos(pos)
                 roi[1].setSize(size)
         elif method == 'Square grid':
-            X = self.stats['pic_size'] - pos[0] # total available width
-            Y = self.stats['pic_size'] - pos[1] # total available height
+            X = self.stats['pic_width'] - pos[0] # total available width
+            Y = self.stats['pic_height'] - pos[1] # total available height
             # pixel area of image covered by one analyser:
             Area = int(X * Y // self._m)
             # choose the dimensions of the grid by factorising:
@@ -493,7 +503,7 @@ class settings_window(QMainWindow):
                     try:
                         newpos = [pos[0] + width * (i%(X//width)),
                                 pos[1] + height * (i//(X//width))]
-                        if any([newpos[0]//self.stats['pic_size'], newpos[1]//self.stats['pic_size']]):
+                        if any([newpos[0]//self.stats['pic_width'], newpos[1]//self.stats['pic_height']]):
                             logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(pos[0], pos[1])+
                             ' outside of the image')
                             newpos = [0,0]
@@ -502,8 +512,8 @@ class settings_window(QMainWindow):
                         self.rois[i][1].setSize(size, size)   
                     except ZeroDivisionError as e:
                         logger.error('Invalid parameters for square ROI grid: '+
-                            'x - %s, y - %s, pic_size - %s, roi_size - %s.\n'%(
-                                pos[0], pos[1], self.stats['pic_size'], size)
+                            'x - %s, y - %s, pic size - (%s, %s), roi size - %s.\n'%(
+                                pos[0], pos[1], self.stats['pic_width'], self.stats['pic_height'], size)
                             + 'Calculated width - %s, height - %s.\n'%(width, height) + str(e))
             else: logger.warning('Failed to set square ROI grid.\n')
         elif method == '2D Gaussian masks':
@@ -577,7 +587,8 @@ class settings_window(QMainWindow):
         if fname:  # avoid crash if the user cancelled
             try:
                 self.mw[0].image_handler.set_pic_size(fname)
-                self.pic_size_edit.setText(str(self.mw[0].image_handler.pic_size))
+                self.cam_pic_size_changed(str(self.mw[0].image_handler.pic_width), 
+                    str(self.mw[0].image_handler.pic_height))
                 im_vals = self.mw[0].image_handler.load_full_im(fname)
                 self.update_im(im_vals)
             except IndexError as e:
@@ -618,7 +629,7 @@ class settings_window(QMainWindow):
                         try:
                             self.stats[key] = self.types[key](val)
                         except KeyError as e:
-                            logger.warning('Image analysis default config file line: '+line+'\n'+str(e))
+                            logger.warning('Failed to load image analysis default config file line: '+line+'\n'+str(e))
         except FileNotFoundError as e: 
             logger.warning('Image analysis settings could not find the default.config file.\n'+str(e))
     
@@ -679,22 +690,10 @@ class settings_window(QMainWindow):
         if file_name:
             im_vals = np.genfromtxt(file_name, delimiter=' ')
             # update loaded value - changing the text edit triggers pic_size_text_edit()
-            self.pic_size_edit.setText(str(int(np.size(im_vals[0]) - 1))) 
+            self.pic_width_edit.setText(str(int(np.size(im_vals[0]) - 1))) 
+            try: self.pic_height_edit.setText(str(int(np.size(im_vals[:,0])))) 
+            except IndexError: self.pic_height_edit.setText('1')
 
-    def load_roi(self):
-        """Get the user to select an image file and then use this to get the ROI centre"""
-        file_name = self.try_browse(file_type='Images (*.asc);;all (*)', defaultpath=self.image_storage_path)
-        if file_name:
-            # get pic size from this image in case the user forgot to set it
-            im_vals = np.genfromtxt(file_name, delimiter=' ')
-            # update loaded value - changing the text edit triggers pic_size_text_edit()
-            self.pic_size_edit.setText(str(int(np.size(im_vals[0]) - 1))) 
-            # get the position of the max count
-            xs, ys  = np.where(im_vals == np.max(im_vals))
-            self.stats['ROIs'][0] = [xs[0], ys[0], self.stats['pic_size']]
-            self.create_rois()
-            self.make_roi_grid(method='Single ROI')
-        
     def check_reset(self):
         """Ask the user if they would like to reset the current data stored"""
         reply = QMessageBox.question(self, 'Confirm Data Replacement',
@@ -727,8 +726,11 @@ class settings_window(QMainWindow):
     
     def show_analyses(self, show_all=True):
         """Display the instances of SAIA, displaced from the left of the screen.
-        show_all -- True: display all main windows and reimage windows.
-                   False: if main window is used for reimage, don't display."""
+        show_all -- True: if main window is used for reimage, don't display.
+                   False: display all main windows and reimage windows."""
+        try:
+            mwx, mwy, rwx, rwy, w, h = self.stats['window_pos']
+        except ValueError: mwx, mwy, rwx, rwy, w, h = 600, 50, 10, 200, 600, 400
         if not show_all:
             hide = []
         else: hide = [int(ind) for pair in self.rw_inds for ind in pair.split(',')]
@@ -736,12 +738,12 @@ class settings_window(QMainWindow):
             if i in hide:
                 self.mw[i].close()
             else:
-                self.mw[i].resize(800, 400)
-                self.mw[i].setGeometry(40+i*400//self._a, 100, 800, 400)
+                self.mw[i].resize(w, h)
+                self.mw[i].setGeometry(mwx+i*2*w//self._a, mwy, w, h)
                 self.mw[i].show()
         for i in range(len(self.rw_inds)):
-            self.rw[i].resize(800, 400)
-            self.rw[i].setGeometry(45+i*400//len(self.rw_inds), 200, 800, 400)
+            self.rw[i].resize(w, h)
+            self.rw[i].setGeometry(rwx+i*2*w//len(self.rw_inds), rwy, w, h)
             self.rw[i].show()
 
     def im_inds_validator(self, text=''):
@@ -836,11 +838,11 @@ class settings_window(QMainWindow):
                     self.results_path, self.image_storage_path, 'ROI'+str(i)+'_Re_'))
             self.rw[i].setWindowTitle(self.rw[i].name + ' - Re-Image Analaysing hists %s, %s'%(j,k))
             
-        self.pic_size_text_edit(self.pic_size_edit.text())
+        self.pic_size_text_edit()
         self.set_thresh()
         self.CCD_stat_edit()
         self.replot_rois()
-        self.show_analyses(show_all=False)
+        self.show_analyses()
         self.m_changed.emit(m) # let other modules know the value has changed, and reconnect signals
         
     def closeEvent(self, event, confirm=False):
