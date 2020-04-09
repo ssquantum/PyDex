@@ -240,6 +240,7 @@ class runnum(QThread):
         else: # pause the multi-run
             remove_slot(self.cam.AcquireEnd, self.mr_receive, False)
             remove_slot(self.cam.AcquireEnd, self.receive, True) # process every image
+            self.seq.mr.mr_queue = []  # remove all queued multiruns
             self.server.msg_queue = [] # remove all messages from the queue 
             self.cam.AF.AbortAcquisition()
             for mw in self.sw.mw + self.sw.rw:
@@ -344,7 +345,7 @@ class runnum(QThread):
         self.seq.mr.ind = 0
         # save over log file with the parameters used for this multirun (now including run numbers):
         self.seq.mr.save_mr_params(os.path.join(self.sv.results_path, os.path.join(self.seq.mr.mr_param['measure_prefix'],
-            self.seq.mr.mr_param['measure_prefix']+'params.csv')))
+            self.seq.mr.mr_param['measure_prefix'] + 'params' + str(self.seq.mr.mr_param['1st hist ID']) + '.csv')))
         self.seq.mr.progress.emit(       # update progress label
             'Finished measure %s: %s.'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label']))
         self.multirun = False

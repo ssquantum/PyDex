@@ -89,7 +89,7 @@ class multirun_widget(QWidget):
             ('1st hist ID', 0), ('Variable label', ''), 
             ('Order', order), ('Type', ['Time step length']*ncols), 
             ('Analogue type', ['Fast analogue']*ncols), ('Time step name', [[]]*ncols), 
-            ('Analogue channel', [[]]*ncols), ('runs included', [[]]*nrows),
+            ('Analogue channel', [[]]*ncols), ('runs included', [[] for i in range(nrows)]),
             ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\RbMOTendstep.evt'), 
             ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\feb2020_940and812.evt'),
             ('# omitted', 0), ('# in hist', 100)])
@@ -280,7 +280,7 @@ class multirun_widget(QWidget):
         if self.col_val_edit[0].text() and int(self.col_val_edit[0].text()) > self.ncols-1:
             self.col_val_edit[0].setText(str(self.ncols-1))
         self.reset_array()
-        self.ui_param['runs included'] = [[]]*self.nrows
+        self.ui_param['runs included'] = [[] for i in range(self.nrows)]
         for key, default in zip(['Type', 'Analogue type', 'Time step name', 'Analogue channel'],
             ['Time step length', 'Fast analogue', [], []]):
             if len(self.ui_param[key]) < self.ncols: # these lists must be reshaped

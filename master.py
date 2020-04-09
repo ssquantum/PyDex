@@ -236,14 +236,15 @@ class Master(QMainWindow):
         self.setWindowTitle('PyDex Master')
         self.setWindowIcon(QIcon('docs/pydexicon.png'))
 
-    def reset_dates(self):
+    def reset_dates(self, auto=True):
         """Reset the date in the image saving and analysis, 
-        then display the updated date."""
+        then display the updated date"""
         t0 = time.localtime()
         self.stats['Date'] = time.strftime("%d,%B,%Y", t0)
         date = self.rn.reset_dates(t0)
-        QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
-            self.reset_dates) # set the next timer to reset dates
+        if not hasattr(self.sender(), 'text'): # don't set timer if user pushed button
+            QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
+                self.reset_dates) # set the next timer to reset dates
         logger.info(time.strftime("Date reset: %d %B %Y", t0))
 
     def show_window(self):
@@ -476,9 +477,6 @@ class Master(QMainWindow):
             self.rn.multirun_end(msg)
             # self.rn.server.save_times()
             self.end_run(msg)
-        # auto save any sequence that was sent to be loaded (even if it was already an xml file)
-        # elif '<Name>Event list cluster in</Name>' in msg: # DExTer also saves the sequences when it's run
-        #     self.rn.seq.save_seq_file(os.path.join(self.rn.sv.sequences_path, str(self._n) + time.strftime('_%d %B %Y_%H %M %S') + '.xml'))
         self.ts['msg end'] = time.time()
         self.ts['blocking'] = time.time() - self.ts['msg start']
         # self.print_times()
@@ -512,6 +510,7 @@ class Master(QMainWindow):
     def save_state(self, file_name='./state'):
         """Save the file number and date and config file paths so that they
         can be loaded again when the program is next started."""
+        self.stats['File#'] = self.rn._n
         with open(file_name, 'w+') as f:
             for key, val in self.stats.items():
                 f.write(key+'='+str(val)+'\n')
