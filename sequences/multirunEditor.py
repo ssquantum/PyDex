@@ -8,7 +8,6 @@ Stefan Spence 26/02/19
 import os
 import sys
 import time
-import re
 import copy
 import numpy as np
 from collections import OrderedDict
@@ -32,24 +31,8 @@ logger = logging.getLogger(__name__)
 sys.path.append('.')
 sys.path.append('..')
 from mythread import remove_slot # for dis- and re-connecting slots
+from strtypes import strlist, intstrlist, listlist
 from translator import translate
-
-def strlist(text):
-    """Convert a string of a list of strings back into
-    a list of strings."""
-    return list(text[1:-1].replace("'","").split(', '))
-
-def intstrlist(text):
-    """Convert a string of a list of ints back into a list:
-    (str) '[1, 2, 3]' -> (list) [1,2,3]"""
-    try:
-        return list(map(int, text[1:-1].split(',')))
-    except ValueError: return []
-
-def listlist(text):
-    """Convert a string of nested lists into a
-    list of lists."""
-    return list(map(intstrlist, re.findall('\[[\d\s,]*\]', text)))
 
 ####    ####    ####    ####
 

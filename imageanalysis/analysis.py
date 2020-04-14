@@ -9,24 +9,18 @@ https://github.com/QuantumQuadrate/CsPyController/
 See chapter 9 of his thesis for discussion: 
 https://apps.dtic.mil/dtic/tr/fulltext/u2/1010895.pdf
 """
+import sys
 import numpy as np
 from collections import OrderedDict
-from distutils.util import strtobool
 try:
     from PyQt4.QtCore import QThread
 except ImportError:
     from PyQt5.QtCore import QThread
 import logging
 logger = logging.getLogger(__name__)
-
-####    ####    ####    ####
-
-def BOOL(x):
-    """Fix the conversion from string to Boolean.
-    Any string with nonzero length evaluates as true 
-    e.g. bool('False') is True. So we need strtobool."""
-    try: return strtobool(x)
-    except AttributeError: return bool(x)
+sys.path.append('.')
+sys.path.append('..')
+from strtypes import BOOL
 
 ####    ####    ####    ####
         

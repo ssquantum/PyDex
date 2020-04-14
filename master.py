@@ -48,13 +48,7 @@ from networking.runid import runnum # synchronises run number, sends signals
 from networking.networker import TCPENUM, remove_slot # enum for DExTer produce-consumer loop cases
 sys.path.append('./sequences')
 from sequences.sequencePreviewer import Previewer
-
-def intstrlist(text):
-    """Convert a string of a list of ints back into a list:
-    (str) '[1, 2, 3]' -> (list) [1,2,3]"""
-    try:
-        return list(map(int, text[1:-1].split(',')))
-    except ValueError: return []
+from strtypes import intstrlist
 
 ####    ####    ####    ####
 

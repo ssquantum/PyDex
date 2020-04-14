@@ -11,7 +11,6 @@ For use in a re-imaging sequence.
 import os
 import sys
 import time
-import functools
 import numpy as np
 from astropy.stats import binom_conf_interval
 import pyqtgraph as pg    # not as flexible as matplotlib but works a lot better with qt

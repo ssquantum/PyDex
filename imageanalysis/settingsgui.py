@@ -5,7 +5,6 @@ Stefan Spence 26/02/19
  - update other image statistics like read noise, bias offset
 """
 import os
-import re
 import sys
 import time
 import numpy as np
@@ -28,22 +27,11 @@ except ImportError:
         QTableWidget, QTableWidgetItem, QLabel)
 import logging
 logger = logging.getLogger(__name__)
+sys.path.append('.')
+sys.path.append('..')
+from strtypes import intstrlist, listlist
 from maingui import main_window, remove_slot # single atom image analysis
 from reimage import reim_window # analysis for survival probability
-
-####    ####    ####    ####
-
-def intstrlist(text):
-    """Convert a string of a list of ints back into a list:
-    (str) '[1, 2, 3]' -> (list) [1,2,3]"""
-    try:
-        return list(map(int, text[1:-1].split(',')))
-    except ValueError: return []
-
-def listlist(text):
-    """Convert a string of nested lists into a
-    list of lists."""
-    return list(map(intstrlist, re.findall('\[[\d\s,]*\]', text)))
 
 ####    ####    ####    ####
 

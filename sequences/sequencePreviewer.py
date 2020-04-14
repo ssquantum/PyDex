@@ -14,7 +14,6 @@ with open('filename', 'r') as f:
 """
 import sys
 import numpy as np
-from distutils.util import strtobool
 try:
     from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer, Qt
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel,
@@ -33,13 +32,9 @@ from translator import translate
 from multirunEditor import multirun_widget
 import logging
 logger = logging.getLogger(__name__)
-
-def BOOL(x):
-    """Fix the conversion from string to Boolean.
-    Any string with nonzero length evaluates as true 
-    e.g. bool('False') is True. So we need strtobool."""
-    try: return strtobool(x)
-    except AttributeError: return bool(x)
+sys.path.append('.')
+sys.path.append('..')
+from strtypes import BOOL
 
 def fmt(val, p):
     """Reformat the string so that it is displayed better.
