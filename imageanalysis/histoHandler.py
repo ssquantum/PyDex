@@ -7,7 +7,7 @@ a class to collect and calculate histogram statistics
 import numpy as np
 from collections import OrderedDict
 from astropy.stats import binom_conf_interval
-from analysis import Analysis
+from analysis import Analysis, BOOL
 import fitCurve as fc
 
 class histo_handler(Analysis):
@@ -52,7 +52,7 @@ class histo_handler(Analysis):
         ('S/N', float),
         ('Error in S/N', float),
         ('Threshold', float),
-        ('Include', bool)])
+        ('Include', BOOL)])
         self.stats = OrderedDict([(key, []) for key in self.types.keys()])
         # variables that won't be saved for plotting:
         self.temp_vals = OrderedDict([(key,0) for key in self.stats.keys()])
@@ -93,8 +93,12 @@ class histo_handler(Analysis):
             else:
                 bins, occ, thresh = ih.hist_and_thresh() # update hist and get peak stats
             bin_mid = (bins[1] - bins[0]) * 0.5 # from edge of bin to middle
-
             self.bf = fc.fit(bins[:-1] + bin_mid, occ) # class for fitting function to data
+
+            try:
+                int(np.log(thresh)) # don't do anything if threshold is < 1
+                ih.est_peaks(bins, occ) # use find_peaks to get first estimate
+            except (ValueError, OverflowError): return 0
 
             if method == 'quick':
                 A0, A1 = ih.peak_heights
@@ -153,17 +157,19 @@ class histo_handler(Analysis):
                 fix_thresh = True
                 ih.thresh = max(bins) # set the threshold above the counts
 
+            try: list(map(int, [A0, A1, mu0, mu1, sig0, sig1])) # check for NaN or inf
+            except (ValueError, OverflowError): return 0
             ih.peak_heights = [A0, A1]
             ih.peak_centre = [mu0, mu1]
             ih.peak_widths = [sig0, sig1]
 
-            if self.bf.rchisq and abs(self.bf.rchisq) > 1e6: include = False # bad fit
+            if self.bf.rchisq and abs(self.bf.rchisq) > 1e9: include = False # bad fit
         
             # update threshold to where fidelity is maximum if not set by user
             if fix_thresh: 
                 ih.fidelity, ih.err_fidelity = np.around(ih.get_fidelity(), 4) # round to 4 d.p.
             else:
-                ih.search_fidelity(mu0, sig0, mu1, n=100)
+                ih.hist_and_thresh()
 
             # update atom statistics
             ih.stats['Atom detected'] = [count // ih.thresh for count in ih.stats['Counts']]
@@ -193,7 +199,11 @@ class histo_handler(Analysis):
             self.temp_vals['Error in Loading probability'] = np.around((uplperr+lolperr)*0.5, 4)
             self.temp_vals['Lower Error in Loading probability'] = np.around(lolperr, 4)
             self.temp_vals['Upper Error in Loading probability'] = np.around(uplperr, 4)
-            if np.size(ih.peak_centre) == 2:
+            try:
+                1//atom_count # raises ZeroDivisionError if size is 0
+                1//(atom_count-1) # for std dev need size > 1
+                1//empty_count
+                1//(empty_count-1)
                 self.temp_vals['Background peak count'] = int(mu0)
                 # assume bias offset is self.bias, readout noise Nr
                 var = ih.roi_size*self.Nr**2 + self.dg*self.emg*mu0/self.pag
@@ -202,9 +212,9 @@ class histo_handler(Analysis):
                 else: # don't take the sqrt of a -ve number
                     self.temp_vals['sqrt(Nr^2 + Nbg*fg/A)'] = 0
                 self.temp_vals['Background peak width'] = int(sig0)
-                self.temp_vals['Error in Background peak count'] = np.around(sig0 / empty_count**0.5, 2) if empty_count else 0
-                self.temp_vals['Background mean'] = np.around(np.mean(below), 1) if np.size(below) else 0
-                self.temp_vals['Background standard deviation'] = np.around(np.std(below, ddof=1), 1) if np.size(below) else 0
+                self.temp_vals['Error in Background peak count'] = np.around(sig0 / empty_count**0.5, 2) 
+                self.temp_vals['Background mean'] = np.around(np.mean(below), 1) 
+                self.temp_vals['Background standard deviation'] = np.around(np.std(below, ddof=1), 1) 
                 self.temp_vals['Signal peak count'] = int(mu1)
                 # assume bias offset is self.bias, readout noise Nr
                 var = ih.roi_size*self.Nr**2+ self.dg*self.emg*mu1/self.pag
@@ -213,12 +223,12 @@ class histo_handler(Analysis):
                 else: # don't take the sqrt of a -ve number
                     self.temp_vals['sqrt(Nr^2 + Ns*fg/A)'] = 0
                 self.temp_vals['Signal peak width'] = int(sig1)
-                self.temp_vals['Error in Signal peak count'] = np.around(sig1 / atom_count**0.5, 2) if atom_count else 0
-                self.temp_vals['Signal mean'] = np.around(np.mean(above), 1) if np.size(above) else 0
-                self.temp_vals['Signal standard deviation'] = np.around(np.std(above, ddof=1), 1) if np.size(above) else 0
+                self.temp_vals['Error in Signal peak count'] = np.around(sig1 / atom_count**0.5, 2) 
+                self.temp_vals['Signal mean'] = np.around(np.mean(above), 1) 
+                self.temp_vals['Signal standard deviation'] = np.around(np.std(above, ddof=1), 1) 
                 sep = mu1 - mu0 # separation of fitted peaks
                 self.temp_vals['Separation'] = int(sep)
-                seperr = np.sqrt(sig0**2 / empty_count + sig1**2 / atom_count) if empty_count and atom_count else 0 # propagated error in separation
+                seperr = np.sqrt(sig0**2 / empty_count + sig1**2 / atom_count) 
                 self.temp_vals['Error in Separation'] = np.around(seperr, 2)
                 self.temp_vals['Fidelity'] = ih.fidelity
                 self.temp_vals['Error in Fidelity'] = ih.err_fidelity
@@ -226,9 +236,9 @@ class histo_handler(Analysis):
                 # fractional error in the error is 1/sqrt(2N - 2)
                 self.temp_vals['Error in S/N'] = np.around(
                     self.temp_vals['S/N'] * np.sqrt((seperr/sep)**2 + (sig0**2/(2*empty_count - 2) 
-                    + sig1**2/(2*atom_count - 2))/(sig0**2 + sig1**2)), 2) if (empty_count>1 and atom_count>1) else 0.0
+                    + sig1**2/(2*atom_count - 2))/(sig0**2 + sig1**2)), 2) 
                 self.temp_vals['Include'] = include
-            else:
+            except ZeroDivisionError:
                 for key in ['Background peak count', 'sqrt(Nr^2 + Nbg*fg/A)', 'Background peak width', 
                 'Error in Background peak count', 'Signal peak count', 'sqrt(Nr^2 + Ns*fg/A)', 
                 'Signal peak width', 'Error in Signal peak count', 'Separation', 'Error in Separation', 

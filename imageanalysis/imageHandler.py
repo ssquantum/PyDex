@@ -3,8 +3,6 @@ Stefan Spence 14/03/19
 
 Separate out the imageHandler class for processing single atom images from the
 director watcher and Qt GUI. This allows it to be imported for other purposes.
-Assume that there are two peaks in the histogram which are separated by a 
-region of zeros.
 Assuming that image files are ASCII and the first column is the row number.
 """
 import os
@@ -14,8 +12,9 @@ from collections import OrderedDict
 import time
 from scipy.signal import find_peaks
 from scipy.stats import norm
+from skimage.filters import threshold_minimum
 from astropy.stats import binom_conf_interval
-from analysis import Analysis
+from analysis import Analysis, BOOL
 import logging
 logger = logging.getLogger(__name__)
 
@@ -55,7 +54,7 @@ class image_handler(Analysis):
             ('Max ypos', int), # vertical positions of max pixel
             ('Mean bg count', float), # mean counts outside ROI - estimate bg
             ('Bg s.d.', float),# standard deviation outside of ROI
-            ('Include', bool)])# whether to include in further analysis
+            ('Include', BOOL)])# whether to include in further analysis
         self.stats = OrderedDict([(key, []) for key in self.types.keys()]) # standard deviation of counts outside ROI
         
         self.delim = ' '                # delimieter to use when opening image files
@@ -70,7 +69,8 @@ class image_handler(Analysis):
         self.xc        = 1              # ROI centre x position 
         self.yc        = 1              # ROI centre y position
         self.roi_size  = 1              # ROI length in pixels. default 1 takes top left pixel
-        self.pic_size  = 512            # number of pixels in an image
+        self.pic_width = 512            # number of pixels along horizontal axis of an image
+        self.pic_height= 512            # number of pixels along vertical axis of an image
         self.thresh    = 1              # initial threshold for atom detection
         self.fid       = 0              # file ID number for the next image
         self.ind       = 0              # number of images processed
@@ -109,8 +109,8 @@ class image_handler(Analysis):
         try:
             self.stats['ROI centre count'].append(full_im[self.xc, self.yc])
         except IndexError as e:
-            logger.error('ROI centre (%s, %s) outside of image size %s'%(
-                self.xc, self.yc, self.pic_size))
+            logger.error('ROI centre (%s, %s) outside of image size (%s, %s)'%(
+                self.xc, self.yc, self.pic_width, self.pic_height))
             self.stats['ROI centre count'].append(0)
         # position of the (first) max intensity pixel
         xmax, ymax = np.unravel_index(np.argmax(full_im), full_im.shape)
@@ -169,82 +169,87 @@ class image_handler(Analysis):
         """Make a histogram of the photon counts and determine a threshold for 
         single atom presence by iteratively checking the fidelity."""
         bins, occ, _ = self.histogram()
-        self.thresh = np.mean(bins) # in case peak calculation fails
-        if np.size(self.peak_indexes) == 2: # est_param will only find one peak if the number of bins is small
-            # set the threshold where the fidelity is max
-            self.search_fidelity(self.peak_centre[0], self.peak_widths[0] ,self.peak_centre[1])
-        # atom is present if the counts are above threshold
-        self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
+        self.thresh = np.mean(bins) # initial guess
+        self.peaks_and_thresh() # in case peak calculation fails
+        # if np.size(self.peak_indexes) == 2: # est_param will only find one peak if the number of bins is small
+        #     # set the threshold where the fidelity is max
+        #     self.search_fidelity(self.peak_centre[0], self.peak_widths[0] ,self.peak_centre[1])
+        try: 
+            thresh = threshold_minimum(np.array(self.stats['Counts']), len(bins))
+            int(np.log(thresh)) # if thresh <= 0 this gives ValueError
+            self.thresh = thresh
+        except (ValueError, RuntimeError, OverflowError): pass
+        try:
+            # atom is present if the counts are above threshold
+            self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
+            self.fidelity, self. err_fidelity = np.around(self.get_fidelity(), 4)
+        except (ValueError, OverflowError): pass
         return bins, occ, self.thresh
 
     def histogram(self):
         """Make a histogram of the photon counts but don't update the threshold"""
-        if np.size(self.bin_array) > 0: 
-            occ, bins = np.histogram(self.stats['Counts'], self.bin_array) # fixed bins. 
-        else:
-            try:
-                lo, hi = min(self.stats['Counts'])*0.97, max(self.stats['Counts'])*1.02
-                # scale number of bins with number of files in histogram and with separation of peaks
-                num_bins = int(15 + 5e-5 * self.ind**2 + (abs(hi - abs(lo))/hi)**2*15) 
-                occ, bins = np.histogram(self.stats['Counts'], bins=np.linspace(lo, hi, num_bins+1)) # no bins provided by user
-            except: 
-                occ, bins = np.histogram(self.stats['Counts'])
         if np.size(self.stats['Counts']): # don't do anything to an empty list
-            # get the indexes of peak positions, heights, and widths
-            self.peak_indexes, self.peak_heights, self.peak_widths = est_param(occ)
-            if np.size(self.peak_indexes) == 2: # est_param will only find one peak if the number of bins is small
-                self.peak_centre = bins[self.peak_indexes] + 0.5*(bins[1] - bins[0])
-                # convert widths from indexes into counts
-                # assume the peak_width is the FWHM, although scipy docs aren't clear
-                self.peak_widths = [(bins[1] - bins[0]) * self.peak_widths[0]/2., # /np.sqrt(2*np.log(2)), 
-                                    (bins[1] - bins[0]) * self.peak_widths[1]/2.] # /np.sqrt(2*np.log(2))]
-            else: 
-                cs = np.sort(self.stats['Counts']) 
-                mid = len(cs) // 2 # index of the middle of the counts array
-                self.peak_heights = [np.max(occ), np.max(occ)]
-                self.peak_centre = [np.mean(cs[:mid]), np.mean(cs[mid:])]
-                self.peak_widths = [np.std(cs[:mid]), np.std(cs[mid:])]
-                
-            # atom is present if the counts are above threshold
-            self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
+            if np.size(self.bin_array) > 0: 
+                occ, bins = np.histogram(self.stats['Counts'], self.bin_array) # fixed bins. 
+            else:
+                try:
+                    lo, hi = min(self.stats['Counts'])*0.97, max(self.stats['Counts'])*1.02
+                    # scale number of bins with number of files in histogram and with separation of peaks
+                    num_bins = int(15 + self.ind//100 + (abs(hi - abs(lo))/hi)**2*15) 
+                    occ, bins = np.histogram(self.stats['Counts'], bins=np.linspace(lo, hi, num_bins+1)) # no bins provided by user
+                except: 
+                    occ, bins = np.histogram(self.stats['Counts'])
+        else: occ, bins = np.zeros(10), np.arange(0,1.1,0.1)
         return bins, occ, self.thresh
+
+    def est_peaks(self, bins, occ):
+        """Use the given histogram bins and occurrences to estimate where peaks are using scipy find_peaks"""
+        # get the indexes of peak positions, heights, and widths
+        self.peak_indexes, self.peak_heights, self.peak_widths = est_param(occ)
+        if np.size(self.peak_indexes) == 2: # est_param will only find one peak if the number of bins is small
+            self.peak_centre = bins[self.peak_indexes] + 0.5*(bins[1] - bins[0])
+            # convert widths from indexes into counts
+            # assume the peak_width is the FWHM, although scipy docs aren't clear
+            self.peak_widths = [(bins[1] - bins[0]) * self.peak_widths[0]/2., # /np.sqrt(2*np.log(2)), 
+                                (bins[1] - bins[0]) * self.peak_widths[1]/2.] # /np.sqrt(2*np.log(2))]
+        elif len(self.stats['Counts']) < 3: # insufficient data
+            self.peak_heights = [1, 1]
+            self.peak_centre = [0.25, 0.75]
+            self.peak_widths = [0.1, 0.1]
+        else: 
+            cs = np.sort(self.stats['Counts']) 
+            mid = len(cs) // 2 # index of the middle of the counts array
+            self.peak_heights = [np.max(occ), np.max(occ)]
+            self.peak_centre = [np.mean(cs[:mid]), np.mean(cs[mid:])]
+            self.peak_widths = [np.std(cs[:mid]), np.std(cs[mid:])]  
         
     def peaks_and_thresh(self):
         """Get an estimate of the peak positions and standard deviations given a set threshold
-        Then set the threshold as 5 standard deviations above background
-        returns:
-        images processed, loading probability, error in loading probability, bg count, bg width, 
-        signal count, signal width, separation, fidelity, error in fidelity, threshold"""
+        Then set the threshold as 5 standard deviations above background.
+        Sort the counts in ascending order, then split at the threshold, take means and widths."""
         # split histograms at threshold then get mean and stdev:
         ascend = np.sort(self.stats['Counts'])
         bg = ascend[ascend < self.thresh]     # background
         signal = ascend[ascend > self.thresh] # signal above threshold
-        bg_peak = np.mean(bg)
-        bg_stdv = np.std(bg, ddof=1)
-        at_peak = np.mean(signal)
-        at_stdv = np.std(signal, ddof=1)
-        sep = at_peak - bg_peak
-        self.thresh = bg_peak + 5*bg_stdv # update threshold
-        # atom is present if the counts are above threshold
-        self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
-        atom_count = np.size(np.where(self.stats['Atom detected'] > 0)[0])  # images with counts above threshold
-        empty_count = np.size(np.where(self.stats['Atom detected'] == 0)[0])
-        load_prob = np.around(atom_count / self.ind, 4)
-        # use the binomial distribution to get 1 sigma confidence intervals:
-        conf = binom_conf_interval(atom_count, atom_count + empty_count, interval='jeffreys')
-        load_err = np.around(conf[1] - conf[0], 4)
-        self.fidelity, self. err_fidelity = np.around(self.get_fidelity(), 4)
-        return np.array(self.ind, load_prob, load_err, bg_peak, bg_stdv, at_peak,
-                at_stdv, sep, self.fidelity, self.err_fidelity, self.thresh)
+        try:
+            1//np.size(bg) # raises ZeroDivisionError if size == 0
+            1//(np.size(bg)-1) # need > 1 images to get std dev
+            1//np.size(signal)
+            1//(np.size(signal)-1)
+            self.peak_heights = [1, 1]
+            self.peak_centre = [np.mean(bg), np.mean(signal)]
+            self.peak_widths = [np.std(bg, ddof=1), np.std(signal, ddof=1)]
+            self.thresh = self.peak_centre[0] + 5*self.peak_widths[0] # update threshold
+        except ZeroDivisionError: pass
 
-    def create_square_mask(self):
+    def create_rect_mask(self):
         """Use the current ROI dimensions to create a mask for the image.
-        The square mask is zero outside the ROI and 1 inside the ROI."""
-        if (self.xc + self.roi_size//2 < self.pic_size and 
+        The rect mask is zero outside the ROI and 1 inside the ROI."""
+        if (self.xc + self.roi_size//2 < self.pic_width and 
                 self.xc - self.roi_size//2 >= 0 and 
-                self.yc + self.roi_size//2 < self.pic_size and 
+                self.yc + self.roi_size//2 < self.pic_height and 
                 self.yc - self.roi_size//2 >= 0):
-            self.mask = np.zeros((self.pic_size, self.pic_size))
+            self.mask = np.zeros((self.pic_width, self.pic_height))
             self.mask[self.xc - self.roi_size//2 : (
                 self.xc + self.roi_size//2 + self.roi_size%2),
                 self.yc - self.roi_size//2 : (
@@ -256,9 +261,11 @@ class image_handler(Analysis):
         Keyword arguments:
         im_name    -- absolute path to the image file to load"""
         im_vals = np.genfromtxt(im_name, delimiter=self.delim)
-        self.pic_size = int(np.size(im_vals[0]) - 1) # the first column of ASCII image is row number
-        self.create_square_mask()
-        return self.pic_size
+        self.pic_width = int(np.size(im_vals[0]) - 1) # the first column of ASCII image is row number
+        try: self.pic_height = int(np.size(im_vals[:,0])) 
+        except IndexError: self.pic_height = 1
+        self.create_rect_mask()
+        return self.pic_width, self.pic_height
 
     def set_roi(self, im_name='', dimensions=[]):
         """Set the ROI for the image either by finding the position of the max 
@@ -279,7 +286,7 @@ class image_handler(Analysis):
             self.xc, self.yc = xcs[0], ycs[0]
             success = 1
         if success:
-            self.create_square_mask()
+            self.create_rect_mask()
         return success
 
     def load_full_im(self, im_name):
@@ -287,7 +294,10 @@ class image_handler(Analysis):
         Assume that the first column is the column number.
         Keyword arguments:
         im_name    -- absolute path to the image file to load"""
-        # np.array(Image.open(im_name)) # for bmp images
         # return np.genfromtxt(im_name, delimiter=self.delim)#[:,1:] # first column gives column number
-        return np.loadtxt(im_name, delimiter=self.delim,
-                              usecols=range(1,self.pic_size+1))
+        try: 
+            return np.loadtxt(im_name, delimiter=self.delim,
+                              usecols=range(1,self.pic_width+1))
+        except IndexError as e:
+            logger.error('Image analysis failed to load image '+im_name+'\n'+str(e))
+            return np.zeros((self.pic_width, self.pic_height))

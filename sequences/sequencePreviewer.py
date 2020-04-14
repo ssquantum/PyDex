@@ -32,13 +32,19 @@ from translator import translate
 from multirunEditor import multirun_widget
 import logging
 logger = logging.getLogger(__name__)
+sys.path.append('.')
+sys.path.append('..')
+from strtypes import BOOL
 
-
-def bl(string):
-    """Convert a string of a boolean to a boolean.
-    This corrects for bool('0')=True."""
-    try: return bool(int(string))
-    except ValueError: return bool(string)
+def fmt(val, p):
+    """Reformat the string so that it is displayed better.
+    with p=5, converts '5.11111111e-2' -> '0.051'
+    val: the value to convert
+    p:   number of s.f. to include (warning: includes leading zeros) """
+    try:
+        return str(float(val))[:p]
+    except ValueError:
+        return str(val)[:p]
 
 #### #### Edit sequences #### ####
 
@@ -280,7 +286,6 @@ class Previewer(QMainWindow):
         mr_menu.addAction(mrqueue)
         
         # choose main window position and dimensions: (xpos,ypos,width,height)
-        self.setGeometry(60, 60, 1000, 800)
         self.setWindowTitle('Sequence Preview')
         self.setWindowIcon(QIcon('docs/previewicon.png'))
 
@@ -319,9 +324,11 @@ class Previewer(QMainWindow):
         """Choose a file name, load the sequence and then show it in the previewer."""
         if not fname: fname = self.try_browse(file_type='XML (*.xml);;all (*)')
         if fname:
-            self.tr.load_xml(fname)
-            self.reset_UI()
-            self.set_sequence()
+            try:
+                self.tr.load_xml(fname)
+                self.reset_UI()
+                self.set_sequence()
+            except TypeError as e: logger.error("Tried to load invalid sequence")
 
     def save_seq_file(self, fname=''):
         """Save the current sequence to an xml file."""
@@ -356,23 +363,23 @@ class Previewer(QMainWindow):
                     'Time unit', 'Digital or analogue trigger?', 'Trigger this time step?', 
                     'Channel', 'Analogue voltage (V)', 'GPIB event name', 'GPIB on/off?']):
                 if key == 'Time step length' or key == 'Analogue voltage (V)':
-                    self.head_top.item(j, i).setText(str(esc['Sequence header top'][i][key])[:self.p])  # to 'p' s.f.
-                    self.head_mid.item(j, i).setText(str(esc['Sequence header middle'][i][key])[:self.p])
+                    self.head_top.item(j, i).setText(fmt(esc['Sequence header top'][i][key], self.p))  # to 'p' s.f.
+                    self.head_mid.item(j, i).setText(fmt(esc['Sequence header middle'][i][key], self.p))
                 else:
                     self.head_top.item(j, i).setText(str(esc['Sequence header top'][i][key]))
                     self.head_mid.item(j, i).setText(str(esc['Sequence header middle'][i][key]))
             for j in range(self.tr.nfd):
-                self.fd_chans.item(j, i).setBackground(Qt.green if bl(esc['Fast digital channels'][i][j]) else Qt.red)
+                self.fd_chans.item(j, i).setBackground(Qt.green if BOOL(esc['Fast digital channels'][i][j]) else Qt.red)
             for j in range(self.tr.nfa):
-                self.fa_chans.item(j, 2*i).setText(str(esc['Fast analogue array'][j]['Voltage'][i])[:self.p])
+                self.fa_chans.item(j, 2*i).setText(fmt(esc['Fast analogue array'][j]['Voltage'][i], self.p))
                 self.fa_chans.item(j, 2*i+1).setText(
-                    'Ramp' if bl(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
+                    'Ramp' if BOOL(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
             for j in range(self.tr.nsd):
-                self.sd_chans.item(j, i).setBackground(Qt.green if bl(esc['Slow digital channels'][i][j]) else Qt.red)
+                self.sd_chans.item(j, i).setBackground(Qt.green if BOOL(esc['Slow digital channels'][i][j]) else Qt.red)
             for j in range(self.tr.nsa):
-                self.sa_chans.item(j, 2*i).setText(str(esc['Slow analogue array'][j]['Voltage'][i])[:self.p])
+                self.sa_chans.item(j, 2*i).setText(fmt(esc['Slow analogue array'][j]['Voltage'][i], self.p))
                 self.sa_chans.item(j, 2*i+1).setText(
-                    'Ramp' if bl(esc['Slow analogue array'][j]['Ramp?'][i]) else '')
+                    'Ramp' if BOOL(esc['Slow analogue array'][j]['Ramp?'][i]) else '')
 
 
     def choose_multirun_dir(self):

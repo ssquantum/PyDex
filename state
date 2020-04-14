@@ -1,4 +1,7 @@
-File#=0
-Date=21,March,2020
-CameraConfig=.\\andorcamera\814and940_10.03.20.dat
+File#=3
+Date=09,April,2020
+CameraConfig=.\\andorcamera\Standard modes\Shutter_Closed.dat
 SaveConfig=.\\config\\config.dat
+MasterGeometry=[23, 36, 488, 129]
+AnalysisGeometry=[1220, 468, 668, 558]
+SequencesGeometry=[26, 255, 798, 900]

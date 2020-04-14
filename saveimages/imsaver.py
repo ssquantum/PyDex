@@ -77,18 +77,22 @@ class event_handler(PyDexThread):
             # get the date to be used for file labeling
             self.date = date # day short_month long_month year
             datepath = r'\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])
-            self.image_storage_path += datepath
-            self.results_path += datepath
-            self.sequences_path += datepath
-            for path in [self.image_storage_path, self.results_path, self.sequences_path]:
-                try: # create directory by date if it doesn't already exist
-                    os.makedirs(path, exist_ok=True) # requies version > 3.2
-                except PermissionError as e: 
-                    logger.warning('Image saver could not create directory: '+
-                        path +'\n Using current directory instead\n'+str(e))
-                    path = '.' + datepath
-                    os.makedirs(path, exist_ok=True) 
+            self.image_storage_path = self.check_path(self.image_storage_path, datepath)
+            self.results_path = self.check_path(self.results_path, datepath)
+            self.sequences_path = self.check_path(self.sequences_path, datepath)
         else: logger.warning('Image saver could not load paths from config file: '+config_file)
+
+    def check_path(self, path, datepath):
+        """Check if Python has permission to write to the given directory, path.
+        If so, make a dated directory from that path."""
+        try: # create directory by date if it doesn't already exist
+            os.makedirs(path + datepath, exist_ok=True) # requies version > 3.2
+            return path + datepath
+        except PermissionError as e: 
+            logger.warning('Image saver could not create directory: '+
+                path +'\nUsing current directory instead\n'+str(e))
+            os.makedirs('.' + datepath, exist_ok=True)
+            return '.' + datepath
 
     @staticmethod # static method can be accessed without making an instance of the class
     def get_dirs(config_file='./config/config.dat'):

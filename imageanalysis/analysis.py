@@ -9,6 +9,7 @@ https://github.com/QuantumQuadrate/CsPyController/
 See chapter 9 of his thesis for discussion: 
 https://apps.dtic.mil/dtic/tr/fulltext/u2/1010895.pdf
 """
+import sys
 import numpy as np
 from collections import OrderedDict
 try:
@@ -17,6 +18,9 @@ except ImportError:
     from PyQt5.QtCore import QThread
 import logging
 logger = logging.getLogger(__name__)
+sys.path.append('.')
+sys.path.append('..')
+from strtypes import BOOL
 
 ####    ####    ####    ####
         
@@ -76,9 +80,9 @@ class Analysis(QThread):
         for key in self.stats.keys():
             index = np.where([k == key for k in head[2]])[0]
             if np.size(index): # if the key is in the header
-                self.stats[key] += list(map(self.types[key], data[:,index]))
+                self.stats[key] += list(map(self.types[key], data[:,index[0]]))
             else: # keep lists the same size: fill with zeros.
-                self.stats[key] += list(np.zeros(n, dtype=self.types[key]))
+                self.stats[key] += list(map(self.types[key], [0]*n))
         self.ind = np.size(self.stats[key]) # length of last array
         return head # success
 
