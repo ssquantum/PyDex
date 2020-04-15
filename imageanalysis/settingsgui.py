@@ -15,12 +15,11 @@ try:
     from PyQt4.QtCore import pyqtSignal, QRegExp
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
             QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
-            QDoubleValidator, QIntValidator, QMenu, QActionGroup, QFont,
-            QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QRegExpValidator) 
+            QMenu, QActionGroup, QFont, QTableWidget, QTableWidgetItem, QTabWidget, 
+            QVBoxLayout, QRegExpValidator) 
 except ImportError:
     from PyQt5.QtCore import pyqtSignal, QRegExp
-    from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
-        QRegExpValidator, QFont)
+    from PyQt5.QtGui import (QIcon, QRegExpValidator, QFont)
     from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
         QFileDialog, QMessageBox, QLineEdit, QGridLayout, QWidget,
         QApplication, QPushButton, QAction, QMainWindow, QTabWidget,
@@ -30,8 +29,9 @@ logger = logging.getLogger(__name__)
 sys.path.append('.')
 sys.path.append('..')
 from strtypes import intstrlist, listlist
-from maingui import main_window, remove_slot # single atom image analysis
+from maingui import main_window, remove_slot, int_validator, double_validator
 from reimage import reim_window # analysis for survival probability
+from roiHandler import ROI
 
 ####    ####    ####    ####
 
@@ -106,9 +106,7 @@ class settings_window(QMainWindow):
         # validators for user input
         semico_validator = QRegExpValidator(QRegExp(r'((\d+,\d+);?)+')) # ints, semicolons and commas
         comma_validator = QRegExpValidator(QRegExp(r'([0-%s]+,?)+'%(self._m-1))) # ints and commas
-        double_validator = QDoubleValidator() # floats
-        int_validator = QIntValidator()       # integers
-
+        
         #### menubar at top gives options ####
         menubar = self.menuBar()
         
@@ -387,8 +385,8 @@ class settings_window(QMainWindow):
         """The user drags an ROI and this updates the ROI centre and width"""
         # find which ROI was dragged
         i = 0
-        for j, pair in enumerate(self.rois):
-            if pair[1] == roi:
+        for j, r in enumerate(self.rois):
+            if r.roi == roi:
                 i = j
                 break
         x0, y0 = roi.pos()  # lower left corner of bounding rectangle
@@ -397,7 +395,7 @@ class settings_window(QMainWindow):
         # note: setting the origin as bottom left but the image has origin top left
         xc, yc = int(x0 + l//2), int(y0 + l//2)  # centre
         self.stats['ROIs'][i] = [xc, yc, l] # should never be indexerror
-        self.rois[i][0].setPos(xc, yc) # move label to same position
+        self.rois[i].label.setPos(x0, y0)
         self.replot_rois() # updates image analysis windows
         self.reset_table() # diplays ROI in table
 
@@ -416,21 +414,13 @@ class settings_window(QMainWindow):
                 x, y, d = 1, 1, 1
             if not i % self._m: # for the first window in each set of _m
                 try:
-                    self.rois[j][0].setPos(x+d/2, y+d/2)
-                    self.rois[j][1].setPos(x-d//2, y-d//2)
-                    self.rois[j][1].setSize(d, d)
+                    self.rois[j].resize(x, y, d, d)
                 except IndexError: # make a new ROI 
-                    self.rois.append((pg.TextItem('ROI'+str(j), pg.intColor(j), anchor=(0,1)), 
-                        pg.ROI((x-d//2, y-d//2), (d,d), movable=True)))
-                    self.rois[j][1].sigRegionChangeFinished.connect(self.user_roi) 
-                    self.rois[j][1].setZValue(10)   # make sure the ROI is drawn above the image
-                    font = QFont()
-                    font.setPixelSize(16)
-                    self.rois[j][0].setFont(font)
-                    self.rois[j][0].setPos(x, y)
-                    viewbox.addItem(self.rois[j][0])
-                    viewbox.addItem(self.rois[j][1])
-                    self.rois[j][1].setPen(pg.intColor(j), width=3)
+                    self.rois.append(ROI((self.stats['pic_width'], self.stats['pic_height']), x, y, d, d, ID=j))
+                    self.rois[j].roi.sigRegionChangeFinished.connect(self.user_roi) 
+                    self.rois[j].roi.setZValue(10)   # make sure the ROI is drawn above the image
+                    viewbox.addItem(self.rois[j].roi)
+                    viewbox.addItem(self.rois[j].label)
             mw.roi_x_edit.setText(str(x)) # triggers roi_text_edit()
             mw.roi_y_edit.setText(str(y))
             mw.roi_l_edit.setText(str(d))
@@ -454,16 +444,14 @@ class settings_window(QMainWindow):
         Square grid      -- evenly divide the image into a square region for
             each of the analysers on this image.  
         2D Gaussian masks-- fit 2D Gaussians to atoms in the image."""
-        for roi in self.rois: # disconnect slot, otherwise signal is triggered infinitely
-            remove_slot(roi[1].sigRegionChangeFinished, self.user_roi, False)
+        for r in self.rois: # disconnect slot, otherwise signal is triggered infinitely
+            remove_slot(r.roi.sigRegionChangeFinished, self.user_roi, False)
         method = method if method else self.sender().text()
-        pos, size = self.rois[0][1].pos(), self.rois[0][1].size()
+        pos, size = self.rois[0].roi.pos(), self.rois[0].roi.size()
         size = 0.5*(size[0] + size[1])
         if method == 'Single ROI':
-            for roi in self.rois:
-                roi[0].setPos(pos[0]+size//2, pos[1]+size//2)
-                roi[1].setPos(pos)
-                roi[1].setSize(size)
+            for r in self.rois:
+                r.resize(pos[0], pos[1], size//2, size//2)
         elif method == 'Square grid':
             X = self.stats['pic_width'] - pos[0] # total available width
             Y = self.stats['pic_height'] - pos[1] # total available height
@@ -495,9 +483,7 @@ class settings_window(QMainWindow):
                             logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(pos[0], pos[1])+
                             ' outside of the image')
                             newpos = [0,0]
-                        self.rois[i][0].setPos(*newpos)
-                        self.rois[i][1].setPos(*newpos)
-                        self.rois[i][1].setSize(size, size)   
+                        self.rois[i].resize(newpos[0], newpos[1], size, size)
                     except ZeroDivisionError as e:
                         logger.error('Invalid parameters for square ROI grid: '+
                             'x - %s, y - %s, pic size - (%s, %s), roi size - %s.\n'%(
@@ -508,8 +494,8 @@ class settings_window(QMainWindow):
             logger.warning('Setting ROI with 2D Gaussian masks is not implemented yet.\n')
         self.reset_table()
         self.replot_rois()
-        for roi in self.rois: # reconnect slot
-            remove_slot(roi[1].sigRegionChangeFinished, self.user_roi, True)
+        for r in self.rois: # reconnect slot
+            remove_slot(r.roi.sigRegionChangeFinished, self.user_roi, True)
 
     def reset_table(self, newvals=None):
         """Resize the table of ROIs and then fill it with the ROIs stored in

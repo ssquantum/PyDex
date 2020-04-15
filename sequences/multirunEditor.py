@@ -169,19 +169,17 @@ class multirun_widget(QWidget):
         self.chan_choices['Analogue channel'].setEnabled(False)
 
         # add a new list of multirun values to the array
-        self.col_val_edit = []
-        labels = ['column index', 'start', 'stop']
-        validators = [col_validator, double_validator, double_validator]
-        for i in range(0, len(labels)*2, 2):
-            self.col_val_edit.append(self.make_label_edit(labels[i//2], self.grid, 
-                position=[5,i, 1,1], default_text='1', 
-                validator=validators[i//2])[1])
+        self.col_index = self.make_label_edit('column index:', self.grid, 
+                position=[5,0, 1,1], default_text='0', 
+                validator=col_validator)[1]
+        self.col_range = QLineEdit('linspace(0,1,%s)'%(self.nrows+1), self)
+        self.grid.addWidget(self.col_range, 5,2, 1,2)
         # show the previously selected channels for this column:
         self.chan_choices['Time step name'].itemClicked.connect(self.save_chan_selection)
         self.chan_choices['Analogue channel'].itemClicked.connect(self.save_chan_selection)
         self.chan_choices['Type'].activated[str].connect(self.save_chan_selection)
         self.chan_choices['Analogue type'].activated[str].connect(self.save_chan_selection)
-        self.col_val_edit[0].textChanged[str].connect(self.set_chan_listbox)
+        self.col_index.textChanged[str].connect(self.set_chan_listbox)
 
         # add the column to the multirun values array
         add_var_button = QPushButton('Add column', self)
@@ -259,9 +257,9 @@ class multirun_widget(QWidget):
         self.table.setRowCount(self.nrows)
         self.ncols = int(self.cols_edit.text()) if self.cols_edit.text() else 1
         self.table.setColumnCount(self.ncols)
-        self.col_val_edit[0].setValidator(QIntValidator(1,self.ncols-1))
-        if self.col_val_edit[0].text() and int(self.col_val_edit[0].text()) > self.ncols-1:
-            self.col_val_edit[0].setText(str(self.ncols-1))
+        self.col_index.setValidator(QIntValidator(1,self.ncols-1))
+        if self.col_index.text() and int(self.col_index.text()) > self.ncols-1:
+            self.col_index.setText(str(self.ncols-1))
         self.reset_array()
         self.ui_param['runs included'] = [[] for i in range(self.nrows)]
         for key, default in zip(['Type', 'Analogue type', 'Time step name', 'Analogue channel'],
@@ -293,33 +291,38 @@ class multirun_widget(QWidget):
            
     def add_column_to_array(self):
         """Make a list of values and add it to the given column 
-        in the multirun values array. The list is range(start, stop, step) 
-        repeated a set number of times, ordered according to the 
+        in the multirun values array. The function is chosen by the user.
+        Values are repeated a set number of times, ordered according to the 
         ComboBox text. The selected channels are stored in lists."""
-        if all(x.text() for x in self.col_val_edit):
-            col = int(self.col_val_edit[0].text()) if self.col_val_edit[0].text() else 0
-            # store the selected channels
-            self.ui_param['Order'] = self.order_edit.currentText()
-            for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
-                if self.measures[key].text(): # don't do anything if the line edit is empty
-                    self.ui_param[key] = self.types[key](self.measures[key].text())
-            # make the list of values:
-            try:
-                vals = np.linspace(*map(float, [x.text() for x in self.col_val_edit[1:3]]), self.nrows)
-            except ZeroDivisionError as e: 
-                logger.warning('Add column to multirun: attempted to use step of 0.\n'+str(e))
-                return 0
-            # order the list of values
-            if self.ui_param['Order'] == 'descending':
-                vals = reversed(vals)
-            elif 'random' in self.ui_param['Order']:
-                vals = list(vals)
-                shuffle(vals)
-            for i in range(self.table.rowCount()): 
-                try: # set vals in table cells
-                    self.table.item(i, col).setText('%.5g'%vals[i])
-                except IndexError: # occurs if invalid range
-                    self.table.item(i, col).setText('')
+        if 'linspace' in self.col_range.text(): # choose the generating function
+            f = np.linspace
+        elif 'logspace' in self.col_range.text():
+            f = np.logspace
+        elif 'range' in self.col_range.text():
+            f = np.arange
+        else: return 0
+        try: # make the list of values
+            vals = f(*map(float, self.col_range.text().split('(')[-1].replace(')','').split(',')))
+        except (ZeroDivisionError, TypeError, ValueError) as e: 
+            logger.warning('Add column to multirun: invalid syntax "'+self.col_range.text()+'".\n'+str(e))
+            return 0
+        col = int(self.col_index.text()) if self.col_index.text() else 0
+        # store the selected channels
+        self.ui_param['Order'] = self.order_edit.currentText()
+        for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
+            if self.measures[key].text(): # don't do anything if the line edit is empty
+                self.ui_param[key] = self.types[key](self.measures[key].text())
+        # order the list of values
+        if self.ui_param['Order'] == 'descending':
+            vals = reversed(vals)
+        elif 'random' in self.ui_param['Order']:
+            vals = list(vals)
+            shuffle(vals)
+        for i in range(self.table.rowCount()): 
+            try: # set vals in table cells
+                self.table.item(i, col).setText('%.5g'%vals[i])
+            except IndexError: # occurs if invalid range
+                self.table.item(i, col).setText('')
 
     #### multirun channel selection ####
 
@@ -335,13 +338,13 @@ class multirun_widget(QWidget):
             self.chan_choices[key].clear()
             self.chan_choices[key].addItems(items)
         # note: selected channels might have changed order
-        self.set_chan_listbox(self.col_val_edit[0].text())
+        self.set_chan_listbox(self.col_index.text())
 
     def save_chan_selection(self, arg=None):
         """When the user changes the selection of channels/timesteps for the
         given column, save it. The selection will be reloaded if the user
         changes the column and then comes back."""
-        col = int(self.col_val_edit[0].text()) if self.col_val_edit[0].text() else 0
+        col = int(self.col_index.text()) if self.col_index.text() else 0
         for key in ['Type', 'Analogue type']:
             self.ui_param[key][col] = self.chan_choices[key].currentText()
         for key in ['Time step name', 'Analogue channel']:
@@ -508,7 +511,7 @@ class multirun_widget(QWidget):
                         logger.error('Multirun editor could not load parameter: %s\n'%params[i]+str(e))
             # store values in case they're overwritten after setText()
             nrows, ncols = np.shape(vals) # update array of values
-            col = int(self.col_val_edit[0].text()) if self.col_val_edit[0].text() else 0
+            col = int(self.col_index.text()) if self.col_index.text() else 0
             nhist, nomit = map(str, [self.ui_param['# in hist'], self.ui_param['# omitted']])
             runstep, endstep = self.ui_param['Last time step run'], self.ui_param['Last time step end']
             # then update the label edits

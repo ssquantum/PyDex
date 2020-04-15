@@ -22,7 +22,7 @@ except ImportError:
     from PyQt5.QtCore import pyqtSignal
     from PyQt5.QtGui import QFont
     from PyQt5.QtWidgets import QLabel, QMessageBox
-from maingui import main_window, remove_slot  # a single instance of SAIA
+from maingui import main_window, remove_slot
 
 # main GUI window contains all the widgets                
 class reim_window(main_window):
