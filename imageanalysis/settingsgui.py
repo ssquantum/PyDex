@@ -52,20 +52,21 @@ class settings_window(QMainWindow):
             config_file='.\\imageanalysis\\default.config'):
         super().__init__()
         self.types = OrderedDict([('pic_width',int), ('pic_height',int), ('ROIs',listlist), 
-            ('bias',int), ('image_path', str), ('results_path', str), ('window_pos',intstrlist)])
-        self.stats = OrderedDict([('pic_width',512), ('pic_height',512), ('ROIs',[[1,1,1]]), 
+            ('bias', int), ('image_path', str), ('results_path', str), ('last_image', str),
+            ('window_pos',intstrlist)])
+        self.stats = OrderedDict([('pic_width',512), ('pic_height',512), ('ROIs',[[1,1,1,1]]), 
             ('bias',697), ('image_path', im_store_path), ('results_path', results_path),
-            ('window_pos', [550, 20, 10, 200, 600, 400])])
+            ('last_image', ''), ('window_pos', [550, 20, 10, 200, 600, 400])])
         self.load_settings(fname=config_file) # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.results_path = results_path if results_path else self.stats['results_path'] # used for saving results
-        self.last_path = results_path # path history helps user get to the file they want
+        self.last_path = self.stats['last_image'] # path history helps user get to the file they want
         self.image_storage_path = im_store_path if im_store_path else self.stats['image_path'] # used for loading image files
         self._m = nsaia # number of images per run 
         self._a = nsaia # number of SAIA instances
         if len(self.stats['ROIs']) < self._a // self._m: # make the correct number of ROIs
             for i in range(len(self.stats['ROIs']), self._a // self._m):
-                self.stats['ROIs'].append([1,1,1])
+                self.stats['ROIs'].append([1,1,1,1])
         self.mw = [main_window(results_path, im_store_path, 
             'ROI' + str(i//self._m) + '.Im' + str(i%self._m) + '.') for i in range(nsaia)] # saia instances
         self.mw_inds = list(range(nsaia)) # the index, m, of the image in the sequence to use 
@@ -289,8 +290,8 @@ class settings_window(QMainWindow):
         roi_grid.addWidget(im_widget, 4,0, 6,8)
 
         # table to set ROIs for main windows
-        self.roi_table = QTableWidget(self._a//self._m, 4)
-        self.roi_table.setHorizontalHeaderLabels(['ROI', 'xc', 'yc', 'size'])
+        self.roi_table = QTableWidget(self._a//self._m, 5)
+        self.roi_table.setHorizontalHeaderLabels(['ROI', 'xc', 'yc', 'w', 'h'])
         roi_grid.addWidget(self.roi_table, 0,0, 3,6)
         self.reset_table() # connects itemChanged signal to roi_table_edit()
 
@@ -390,11 +391,10 @@ class settings_window(QMainWindow):
                 i = j
                 break
         x0, y0 = roi.pos()  # lower left corner of bounding rectangle
-        xw, yw = roi.size() # widths
-        l = int(0.5*(xw+yw))  # want a square ROI
+        w, h = roi.size() # widths
         # note: setting the origin as bottom left but the image has origin top left
-        xc, yc = int(x0 + l//2), int(y0 + l//2)  # centre
-        self.stats['ROIs'][i] = [xc, yc, l] # should never be indexerror
+        xc, yc = int(x0 + w//2), int(y0 + h//2)  # centre
+        self.stats['ROIs'][i] = [xc, yc, w, h] # should never be indexerror
         self.rois[i].label.setPos(x0, y0)
         self.replot_rois() # updates image analysis windows
         self.reset_table() # diplays ROI in table
@@ -407,23 +407,23 @@ class settings_window(QMainWindow):
         for i, mw in enumerate(self.mw[:self._a+1]):
             j = i // self._m
             try: 
-                x, y, d = self.stats['ROIs'][j] # xc, yc, size
+                x, y, w, h = self.stats['ROIs'][j] # xc, yc, size
             except IndexError as e:
                 logger.error('Not enough ROIs for main windows: %s\n'%j+str(e))
-                self.stats['ROIs'].append([1,1,1])
-                x, y, d = 1, 1, 1
+                self.stats['ROIs'].append([1,1,1,1])
+                x, y, w, h = 1, 1, 1, 1
             if not i % self._m: # for the first window in each set of _m
                 try:
-                    self.rois[j].resize(x, y, d, d)
+                    self.rois[j].resize(x, y, w, h)
                 except IndexError: # make a new ROI 
-                    self.rois.append(ROI((self.stats['pic_width'], self.stats['pic_height']), x, y, d, d, ID=j))
+                    self.rois.append(ROI((self.stats['pic_width'], self.stats['pic_height']), x, y, w, h, ID=j))
                     self.rois[j].roi.sigRegionChangeFinished.connect(self.user_roi) 
                     self.rois[j].roi.setZValue(10)   # make sure the ROI is drawn above the image
                     viewbox.addItem(self.rois[j].roi)
                     viewbox.addItem(self.rois[j].label)
             mw.roi_x_edit.setText(str(x)) # triggers roi_text_edit()
             mw.roi_y_edit.setText(str(y))
-            mw.roi_l_edit.setText(str(d))
+            mw.roi_l_edit.setText(str(w))
             mw.bias_offset_edit.setText(str(self.stats['bias']))
 
     def replot_rois(self):
@@ -510,8 +510,8 @@ class settings_window(QMainWindow):
                     self.roi_table.setItem(i, j, QTableWidgetItem())
                     self.roi_table.item(i, j).setText(data[j])
             except IndexError as e:
-                self.stats['ROIs'].append([1,1,1])
-                data = [str(i)] + ['1', '1', '1']
+                self.stats['ROIs'].append([1,1,1,1])
+                data = [str(i), '1', '1', '1', '1']
                 for j in range(self.roi_table.columnCount()):
                     self.roi_table.setItem(i, j, QTableWidgetItem())
                     self.roi_table.item(i, j).setText(data[j])
@@ -754,7 +754,7 @@ class settings_window(QMainWindow):
                     'ROI' + str(i//self._m) + '.Im' + str(i%self._m) + '.'))
                 self.mw_inds.append(i%self._m)
                 if len(self.stats['ROIs']) < (i // self._m)+1: # starting a new ROI
-                    self.stats['ROIs'].append([1,1,1])
+                    self.stats['ROIs'].append([1,1,1,1])
         self._a = a
         for mw in self.mw:
             mw.swap_signals() # reconnect signals

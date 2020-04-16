@@ -141,6 +141,19 @@ class roi_handler:
         for i in range(len(self.ROIs), n): # make new ROIs
             self.ROIs.append(ROI(self.shape, 1,1,1,1, ID=i))
 
+    def resize_rois(self, ROIlist):
+        """Convenience function for setting multiple ROIs"""
+        for i, roi in enumerate(ROIlist):
+            try: self.ROIs[i].resize(*roi)
+            except (IndexError, ValueError) as e: logger.warning(
+                "Failed to resize ROI "+str(i)+": %s\n"%roi + str(e))
+
+    def reset_count_lists(self, ids=[]):
+        """Empty the lists of counts in the ROIs with the gives IDs"""
+        for i in ids:
+            try: self.ROIs[i].c = []
+            except IndexError: pass
+
     def process(self, im, include=True):
         """Add the integrated counts in each ROI to their lists.
         Return success = 1 if all ROIs have an atom, otherwise 0"""
@@ -153,6 +166,10 @@ class roi_handler:
             except ValueError as e:
                 logger.error("Image was wrong shape %s for atom checker's ROI%s %s"%(
                     np.shape(im), r.i, r.s) + str(e))
+            try: # if the length gets to 1000 images, cut out the first 500
+                1 // (1000 - len(r.c))
+            except ZeroDivisionError:
+                r.c = r.c[500:]
         try:
             1 // (1 - success) # ZeroDivisionError if success = 1
         except ZeroDivisionError: 
@@ -164,8 +181,12 @@ class roi_handler:
         Keyword arguments:
         im_name    -- absolute path to the image file to load"""
         self.shape = np.genfromtxt(im_name, delimiter=self.delim).shape
-        try: self.shape = (self.shape[1]-1, self.shape[0])
-        except IndexError: self.shape = (1, self.shape[0]-1)
+        try: self.cam_pic_size_changed(self.shape[1]-1, self.shape[0])
+        except IndexError: self.cam_pic_size_changed(self.shape[0]-1, 1)
+        
+    def cam_pic_size_changed(self, width, height):
+        """Receive new image dimensions from Andor camera"""
+        self.shape = (width, height)
         for r in self.ROIs:
             r.create_rect_mask(self.shape)
         

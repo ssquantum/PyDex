@@ -95,6 +95,11 @@ class atom_window(QMainWindow):
         self.nrois_edit = QLineEdit(str(len(self.rh.ROIs)), self)
         layout.addWidget(self.nrois_edit, 0,2, 1,1)
         self.nrois_edit.setValidator(int_validator)
+
+        # reset the list of counts in each ROI displayed in the plots
+        self.reset_button = QPushButton('Reset plots', self)
+        self.reset_button.clicked.connect(self.reset_plots)
+        layout.addWidget(self.reset_button, 0,3, 1,1)
         
         #### display image with ROIs ####
         
@@ -126,7 +131,6 @@ class atom_window(QMainWindow):
         #
         self.setWindowTitle(self.name+' - Atom Checker -')
         self.setWindowIcon(QIcon('docs/atomcheckicon.png'))
-        # self.showFullScreen()
 
     #### #### user input functions #### ####
 
@@ -179,9 +183,15 @@ class atom_window(QMainWindow):
         """Plot the history of counts in each ROI in the associated plots"""
         for i, r in enumerate(self.rh.ROIs):
             try:
-                self.plots[i].plot(r.c)
+                self.plots[i].plot(r.c) # history of counts
                 if r.autothresh.isChecked(): r.thresh() # update threshold
+                self.plots[i].plot([0,len(r.c)], [r.t,r.t], pen='r') # plot threshold
             except IndexError: pass
+
+    def reset_plots(self):
+        """Empty the lists of counts in the ROIs and update the plots."""
+        self.rh.reset_count_lists(range(len(self.rh.ROIs)))
+        for p in self.plots: p.clear()
 
     def update_im(self, im, include=True):
         """Display the image in the image canvas.
@@ -250,7 +260,6 @@ class atom_window(QMainWindow):
         self.update_im(aveim / len(im_list))
         return 1
 
-
 ####    ####    ####    #### 
 
 def run():
@@ -262,7 +271,7 @@ def run():
         app = QApplication(sys.argv) 
         
     boss = atom_window()
-    boss.show()
+    boss.showFullScreen()
     if standalone: # if an app instance was made, execute it
         sys.exit(app.exec_()) # when the window is closed, the python code also stops
             

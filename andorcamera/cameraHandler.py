@@ -390,7 +390,6 @@ class camera(QThread):
         """Start an Acquisition and wait for a signal to abort"""
         self.idle_time = time.time() - self.t2 # time since last acquisition
         self.AF.StartAcquisition()
-        # i = 0
         while self.AF.GetStatus() == 'DRV_ACQUIRING':
             self.t0 = time.time() 
             result = win32event.WaitForSingleObject(
@@ -402,8 +401,6 @@ class camera(QThread):
                 if self.lastImage.any(): # sometimes last image is empty
                     self.AcquireEnd.emit(self.lastImage[0]) # emit signals
             self.t2 = time.time()
-            # print(i, end=' ')
-            # i += 1
         
     def PrintTimes(self, unit="s"):
         """Display the times measured for functions"""

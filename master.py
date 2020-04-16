@@ -39,6 +39,7 @@ logerrs.setup_log()
 logger = logging.getLogger(__name__)
 sys.path.append('./imageanalysis')
 from imageanalysis.settingsgui import settings_window
+from imageanalysis.atomChecker import atom_window
 sys.path.append('./andorcamera')
 from andorcamera.cameraHandler import camera # manages Andor camera
 sys.path.append('./saveimages')
@@ -74,7 +75,7 @@ class Master(QMainWindow):
             ('SaveConfig',str), ('MasterGeometry',intstrlist), ('AnalysisGeometry',intstrlist), 
             ('SequencesGeometry',intstrlist)])
         self.stats = OrderedDict([('File#', 0), ('Date', time.strftime("%d,%B,%Y")), 
-            ('CameraConfig', '.\\andorcamera\\ExExposure_config.dat'), 
+            ('CameraConfig', '.\\andorcamera\\Standard modes\\ExExposure_config.dat'), 
             ('SaveConfig', '.\\config\\config.dat'), ('MasterGeometry', [10, 10, 500, 150]), 
             ('AnalysisGeometry', [1400, 400, 600, 500]), 
             ('SequencesGeometry', [20, 100, 1000, 800])])
@@ -99,6 +100,7 @@ class Master(QMainWindow):
                 settings_window(nsaia=m if m!=0 else 2, nreim=1 if m==0 else 1,
                     results_path =sv_dirs['Results Path: '],
                     im_store_path=sv_dirs['Image Storage Path: ']), # image analysis
+                atom_window(last_im_path=sv_dirs['Image Storage Path: ']), # check if atoms are in ROIs to trigger experiment
                 Previewer(), # sequence editor
                 n=startn, m=m if m!=0 else 2, k=0) 
         # now the signals are connected, send camera settings to image analysis
@@ -117,6 +119,7 @@ class Master(QMainWindow):
         self.rn.sw.show_analyses(show_all=True)
         if self.rn.server.isRunning():
             self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
+        self.rn.check.rh.trigger.connect(self.trigger_exp_start) # start experiment when ROIs have atoms
         
         # set a timer to update the dates 2s after midnight:
         t0 = time.localtime()
@@ -181,12 +184,17 @@ class Master(QMainWindow):
             menu_items[-1].triggered.connect(self.show_window)
             show_windows.addAction(menu_items[-1])
 
-        sync_menu = menubar.addMenu('Run Synchronisation')
+        sync_menu = menubar.addMenu('Run Settings')
         self.sync_toggle = QAction('Sync with DExTer', sync_menu, 
                 checkable=True, checked=True)
         self.sync_toggle.setChecked(True)
         self.sync_toggle.toggled.connect(self.sync_mode)
         sync_menu.addAction(self.sync_toggle)
+
+        self.check_rois = QAction('Trigger on atoms loaded', sync_menu, 
+                checkable=True, checked=False)
+        self.check_rois.setChecked(True)
+        sync_menu.addAction(self.check_rois)
 
         reset_date = QAction('Reset date', sync_menu, checkable=False)
         reset_date.triggered.connect(self.reset_dates)
@@ -357,7 +365,7 @@ class Master(QMainWindow):
                 if self.sync_toggle.isChecked():
                     QMessageBox.warning(self, 'Unscyned acquisition', 
                         'Warning: started acquisition in synced mode. Without messages to DExTer, the file ID will not update.'+
-                        '\nTry unchecking: "Run Synchronisation" > "Sync with DExTer".')
+                        '\nTry unchecking: "Run Settings" > "Sync with DExTer".')
                 self.actions.setEnabled(False) # don't process other actions in this mode
                 self.rn._k = 0 # reset image per run count
                 self.action_button.setText('Stop acquisition')
@@ -411,6 +419,18 @@ class Master(QMainWindow):
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Resync DExTer\n'+'0'*2000) # for when it reconnects
             elif action_text ==  'Resync DExTer':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Resync DExTer\n'+'0'*2000)
+
+    def trigger_exp_start(self, n=None):
+        """Atom checker sends signal saying all ROIs have atoms in, start the experiment"""
+        self.rn.cam.AF.AbortAcquisition() # stop camera taking images
+        self.rn.cam.ApplySettingsFromConfig(self.stats['CameraConfig']) # return to normal acquire settings
+        self.rn.cam.start()
+        self.wait_for_cam()
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.check.rh.process, False)
+        self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
+        self.rn.check.close()
             
     def sync_mode(self, toggle=True):
         """Toggle whether to receive the run number from DExTer,
@@ -446,7 +466,8 @@ class Master(QMainWindow):
         if 'finished run' in msg:
             self.end_run(msg)
         elif 'start acquisition' in msg:
-            if self.rn.cam.initialised:
+            if self.check_rois.isChecked(): self.rn.atomcheck_go() # start camera in internal trigger mode
+            elif self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam() # wait for camera to initialise before running
             else: 
@@ -456,12 +477,14 @@ class Master(QMainWindow):
                 (TCPENUM['TCP read'], 'finished run '+str(self.rn._n)+'\n'+'0'*2000)]) # second message confirms end
         elif 'start measure' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
-            if self.rn.cam.initialised:
+            if self.check_rois.isChecked(): self.rn.atomcheck_go() # start camera in internal trigger mode
+            elif self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam()
             else: logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
             self.rn.multirun_go(msg)
         elif 'multirun run' in msg:
+            if self.check_rois.isChecked(): self.rn.atomcheck_go() # start camera in internal trigger mode
             self.rn.multirun_step(msg)
             self.rn._k = 0 # reset image per run count
         elif 'save and reset histogram' in msg:

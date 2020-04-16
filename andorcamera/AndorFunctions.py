@@ -71,6 +71,7 @@ class Andor:
         self.vsspeed        = None      # Index of current vertical shift speed
         
         self.ReadMode       = None      # The readout mode used in acquisitions. We want 4: Image.
+        self.TriggerMode    = None      # The trigger mode used in acquisitions. See manual.
         self.exposure       = None      # Exposure time currently set
         self.accumulate     = None      # Accumulate time currently set
         self.kinetic        = None      # Kinetic cycle time currently set
@@ -86,7 +87,7 @@ class Andor:
         self.vend           = None      # Vertical pixel coordinate of acquisition region end
         
         self.kscans         = None      # Number of kinetic scans
-        self.accumulate     = None      # Number of accumulations to take (number of scans to add together)
+        self.naccumulate     = None      # Number of accumulations to take (number of scans to add together)
 
     def Initialize(self):
         '''Initialize the Andor camera'''
@@ -227,6 +228,7 @@ class Andor:
                 9 - External FVB EM (only valid for EM Newton models in FVB mode)	
                 10- Software Trigger
                 12 - External Charge Shifting  '''
+        self.TriggerMode = mode
         cmode = c_int(mode)
         error = self.dll.SetTriggerMode(cmode)
         self.verbose(error, sys._getframe().f_code.co_name)
@@ -659,7 +661,7 @@ class Andor:
         cnumber = c_int(number)
         error = self.dll.SetNumberAccumulations(cnumber)
         self.verbose(error, sys._getframe().f_code.co_name)
-        self.accumulate = number
+        self.naccumulate = number
         return error
         
     def SetFrameTransferMode(self, mode):

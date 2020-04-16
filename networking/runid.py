@@ -29,6 +29,7 @@ class runnum(QThread):
     camra - an instance of ancam.cameraHandler.camera
     saver - an instance of savim.imsaver.event_handler
     saiaw - an instance of settingsgui.settings_window
+    check - an instance of atomChecker.atom_window
     seq   - an instance of sequencePreviewer.Previewer
     n     - the initial run ID number
     m     - the number of images taken per sequence
@@ -36,7 +37,7 @@ class runnum(QThread):
     im_save = pyqtSignal(np.ndarray) # send an incoming image to saver
     Dxstate = 'unknown' # current state of DExTer
 
-    def __init__(self, camra, saver, saiaw, seq, n=0, m=1, k=0):
+    def __init__(self, camra, saver, saiaw, check, seq, n=0, m=1, k=0):
         super().__init__()
         self._n = n # the run number
         self._m = m # # images per run
@@ -52,11 +53,17 @@ class runnum(QThread):
         self.sw.CCD_stat_edit(self.cam.emg, self.cam.pag, self.cam.Nr, True) # give image analysis the camera settings
         self.cam.SettingsChanged.connect(self.sw.CCD_stat_edit)
         self.cam.ROIChanged.connect(self.sw.cam_pic_size_changed) # triggers pic_size_text_edit()
+        self.check = check  # atom checker for ROIs, trigger experiment
+        self.check.rh.shape = (self.sw.stats['pic_width'], self.sw.stats['pic_height'])
+        self.cam.ROIChanged.connect(self.check.rh.cam_pic_size_changed)
+        self.check.rh.resize_rois(self.sw.stats['ROIs'])
         self.seq = seq   # sequence editor
         
         self.server = PyServer(host='') # server will run continuously on a thread
         self.server.dxnum.connect(self.set_n) # signal gives run number
         self.server.start()
+
+        self.trigger = PyServer(host='', port=8088) # software trigger using TCP
             
     def reset_server(self, force=False):
         """Check if the server is running. If it is, don't do anything, unless 
@@ -168,6 +175,28 @@ class runnum(QThread):
             self._k = self._n * self._m # number images that should've been taken
         return checks
 
+    #### atom checker ####
+
+    def atomcheck_go(self, toggle=True, dt=100e-3):
+        """Disconnect camera images from analysis, change the camera mode
+        to internal trigger and redirect the images to the atom checker.
+        dt: time between camera exposures (seconds). Exposure time is set
+            by the camera config file."""
+        if self.cam.initialised > 1:
+            if self.cam.AF.GetStatus() == 'DRV_ACQUIRING':
+                self.cam.AF.AbortAcquisition() # abort the previous acquisition
+            self.check.showFullScreen()
+            remove_slot(self.trigger.dxnum, self.trigger.close, True) # stop server after msg
+            self.trigger.start() # start server for TCP to send msg when atoms loaded
+            # redirect images from analysis to atom checker
+            remove_slot(self.cam.AcquireEnd, self.receive, False)
+            remove_slot(self.cam.AcquireEnd, self.mr_receive, False)
+            remove_slot(self.cam.AcquireEnd, self.check.rh.process, True)
+            # set camera to take an exposure every dt seconds
+            self.cam.AF.SetKineticCycleTime(dt) # time waiting between exposures
+            self.cam.AF.SetTriggerMode(1) # internal trigger
+
+            self.cam.start() # run till abort keeps taking images
 
     #### multirun ####
     

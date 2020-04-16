@@ -165,7 +165,7 @@ class PyServer(QThread):
         """Reset the stop toggle so that the event loop can run."""
         self.stop = False
     
-    def close(self):
+    def close(self, args=None):
         """Stop the event loop safely, ensuring that the sockets are closed.
         Once the thread has stopped, reset the stop toggle so that it 
         doesn't block the thread starting again the next time."""
@@ -187,6 +187,7 @@ if __name__ == "__main__":
     ps = PyServer()
     ps.textin.connect(print)
     ps.add_message('24', 'Hello world!')
+    remove_slot(ps.dxnum, ps.close, True) # close server after message
     ps.start() # will keep running until you call ps.close()
     w = QWidget()
     w.setWindowTitle('Server is runnning')
