@@ -179,7 +179,8 @@ class Master(QMainWindow):
         show_windows = menubar.addMenu('Windows')
         menu_items = []
         for window_title in ['Image Analyser', 'Camera Status', 
-            'Image Saver', 'TCP Server', 'Sequence Previewer']:
+            'Image Saver', 'TCP Server', 'Sequence Previewer',
+            'Atom Checker']:
             menu_items.append(QAction(window_title, self)) 
             menu_items[-1].triggered.connect(self.show_window)
             show_windows.addAction(menu_items[-1])
@@ -311,6 +312,8 @@ class Master(QMainWindow):
                 self.rn.seq.mr.mr_queue = []
                 self.rn.multirun = False
                 self.rn.reset_server(force=True)
+        elif self.sender().text() == 'Atom Checker':
+            self.rn.check.showFullScreen()
 
     def browse_sequence(self, toggle=True):
         """Open the file browser to search for a sequence file, then insert
