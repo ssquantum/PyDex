@@ -72,6 +72,7 @@ class Andor:
         
         self.ReadMode       = None      # The readout mode used in acquisitions. We want 4: Image.
         self.TriggerMode    = None      # The trigger mode used in acquisitions. See manual.
+        self.PrevTrigger    = None      # Store the trigger mode that was used previously.
         self.exposure       = None      # Exposure time currently set
         self.accumulate     = None      # Accumulate time currently set
         self.kinetic        = None      # Kinetic cycle time currently set

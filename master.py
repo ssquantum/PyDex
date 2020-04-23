@@ -426,7 +426,7 @@ class Master(QMainWindow):
     def trigger_exp_start(self, n=None):
         """Atom checker sends signal saying all ROIs have atoms in, start the experiment"""
         self.rn.cam.AF.AbortAcquisition() # stop camera taking images
-        self.rn.cam.ApplySettingsFromConfig(self.stats['CameraConfig']) # return to normal acquire settings
+        self.rn.cam.AF.SetTriggerMode(self.rn.cam.AF.PrevTrigger) # return to normal acquire settings
         self.rn.cam.start()
         self.wait_for_cam()
         remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis

@@ -194,6 +194,7 @@ class runnum(QThread):
             remove_slot(self.cam.AcquireEnd, self.check.rh.process, True)
             # set camera to take an exposure every dt seconds
             self.cam.AF.SetKineticCycleTime(dt) # time waiting between exposures
+            self.cam.AF.PrevTrigger = self.cam.AF.TriggerMode # store the trigger mode to reset later
             self.cam.AF.SetTriggerMode(1) # internal trigger
 
             self.cam.start() # run till abort keeps taking images
