@@ -373,8 +373,8 @@ class settings_window(QMainWindow):
 
     def cam_pic_size_changed(self, width, height):
         """Take the new image dimensions from the camera."""
-        self.pic_width_edit.setText(width) # triggers pic_size_text_edit
-        self.pic_height_edit.setText(height)
+        self.pic_width_edit.setText(str(width)) # triggers pic_size_text_edit
+        self.pic_height_edit.setText(str(height))
 
     def update_im(self, event_im):
         """Receive the image array emitted from the event signal
@@ -561,8 +561,8 @@ class settings_window(QMainWindow):
         if fname:  # avoid crash if the user cancelled
             try:
                 self.mw[0].image_handler.set_pic_size(fname)
-                self.cam_pic_size_changed(str(self.mw[0].image_handler.pic_width), 
-                    str(self.mw[0].image_handler.pic_height))
+                self.cam_pic_size_changed(self.mw[0].image_handler.pic_width, 
+                    self.mw[0].image_handler.pic_height)
                 im_vals = self.mw[0].image_handler.load_full_im(fname)
                 self.update_im(im_vals)
             except IndexError as e:

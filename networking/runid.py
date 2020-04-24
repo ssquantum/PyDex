@@ -55,6 +55,7 @@ class runnum(QThread):
         self.cam.ROIChanged.connect(self.sw.cam_pic_size_changed) # triggers pic_size_text_edit()
         self.check = check  # atom checker for ROIs, trigger experiment
         self.check.rh.shape = (self.sw.stats['pic_width'], self.sw.stats['pic_height'])
+        self.check.rh.create_rois(len(self.sw.stats['ROIs']))
         self.cam.ROIChanged.connect(self.check.rh.cam_pic_size_changed)
         self.check.rh.resize_rois(self.sw.stats['ROIs'])
         self.seq = seq   # sequence editor
@@ -124,6 +125,10 @@ class runnum(QThread):
                 self.sw.mw[i].event_im.emit(im, self._k < self._m)
         self._k += 1 # another image was taken
 
+    def check_receive(self, im=0):
+        """Receive image for atom checker, don't save but just pass on"""
+        self.check.event_im.emit(im)
+
     def reset_dates(self, t0):
         """Make sure that the dates in the image saving and analysis 
         programs are correct."""
@@ -185,17 +190,16 @@ class runnum(QThread):
         if self.cam.initialised > 1:
             if self.cam.AF.GetStatus() == 'DRV_ACQUIRING':
                 self.cam.AF.AbortAcquisition() # abort the previous acquisition
-            self.check.showFullScreen()
-            remove_slot(self.trigger.dxnum, self.trigger.close, True) # stop server after msg
+            self.check.showMaximized()
             self.trigger.start() # start server for TCP to send msg when atoms loaded
             # redirect images from analysis to atom checker
             remove_slot(self.cam.AcquireEnd, self.receive, False)
             remove_slot(self.cam.AcquireEnd, self.mr_receive, False)
-            remove_slot(self.cam.AcquireEnd, self.check.rh.process, True)
+            remove_slot(self.cam.AcquireEnd, self.check_receive, True)
             # set camera to take an exposure every dt seconds
             self.cam.AF.SetKineticCycleTime(dt) # time waiting between exposures
             self.cam.AF.PrevTrigger = self.cam.AF.TriggerMode # store the trigger mode to reset later
-            self.cam.AF.SetTriggerMode(1) # internal trigger
+            self.cam.AF.SetTriggerMode(0) # internal trigger
 
             self.cam.start() # run till abort keeps taking images
 

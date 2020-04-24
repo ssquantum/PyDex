@@ -5,6 +5,7 @@ Allocate ROIs on an image and assign thresholds to determine
 atom presence
 """
 import sys
+import time
 import numpy as np
 import pyqtgraph as pg
 from skimage.filters import threshold_minimum
@@ -114,13 +115,13 @@ class ROI(QWidget):
         coords = [x.text() for x in self.edits.values()] # xc, yc, width, height
         if all(x for x in coords): # check none are empty
             self.resize(*map(int, coords))
-        if self.threshedit and not self.autothresh.isChecked():
-            self.t = int(self.threshedit)
+        if self.threshedit.text() and not self.autothresh.isChecked():
+            self.t = int(self.threshedit.text())
 
 ####    ####    ####    ####
 
 # convert an image into its pixel counts to check for atoms
-class roi_handler:
+class roi_handler(QWidget):
     """Determine the presence of atoms in ROIs of an image
     
     For each of the ROIs, keep a list of counts to compare to
@@ -131,10 +132,11 @@ class roi_handler:
     trigger = pyqtSignal(int)
 
     def __init__(self, rois=[(1,1,1,1)], im_shape=(512,512)):
+        super().__init__()
         self.ROIs = [ROI(im_shape,*r, ID=i) for i, r in enumerate(rois)]
         self.shape = im_shape
         self.delim = ' '
-
+        
     def create_rois(self, n):
         """Change the list of ROIs to have length n"""
         self.ROIs = self.ROIs[:n]
@@ -174,7 +176,7 @@ class roi_handler:
             1 // (1 - success) # ZeroDivisionError if success = 1
         except ZeroDivisionError: 
             self.trigger.emit(success) # only emit if successful
-
+        
     def set_pic_size(self, im_name):
         """Set the pic size by looking at the number of columns in a file
         First column is just the index of the row.

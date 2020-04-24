@@ -194,7 +194,7 @@ class Master(QMainWindow):
 
         self.check_rois = QAction('Trigger on atoms loaded', sync_menu, 
                 checkable=True, checked=False)
-        self.check_rois.setChecked(True)
+        self.check_rois.setChecked(False)
         sync_menu.addAction(self.check_rois)
 
         reset_date = QAction('Reset date', sync_menu, checkable=False)
@@ -312,8 +312,9 @@ class Master(QMainWindow):
                 self.rn.seq.mr.mr_queue = []
                 self.rn.multirun = False
                 self.rn.reset_server(force=True)
+                self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
         elif self.sender().text() == 'Atom Checker':
-            self.rn.check.showFullScreen()
+            self.rn.check.showMaximized()
 
     def browse_sequence(self, toggle=True):
         """Open the file browser to search for a sequence file, then insert
@@ -431,7 +432,7 @@ class Master(QMainWindow):
         self.wait_for_cam()
         remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
         remove_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
-        remove_slot(self.rn.cam.AcquireEnd, self.rn.check.rh.process, False)
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
         self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
         self.rn.check.close()
             
@@ -520,6 +521,7 @@ class Master(QMainWindow):
         #         for im in unprocessed:
         #             # image dimensions: (# kscans, width pixels, height pixels)
         #             self.rn.receive(im[0]) 
+        self.rn.trigger.close() # stop the TCP server for the atom checker software trigger
         self.rn.synchronise()
         self.idle_state()
         
@@ -544,7 +546,8 @@ class Master(QMainWindow):
         for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
             ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:
             self.stats[key] = [g.x(), g.y(), g.width(), g.height()]
-        for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, self.rn.server]:
+        for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, 
+                self.rn.server, self.rn.trigger, self.rn.check]:
             obj.close()
         self.save_state()
         event.accept()

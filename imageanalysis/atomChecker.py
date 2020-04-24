@@ -45,7 +45,7 @@ class atom_window(QMainWindow):
     image_shape  -- shape of the images being taken, in pixels (x,y).
     name         -- an ID for this window, prepended to saved files.
     """
-    event_im = pyqtSignal([np.ndarray, bool])
+    event_im = pyqtSignal(np.ndarray)
     
     def __init__(self, last_im_path='.', rois=[(1,1,1,1)], num_plots=4, 
             image_shape=(512,512), name=''):
@@ -113,14 +113,17 @@ class atom_window(QMainWindow):
         
         #### display plots of counts for each ROI ####
         self.plots = [] # plot widgets to display counts history
+        self.threshlines = [] # lines giving thresholds
         k = int(np.sqrt(num_plots))
         for i in range(num_plots):
             self.plots.append(pg.PlotWidget()) # main subplot of histogram
+            self.threshlines.append(self.plots[-1].addLine(y=1, pen='r'))
             self.plots[-1].getAxis('bottom').tickFont = font
             self.plots[-1].getAxis('left').tickFont = font
             layout.addWidget(self.plots[-1], 1+(i//k)*3, 7+(i%k)*6, 2,6)  # allocate space in the grid
             try:
                 r = self.rh.ROIs[i]
+                remove_slot(r.threshedit.textEdited, self.update_plots, True)
                 self.plots[i].setTitle('ROI '+str(r.i))
                 # line edits with ROI x, y, w, h, threshold, auto update threshold
                 for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]): 
@@ -185,7 +188,7 @@ class atom_window(QMainWindow):
             try:
                 self.plots[i].plot(r.c) # history of counts
                 if r.autothresh.isChecked(): r.thresh() # update threshold
-                self.plots[i].plot([0,len(r.c)], [r.t,r.t], pen='r') # plot threshold
+                self.threshlines[i].setValue(r.t) # plot threshold
             except IndexError: pass
 
     def reset_plots(self):
@@ -193,9 +196,8 @@ class atom_window(QMainWindow):
         self.rh.reset_count_lists(range(len(self.rh.ROIs)))
         for p in self.plots: p.clear()
 
-    def update_im(self, im, include=True):
-        """Display the image in the image canvas.
-        event_im: [image (np.ndarray), include? (bool)]"""
+    def update_im(self, im):
+        """Display the image in the image canvas."""
         self.im_canvas.setImage(im)
 
     #### #### save and load data functions #### ####
@@ -271,7 +273,7 @@ def run():
         app = QApplication(sys.argv) 
         
     boss = atom_window()
-    boss.showFullScreen()
+    boss.showMaximized()
     if standalone: # if an app instance was made, execute it
         sys.exit(app.exec_()) # when the window is closed, the python code also stops
             
