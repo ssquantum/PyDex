@@ -428,6 +428,7 @@ class Master(QMainWindow):
         """Atom checker sends signal saying all ROIs have atoms in, start the experiment"""
         self.rn.cam.AF.AbortAcquisition() # stop camera taking images
         self.rn.cam.AF.SetTriggerMode(self.rn.cam.AF.PrevTrigger) # return to normal acquire settings
+        self.rn.check.checking = False
         self.rn.cam.start()
         self.wait_for_cam()
         remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
@@ -542,6 +543,7 @@ class Master(QMainWindow):
         try:
             self.rn.cam.SafeShutdown()
         except Exception as e: logger.warning('camera safe shutdown failed.\n'+str(e))
+        self.rn.check.send_rois() # give ROIs from atom checker to image analysis
         self.rn.sw.save_settings('.\\imageanalysis\\default.config')
         for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
             ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:

@@ -58,6 +58,8 @@ class runnum(QThread):
         self.check.rh.create_rois(len(self.sw.stats['ROIs']))
         self.cam.ROIChanged.connect(self.check.rh.cam_pic_size_changed)
         self.check.rh.resize_rois(self.sw.stats['ROIs'])
+        self.sw.bias_changed.connect(self.check.rh.set_bias)
+        self.check.roi_values.connect(self.sw.set_rois)
         self.seq = seq   # sequence editor
         
         self.server = PyServer(host='') # server will run continuously on a thread
@@ -191,6 +193,7 @@ class runnum(QThread):
             if self.cam.AF.GetStatus() == 'DRV_ACQUIRING':
                 self.cam.AF.AbortAcquisition() # abort the previous acquisition
             self.check.showMaximized()
+            self.check.checking = True
             self.trigger.start() # start server for TCP to send msg when atoms loaded
             # redirect images from analysis to atom checker
             remove_slot(self.cam.AcquireEnd, self.receive, False)

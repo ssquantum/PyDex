@@ -21,6 +21,7 @@ except ImportError:
 import logging
 logger = logging.getLogger(__name__)
 from maingui import int_validator, nat_validator
+from fitCurve import fit
 
 ####    ####    ####    ####
 
@@ -76,7 +77,34 @@ class ROI(QWidget):
         else: logger.warning('ROI tried to create invalid mask.\n' + 
             'shape %s, x %s, y %s, w %s, h %s'%(self.s, self.x, self.y, self.w, self.h))
 
-    def resize(self, xc, yc, width, height):
+    def create_gauss_mask(self, im=0):
+        """Fit a 2D Gaussian to the given image and use it to create a mask.
+        The Gaussian is fitted around the maximum intensity pixel."""
+        try:
+            if np.size(np.shape(im)) == 2:
+                self.s = np.shape(im)
+                self.mask = np.zeros(np.shape(im))
+                xc, yc = np.unravel_index(np.argmax(im), im.shape)
+                d = round(np.size(im[im > self.t])**0.5) # guess PSF size from pixels > threshold
+                im2 = im[xc-d:xc+d, yc-d:yc+d] # better for fitting to use zoom in
+                w = []
+                for i in range(2): # do Gaussian fit along each axis
+                    vals = np.sum(im2, axis=i)
+                    f = fit(np.arange(len(vals)), vals)
+                    f.estGaussParam()
+                    f.p0 = f.p0 + [np.min(vals)]
+                    f.getBestFit(f.offGauss) # only interested in the width
+                    w.append(round(f.ps[2]) if f.ps[2]>0 and np.isfinite(f.ps[2]) else 1) 
+                xy = np.meshgrid(list(reversed(range(-int(w[1]*2), int(w[1]*2)+1))), 
+                        range(-int(w[0]*2), int(w[0]*2)+1)) # make grid of (x,y) coordinates
+                # only include values of the Gaussian within 2 1/e^2 widths
+                self.mask[xc - int(w[0]*2) : xc + int(w[0]*2) + 1, 
+                    yc - int(w[1]*2) : yc + int(w[1]*2) + 1] = np.exp( # fill in 2D Gaussian
+                        -2*xy[0]**2 / w[0]**2 -2*xy[1]**2 / w[1]**2) /np.pi/w[0]/w[1]*2
+                self.resize(*map(int, [xc, yc, w[0], w[1]]), False) # update stored ROI values
+        except Exception as e: logger.error('ROI %s failed to set Gaussian mask\n'%self.i+str(e))
+    
+    def resize(self, xc, yc, width, height, create_sq_mask=True):
         """Reset the position and dimensions of the ROI"""
         self.x, self.y, self.w, self.h = xc, yc, width, height
         self.roi.setPos(xc - width//2, yc - height//2)
@@ -84,7 +112,7 @@ class ROI(QWidget):
         self.label.setPos(xc, yc)
         for key, val in zip(self.edits.keys(), [xc, yc, width, height]):
             self.edits[key].setText(str(val))
-        self.create_rect_mask()
+        if create_sq_mask: self.create_rect_mask()
 
     def atom(self):
         """A list of whether the counts are above threshold"""
@@ -131,11 +159,12 @@ class roi_handler(QWidget):
     im_shape -- dimensions of the image in pixels"""
     trigger = pyqtSignal(int)
 
-    def __init__(self, rois=[(1,1,1,1)], im_shape=(512,512)):
+    def __init__(self, rois=[(1,1,1,1,1)], im_shape=(512,512)):
         super().__init__()
         self.ROIs = [ROI(im_shape,*r, ID=i) for i, r in enumerate(rois)]
-        self.shape = im_shape
-        self.delim = ' '
+        self.shape = im_shape # image dimensions in pixels
+        self.bias  = 697      # bias offset to subtract from image counts
+        self.delim = ' '      # delimiter used to save/load files
         
     def create_rois(self, n):
         """Change the list of ROIs to have length n"""
@@ -146,7 +175,10 @@ class roi_handler(QWidget):
     def resize_rois(self, ROIlist):
         """Convenience function for setting multiple ROIs"""
         for i, roi in enumerate(ROIlist):
-            try: self.ROIs[i].resize(*roi)
+            try: 
+                self.ROIs[i].resize(*roi[:-1])
+                self.ROIs[i].t = roi[-1]
+                self.ROIs[i].threshedit.setText(str(roi[-1]))
             except (IndexError, ValueError) as e: logger.warning(
                 "Failed to resize ROI "+str(i)+": %s\n"%roi + str(e))
 
@@ -162,7 +194,7 @@ class roi_handler(QWidget):
         success = 1
         for r in self.ROIs:
             try:
-                counts = np.sum(im * r.mask)
+                counts = np.sum(im * r.mask) - self.bias
                 success = 1 if abs(counts) // r.t and success else 0
                 r.c.append(counts) 
             except ValueError as e:
@@ -185,6 +217,10 @@ class roi_handler(QWidget):
         self.shape = np.genfromtxt(im_name, delimiter=self.delim).shape
         try: self.cam_pic_size_changed(self.shape[1]-1, self.shape[0])
         except IndexError: self.cam_pic_size_changed(self.shape[0]-1, 1)
+
+    def set_bias(self, bias):
+        """Update the bias offset subtracted from all image counts."""
+        self.bias = bias
         
     def cam_pic_size_changed(self, width, height):
         """Receive new image dimensions from Andor camera"""

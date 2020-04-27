@@ -45,7 +45,8 @@ class atom_window(QMainWindow):
     image_shape  -- shape of the images being taken, in pixels (x,y).
     name         -- an ID for this window, prepended to saved files.
     """
-    event_im = pyqtSignal(np.ndarray)
+    event_im = pyqtSignal(np.ndarray) # image taken by the camera as np array
+    roi_values = pyqtSignal(list) # list of ROIs (x, y, w, h, threshold)
     
     def __init__(self, last_im_path='.', rois=[(1,1,1,1)], num_plots=4, 
             image_shape=(512,512), name=''):
@@ -56,6 +57,7 @@ class atom_window(QMainWindow):
         self.init_UI(num_plots) # adjust widgets from main_window
         self.event_im.connect(self.rh.process)
         self.event_im.connect(self.update_plots)
+        self.checking = False # whether the atom checker is active or not
         
     def init_UI(self, num_plots=4):
         """Create all the widgets and position them in the layout"""
@@ -123,7 +125,6 @@ class atom_window(QMainWindow):
             layout.addWidget(self.plots[-1], 1+(i//k)*3, 7+(i%k)*6, 2,6)  # allocate space in the grid
             try:
                 r = self.rh.ROIs[i]
-                remove_slot(r.threshedit.textEdited, self.update_plots, True)
                 self.plots[i].setTitle('ROI '+str(r.i))
                 # line edits with ROI x, y, w, h, threshold, auto update threshold
                 for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]): 
@@ -131,6 +132,16 @@ class atom_window(QMainWindow):
             except IndexError as e: pass # logger.warning('Atom Checker has more plots than ROIs')
         
         self.display_rois() # put ROIs on the image
+
+        #### extra buttons ####
+        # send the ROIs used here to the image analysis settings window
+        self.roi_matching = QPushButton('Send ROIs to analysis', self)
+        self.roi_matching.clicked.connect(self.send_rois)
+        layout.addWidget(self.roi_matching, 2+num_plots//k*3,7, 1,1)
+        # the user can trigger the experiment early by pressing this button
+        self.trigger_button = QPushButton('Manual trigger experiment', self)
+        self.trigger_button.clicked.connect(self.send_trigger)
+        layout.addWidget(self.trigger_button, 2+num_plots//k*3,8, 1,1)
         #
         self.setWindowTitle(self.name+' - Atom Checker -')
         self.setWindowIcon(QIcon('docs/atomcheckicon.png'))
@@ -155,6 +166,14 @@ class atom_window(QMainWindow):
         for key, val in zip(r.edits.keys(), [xc, yc, w, h]):
             r.edits[key].setText(str(val))
 
+    def send_rois(self, toggle=0):
+        """Emit the signal with the list of ROIs"""
+        self.roi_values.emit([[r.x, r.y, r.w, r.h, r.t] for r in self.rh.ROIs])
+
+    def send_trigger(self, toggle=0):
+        """Emit the roi_handler's trigger signal to start the experiment"""
+        if self.checking: self.rh.trigger.emit(1)
+
     #### #### canvas functions #### ####
 
     def display_rois(self, n=''):
@@ -173,6 +192,7 @@ class atom_window(QMainWindow):
         for i, r in enumerate(self.rh.ROIs):
             if r.roi not in viewbox.allChildren():
                 remove_slot(r.roi.sigRegionChangeFinished, self.user_roi, True) 
+                remove_slot(r.threshedit.textEdited, self.update_plots, True)
                 r.roi.setZValue(10)   # make sure the ROI is drawn above the image
                 viewbox.addItem(r.roi)
                 viewbox.addItem(r.label)
