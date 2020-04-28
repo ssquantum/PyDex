@@ -85,23 +85,24 @@ class ROI(QWidget):
                 self.s = np.shape(im)
                 self.mask = np.zeros(np.shape(im))
                 xc, yc = np.unravel_index(np.argmax(im), im.shape)
-                d = round(np.size(im[im > self.t])**0.5) # guess PSF size from pixels > threshold
+                if self.autothresh:
+                    self.t = 0.5*(np.max(im) + np.min(im)) # threshold in middle of histogram
+                    self.threshedit.setText(str(self.t))
+                d = 5 # round(np.size(im[im > self.t])**0.5) # guess PSF size from pixels > threshold
                 im2 = im[xc-d:xc+d, yc-d:yc+d] # better for fitting to use zoom in
-                w = []
+                ps = np.zeros(4)
                 for i in range(2): # do Gaussian fit along each axis
                     vals = np.sum(im2, axis=i)
                     f = fit(np.arange(len(vals)), vals)
                     f.estGaussParam()
-                    f.p0 = f.p0 + [np.min(vals)]
+                    f.p0 = f.p0[:2] + [f.p0[2]*2, np.min(vals)]
                     f.getBestFit(f.offGauss) # only interested in the width
-                    w.append(round(f.ps[2]) if f.ps[2]>0 and np.isfinite(f.ps[2]) else 1) 
-                xy = np.meshgrid(list(reversed(range(-int(w[1]*2), int(w[1]*2)+1))), 
-                        range(-int(w[0]*2), int(w[0]*2)+1)) # make grid of (x,y) coordinates
-                # only include values of the Gaussian within 2 1/e^2 widths
-                self.mask[xc - int(w[0]*2) : xc + int(w[0]*2) + 1, 
-                    yc - int(w[1]*2) : yc + int(w[1]*2) + 1] = np.exp( # fill in 2D Gaussian
-                        -2*xy[0]**2 / w[0]**2 -2*xy[1]**2 / w[1]**2) /np.pi/w[0]/w[1]*2
-                self.resize(*map(int, [xc, yc, w[0], w[1]]), False) # update stored ROI values
+                    ps[2*i], ps[2*i+1] = f.ps[1], f.ps[2] # centre, width
+                xy = np.meshgrid(range(2*d), range(2*d))
+                self.mask[xc-d:xc+d, yc-d:yc+d] = np.exp( # fill in 2D Gaussian
+                    -2*(xy[0]-ps[0])**2 / ps[1]**2 -2*(xy[1]-ps[2])**2 / ps[3]**2) /np.pi/ps[1]/ps[3]*2
+                y, h, x, w = map(int, map(round, ps)) # ROI coordinates must be int
+                self.resize(xc-d+x, yc-d+y, w, h, False) # update stored ROI values
         except Exception as e: logger.error('ROI %s failed to set Gaussian mask\n'%self.i+str(e))
     
     def resize(self, xc, yc, width, height, create_sq_mask=True):
@@ -132,8 +133,7 @@ class ROI(QWidget):
             self.t = int(thresh)
         except (ValueError, RuntimeError, OverflowError): 
             try:
-                max(self.c) # ValueError if empty list
-                self.t = int(np.mean(self.c))
+                self.t = int(0.5*(max(self.c) + min(self.c)))
             except (ValueError, TypeError):
                 self.t = 1
         self.threshedit.setText(str(self.t))

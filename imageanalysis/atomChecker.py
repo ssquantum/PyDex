@@ -142,6 +142,17 @@ class atom_window(QMainWindow):
         self.trigger_button = QPushButton('Manual trigger experiment', self)
         self.trigger_button.clicked.connect(self.send_trigger)
         layout.addWidget(self.trigger_button, 2+num_plots//k*3,8, 1,1)
+        # get ROI coordinates by fitting to image
+        for i, label in enumerate(['Single ROI', 'Square grid', '2D Gaussian masks']):
+            button = QPushButton(label, self) 
+            button.clicked.connect(self.make_roi_grid)
+            button.resize(button.sizeHint())
+            layout.addWidget(button, 2+num_plots//k*3,9+i, 1,1)
+
+        button = QPushButton('Display masks', self) # button to display masks
+        button.clicked.connect(self.show_ROI_masks)
+        button.resize(button.sizeHint())
+        layout.addWidget(button, 2+num_plots//k*3,9+i+1, 1,1)
         #
         self.setWindowTitle(self.name+' - Atom Checker -')
         self.setWindowIcon(QIcon('docs/atomcheckicon.png'))
@@ -173,6 +184,48 @@ class atom_window(QMainWindow):
     def send_trigger(self, toggle=0):
         """Emit the roi_handler's trigger signal to start the experiment"""
         if self.checking: self.rh.trigger.emit(1)
+
+    #### #### automatic ROI assignment #### ####
+
+    def make_roi_grid(self, toggle=True, method=''):
+        """Create a grid of ROIs and assign them to analysers that are using the
+        same image. Methods:
+        Single ROI       -- make all ROIs the same as the first analyser's 
+        Square grid      -- evenly divide the image into a square region for
+            each of the analysers on this image.  
+        2D Gaussian masks-- fit 2D Gaussians to atoms in the image."""
+        method = method if method else self.sender().text()
+        pos, shape = self.rh.ROIs[0].roi.pos(), self.rh.ROIs[0].roi.size()
+        if method == 'Single ROI':
+            for r in self.rh.ROIs:
+                r.resize(*map(int, [pos[0], pos[1], shape[0], shape[1]]))
+        elif method == 'Square grid':
+            n = len(self.rh.ROIs) # number of ROIs
+            d = int((n - 1)**0.5 + 1)  # number of ROIs per row
+            X = int(self.rh.shape[0] / d) # horizontal distance between ROIs
+            Y = int(self.rh.shape[1] / int((n - 3/4)**0.5 + 0.5)) # vertical distance
+            for i in range(n): # ID of ROI
+                try:
+                    newx, newy = int(X * (i%d + 0.5)), int(Y * (i//d + 0.5))
+                    if any([newx//self.rh.shape[0], newy//self.rh.shape[1]]):
+                        logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(newx, newy)+
+                        ' outside of the image')
+                        newx, newy = 0, 0
+                    self.rh.ROIs[i].resize(*map(int, [newx, newy, shape[0], shape[1]]))
+                except ZeroDivisionError as e:
+                    logger.error('Invalid parameters for square ROI grid: '+
+                        'x - %s, y - %s, pic size - %s, roi size - %s.\n'%(
+                            pos[0], pos[1], self.rh.shape[0], (shape[0], shape[1]))
+                        + 'Calculated width - %s, height - %s.\n'%(X, Y) + str(e))
+        elif method == '2D Gaussian masks':
+            try: 
+                im = self.im_canvas.image.copy()
+                if np.size(np.shape(im)) == 2:
+                    for r in self.rh.ROIs:
+                        r.create_gauss_mask(im) # fit 2D Gaussian to max pixel region
+                        # then block that region out of the image
+                        im[r.x-r.w : r.x+r.w, r.y-r.h:r.y+r.h] = np.zeros((2*r.w, 2*r.h))
+            except AttributeError: pass
 
     #### #### canvas functions #### ####
 
@@ -219,6 +272,14 @@ class atom_window(QMainWindow):
     def update_im(self, im):
         """Display the image in the image canvas."""
         self.im_canvas.setImage(im)
+
+    def show_ROI_masks(self, toggle=True):
+        """Make an image out of all of the masks from the ROIs and display it."""
+        im = np.zeros(self.rh.shape)
+        for roi in self.rh.ROIs:
+            try: im += roi.mask
+            except ValueError as e: logger.error('ROI %s has mask of wrong shape\n'%roi.i+str(e))
+        self.update_im(im)
 
     #### #### save and load data functions #### ####
 
@@ -300,5 +361,4 @@ def run():
 if __name__ == "__main__":
     # change directory to PyDex folder
     os.chdir(os.path.dirname(os.path.realpath(__file__))) 
-    os.chdir('..')
     run()

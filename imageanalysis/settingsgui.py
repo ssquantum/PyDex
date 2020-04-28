@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 sys.path.append('.')
 sys.path.append('..')
 from strtypes import intstrlist, listlist
-from maingui import main_window, remove_slot, int_validator, double_validator
+from maingui import main_window, remove_slot, int_validator, double_validator, nat_validator
 from reimage import reim_window # analysis for survival probability
 from roiHandler import ROI
 
@@ -79,6 +79,7 @@ class settings_window(QMainWindow):
                 [self.mw[2*i].histo_handler, self.mw[2*i+1].histo_handler],
                 results_path, im_store_path, 'ROI'+str(i)+'_Re_') for i in range(nreim)]
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(nreim)]
+        self.rois = []  # list to hold ROI objects
         self.init_UI()  # make the widgets
         # make sure the analysis windows have the default settings:
         self.pic_size_text_edit()
@@ -198,7 +199,7 @@ class settings_window(QMainWindow):
         settings_grid.addWidget(self.a_edit, 0,3, 1,1)
         self.a_edit.setText(str(self._a)) # default
         self.a_edit.editingFinished.connect(self.im_inds_validator)
-        self.a_edit.setValidator(int_validator)
+        self.a_edit.setValidator(nat_validator)
 
         # choose which histogram to use for survival probability calculations
         aind_label = QLabel('Image indices for analysers: ', self)
@@ -230,7 +231,7 @@ class settings_window(QMainWindow):
             settings_grid.addWidget(label[1], 2,2*i+1, 1,1)
             label[1].textChanged.connect(self.pic_size_text_edit)
             label[1].setText(str(self.stats[label[2]])) # default
-            label[1].setValidator(int_validator)
+            label[1].setValidator(nat_validator)
         
         # user sets threshold for all analyses
         self.thresh_toggle = QPushButton('User Threshold: ', self)
@@ -297,7 +298,6 @@ class settings_window(QMainWindow):
         self.reset_table() # connects itemChanged signal to roi_table_edit()
 
         # set ROI for analysers from loaded default
-        self.rois = []
         self.create_rois()
 
         # make a histogram to control the intensity scaling
@@ -311,6 +311,11 @@ class settings_window(QMainWindow):
             button.clicked.connect(self.make_roi_grid)
             button.resize(button.sizeHint())
             roi_grid.addWidget(button, 11,i, 1,1)
+
+        button = QPushButton('Display masks', self) # button to display masks
+        button.clicked.connect(self.show_ROI_masks)
+        button.resize(button.sizeHint())
+        roi_grid.addWidget(button, 11,i+1, 1,1)
 
         #### choose main window position and dimensions: (xpos,ypos,width,height)
         self.setWindowTitle('- Settings for Single Atom Image Analysers -')
@@ -336,6 +341,8 @@ class settings_window(QMainWindow):
         if width and height: # can't convert '' to int
             self.stats['pic_width'] = int(width)
             self.stats['pic_height'] = int(height)
+            for roi in self.rois:
+                roi.s = (int(width), int(height))
             for mw in self.mw + self.rw:
                 mw.pic_width_edit.setText(width)
                 mw.pic_height_edit.setText(height)
@@ -462,67 +469,60 @@ class settings_window(QMainWindow):
         if method == 'Single ROI':
             for i in range(len(self.rois)):
                 self.stats['ROIs'][i] = list(map(int, [pos[0], pos[1], shape[0], shape[1], self.stats['ROIs'][i][-1]]))
+                self.rois[i].resize(*map(int, [pos[0], pos[1], shape[0], shape[1]]))
         elif method == 'Square grid':
-            X = int(self.stats['pic_width'] - pos[0]) # total available width
-            Y = int(self.stats['pic_height'] - pos[1]) # total available height
-            # pixel area of image covered by one analyser:
-            Area = int(X * Y // self._m)
-            # choose the dimensions of the grid by factorising:
-            w, h = 0, 0
-            for A in reversed(range(Area+1)):
-                factors = [[i, A//i] for i in range(1, int(A**0.5) + 1) if A % i == 0]
-                closeness = [] # as close to a square as possible
-                for d0, d1 in factors:
-                    closeness.append(abs(d0/d1 - 1))
-                if factors:
-                    w, h = factors[closeness.index(min(closeness))]
-                    break
-            if X > Y:
-                width, height = max(w, h), min(w, h) # match the largest dimension
-            else:
-                width, height = min(w, h), max(w, h)
-            if width and height:
-                if shape[0] > width or shape[1] > height:
-                    logger.warning('When making square ROI grid, found ROI size %s > dimensions (%s, %s)'%(
-                        shape, width, height))
-                for i in range(self._a // self._m): # ID of ROI
-                    try:
-                        newpos = [int(pos[0] + width * (i%(X//width))),
-                                int(pos[1] + height * (i//(X//width)))]
-                        if any([newpos[0]//self.stats['pic_width'], newpos[1]//self.stats['pic_height']]):
-                            logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(pos[0], pos[1])+
-                            ' outside of the image')
-                            newpos = [0,0]
-                        self.stats['ROIs'][i] = list(map(int, [newpos[0], newpos[1], shape[0], shape[1], + self.stats['ROIs'][i][-1]]))
-                    except ZeroDivisionError as e:
-                        logger.error('Invalid parameters for square ROI grid: '+
-                            'x - %s, y - %s, pic size - (%s, %s), roi size - %s.\n'%(
-                                pos[0], pos[1], self.stats['pic_width'], self.stats['pic_height'], (shape[0], shape[1]))
-                            + 'Calculated width - %s, height - %s.\n'%(width, height) + str(e))
-            else: logger.warning('Failed to set square ROI grid.\n')
+            d = int((self._a - 1)**0.5 + 1)  # number of ROIs per row
+            X = int(self.stats['pic_width'] / d) # horizontal distance between ROIs
+            Y = int(self.stats['pic_height'] / int((self._a - 3/4)**0.5 + 0.5)) # vertical distance
+            for i in range(self._a // self._m): # ID of ROI
+                try:
+                    newpos = [int(X * (i%d + 0.5)),
+                            int(Y * (i//d + 0.5))]
+                    if any([newpos[0]//self.stats['pic_width'], newpos[1]//self.stats['pic_height']]):
+                        logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(newpos[0], newpos[1])+
+                        ' outside of the image')
+                        newpos = [0,0]
+                    self.stats['ROIs'][i] = list(map(int, [newpos[0], newpos[1], shape[0], shape[1], + self.stats['ROIs'][i][-1]]))
+                    self.rois[i].resize(*map(int, [newpos[0], newpos[1], shape[0], shape[1]]))
+                except ZeroDivisionError as e:
+                    logger.error('Invalid parameters for square ROI grid: '+
+                        'x - %s, y - %s, pic size - (%s, %s), roi size - %s.\n'%(
+                            pos[0], pos[1], self.stats['pic_width'], self.stats['pic_height'], (shape[0], shape[1]))
+                        + 'Calculated width - %s, height - %s.\n'%(X, Y) + str(e))
         elif method == '2D Gaussian masks':
-            im = self.im_canvas.image
-            if np.size(np.shape(im)) == 2:
-                for i, r in enumerate(self.rois):
-                    r.create_gauss_mask(im) # fit 2D Gaussian to max pixel region
-                    # then block that region out of the image
-                    im[r.x-r.w : r.x+r.w, r.y-r.h:r.y+r.h] = np.zeros((2*r.w, 2*r.h))
-                    newmasks.append(r.mask)
-                    try:
-                        self.stats['ROIs'][i] = list(map(int, [r.x, r.y, r.w, r.h, self.stats['ROIs'][i][-1]]))
-                    except IndexError: 
-                        self.stats['ROIs'].append(list(map(int, [r.x, r.y, r.w, r.h, 1])))
+            try: 
+                im = self.im_canvas.image.copy()
+                if np.size(np.shape(im)) == 2:
+                    for i, r in enumerate(self.rois):
+                        r.create_gauss_mask(im) # fit 2D Gaussian to max pixel region
+                        # then block that region out of the image
+                        im[r.x-r.w : r.x+r.w, r.y-r.h:r.y+r.h] = np.zeros((2*r.w, 2*r.h))
+                        newmasks.append(r.mask)
+                        try:
+                            self.stats['ROIs'][i] = list(map(int, [r.x, r.y, r.w, r.h, self.stats['ROIs'][i][-1]]))
+                        except IndexError: 
+                            self.stats['ROIs'].append(list(map(int, [r.x, r.y, r.w, r.h, 1])))
+            except AttributeError: pass
         self.reset_table()
         self.replot_rois(newmasks)
         for r in self.rois: # reconnect slot
             remove_slot(r.roi.sigRegionChangeFinished, self.user_roi, True)
+
+    def show_ROI_masks(self, toggle=True):
+        """Make an image out of all of the masks from the ROIs and display it."""
+        im = np.zeros((self.stats['pic_width'], self.stats['pic_height']))
+        for roi in self.rois:
+            try: im += roi.mask
+            except ValueError as e: logger.error('ROI %s has mask of wrong shape\n'%roi.i+str(e))
+        self.update_im(im)
 
     def reset_table(self, newvals=None):
         """Resize the table of ROIs and then fill it with the ROIs stored in
         stats['ROIs']. While doing so, disconnect the table's itemChanged signal
         so that there isn't recurssion with create_rois() and user_roi()."""
         remove_slot(self.roi_table.itemChanged, self.roi_table_edit, False) # disconnect
-        self.roi_table.setRowCount((self._a+1)//self._m) # num windows / num images per sequence
+        n = 1 if self._m != 1 else 0 # make a new ROI when there are a windows for m images
+        self.roi_table.setRowCount((self._a+n)//self._m) # num windows / num images per sequence
         for i in range(self.roi_table.rowCount()):
             try:
                 data = [str(i)] + list(map(str, self.stats['ROIs'][i]))
@@ -576,16 +576,18 @@ class settings_window(QMainWindow):
 
     def load_image(self, trigger=None):
         """Prompt the user to select an image file to display."""
-        fname = self.try_browse(file_type='Images (*.asc);;all (*)',
-            defaultpath=self.image_storage_path)
+        fname = self.try_browse(file_type='Images (*.asc);;all (*)')
         if fname:  # avoid crash if the user cancelled
+            pic_width, pic_height = self.stats['pic_width'], self.stats['pic_height']
             try:
                 self.mw[0].image_handler.set_pic_size(fname)
                 self.cam_pic_size_changed(self.mw[0].image_handler.pic_width, 
-                    self.mw[0].image_handler.pic_height)
+                    self.mw[0].image_handler.pic_height) # tell analysers image shape has changed
                 im_vals = self.mw[0].image_handler.load_full_im(fname)
                 self.update_im(im_vals)
             except IndexError as e:
+                self.cam_pic_size_changed(pic_width, pic_height) # reset image shape
+                self.update_im(np.arange(pic_width*pic_height).reshape((pic_width, pic_height))+self.stats['bias'])
                 logger.error("Settings window failed to load image file: "+fname+'\n'+str(e))
     
     def load_images(self):
@@ -682,11 +684,14 @@ class settings_window(QMainWindow):
         """Get the user to select an image file and then use this to get the image size"""
         file_name = self.try_browse(file_type='Images (*.asc);;all (*)', defaultpath=self.image_storage_path)
         if file_name:
-            im_vals = np.genfromtxt(file_name, delimiter=' ')
+            shape = np.genfromtxt(file_name, delimiter=' ').shape
             # update loaded value - changing the text edit triggers pic_size_text_edit()
-            self.pic_width_edit.setText(str(int(np.size(im_vals[0]) - 1))) 
-            try: self.pic_height_edit.setText(str(int(np.size(im_vals[:,0])))) 
-            except IndexError: self.pic_height_edit.setText('1')
+            try: 
+                self.pic_width_edit.setText(str(shape[1] - 1))
+                self.pic_height_edit.setText(str(shape[0]))
+            except IndexError: 
+                self.pic_width_edit.setText(str(shape[0] - 1))
+                self.pic_height_edit.setText('1')
 
     def check_reset(self):
         """Ask the user if they would like to reset the current data stored"""
