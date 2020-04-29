@@ -115,10 +115,12 @@ class atom_window(QMainWindow):
         
         #### display plots of counts for each ROI ####
         self.plots = [] # plot widgets to display counts history
+        self.countslines = [] # plot of counts in each image
         self.threshlines = [] # lines giving thresholds
         k = int(np.sqrt(num_plots))
         for i in range(num_plots):
             self.plots.append(pg.PlotWidget()) # main subplot of histogram
+            self.countslines.append(self.plots[-1].plot(np.zeros(1000)))
             self.threshlines.append(self.plots[-1].addLine(y=1, pen='r'))
             self.plots[-1].getAxis('bottom').tickFont = font
             self.plots[-1].getAxis('left').tickFont = font
@@ -259,7 +261,7 @@ class atom_window(QMainWindow):
         """Plot the history of counts in each ROI in the associated plots"""
         for i, r in enumerate(self.rh.ROIs):
             try:
-                self.plots[i].plot(r.c) # history of counts
+                self.countslines[i].setData(r.c[:r.i]) # history of counts
                 if r.autothresh.isChecked(): r.thresh() # update threshold
                 self.threshlines[i].setValue(r.t) # plot threshold
             except IndexError: pass
@@ -267,7 +269,7 @@ class atom_window(QMainWindow):
     def reset_plots(self):
         """Empty the lists of counts in the ROIs and update the plots."""
         self.rh.reset_count_lists(range(len(self.rh.ROIs)))
-        for p in self.plots: p.clear()
+        for l in self.countslines: l.setData(np.zeros(10))
 
     def update_im(self, im):
         """Display the image in the image canvas."""

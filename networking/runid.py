@@ -55,7 +55,7 @@ class runnum(QThread):
         self.cam.ROIChanged.connect(self.sw.cam_pic_size_changed) # triggers pic_size_text_edit()
         self.check = check  # atom checker for ROIs, trigger experiment
         self.check.rh.shape = (self.sw.stats['pic_width'], self.sw.stats['pic_height'])
-        self.check.rh.create_rois(len(self.sw.stats['ROIs']))
+        self.check.nrois_edit.setText(str(len(self.sw.stats['ROIs'])))
         self.cam.ROIChanged.connect(self.check.rh.cam_pic_size_changed)
         self.check.rh.resize_rois(self.sw.stats['ROIs'])
         self.sw.bias_changed.connect(self.check.rh.set_bias)
@@ -80,8 +80,10 @@ class runnum(QThread):
         else: self.server.start()
             
     def set_n(self, dxn):
-        """change the Dexter run number to the new value"""
-        if self._k != self._m:
+        """Change the Dexter run number to the new value.
+        If it's during a multirun, check that the right number of 
+        images were taken in the last run."""
+        if self._k != self._m and self.multirun:
             logger.warning('Run %s only took %s / %s images.'%(self._n, self._k, self._m))
         self._n = int(dxn)
     
@@ -184,7 +186,7 @@ class runnum(QThread):
 
     #### atom checker ####
 
-    def atomcheck_go(self, toggle=True, dt=100e-3):
+    def atomcheck_go(self, toggle=True, dt=200e-3):
         """Disconnect camera images from analysis, change the camera mode
         to internal trigger and redirect the images to the atom checker.
         dt: time between camera exposures (seconds). Exposure time is set

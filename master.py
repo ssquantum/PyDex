@@ -129,6 +129,11 @@ class Master(QMainWindow):
     def idle_state(self):
         """When the master thread is not processing user events, it is in the idle states.
         The status label is also used as an indicator for DExTer's current state."""
+        self.rn.cam.AF.AbortAcquisition() # make sure camera has stopped
+        self.rn.check.checking = False # make sure atom checker has stopped
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
         self.status_label.setText('Idle')
 
     def restore_state(self, file_name='./state'):
@@ -311,8 +316,9 @@ class Master(QMainWindow):
                 self.action_button.setEnabled(True)
                 self.rn.seq.mr.mr_queue = []
                 self.rn.multirun = False
-                self.rn.reset_server(force=True)
+                self.rn.reset_server(force=True) # stop and then restart the main server
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
+                self.rn.trigger.close() # stop the TCP server for the atom checker software trigger
         elif self.sender().text() == 'Atom Checker':
             self.rn.check.showMaximized()
 
@@ -429,11 +435,11 @@ class Master(QMainWindow):
         self.rn.cam.AF.AbortAcquisition() # stop camera taking images
         self.rn.cam.AF.SetTriggerMode(self.rn.cam.AF.PrevTrigger) # return to normal acquire settings
         self.rn.check.checking = False
-        self.rn.cam.start()
-        self.wait_for_cam()
         remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
         remove_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
         remove_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
+        self.rn.cam.start()
+        self.wait_for_cam()
         self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
         self.rn.check.close()
             
@@ -471,6 +477,7 @@ class Master(QMainWindow):
         if 'finished run' in msg:
             self.end_run(msg)
         elif 'start acquisition' in msg:
+            self.status_label.setText('Running')
             if self.check_rois.isChecked(): self.rn.atomcheck_go() # start camera in internal trigger mode
             elif self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
@@ -522,7 +529,6 @@ class Master(QMainWindow):
         #         for im in unprocessed:
         #             # image dimensions: (# kscans, width pixels, height pixels)
         #             self.rn.receive(im[0]) 
-        self.rn.trigger.close() # stop the TCP server for the atom checker software trigger
         self.rn.synchronise()
         self.idle_state()
         

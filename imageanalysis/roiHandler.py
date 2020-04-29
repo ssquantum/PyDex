@@ -33,7 +33,7 @@ class ROI(QWidget):
     counts within the ROI), ID (number to identify this ROI),
     autothresh (boolean toggle for automatically updating threshold)."""
     def __init__(self, imshape, xc, yc, width, height, threshold=1, 
-            counts=1000, ID=0, autothresh=True):
+            counts=1000, ID=0, autothresh=False):
         super().__init__()
         self.x = xc
         self.y = yc
@@ -127,15 +127,14 @@ class ROI(QWidget):
     def thresh(self):
         """Automatically choose a threshold based on the counts"""
         try: 
-            lo, hi = min(self.c)*0.97, max(self.c)*1.02
-            num_bins = int(15 + len(self.c)//100 + (abs(hi - abs(lo))/hi)**2*15) 
-            thresh = threshold_minimum(np.array(self.c), num_bins)
+            thresh = threshold_minimum(np.array(self.c), 25)
             int(np.log(thresh)) # ValueError if thresh <= 0 
             self.t = int(thresh)
         except (ValueError, RuntimeError, OverflowError): 
             try:
                 self.t = int(0.5*(max(self.c) + min(self.c)))
-            except (ValueError, TypeError):
+                int(np.log(self.t)) # ValueError if thresh <= 0 
+            except (ValueError, TypeError, OverflowError):
                 self.t = 1
         self.threshedit.setText(str(self.t))
 
