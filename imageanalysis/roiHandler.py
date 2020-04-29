@@ -100,7 +100,7 @@ class ROI(QWidget):
                     ps[2*i], ps[2*i+1] = f.ps[1], f.ps[2] # centre, width
                 xy = np.meshgrid(range(2*d), range(2*d))
                 self.mask[xc-d:xc+d, yc-d:yc+d] = np.exp( # fill in 2D Gaussian
-                    -2*(xy[0]-ps[0])**2 / ps[1]**2 -2*(xy[1]-ps[2])**2 / ps[3]**2) /np.pi/ps[1]/ps[3]*2
+                    -2*(xy[0]-ps[0])**2 / ps[1]**2 -2*(xy[1]-ps[2])**2 / ps[3]**2) # if we want to normalise: /np.pi/ps[1]/ps[3]*2
                 y, h, x, w = map(int, map(round, ps)) # ROI coordinates must be int
                 self.resize(xc-d+x, yc-d+y, w, h, False) # update stored ROI values
         except Exception as e: logger.error('ROI %s failed to set Gaussian mask\n'%self.i+str(e))

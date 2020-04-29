@@ -81,8 +81,8 @@ class runnum(QThread):
             
     def set_n(self, dxn):
         """change the Dexter run number to the new value"""
-        # if dxn != str(self._n+1):
-        #     logger.warning('Lost sync: Dx %s /= master %s'%(dxn, self._n+1))
+        if self._k != self._m:
+            logger.warning('Run %s only took %s / %s images.'%(self._n, self._k, self._m))
         self._n = int(dxn)
     
     def set_m(self, newm):
