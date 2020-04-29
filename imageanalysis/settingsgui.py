@@ -510,10 +510,10 @@ class settings_window(QMainWindow):
 
     def show_ROI_masks(self, toggle=True):
         """Make an image out of all of the masks from the ROIs and display it."""
-        im = np.zeros((self.stats['pic_width'], self.stats['pic_height']))
+        im = np.zeros((self.stats['pic_width'], self.stats['pic_height'])) + self.stats['bias']
         for roi in self.rois:
             try: im += roi.mask
-            except ValueError as e: logger.error('ROI %s has mask of wrong shape\n'%roi.i+str(e))
+            except ValueError as e: logger.error('ROI %s has mask of wrong shape\n'%roi.id+str(e))
         self.update_im(im)
 
     def reset_table(self, newvals=None):

@@ -29,19 +29,20 @@ class ROI(QWidget):
     """The properties of a ROI: imshape ((width, height) of image) 
     xc (centre pixel x-coordinate), yc (centre pixel y-coordinate), 
     width (in pixels), height (in pixels), threhsold (for 
-    determining atom presence), counts (list of integrated 
+    determining atom presence), counts (array of integrated 
     counts within the ROI), ID (number to identify this ROI),
     autothresh (boolean toggle for automatically updating threshold)."""
     def __init__(self, imshape, xc, yc, width, height, threshold=1, 
-            counts=[], ID=0, autothresh=True):
+            counts=1000, ID=0, autothresh=True):
         super().__init__()
         self.x = xc
         self.y = yc
         self.w = width
         self.h = height
         self.t = threshold
-        self.c = counts
-        self.i = ID
+        self.c = np.zeros(counts)
+        self.i = 0 # number of images processed
+        self.id = ID
         self.label = pg.TextItem('ROI'+str(ID), pg.intColor(ID), anchor=(0,1))
         font = QFont()
         font.setPixelSize(16) 
@@ -103,7 +104,7 @@ class ROI(QWidget):
                     -2*(xy[0]-ps[0])**2 / ps[1]**2 -2*(xy[1]-ps[2])**2 / ps[3]**2) # if we want to normalise: /np.pi/ps[1]/ps[3]*2
                 y, h, x, w = map(int, map(round, ps)) # ROI coordinates must be int
                 self.resize(xc-d+x, yc-d+y, w, h, False) # update stored ROI values
-        except Exception as e: logger.error('ROI %s failed to set Gaussian mask\n'%self.i+str(e))
+        except Exception as e: logger.error('ROI %s failed to set Gaussian mask\n'%self.id+str(e))
     
     def resize(self, xc, yc, width, height, create_sq_mask=True):
         """Reset the position and dimensions of the ROI"""
@@ -117,11 +118,11 @@ class ROI(QWidget):
 
     def atom(self):
         """A list of whether the counts are above threshold"""
-        return [x // self.t for x in self.c]
+        return [x // self.t for x in self.c[:self.i]]
 
     def LP(self):
         """Calculate the loading probability from images above threshold"""
-        return sum(1 for x in self.c if x > self.t)
+        return np.size(self.c[self.c > self.t]) / np.size(self.c[:self.i]) if self.i>0 else 0
 
     def thresh(self):
         """Automatically choose a threshold based on the counts"""
@@ -185,7 +186,9 @@ class roi_handler(QWidget):
     def reset_count_lists(self, ids=[]):
         """Empty the lists of counts in the ROIs with the gives IDs"""
         for i in ids:
-            try: self.ROIs[i].c = []
+            try: 
+                self.ROIs[i].c = np.zeros(1000)
+                self.ROIs[i].i = 0
             except IndexError: pass
 
     def process(self, im, include=True):
@@ -196,14 +199,11 @@ class roi_handler(QWidget):
             try:
                 counts = np.sum(im * r.mask) - self.bias
                 success = 1 if abs(counts) // r.t and success else 0
-                r.c.append(counts) 
+                r.c[r.i%1000] = counts
+                r.i += 1
             except ValueError as e:
                 logger.error("Image was wrong shape %s for atom checker's ROI%s %s"%(
-                    np.shape(im), r.i, r.s) + str(e))
-            try: # if the length gets to 1000 images, cut out the first 500
-                1 // (1000 - len(r.c))
-            except ZeroDivisionError:
-                r.c = r.c[500:]
+                    np.shape(im), r.id, r.s) + str(e))
         try:
             1 // (1 - success) # ZeroDivisionError if success = 1
         except ZeroDivisionError: 

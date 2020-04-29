@@ -125,7 +125,7 @@ class atom_window(QMainWindow):
             layout.addWidget(self.plots[-1], 1+(i//k)*3, 7+(i%k)*6, 2,6)  # allocate space in the grid
             try:
                 r = self.rh.ROIs[i]
-                self.plots[i].setTitle('ROI '+str(r.i))
+                self.plots[i].setTitle('ROI '+str(r.id))
                 # line edits with ROI x, y, w, h, threshold, auto update threshold
                 for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]): 
                     layout.addWidget(label, (i//k)*3, 7+(i%k)*6+j, 1,1)
@@ -250,7 +250,7 @@ class atom_window(QMainWindow):
                 viewbox.addItem(r.roi)
                 viewbox.addItem(r.label)
                 try:
-                    self.plots[i].setTitle('ROI '+str(r.i))
+                    self.plots[i].setTitle('ROI '+str(r.id))
                     for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]):
                         layout.addWidget(label, (i//k)*3, 7+(i%k)*6+j, 1,1)
                 except IndexError as e: pass # logger.warning('Atom Checker has more plots than ROIs')
@@ -278,7 +278,7 @@ class atom_window(QMainWindow):
         im = np.zeros(self.rh.shape)
         for roi in self.rh.ROIs:
             try: im += roi.mask
-            except ValueError as e: logger.error('ROI %s has mask of wrong shape\n'%roi.i+str(e))
+            except ValueError as e: logger.error('ROI %s has mask of wrong shape\n'%roi.id+str(e))
         self.update_im(im)
 
     #### #### save and load data functions #### ####
