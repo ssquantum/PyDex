@@ -112,6 +112,7 @@ class Master(QMainWindow):
         self.status_label.setText('Initialising...')
         QTimer.singleShot(0, self.idle_state) # takes a while for other windows to load
         
+        self.rn.check.showMaximized()
         self.rn.seq.setGeometry(*self.stats['SequencesGeometry'])
         self.rn.seq.show()
         self.rn.sw.setGeometry(*self.stats['AnalysisGeometry'])
@@ -129,11 +130,6 @@ class Master(QMainWindow):
     def idle_state(self):
         """When the master thread is not processing user events, it is in the idle states.
         The status label is also used as an indicator for DExTer's current state."""
-        self.rn.cam.AF.AbortAcquisition() # make sure camera has stopped
-        self.rn.check.checking = False # make sure atom checker has stopped
-        remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
-        remove_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
-        remove_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
         self.status_label.setText('Idle')
 
     def restore_state(self, file_name='./state'):
@@ -319,6 +315,7 @@ class Master(QMainWindow):
                 self.rn.reset_server(force=True) # stop and then restart the main server
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
                 self.rn.trigger.close() # stop the TCP server for the atom checker software trigger
+                self.rn.trigger.msg_queue = []
         elif self.sender().text() == 'Atom Checker':
             self.rn.check.showMaximized()
 
@@ -412,9 +409,11 @@ class Master(QMainWindow):
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':
                 if 'multirun' in self.status_label.text():
+                    self.seq.mr.mr_queue = []  # remove all queued multiruns
                     self.rn.multirun_go(False)
             elif action_text == 'Cancel multirun':
                 if 'multirun' in self.status_label.text():
+                    self.seq.mr.mr_queue = []  # remove all queued multiruns
                     self.rn.multirun_go(False)
                     self.rn.seq.mr.ind = 0
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
@@ -441,7 +440,6 @@ class Master(QMainWindow):
         self.rn.cam.start()
         self.wait_for_cam()
         self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
-        self.rn.check.close()
             
     def sync_mode(self, toggle=True):
         """Toggle whether to receive the run number from DExTer,

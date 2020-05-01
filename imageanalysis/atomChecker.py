@@ -114,20 +114,18 @@ class atom_window(QMainWindow):
         self.nrois_edit.textChanged[str].connect(self.display_rois)
         
         #### display plots of counts for each ROI ####
-        self.plots = [] # plot widgets to display counts history
-        self.countslines = [] # plot of counts in each image
-        self.threshlines = [] # lines giving thresholds
+        self.plots = [] # plot to display counts history
         k = int(np.sqrt(num_plots))
         for i in range(num_plots):
-            self.plots.append(pg.PlotWidget()) # main subplot of histogram
-            self.countslines.append(self.plots[-1].plot(np.zeros(1000)))
-            self.threshlines.append(self.plots[-1].addLine(y=1, pen='r'))
-            self.plots[-1].getAxis('bottom').tickFont = font
-            self.plots[-1].getAxis('left').tickFont = font
-            layout.addWidget(self.plots[-1], 1+(i//k)*3, 7+(i%k)*6, 2,6)  # allocate space in the grid
+            pw = pg.PlotWidget() # main subplot of histogram
+            self.plots.append({'plot':pw, 'counts':pw.plot(np.zeros(1000)),
+                'thresh':pw.addLine(y=1, pen='r')})
+            pw.getAxis('bottom').tickFont = font
+            pw.getAxis('left').tickFont = font
+            layout.addWidget(pw, 1+(i//k)*3, 7+(i%k)*6, 2,6)  # allocate space in the grid
             try:
                 r = self.rh.ROIs[i]
-                self.plots[i].setTitle('ROI '+str(r.id))
+                pw.setTitle('ROI '+str(r.id))
                 # line edits with ROI x, y, w, h, threshold, auto update threshold
                 for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]): 
                     layout.addWidget(label, (i//k)*3, 7+(i%k)*6+j, 1,1)
@@ -252,7 +250,7 @@ class atom_window(QMainWindow):
                 viewbox.addItem(r.roi)
                 viewbox.addItem(r.label)
                 try:
-                    self.plots[i].setTitle('ROI '+str(r.id))
+                    self.plots[i]['plot'].setTitle('ROI '+str(r.id))
                     for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]):
                         layout.addWidget(label, (i//k)*3, 7+(i%k)*6+j, 1,1)
                 except IndexError as e: pass # logger.warning('Atom Checker has more plots than ROIs')
@@ -261,15 +259,16 @@ class atom_window(QMainWindow):
         """Plot the history of counts in each ROI in the associated plots"""
         for i, r in enumerate(self.rh.ROIs):
             try:
-                self.countslines[i].setData(r.c[:r.i]) # history of counts
+                self.plots[i]['counts'].setData(r.c[:r.i]) # history of counts
                 if r.autothresh.isChecked(): r.thresh() # update threshold
-                self.threshlines[i].setValue(r.t) # plot threshold
+                self.plots[i]['thresh'].setValue(r.t) # plot threshold
+                self.plots[i]['plot'].setTitle('ROI %s, LP=%.3g'%(r.id, r.LP()))
             except IndexError: pass
 
     def reset_plots(self):
         """Empty the lists of counts in the ROIs and update the plots."""
         self.rh.reset_count_lists(range(len(self.rh.ROIs)))
-        for l in self.countslines: l.setData(np.zeros(10))
+        for l in self.plots[i]['counts']: l.setData(np.zeros(10))
 
     def update_im(self, im):
         """Display the image in the image canvas."""

@@ -83,8 +83,6 @@ class runnum(QThread):
         """Change the Dexter run number to the new value.
         If it's during a multirun, check that the right number of 
         images were taken in the last run."""
-        if self._k != self._m and self.multirun:
-            logger.warning('Run %s only took %s / %s images.'%(self._n, self._k, self._m))
         self._n = int(dxn)
     
     def set_m(self, newm):
@@ -186,7 +184,7 @@ class runnum(QThread):
 
     #### atom checker ####
 
-    def atomcheck_go(self, toggle=True, dt=200e-3):
+    def atomcheck_go(self, toggle=True, dt=100e-3):
         """Disconnect camera images from analysis, change the camera mode
         to internal trigger and redirect the images to the atom checker.
         dt: time between camera exposures (seconds). Exposure time is set
@@ -194,8 +192,8 @@ class runnum(QThread):
         if self.cam.initialised > 1:
             if self.cam.AF.GetStatus() == 'DRV_ACQUIRING':
                 self.cam.AF.AbortAcquisition() # abort the previous acquisition
-            self.check.showMaximized()
             self.check.checking = True
+            self.trigger.msg_queue = [] # in case there was a previous trigger that wasn't sent
             self.trigger.start() # start server for TCP to send msg when atoms loaded
             # redirect images from analysis to atom checker
             remove_slot(self.cam.AcquireEnd, self.receive, False)
@@ -203,7 +201,6 @@ class runnum(QThread):
             remove_slot(self.cam.AcquireEnd, self.check_receive, True)
             # set camera to take an exposure every dt seconds
             self.cam.AF.SetKineticCycleTime(dt) # time waiting between exposures
-            self.cam.AF.PrevTrigger = self.cam.AF.TriggerMode # store the trigger mode to reset later
             self.cam.AF.SetTriggerMode(0) # internal trigger
 
             self.cam.start() # run till abort keeps taking images
@@ -279,7 +276,6 @@ class runnum(QThread):
         else: # pause the multi-run
             remove_slot(self.cam.AcquireEnd, self.mr_receive, False)
             remove_slot(self.cam.AcquireEnd, self.receive, True) # process every image
-            self.seq.mr.mr_queue = []  # remove all queued multiruns
             self.server.msg_queue = [] # remove all messages from the queue 
             self.cam.AF.AbortAcquisition()
             for mw in self.sw.mw + self.sw.rw:
@@ -322,6 +318,8 @@ class runnum(QThread):
         based on the run number +1.
         repeat this for the user variables in the multirun list,
         then return to normal operation as set by the histogram binning"""
+        if self._k != self._m:
+            logger.warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
         self._k = 0
         r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # repeat
         v = self.seq.mr.get_next_index(self.seq.mr.ind) # variable

@@ -193,6 +193,7 @@ class camera(QThread):
             errors.append(ERROR_CODE[self.AF.SetNumberKinetics(numKin)])
             # errors.append(ERROR_CODE[self.cam.AF.SetFastKineticsEx(
             #                     100, numKin, expTime, 4, 1, 1, 1)])
+        self.AF.PrevTrigger = triggerMode # store the trigger mode so it can be reset later
         errors.append(ERROR_CODE[self.AF.SetTriggerMode(triggerMode)])
         errors.append(ERROR_CODE[self.AF.SetFastExtTrigger(fastTrigger)])
         errors.append(ERROR_CODE[self.AF.SetFrameTransferMode(frameTransf)])
@@ -260,6 +261,7 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.AF.SetAcquisitionMode(cvals[16])])
         if cvals[22] > 1:
             errors.append(ERROR_CODE[self.AF.SetNumberKinetics(cvals[22])])
+        self.AF.PrevTrigger = cvals[17] # store the trigger mode so it can be reset later
         errors.append(ERROR_CODE[self.AF.SetTriggerMode(cvals[17])])
         errors.append(ERROR_CODE[self.AF.SetFrameTransferMode(cvals[18])])
         errors.append(ERROR_CODE[self.AF.SetFastExtTrigger(cvals[19])])

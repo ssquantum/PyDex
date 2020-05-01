@@ -460,7 +460,7 @@ class Andor:
         """This function starts an acquisition. The status of the acquisition 
            can be monitored via GetStatus()."""
         error = self.dll.StartAcquisition()
-        self.dll.WaitForAcquisition()
+        # self.dll.WaitForAcquisition() # pauses the thread until there's an acquisition event
         self.verbose(error, sys._getframe().f_code.co_name)
         return error
 
