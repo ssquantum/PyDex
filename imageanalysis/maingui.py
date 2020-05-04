@@ -811,7 +811,7 @@ class main_window(QMainWindow):
                 file_name = open_func(self, title, default_path, file_type)
             elif 'PyQt5' in sys.modules:
                 file_name, _ = open_func(self, title, default_path, file_type)
-            self.last_path = file_name
+            if type(file_name) == str: self.last_path = file_name 
             return file_name
         except OSError: return '' # probably user cancelled
 
@@ -1055,7 +1055,7 @@ class main_window(QMainWindow):
         self.histo_handler = hist_handler if hist_handler else hh.histo_handler() # class to process histograms
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.init_log(results_path) # write header to the log file that collects histograms
-        self.image_storage_path = im_store_path # used for loading image files
+        self.image_storage_path = os.path.join(im_store_path, time.strftime(r"%Y\%B\%d")) # loading image files
         self.init_UI()  # make the widgets
         self.t0 = time.time() # time of initiation
         self.int_time = 0     # time taken to process an image

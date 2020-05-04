@@ -137,12 +137,14 @@ class Previewer(QMainWindow):
     
     def reset_table(self, table, digital=1):
         """Set empty table items in all of the cells of the
-        given table. 
+        given table. The items are not editable.
         digital -- 1: Set the background colour red
                 -- 0: Set the text as ''."""
         for i in range(table.rowCount()):
             for j in range(table.columnCount()):
-                table.setItem(i, j, QTableWidgetItem())
+                item = QTableWidgetItem()
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                table.setItem(i, j, item)
                 if digital:
                     table.item(i, j).setBackground(Qt.red)
                 else:

@@ -15,12 +15,12 @@ import pyqtgraph as pg
 from collections import OrderedDict
 # some python packages use PyQt4, some use PyQt5...
 try:
-    from PyQt4.QtCore import pyqtSignal
+    from PyQt4.QtCore import pyqtSignal, QTimer
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
             QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
             QMenu, QFont) 
 except ImportError:
-    from PyQt5.QtCore import pyqtSignal
+    from PyQt5.QtCore import pyqtSignal, QTimer
     from PyQt5.QtGui import QIcon, QFont
     from PyQt5.QtWidgets import (QMenu, QFileDialog, QMessageBox, QLineEdit, 
         QGridLayout, QWidget, QApplication, QPushButton, QAction, QMainWindow, 
@@ -58,6 +58,8 @@ class atom_window(QMainWindow):
         self.event_im.connect(self.rh.process)
         self.event_im.connect(self.update_plots)
         self.checking = False # whether the atom checker is active or not
+        self.timer = QTimer() 
+        self.timer.t0 = 0 # trigger the experiment after the timeout
         
     def init_UI(self, num_plots=4):
         """Create all the widgets and position them in the layout"""
@@ -153,6 +155,14 @@ class atom_window(QMainWindow):
         button.clicked.connect(self.show_ROI_masks)
         button.resize(button.sizeHint())
         layout.addWidget(button, 2+num_plots//k*3,9+i+1, 1,1)
+
+        # maximum duration to wait for
+        timeout_label = QLabel('Timeout: ', self)
+        layout.addWidget(timeout_label, 2+num_plots//k*3,9+i+2, 1,1)
+        self.timeout_edit = QLineEdit('0', self)
+        self.timeout_edit.setValidator(int_validator)
+        self.timeout_edit.textEdited[str].connect(self.change_timeout)
+        layout.addWidget(self.timeout_edit, 2+num_plots//k*3,9+i+3, 1,1)
         #
         self.setWindowTitle(self.name+' - Atom Checker -')
         self.setWindowIcon(QIcon('docs/atomcheckicon.png'))
@@ -162,6 +172,11 @@ class atom_window(QMainWindow):
     def set_im_show(self, toggle):
         """If the toggle is True, always update the display with the last image."""
         remove_slot(self.event_im, self.update_im, toggle)
+
+    def change_timeout(self, newval):
+        """Time in seconds to wait before sending the trigger to continue the 
+        experiment. Default is 0 which waits indefinitely."""
+        self.timer.t0 = int(newval)
 
     def user_roi(self, roi):
         """The user drags an ROI and this updates the ROI centre and width"""

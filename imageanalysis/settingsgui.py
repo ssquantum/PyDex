@@ -91,6 +91,8 @@ class settings_window(QMainWindow):
         self.date = date
         for mw in self.mw + self.rw:
             mw.date = date
+            mw.image_storage_path = os.path.join(self.image_storage_path, 
+                date[3], date[2], date[0])
             try:
                 results_path = mw.log_file_name.split('\\')[:-4]
                 mw.init_log('\\'.join(results_path))

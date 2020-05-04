@@ -31,8 +31,8 @@ except ImportError:
         QVBoxLayout)
 # change directory to this file's location
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
-# import warnings
-# warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
+import warnings
+warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
 import logging
 import logerrs
 logerrs.setup_log()
@@ -433,13 +433,14 @@ class Master(QMainWindow):
         """Atom checker sends signal saying all ROIs have atoms in, start the experiment"""
         self.rn.cam.AF.AbortAcquisition() # stop camera taking images
         self.rn.cam.AF.SetTriggerMode(self.rn.cam.AF.PrevTrigger) # return to normal acquire settings
-        self.rn.check.checking = False
+        self.rn.cam.start()
+        self.rn.check.timer.stop() # in case the timer was going to trigger the experiment as well
+        self.wait_for_cam()
+        self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
         remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
         remove_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
         remove_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
-        self.rn.cam.start()
-        self.wait_for_cam()
-        self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
+        self.rn.check.checking = False
             
     def sync_mode(self, toggle=True):
         """Toggle whether to receive the run number from DExTer,

@@ -101,7 +101,8 @@ class runnum(QThread):
         self.im_save.emit(im)
         for i in self.sw.find(imn): # find the histograms that use this image
             self.sw.mw[i].image_handler.fid = self._n
-            self.sw.mw[i].event_im.emit(im, self._k < self._m)
+            # (array, False if too many images were taken or if we're checking for atoms)
+            self.sw.mw[i].event_im.emit(im, self._k < self._m and not self.check.checking)
         self._k += 1 # another image was taken
 
     def unsync_receive(self, im=0):
@@ -124,7 +125,7 @@ class runnum(QThread):
         if self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) >= self.seq.mr.mr_param['# omitted']:
             for i in self.sw.find(imn):
                 self.sw.mw[i].image_handler.fid = self._n
-                self.sw.mw[i].event_im.emit(im, self._k < self._m)
+                self.sw.mw[i].event_im.emit(im, self._k < self._m and not self.check.checking)
         self._k += 1 # another image was taken
 
     def check_receive(self, im=0):
@@ -204,6 +205,8 @@ class runnum(QThread):
             self.cam.AF.SetTriggerMode(0) # internal trigger
 
             self.cam.start() # run till abort keeps taking images
+            if self.check.timer.t0 > 0: # if timeout is set, set a timer
+                self.check.timer.singleShot(self.check.timer.t0*1e3, self.check.send_trigger)
 
     #### multirun ####
     
