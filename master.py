@@ -431,16 +431,16 @@ class Master(QMainWindow):
 
     def trigger_exp_start(self, n=None):
         """Atom checker sends signal saying all ROIs have atoms in, start the experiment"""
-        self.rn.cam.AF.AbortAcquisition() # stop camera taking images
-        self.rn.cam.AF.SetTriggerMode(self.rn.cam.AF.PrevTrigger) # return to normal acquire settings
-        self.rn.cam.start()
         self.rn.check.timer.stop() # in case the timer was going to trigger the experiment as well
-        self.wait_for_cam()
         self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
+        self.rn.check.checking = False
+        QTimer.singleShot(30, self.reset_cam_signals) # in 30ms, start sending images to analysis
+
+    def reset_cam_signals(self, toggle=True):
+        """Stop sending images to the atom checker, send them to image analysis instead"""
         remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
         remove_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
         remove_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
-        self.rn.check.checking = False
             
     def sync_mode(self, toggle=True):
         """Toggle whether to receive the run number from DExTer,

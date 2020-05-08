@@ -185,14 +185,10 @@ class runnum(QThread):
 
     #### atom checker ####
 
-    def atomcheck_go(self, toggle=True, dt=100e-3):
-        """Disconnect camera images from analysis, change the camera mode
-        to internal trigger and redirect the images to the atom checker.
-        dt: time between camera exposures (seconds). Exposure time is set
-            by the camera config file."""
+    def atomcheck_go(self, toggle=True):
+        """Disconnect camera images from analysis, start the camera
+        acquisition and redirect the images to the atom checker."""
         if self.cam.initialised > 1:
-            if self.cam.AF.GetStatus() == 'DRV_ACQUIRING':
-                self.cam.AF.AbortAcquisition() # abort the previous acquisition
             self.check.checking = True
             self.trigger.msg_queue = [] # in case there was a previous trigger that wasn't sent
             self.trigger.start() # start server for TCP to send msg when atoms loaded
@@ -200,10 +196,7 @@ class runnum(QThread):
             remove_slot(self.cam.AcquireEnd, self.receive, False)
             remove_slot(self.cam.AcquireEnd, self.mr_receive, False)
             remove_slot(self.cam.AcquireEnd, self.check_receive, True)
-            # set camera to take an exposure every dt seconds
-            self.cam.AF.SetKineticCycleTime(dt) # time waiting between exposures
-            self.cam.AF.SetTriggerMode(0) # internal trigger
-
+            # still in external exposure trigger - DExTer will send the trigger pulses
             self.cam.start() # run till abort keeps taking images
             if self.check.timer.t0 > 0: # if timeout is set, set a timer
                 self.check.timer.singleShot(self.check.timer.t0*1e3, self.check.send_trigger)
