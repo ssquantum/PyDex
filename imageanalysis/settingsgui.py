@@ -572,7 +572,7 @@ class settings_window(QMainWindow):
                 file_name = open_func(self, title, default_path, file_type)
             elif 'PyQt5' in sys.modules:
                 file_name, _ = open_func(self, title, default_path, file_type)
-            self.last_path = file_name
+            if type(file_name) == str: self.last_path = file_name 
             return file_name
         except OSError: return '' # probably user cancelled
 
