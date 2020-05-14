@@ -66,12 +66,12 @@ class ROI(QWidget):
         The rect mask is zero outside the ROI and 1 inside the ROI."""
         if np.size(image_shape) == 2:
             self.s = image_shape # store the shape of the image
-        self.roi.maxBounds = QRect(0, 0, self.s[0]+1, self.s[1]+1)
-        self.mask = np.zeros(self.s)
         if (self.x + self.w//2 < self.s[0] and 
                 self.x - self.w//2 >= 0 and 
                 self.y + self.h//2 < self.s[1] and 
                 self.y - self.h//2 >= 0):
+            self.roi.maxBounds = QRect(0, 0, self.s[0]+1, self.s[1]+1)
+            self.mask = np.zeros(self.s)
             self.mask[self.x - self.w//2 : (self.x + self.w//2 + self.w%2),
                 self.y - self.h//2 : (self.y + self.h//2 + self.h%2)
                 ] = np.ones((self.w, self.h))
@@ -87,10 +87,12 @@ class ROI(QWidget):
                 self.mask = np.zeros(np.shape(im))
                 xc, yc = np.unravel_index(np.argmax(im), im.shape)
                 if self.autothresh:
-                    self.t = 0.5*(np.max(im) + np.min(im)) # threshold in middle of histogram
+                    self.t = int(0.5*(np.max(im) + np.min(im))) # threshold in middle of histogram
                     self.threshedit.setText(str(self.t))
-                d = 5 # round(np.size(im[im > self.t])**0.5) # guess PSF size from pixels > threshold
-                im2 = im[xc-d:xc+d, yc-d:yc+d] # better for fitting to use zoom in
+                d = 3 # round(np.size(im[im > self.t])**0.5) # guess PSF size from pixels > threshold
+                l0 = xc - d if xc-d>0 else 0
+                l1 = yc - d if yc-d>0 else 0
+                im2 = im[l0:xc+d, l1:yc+d] # better for fitting to use zoom in
                 ps = np.zeros(4)
                 for i in range(2): # do Gaussian fit along each axis
                     vals = np.sum(im2, axis=i)
@@ -98,12 +100,15 @@ class ROI(QWidget):
                     f.estGaussParam()
                     f.p0 = f.p0[:2] + [f.p0[2]*2, np.min(vals)]
                     f.getBestFit(f.offGauss) # only interested in the width
-                    ps[2*i], ps[2*i+1] = f.ps[1], f.ps[2] # centre, width
+                    ps[2*i], ps[2*i+1] = f.ps[1], abs(f.ps[2]) # centre, width
                 xy = np.meshgrid(range(2*d), range(2*d))
-                self.mask[xc-d:xc+d, yc-d:yc+d] = np.exp( # fill in 2D Gaussian
-                    -2*(xy[0]-ps[0])**2 / ps[1]**2 -2*(xy[1]-ps[2])**2 / ps[3]**2) # if we want to normalise: /np.pi/ps[1]/ps[3]*2
+                self.mask[l0:xc+d, l1:yc+d] = np.exp( # fill in 2D Gaussian
+                    -2*(xy[0]-ps[0])**2 / ps[1]**2 -2*(xy[1]-ps[2])**2 / ps[3]**2) # if we want to normalise: /ps[1]/ps[3]/np.pi*2
+                self.mask /= np.sum(self.mask) # normalise (we care about integrated counts)
                 y, h, x, w = map(int, map(round, ps)) # ROI coordinates must be int
-                self.resize(xc-d+x, yc-d+y, w, h, False) # update stored ROI values
+                if not np.isfinite(self.mask).all(): # need mask to have only finite values
+                    self.resize(l0+x, l1+y, 1, 1, True) # update stored ROI values and make square mask
+                else: self.resize(l0+x, l1+y, w, h, False) # update stored ROI values
         except Exception as e: logger.error('ROI %s failed to set Gaussian mask\n'%self.id+str(e))
     
     def resize(self, xc, yc, width, height, create_sq_mask=True):
@@ -213,9 +218,9 @@ class roi_handler(QWidget):
         First column is just the index of the row.
         Keyword arguments:
         im_name    -- absolute path to the image file to load"""
-        self.shape = np.genfromtxt(im_name, delimiter=self.delim).shape
-        try: self.cam_pic_size_changed(self.shape[1]-1, self.shape[0])
-        except IndexError: self.cam_pic_size_changed(self.shape[0]-1, 1)
+        shape = np.genfromtxt(im_name, delimiter=self.delim).shape
+        try: self.cam_pic_size_changed(shape[1]-1, shape[0])
+        except IndexError: self.cam_pic_size_changed(shape[0]-1, 1)
 
     def set_bias(self, bias):
         """Update the bias offset subtracted from all image counts."""
@@ -223,9 +228,10 @@ class roi_handler(QWidget):
         
     def cam_pic_size_changed(self, width, height):
         """Receive new image dimensions from Andor camera"""
-        self.shape = (width, height)
-        for r in self.ROIs:
-            r.create_rect_mask(self.shape)
+        if self.shape != (width, height):
+            self.shape = (width, height)
+            for r in self.ROIs:
+                r.create_rect_mask(self.shape)
         
     def load_full_im(self, im_name):
         """return an array with the values of the pixels in an image.

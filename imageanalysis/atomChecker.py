@@ -239,7 +239,9 @@ class atom_window(QMainWindow):
                     for r in self.rh.ROIs:
                         r.create_gauss_mask(im) # fit 2D Gaussian to max pixel region
                         # then block that region out of the image
-                        im[r.x-r.w : r.x+r.w, r.y-r.h:r.y+r.h] = np.zeros((2*r.w, 2*r.h))
+                        try:
+                            im[r.x-r.w : r.x+r.w+1, r.y-r.h:r.y+r.h+1] = np.zeros((2*r.w+1, 2*r.h+1)) + np.min(im)
+                        except (IndexError, ValueError): pass
             except AttributeError: pass
 
     #### #### canvas functions #### ####

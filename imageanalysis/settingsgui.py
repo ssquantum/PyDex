@@ -484,7 +484,7 @@ class settings_window(QMainWindow):
                         logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(newpos[0], newpos[1])+
                         ' outside of the image')
                         newpos = [0,0]
-                    self.stats['ROIs'][i] = list(map(int, [newpos[0], newpos[1], shape[0], shape[1], + self.stats['ROIs'][i][-1]]))
+                    self.stats['ROIs'][i] = list(map(int, [newpos[0], newpos[1], shape[0], shape[1], self.stats['ROIs'][i][-1]]))
                     self.rois[i].resize(*map(int, [newpos[0], newpos[1], shape[0], shape[1]]))
                 except ZeroDivisionError as e:
                     logger.error('Invalid parameters for square ROI grid: '+
@@ -498,7 +498,9 @@ class settings_window(QMainWindow):
                     for i, r in enumerate(self.rois):
                         r.create_gauss_mask(im) # fit 2D Gaussian to max pixel region
                         # then block that region out of the image
-                        im[r.x-r.w : r.x+r.w, r.y-r.h:r.y+r.h] = np.zeros((2*r.w, 2*r.h))
+                        try:
+                            im[r.x-r.w : r.x+r.w+1, r.y-r.h:r.y+r.h+1] = np.zeros((2*r.w+1, 2*r.h+1)) + np.min(im)
+                        except (IndexError, ValueError): pass
                         newmasks.append(r.mask)
                         try:
                             self.stats['ROIs'][i] = list(map(int, [r.x, r.y, r.w, r.h, self.stats['ROIs'][i][-1]]))
