@@ -52,7 +52,7 @@ class worker(QThread):
         super().__init__()
         self.vrs = [0.2, 1.0, 5.0, 10.0] # allowed voltage ranges
         self.TTL_arrived = False # Used to ensure only 1 data aquisition per pulse
-        self.sample_rate = rate
+        self.sample_rate = rate 
         self.time = duration
         self.n_samples = int(rate * duration) # number of samples to acquire
         self.lvl  = trigger_lvl
@@ -63,61 +63,83 @@ class worker(QThread):
             self.trig = 0
             channels = [trigger_chan] + channels
             # choose appropriate voltage range for trigger channel
-            ind = np.abs(np.array(self.vrs)-self.lvl).argmin()
-            if self.vrs[ind] > self.lvl*1.2:
-                ranges = [self.vrs[ind]] + ranges
-            else:
-                try:
-                    ranges = [self.vrs[ind+1]] + ranges
-                except IndexError:
-                    ranges = [self.vrs[-1]] + ranges
+            ranges = [self.coerce_range(self.lvl)] + ranges
         self.channels = channels
         self.vranges = ranges
+        self.task = None
+        remove_slot(self.finished, self.end_task, True)
 
-    def trigger_analog_input(self,devport, edge_selection):
+    def coerce_range(self, vrange):
+        """Force vrange to be the closest larger voltage range."""
+        ind = np.abs(np.array(self.vrs)-vrange).argmin()
+        if self.vrs[ind] > vrange*1.2:
+            return self.vrs[ind]
+        else:
+            try: return self.vrs[ind+1]
+            except IndexError: return self.vrs[-1]
+
+    def end_task(self):
+        """Make sure that tasks are closed when we're done using them, 
+        so that resources can be reallocated."""
+        if hasattr(self.task, 'close'):
+            self.task.close()
+            self.task = None 
+
+    def trigger_analog_input(self,devport, edge_selection, timeout=20):
         """
         Configures the input channel and sample clock. Sets the task to trigger when PFI0 recieves a trigger
         """
         max_num_samples = 2
-        task = nidaqmx.Task()
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai1",terminal_config = const.TerminalConfiguration.DIFFERENTIAL)
-        task.timing.cfg_samp_clk_timing(self.sample_rate,active_edge=const.Edge.RISING) 
-        task.triggers.start_trigger.cfg_dig_edge_start_trig("/Dev1/PFI0", trigger_edge=const.Edge.RISING)
-        return task
-        
-    def measure_analog_io_on_trigger(self,taskhandle):
-        taskhandle.read(number_of_samples_per_channel=self.n_samples)
-        taskhandle.StartTask()
-        taskhandle.register_done_event(taskhandle.close) # close the task when finished
+        with nidaqmx.Task() as task:
+            task.ai_channels.add_ai_voltage_chan("Dev1/ai1",terminal_config = const.TerminalConfiguration.DIFFERENTIAL)
+            task.timing.cfg_samp_clk_timing(self.sample_rate, active_edge=const.Edge.RISING) 
+            task.triggers.start_trigger.cfg_dig_edge_start_trig("/Dev1/PFI0", trigger_edge=const.Edge.RISING)
+            task.register_done_event(task.close) # close the task when finished
+            data = task.read(number_of_samples_per_channel=self.n_samples, timeout=timeout)
+            self.acquired.emit(np.array(data))
 
     def run(self):
         """Read the input from the trigger channel. When it surpasses the set trigger level, start an acquisition."""
+        self.task = nidaqmx.Task()
+        for v, chan in zip(self.vranges, self.channels):
+            c = self.task.ai_channels.add_ai_voltage_chan(chan, terminal_config=const.TerminalConfiguration.DIFFERENTIAL) 
+            c.ai_rng_high = v # set voltage range
+            c.ai_rng_low = -v
+        self.task.timing.cfg_samp_clk_timing(self.sample_rate, sample_mode=const.AcquisitionType.CONTINUOUS, 
+            samps_per_chan=self.n_samples+10000) # set sample rate and number of samples
+        while self.TTL_arrived == False:
+            try:
+                TTL = self.task.read()[self.trig] # read a single value from the trigger channel
+            except TypeError:
+                TTL = self.task.read() # if there is only one channel
+            if TTL < self.lvl: 
+                self.TTL_arrived = False
+            if TTL > self.lvl and self.TTL_arrived == False: 
+                self.TTL_arrived = True
+                data = self.task.read(number_of_samples_per_channel=self.n_samples)
+                if np.size(np.shape(data)) == 1:
+                    data = [data] # if there's only one channel, still make it a 2D array
+                self.acquired.emit(np.array(data))
+
+    def analogue_acquisition(self):
+        """Take a single acquisition on the specified channels."""
         with nidaqmx.Task() as task:
             for v, chan in zip(self.vranges, self.channels):
                 c = task.ai_channels.add_ai_voltage_chan(chan, terminal_config=const.TerminalConfiguration.DIFFERENTIAL) 
                 c.ai_rng_high = v # set voltage range
                 c.ai_rng_low = -v
             task.timing.cfg_samp_clk_timing(self.sample_rate, sample_mode=const.AcquisitionType.CONTINUOUS, 
-                samps_per_chan=self.n_samples+1000) # set sample rate and number of samples
-            while self.TTL_arrived == False:
-                try:
-                    TTL = task.read()[self.trig] # read a single value from the trigger channel
-                except TypeError:
-                    TTL = task.read() # if there is only one channel
-                if TTL < self.lvl: 
-                    self.TTL_arrived = False
-                if TTL > self.lvl and self.TTL_arrived == False: 
-                    self.TTL_arrived = True
-                    data = task.read(number_of_samples_per_channel=self.n_samples)
-                    # task.wait_until_done(-1)
-                    if np.size(np.shape(data)) == 1:
-                        data = [data] # if there's only one channel, still make it a 2D array
-                    self.acquired.emit(np.array(data))
+                samps_per_chan=self.n_samples+1000)
+            data = task.read(number_of_samples_per_channel=self.n_samples)
+            # task.wait_until_done(-1)
+            if np.size(np.shape(data)) == 1:
+                data = [data] # if there's only one channel, still make it a 2D array
+            self.acquired.emit(np.array(data))
 
-    def digital_acquisition(self, n_samples=1000):
+    def digital_acquisition(self):
         """Read in data from all of the digital input channels"""                                                                                                 
         with nidaqmx.Task() as task:
             for i in range(4): task.di_channels.add_di_chan("Dev1/port0/line"+str(i))
             #task.timing.cfg_samp_clk_timing(self.sample_rate) # set sample rate
-            data = task.read(number_of_samples_per_channel=n_samples)
+            data = task.read(number_of_samples_per_channel=self.n_samples)
             task.wait_until_done(-1)   
