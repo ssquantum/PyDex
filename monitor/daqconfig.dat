@@ -1,0 +1,8 @@
+config_file=daqconfig.dat
+n=0
+sample_rate=100
+acquire_time=500
+Trigger_channel=Dev1/ai1
+TTL_level=1.0
+Trigger_edge=rising
+channels=[['Dev1/ai1', 'TTL', '0.0', '5', '1', '1']]

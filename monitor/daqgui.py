@@ -47,16 +47,25 @@ bool_validator = QIntValidator(0,1)   # boolean, 0=False, 1=True
 
 def channel_stats(text):
     """Convert a string list of channel settings into an 
-    ordered dictionary: "[['Dev1/ai0', '', '1.0', '0', '0', '0']]"
+    ordered dictionary: "[['Dev1/ai0', '', '1.0', '0.0', '0', '0', '0']]"
     -> OrderedDict([('Dev1/ai0', {'label':'', 'offset':1.0,
         'range':0, 'acquire':0, 'plot':0})])
     """
     d = OrderedDict()
-    keys = ['label', 'offset', 'range', 'acquire', 'plot']
-    types = [str, float, float, BOOL, BOOL]
+    keys = ['label', 'scale', 'offset', 'range', 'acquire', 'plot']
+    types = [str, float, float, float, BOOL, BOOL]
     for channel in map(strlist, re.findall("\[['\w,\s\./]+\]", text)):
-        d[channel[0]] = {keys[i]:types[i](val) for i,val in enumerate(channel[1:])}
+        d[channel[0]] = OrderedDict([(keys[i], types[i](val)) 
+                for i, val in enumerate(channel[1:])])
     return d
+
+def channel_str(channel_list):
+    """Convert an ordered dictionary of channel settings
+    into a string. Inverse operation of channel_stats()."""
+    outstr = '['
+    for key, d in channel_list.items():
+        outstr += '['+key+', '+', '.join(list(d.values()))+']'
+    return outstr + ']'
 
 class daq_window(QMainWindow):
     """Window to control and visualise DAQ measurements.
@@ -66,39 +75,36 @@ class daq_window(QMainWindow):
     data on a graph.
     
     Arguments:
-    nchan   -- number of input channels to read from
+    n       -- run number for synchronisation
     rate    -- max sample rate in samples / second
     dt      -- desired acquisition period in seconds
     config_file -- path to file storing default settings.
     """
     acquired = pyqtSignal(np.ndarray) # acquired data
 
-    def __init__(self, nchan=1, rate=100, dt=500, config_file=''):
+    def __init__(self, n=0, rate=100, dt=500, config_file='daqconfig.dat'):
         super().__init__()
-        self.types = OrderedDict([('n_channels',int), ('sample_rate',int), 
-            ('acquire_time', int), ('Trigger_channel', str), ('TTL_level', float), 
-            ('config_file', str), ('Trigger_edge', str), ('channels',channel_stats)])
-        self.stats = OrderedDict([('n_channels', nchan), ('sample_rate', rate/nchan), 
-            ('acquire_time', dt), ('Trigger_channel', 'Dev1/ai1'), ('TTL_level', 1.0), # /Dev1/PFI0
-            ('config_file', 'monitorconfig.dat'), ('Trigger_edge', 'rising'), 
-            ('channels', channel_stats("[['Dev1/ai1', 'TTL', '0.0', '5', '1', '1']]'"))])
+        self.types = OrderedDict([('config_file', str), ('n', int), ('Sample Rate (kS/s)',int), 
+            ('Duration (ms)', int), ('Trigger Channel', str), ('Trigger Level (V)', float), 
+            ('Trigger Edge', str), ('channels',channel_stats)])
+        self.stats = OrderedDict([('config_file', 'daqconfig.dat'), ('n', n), 
+            ('Sample Rate (kS/s)', rate), ('Duration (ms)', dt), ('Trigger Channel', 'Dev1/ai1'), # /Dev1/PFI0
+            ('Trigger Level (V)', 1.0), ('Trigger Edge', 'rising'), 
+            ('channels', channel_stats("[['Dev1/ai1', 'TTL', '1.0', '0.0', '5', '1', '1']]"))])
         self.trigger_toggle = True       # whether to trigger acquisition or just take a measurement
-        self.load_settings(config_file)  # load default settings          
-        self.n_samples = int(self.stats['acquire_time'] * self.stats['sample_rate']) # number of samples per acquisition
-        self.slave = worker(self.stats['sample_rate'], self.stats['acquire_time'], self.stats['Trigger_channel'], 
-                self.stats['TTL_level'], self.stats['Trigger_edge'], list(self.stats['channels'].keys()), 
-                [ch['range'] for ch in self.stats['channels'].values()])
-        
+        self.load_config(config_file)    # load default settings          
+        self.n_samples = int(self.stats['Duration (ms)'] * self.stats['Sample Rate (kS/s)']) # number of samples per acquisition
+        self.slave = worker(self.stats['Sample Rate (kS/s)'], self.stats['Duration (ms)'], self.stats['Trigger Channel'], 
+                self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], list(self.stats['channels'].keys()), 
+                [ch['range'] for ch in self.stats['channels'].values()]) # this controls the DAQ
+        self.last_path = './'
+
         self.i = 0  # keeps track of current run number
         self.x = [] # run numbers for graphing collections of acquired data
         self.y = [] # average voltages in slice of acquired trace 
 
         self.init_UI()
         remove_slot(self.slave.acquired, self.update_trace, True)
-
-    def load_settings(self, config_file='monitorconfig.dat'):
-        """Load the default settings from a config file."""
-        pass
 
     def init_UI(self):
         """Produce the widgets and buttons."""
@@ -116,6 +122,17 @@ class daq_window(QMainWindow):
         #### menubar at top gives options ####
         menubar = self.menuBar()
 
+        # file menubar allows you to save/load data
+        file_menu = menubar.addMenu('File')
+        for label, function in [['Load Config', self.load_config],
+                ['Save Config', self.save_config],
+                ['Load Trace', self.load_trace], 
+                ['Save Trace', self.save_trace], 
+                ['Save Graph', self.save_graph]]:
+            action = QAction(label, self) 
+            action.triggered.connect(function)
+            file_menu.addAction(action)
+
         #### tab for settings  ####
         settings_tab = QWidget()
         settings_grid = QGridLayout()
@@ -127,9 +144,9 @@ class daq_window(QMainWindow):
             'Sample Rate (kS/s)', 'Trigger Channel', 'Trigger Level (V)', 
             'Trigger Edge', 'Use Trigger?'])
         settings_grid.addWidget(self.settings, 0,0, 1,1)
-        defaults = [str(self.stats['acquire_time']), str(self.stats['sample_rate']), 
-            self.stats['Trigger_channel'], str(self.stats['TTL_level']), 
-            self.stats['Trigger_edge'], '1']
+        defaults = [str(self.stats['Duration (ms)']), str(self.stats['Sample Rate (kS/s)']), 
+            self.stats['Trigger Channel'], str(self.stats['Trigger Level (V)']), 
+            self.stats['Trigger Edge'], '1']
         validators = [int_validator, double_validator, None, double_validator, None, bool_validator]
         for i in range(6):
             table_item = QLineEdit(defaults[i]) # user can edit text to change the setting
@@ -147,9 +164,9 @@ class daq_window(QMainWindow):
         # channels
         self.channels = QTableWidget(8, 6) # make table
         self.channels.setHorizontalHeaderLabels(['Channel', 'Label', 
-            'Offset (V)', 'Range', 'Acquire?', 'Plot?'])
+            'Scale (X/V)', 'Offset (V)', 'Range', 'Acquire?', 'Plot?'])
         settings_grid.addWidget(self.channels, 2,0, 1,1) 
-        validators = [None, double_validator, None, bool_validator, bool_validator]
+        validators = [None, double_validator, double_validator, None, bool_validator, bool_validator]
         for i in range(8):
             chan = 'Dev1/ai'+str(i)  # name of virtual channel
             table_item = QLabel(chan)
@@ -157,8 +174,8 @@ class daq_window(QMainWindow):
             if chan in self.stats['channels']: # load values from previous
                 defaults = self.stats['channels'][chan]
             else: # default values when none are loaded
-                defaults = channel_stats("[dummy, "+str(i)+", 0.0, 5.0, 0, 0]")['dummy']
-            for j, key in zip([0,1,3,4], ['label', 'offset', 'acquire', 'plot']):
+                defaults = channel_stats("[dummy, "+str(i)+", 1.0, 0.0, 5.0, 0, 0]")['dummy']
+            for j, key in zip([0,1,2,4,5], ['label', 'scale', 'offset', 'acquire', 'plot']):
                 table_item = QLineEdit(str(defaults[key]))
                 table_item.setValidator(validators[j])        
                 self.channels.setCellWidget(i,j+1, table_item)
@@ -167,7 +184,7 @@ class daq_window(QMainWindow):
             vrange.addItems(['%.1f'%x for x in self.slave.vrs])
             try: vrange.setCurrentIndex(self.slave.vrs.index(defaults['range']))
             except Exception as e: logger.error('Invalid channel voltage range\n'+str(e))
-            self.channels.setCellWidget(i,3, vrange)
+            self.channels.setCellWidget(i,4, vrange)
 
         #### Plot for most recently acquired trace ####
         trace_tab = QWidget()
@@ -215,31 +232,32 @@ class daq_window(QMainWindow):
         statstr = "[[" # dictionary of channel names and properties
         for i in range(self.channels.rowCount()):
             self.trace_legend.items[i][1].setText(self.channels.cellWidget(i,1).text())
-            if BOOL(self.channels.cellWidget(i,4).text()): # acquire
+            if BOOL(self.channels.cellWidget(i,5).text()): # acquire
                 statstr += ', '.join([self.channels.cellWidget(i,j).text() 
                     for j in range(self.channels.columnCount())]) + '],['
         self.stats['channels'] = channel_stats(statstr[:-2] + ']')
 
         # acquisition settings
-        self.stats['acquire_time'] = float(self.settings.cellWidget(1,0).text())/1e3
+        self.stats['Duration (ms)'] = float(self.settings.cellWidget(1,0).text())/1e3
         # check that the requested rate is valid
-        rate = float(self.settings.cellWidget(1,1).text())*1e3
+        rate = float(self.settings.cellWidget(0,1).text())*1e3
         if len(self.stats['channels']) > 1 and rate > 245e3 / len(self.stats['channels']):
             rate = 245e3 / len(self.stats['channels'])
         elif len(self.stats['channels']) < 2 and rate > 250e3:
             rate = 250e3
-        self.stats['sample_rate'] = rate
-        self.settings.cellWidget(1,1).setText('%.2f'%(rate/1e3))
-        self.n_samples = int(self.stats['acquire_time'] * self.stats['sample_rate'])
-        trig_chan = self.settings.cellWidget(1,2).text()
+        self.stats['Sample Rate (kS/s)'] = rate
+        self.settings.cellWidget(0,1).setText('%.2f'%(rate/1e3))
+        self.n_samples = int(self.stats['Duration (ms)'] * self.stats['Sample Rate (kS/s)'])
+        # check the trigger channel is valid
+        trig_chan = self.settings.cellWidget(0,2).text() 
         if 'Dev1/PFI' in trig_chan or 'Dev1/ai' in trig_chan:
-            self.stats['Trigger_channel'] = trig_chan
+            self.stats['Trigger Channel'] = trig_chan
         else: 
-            self.stats['Trigger_channel'] = 'Dev1/ai0'
-        self.settings.cellWidget(1,2).setText(str(self.stats['Trigger_channel']))
-        self.stats['TTL_level'] = float(self.settings.cellWidget(1,3).text())
-        self.stats['Trigger_edge'] = self.settings.cellWidget(1,4).text()
-        self.trigger_toggle = BOOL(self.settings.cellWidget(1,5).text())
+            self.stats['Trigger Channel'] = 'Dev1/ai0'
+        self.settings.cellWidget(0,2).setText(str(self.stats['Trigger Channel']))
+        self.stats['Trigger Level (V)'] = float(self.settings.cellWidget(0,3).text())
+        self.stats['Trigger Edge'] = self.settings.cellWidget(0,4).text()
+        self.trigger_toggle = BOOL(self.settings.cellWidget(0,5).text())
         
         
 
@@ -250,8 +268,8 @@ class daq_window(QMainWindow):
         Otherwise, stop the task running."""
         if self.toggle.isChecked():
             self.check_settings()
-            self.slave = worker(self.stats['sample_rate'], self.stats['acquire_time'], self.stats['Trigger_channel'], 
-                self.stats['TTL_level'], self.stats['Trigger_edge'], list(self.stats['channels'].keys()), 
+            self.slave = worker(self.stats['Sample Rate (kS/s)'], self.stats['Duration (ms)'], self.stats['Trigger Channel'], 
+                self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], list(self.stats['channels'].keys()), 
                 [ch['range'] for ch in self.stats['channels'].values()])
             remove_slot(self.slave.acquired, self.update_trace, True)
             if self.trigger_toggle:
@@ -271,7 +289,7 @@ class daq_window(QMainWindow):
 
     def update_trace(self, data):
         """Plot the supplied data with labels on the trace canvas."""
-        t = np.linspace(0, self.stats['acquire_time'], self.n_samples)
+        t = np.linspace(0, self.stats['Duration (ms)'], self.n_samples)
         i = 0 # index to keep track of which channels have been plotted
         for j in range(8):
             ch = self.channels.cellWidget(j,0).text()
@@ -289,8 +307,98 @@ class daq_window(QMainWindow):
 
     #### save/load functions ####
 
-    def save_trace(self):
-        pass
+    def try_browse(self, title='Select a File', file_type='all (*)', 
+                open_func=QFileDialog.getOpenFileName, default_path=''):
+        """Open a file dialog and retrieve a file name from the browser.
+        title: String to display at the top of the file browser window
+        default_path: directory to open first
+        file_type: types of files that can be selected
+        open_func: the function to use to open the file browser"""
+        default_path = default_path if default_path else os.path.dirname(self.last_path)
+        try:
+            if 'PyQt4' in sys.modules:
+                file_name = open_func(self, title, default_path, file_type)
+            elif 'PyQt5' in sys.modules:
+                file_name, _ = open_func(self, title, default_path, file_type)
+            if type(file_name) == str: self.last_path = file_name 
+            return file_name
+        except OSError: return '' # probably user cancelled
+
+    def save_config(self, file_name='daqconfig.dat'):
+        """Save the current acquisition settings to the config file."""
+        with open(file_name, 'w+') as f:
+            for key, val in self.stats.items():
+                if key == 'channels':
+                    f.write(key+'='+channel_str(val)+'\n')
+                else:
+                    f.write(key+'='+str(val)+'\n')
+
+    def load_config(self, file_name='daqconfig.dat'):
+        """Load the acquisition settings from the config file."""
+        try:
+            with open(file_name, 'r') as f:
+                for line in f:
+                    if len(line.split('=')) == 2:
+                        key, val = line.replace('\n','').split('=') # there should only be one = per line
+                        try:
+                            self.stats[key] = self.types[key](val)
+                        except KeyError as e:
+                            logger.warning('Failed to load DAQ default config line: '+line+'\n'+str(e))
+        except FileNotFoundError as e: 
+            logger.warning('DAQ settings could not find the config file.\n'+str(e))
+
+    def save_trace(self, file_name=''):
+        """Save the data currently displayed on the trace to a csv file."""
+        file_name = file_name if file_name else self.try_browse(
+                'Save File', 'csv (*.csv)', QFileDialog.getSaveFileName)
+        if file_name:
+            # metadata
+            header = ', '.join(list(self.stats.keys())) + '\n'
+            header += ', '.join(map(str, self.stats.values())) + '\n'
+            # determine which channels are in the plot
+            header += 'Time (s)'
+            data = []
+            for key, d in self.channels.items():
+                if d['plot']:
+                    header += ', ' + key # column headings
+                    if len(data) == 0: # time (s)
+                        data.append(self.lines[int(key[-1])].xData)
+                    data.append(self.lines[int(key[-1])].yData) # voltage
+            # data converted to the correct type
+            out_arr = np.array(data).T
+            try:
+                np.savetxt(file_name, out_arr, fmt='%s', delimiter=',', header=header)
+            except PermissionError as e:
+                logger.error('DAQ controller denied permission to save file: \n'+str(e))
+
+    def load_trace(self, file_name=''):
+        """Load data for the current trace from a csv file."""
+        file_name = file_name if file_name else self.try_browse(file_type='csv(*.csv);;all (*)')
+        if file_name:
+            head = [[],[],[]] # get metadata
+            with open(file_name, 'r') as f:
+                for i in range(3):
+                    row = f.readline()
+                    if row[:2] == '# ':
+                        head[i] = row[2:].replace('\n','').split(', ')
+            # apply the acquisition settings from the file
+            labels = [self.settings.horizontalHeaderItem(i).text() for 
+                i in range(self.settings.columnCount())]
+            for i in range(len(head[0])):
+                try:
+                    j = labels.index(head[0][i])
+                    self.settings.cellWidget(0,j).setText(head[1][i])
+                except ValueError: pass
+            for i in range(8): # whether to plot or not
+                self.channels.cellWidget(0,6).setText('1' if 
+                    self.channels.cellWidget(0,i).text() in head[2] else '0')
+            self.check_settings()
+
+            # plot the data
+            data = np.genfromtxt(file_name, delimiter=',', dtype=float)
+            if np.size(data) < 2:
+                return 0 # insufficient data to load
+            self.update_trace(data.T[1:])
 
     def save_graph(self):
         pass
@@ -311,5 +419,4 @@ def run():
         sys.exit(app.exec_()) # when the window is closed, the python code also stops
             
 if __name__ == "__main__":
-    # change directory to this file's location
     run()
