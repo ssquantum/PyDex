@@ -1,8 +1,8 @@
-config_file=daqconfig.dat
+save_dir=Z:\Tweezer\Experimental Results\2020\May\29
 n=0
-sample_rate=100
-acquire_time=500
-Trigger_channel=Dev1/ai1
-TTL_level=1.0
-Trigger_edge=rising
-channels=[['Dev1/ai1', 'TTL', '0.0', '5', '1', '1']]
+Sample Rate (kS/s)=122.5
+Duration (ms)=50.0
+Trigger Channel=Dev1/ai1
+Trigger Level (V)=1.0
+Trigger Edge=rising
+channels=[[Dev1/ai1, 1, 1.0, 0.0, 5.0, 1, 1], [Dev1/ai3, sine, 1.0, 0.0, 5.0, 1, 1]]

@@ -32,9 +32,9 @@ from mythread import remove_slot
 
 class worker(QThread):
     """Acquire data from the NI USB-6211 DAQ.
-    When running, start a task to read from all of the 
-    selected channels. It waits for the analogue trigger
-    channel to surpass the trigger level, then acquires.
+    When running, start a task to read from all of the selected channels. 
+    It waits for the analogue trigger channel to surpass the trigger level, 
+    then acquires in a loop. To break the loop, set worker.stop = True.
     
     Arguments:
     rate         -- sampling rate in samples/second
@@ -51,7 +51,7 @@ class worker(QThread):
             channels=['Dev1/ai0'], ranges=[5]):
         super().__init__()
         self.vrs = [0.2, 1.0, 5.0, 10.0] # allowed voltage ranges
-        self.TTL_arrived = False # Used to ensure only 1 data aquisition per pulse
+        self.stop = False # Used to ensure only 1 data aquisition per pulse
         self.sample_rate = rate 
         self.time = duration
         self.n_samples = int(rate * duration) # number of samples to acquire
@@ -77,6 +77,10 @@ class worker(QThread):
         else:
             try: return self.vrs[ind+1]
             except IndexError: return self.vrs[-1]
+            
+    def check_stop(self):
+        """Check if the thread has been told to stop"""
+        return self.stop
 
     def end_task(self):
         """Make sure that tasks are closed when we're done using them, 
@@ -84,6 +88,7 @@ class worker(QThread):
         if hasattr(self.task, 'close'):
             self.task.close()
             self.task = None 
+        self.stop = False
 
     def trigger_analog_input(self,devport, edge_selection, timeout=20):
         """
@@ -107,19 +112,19 @@ class worker(QThread):
             c.ai_rng_low = -v
         self.task.timing.cfg_samp_clk_timing(self.sample_rate, sample_mode=const.AcquisitionType.CONTINUOUS, 
             samps_per_chan=self.n_samples+10000) # set sample rate and number of samples
-        while self.TTL_arrived == False:
+        while not self.check_stop():
             try:
-                TTL = self.task.read()[self.trig] # read a single value from the trigger channel
-            except TypeError:
-                TTL = self.task.read() # if there is only one channel
-            if TTL < self.lvl: 
-                self.TTL_arrived = False
-            if TTL > self.lvl and self.TTL_arrived == False: 
-                self.TTL_arrived = True
-                data = self.task.read(number_of_samples_per_channel=self.n_samples)
-                if np.size(np.shape(data)) == 1:
-                    data = [data] # if there's only one channel, still make it a 2D array
-                self.acquired.emit(np.array(data))
+                try:
+                    TTL = self.task.read()[self.trig] # read a single value from the trigger channel
+                except TypeError:
+                    TTL = self.task.read() # if there is only one channel
+                if TTL > self.lvl: 
+                    data = self.task.read(number_of_samples_per_channel=self.n_samples)
+                    if np.size(np.shape(data)) == 1:
+                        data = [data] # if there's only one channel, still make it a 2D array
+                    self.acquired.emit(np.array(data))
+            except Exception as e: logger.error("DAQ read failed\n"+str(e))
+        self.end_task()
 
     def analogue_acquisition(self):
         """Take a single acquisition on the specified channels."""

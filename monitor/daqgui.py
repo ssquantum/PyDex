@@ -38,6 +38,7 @@ sys.path.append('.')
 sys.path.append('..')
 from strtypes import strlist, BOOL
 from daqController import worker, remove_slot
+from networking.client import PyClient
 
 double_validator = QDoubleValidator() # floats
 int_validator    = QIntValidator()    # integers
@@ -64,8 +65,8 @@ def channel_str(channel_list):
     into a string. Inverse operation of channel_stats()."""
     outstr = '['
     for key, d in channel_list.items():
-        outstr += '['+key+', '+', '.join(list(d.values()))+']'
-    return outstr + ']'
+        outstr += '['+key+', '+', '.join(map(str, d.values()))+'], '
+    return outstr[:-2] + ']'
 
 class daq_window(QMainWindow):
     """Window to control and visualise DAQ measurements.
@@ -80,31 +81,32 @@ class daq_window(QMainWindow):
     dt      -- desired acquisition period in seconds
     config_file -- path to file storing default settings.
     """
-    acquired = pyqtSignal(np.ndarray) # acquired data
-
     def __init__(self, n=0, rate=100, dt=500, config_file='daqconfig.dat'):
         super().__init__()
-        self.types = OrderedDict([('config_file', str), ('n', int), ('Sample Rate (kS/s)',int), 
-            ('Duration (ms)', int), ('Trigger Channel', str), ('Trigger Level (V)', float), 
+        self.types = OrderedDict([('save_dir', str), ('n', int), ('Sample Rate (kS/s)',float), 
+            ('Duration (ms)', float), ('Trigger Channel', str), ('Trigger Level (V)', float), 
             ('Trigger Edge', str), ('channels',channel_stats)])
-        self.stats = OrderedDict([('config_file', 'daqconfig.dat'), ('n', n), 
+        self.stats = OrderedDict([('save_dir', '.'), ('n', n), 
             ('Sample Rate (kS/s)', rate), ('Duration (ms)', dt), ('Trigger Channel', 'Dev1/ai1'), # /Dev1/PFI0
             ('Trigger Level (V)', 1.0), ('Trigger Edge', 'rising'), 
             ('channels', channel_stats("[['Dev1/ai1', 'TTL', '1.0', '0.0', '5', '1', '1']]"))])
         self.trigger_toggle = True       # whether to trigger acquisition or just take a measurement
-        self.load_config(config_file)    # load default settings          
-        self.n_samples = int(self.stats['Duration (ms)'] * self.stats['Sample Rate (kS/s)']) # number of samples per acquisition
-        self.slave = worker(self.stats['Sample Rate (kS/s)'], self.stats['Duration (ms)'], self.stats['Trigger Channel'], 
+        self.slave = worker(rate*1e3, dt/1e3, self.stats['Trigger Channel'], 
                 self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], list(self.stats['channels'].keys()), 
                 [ch['range'] for ch in self.stats['channels'].values()]) # this controls the DAQ
+        self.init_UI()
+        self.load_config(config_file)    # load default settings          
+        self.n_samples = int(self.stats['Duration (ms)'] * self.stats['Sample Rate (kS/s)']) # number of samples per acquisition
         self.last_path = './'
 
-        self.i = 0  # keeps track of current run number
         self.x = [] # run numbers for graphing collections of acquired data
         self.y = [] # average voltages in slice of acquired trace 
 
-        self.init_UI()
-        remove_slot(self.slave.acquired, self.update_trace, True)
+        remove_slot(self.slave.acquired, self.update_trace, True) # plot new data when it arrives
+        self.tcp = PyClient(port=8087)
+        remove_slot(self.tcp.dxnum, self.set_n, True)
+        remove_slot(self.tcp.txtin, self.respond, True)
+        self.tcp.start()
 
     def init_UI(self):
         """Produce the widgets and buttons."""
@@ -162,7 +164,7 @@ class daq_window(QMainWindow):
         settings_grid.addWidget(self.toggle, 1,0, 1,1)
 
         # channels
-        self.channels = QTableWidget(8, 6) # make table
+        self.channels = QTableWidget(8, 7) # make table
         self.channels.setHorizontalHeaderLabels(['Channel', 'Label', 
             'Scale (X/V)', 'Offset (V)', 'Range', 'Acquire?', 'Plot?'])
         settings_grid.addWidget(self.channels, 2,0, 1,1) 
@@ -220,6 +222,29 @@ class daq_window(QMainWindow):
         self.graph_canvas.setLabel('bottom', 'Shot', '', **{'font-size':'18pt'})
         self.graph_canvas.setLabel('left', 'Voltage', 'V', **{'font-size':'18pt'})
         graph_grid.addWidget(self.graph_canvas, 0,1, 6,8)
+        
+        #### tab for TCP message settings  ####
+        tcp_tab = QWidget()
+        tcp_grid = QGridLayout()
+        tcp_tab.setLayout(tcp_grid)
+        self.tabs.addTab(tcp_tab, "Sync")
+
+        label = QLabel('Run number: ')
+        tcp_grid.addWidget(label, 0,0, 1,1)
+        self.n_edit = QLineEdit(str(self.stats['n']))
+        self.n_edit.setValidator(int_validator)
+        self.n_edit.textEdited[str].connect(self.set_n)
+        tcp_grid.addWidget(self.n_edit, 0,1, 1,1)
+        
+        label = QLabel('Save directory: ')
+        tcp_grid.addWidget(label, 1,0, 1,1)
+        self.save_edit = QLineEdit(self.stats['save_dir'])
+        self.save_edit.textEdited[str].connect(self.set_save_dir)
+        tcp_grid.addWidget(self.save_edit, 1,1, 1,1)
+        
+        reset = QPushButton('Reset TCP client', self)
+        reset.clicked.connect(self.reset_client)
+        tcp_grid.addWidget(reset, 2,0, 1,1)
 
         #### Title and icon ####
         self.setWindowTitle('- NI DAQ Controller -')
@@ -238,15 +263,15 @@ class daq_window(QMainWindow):
         self.stats['channels'] = channel_stats(statstr[:-2] + ']')
 
         # acquisition settings
-        self.stats['Duration (ms)'] = float(self.settings.cellWidget(1,0).text())/1e3
+        self.stats['Duration (ms)'] = float(self.settings.cellWidget(0,0).text())
         # check that the requested rate is valid
-        rate = float(self.settings.cellWidget(0,1).text())*1e3
-        if len(self.stats['channels']) > 1 and rate > 245e3 / len(self.stats['channels']):
-            rate = 245e3 / len(self.stats['channels'])
-        elif len(self.stats['channels']) < 2 and rate > 250e3:
-            rate = 250e3
+        rate = float(self.settings.cellWidget(0,1).text())
+        if len(self.stats['channels']) > 1 and rate > 245 / len(self.stats['channels']):
+            rate = 245 / len(self.stats['channels'])
+        elif len(self.stats['channels']) < 2 and rate > 250:
+            rate = 250
         self.stats['Sample Rate (kS/s)'] = rate
-        self.settings.cellWidget(0,1).setText('%.2f'%(rate/1e3))
+        self.settings.cellWidget(0,1).setText('%.2f'%(rate))
         self.n_samples = int(self.stats['Duration (ms)'] * self.stats['Sample Rate (kS/s)'])
         # check the trigger channel is valid
         trig_chan = self.settings.cellWidget(0,2).text() 
@@ -259,8 +284,52 @@ class daq_window(QMainWindow):
         self.stats['Trigger Edge'] = self.settings.cellWidget(0,4).text()
         self.trigger_toggle = BOOL(self.settings.cellWidget(0,5).text())
         
-        
+    def set_table(self):
+        """Display the acquisition and channel settings in the table."""
+        for i in range(5):
+            self.settings.cellWidget(0,i).setText(str(self.stats[
+                self.settings.horizontalHeaderItem(i).text()]))
+        for i in range(8):
+            ch = self.channels.cellWidget(i,0).text()
+            if ch in self.stats['channels']:
+                for j, key in zip([0,1,2,4,5], 
+                        ['label', 'scale', 'offset', 'acquire', 'plot']):
+                    self.channels.cellWidget(i,j+1).setText(str(self.stats['channels'][ch][key]))
+                self.channels.cellWidget(i,4).setCurrentText('%.1f'%self.stats['channels'][ch]['range'])
+            else:
+                self.channels.cellWidget(i,5).setText('0') # don't acquire
+                self.channels.cellWidget(i,6).setText('0') # don't plot
 
+    #### TCP functions ####
+    
+    def set_n(self, num):
+        """Receive the new run number to update to"""
+        self.stats['n'] = int(num)
+        self.n_edit.setText(str(num))
+        
+    def set_save_dir(self, directory):
+        """Choose the directory to save results to"""
+        self.stats['save_dir'] = directory
+        self.save_edit.setText(directory)
+        
+    def reset_client(self, toggle=True):
+        """Stop the TCP client thread then restart it."""
+        self.tcp.stop = True
+        for i in range(100): # wait til it's stopped
+            if not self.tcp.isRunning():
+                break
+            else: time.sleep(0.001)
+        self.tcp.start() # restart
+        
+    def respond(self, msg=''):
+        """Interpret a TCP message."""
+        if 'save_dir' in msg: # e.g. Z:\Tweezer=save_dir\n0000...
+            self.set_save_dir(msg.split('=')[0])
+        elif 'start' in msg and not self.toggle.isChecked():
+            self.activate()
+        elif 'stop' in msg and self.toggle.isChecked():
+            self.activate()
+    
     #### acquisition functions #### 
 
     def activate(self, toggle=0):
@@ -268,7 +337,7 @@ class daq_window(QMainWindow):
         Otherwise, stop the task running."""
         if self.toggle.isChecked():
             self.check_settings()
-            self.slave = worker(self.stats['Sample Rate (kS/s)'], self.stats['Duration (ms)'], self.stats['Trigger Channel'], 
+            self.slave = worker(self.stats['Sample Rate (kS/s)']*1e3, self.stats['Duration (ms)']/1e3, self.stats['Trigger Channel'], 
                 self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], list(self.stats['channels'].keys()), 
                 [ch['range'] for ch in self.stats['channels'].values()])
             remove_slot(self.slave.acquired, self.update_trace, True)
@@ -281,8 +350,8 @@ class daq_window(QMainWindow):
                 self.slave.analogue_acquisition()
         else:
             # remove_slot(self.slave.finished, self.activate, False)
+            self.slave.stop = True
             self.slave.quit()
-            self.slave.end_task() # manually close the task
             self.toggle.setText('Start')
 
     #### plotting functions ####
@@ -326,6 +395,8 @@ class daq_window(QMainWindow):
 
     def save_config(self, file_name='daqconfig.dat'):
         """Save the current acquisition settings to the config file."""
+        file_name = file_name if file_name else self.try_browse(
+                'Save Config File', 'dat (*.dat);;all (*)', QFileDialog.getSaveFileName)
         with open(file_name, 'w+') as f:
             for key, val in self.stats.items():
                 if key == 'channels':
@@ -335,6 +406,7 @@ class daq_window(QMainWindow):
 
     def load_config(self, file_name='daqconfig.dat'):
         """Load the acquisition settings from the config file."""
+        file_name = file_name if file_name else self.try_browse(file_type='dat (*.dat);;all (*)')
         try:
             with open(file_name, 'r') as f:
                 for line in f:
@@ -344,21 +416,23 @@ class daq_window(QMainWindow):
                             self.stats[key] = self.types[key](val)
                         except KeyError as e:
                             logger.warning('Failed to load DAQ default config line: '+line+'\n'+str(e))
+            self.set_table()
         except FileNotFoundError as e: 
             logger.warning('DAQ settings could not find the config file.\n'+str(e))
 
     def save_trace(self, file_name=''):
         """Save the data currently displayed on the trace to a csv file."""
         file_name = file_name if file_name else self.try_browse(
-                'Save File', 'csv (*.csv)', QFileDialog.getSaveFileName)
+                'Save File', 'csv (*.csv);;all (*)', QFileDialog.getSaveFileName)
         if file_name:
             # metadata
             header = ', '.join(list(self.stats.keys())) + '\n'
-            header += ', '.join(map(str, self.stats.values())) + '\n'
+            header += ', '.join(list(map(str, self.stats.values()))[:-1]
+                ) + ', ' + channel_str(self.stats['channels']) + '\n'
             # determine which channels are in the plot
             header += 'Time (s)'
             data = []
-            for key, d in self.channels.items():
+            for key, d in self.stats['channels'].items():
                 if d['plot']:
                     header += ', ' + key # column headings
                     if len(data) == 0: # time (s)
@@ -389,9 +463,13 @@ class daq_window(QMainWindow):
                     j = labels.index(head[0][i])
                     self.settings.cellWidget(0,j).setText(head[1][i])
                 except ValueError: pass
+            self.stats['channels'] = channel_stats(', '.join(head[1][7:]))
             for i in range(8): # whether to plot or not
-                self.channels.cellWidget(0,6).setText('1' if 
-                    self.channels.cellWidget(0,i).text() in head[2] else '0')
+                ch = self.channels.cellWidget(i,0).text()
+                if ch in head[2]:
+                    self.channels.cellWidget(i,6).setText('1')
+                    self.channels.cellWidget(i,1).setText(self.stats['channels'][ch]['label'])
+                else: self.channels.cellWidget(i,6).setText('0')
             self.check_settings()
 
             # plot the data
