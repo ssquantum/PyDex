@@ -46,9 +46,9 @@ class worker(QThread):
     ranges       -- max voltage the channel can measure (0.2, 1, 5, 10)"""
     acquired = pyqtSignal(np.ndarray) # acquired data
 
-    def __init__(self, rate, duration, trigger_chan='Dev1/ai0', 
+    def __init__(self, rate, duration, trigger_chan='Dev2/ai0', 
             trigger_lvl=1.0, trigger_edge='rising', 
-            channels=['Dev1/ai0'], ranges=[5]):
+            channels=['Dev2/ai0'], ranges=[5]):
         super().__init__()
         self.vrs = [0.2, 1.0, 5.0, 10.0] # allowed voltage ranges
         self.stop = False # Used to ensure only 1 data aquisition per pulse
@@ -90,41 +90,45 @@ class worker(QThread):
             self.task = None 
         self.stop = False
 
-    def trigger_analog_input(self,devport, edge_selection, timeout=20):
-        """
-        Configures the input channel and sample clock. Sets the task to trigger when PFI0 recieves a trigger
-        """
+    def trigger_analog_input(self,chan="Dev2/ai1", trigger="/Dev2/PFI0", 
+            edge=const.Edge.RISING, timeout=20):
+        """Configures the input channel and sample clock. Sets the task to 
+        acquire when a digital trigger is recevied. 
+        chan    -- virtual analogue channel to read from
+        trigger -- physical digital input channel to trigger off
+        edge    -- trigger off the rising or falling edge
+        timeout -- seconds to wait before timing out."""
         max_num_samples = 2
         with nidaqmx.Task() as task:
-            task.ai_channels.add_ai_voltage_chan("Dev1/ai1",terminal_config = const.TerminalConfiguration.DIFFERENTIAL)
-            task.timing.cfg_samp_clk_timing(self.sample_rate, active_edge=const.Edge.RISING) 
-            task.triggers.start_trigger.cfg_dig_edge_start_trig("/Dev1/PFI0", trigger_edge=const.Edge.RISING)
-            task.register_done_event(task.close) # close the task when finished
+            task.ai_channels.add_ai_voltage_chan(chan,terminal_config = const.TerminalConfiguration.DIFFERENTIAL)
+            task.timing.cfg_samp_clk_timing(self.sample_rate, active_edge=edge) 
+            task.triggers.start_trigger.cfg_dig_edge_start_trig(trigger, trigger_edge=edge)
+            # task.register_done_event(task.close) # close the task when finished
             data = task.read(number_of_samples_per_channel=self.n_samples, timeout=timeout)
             self.acquired.emit(np.array(data))
 
     def run(self):
         """Read the input from the trigger channel. When it surpasses the set trigger level, start an acquisition."""
-        self.task = nidaqmx.Task()
-        for v, chan in zip(self.vranges, self.channels):
-            c = self.task.ai_channels.add_ai_voltage_chan(chan, terminal_config=const.TerminalConfiguration.DIFFERENTIAL) 
-            c.ai_rng_high = v # set voltage range
-            c.ai_rng_low = -v
-        self.task.timing.cfg_samp_clk_timing(self.sample_rate, sample_mode=const.AcquisitionType.CONTINUOUS, 
-            samps_per_chan=self.n_samples+10000) # set sample rate and number of samples
-        while not self.check_stop():
-            try:
-                try:
-                    TTL = self.task.read()[self.trig] # read a single value from the trigger channel
-                except TypeError:
-                    TTL = self.task.read() # if there is only one channel
-                if TTL > self.lvl: 
-                    data = self.task.read(number_of_samples_per_channel=self.n_samples)
-                    if np.size(np.shape(data)) == 1:
-                        data = [data] # if there's only one channel, still make it a 2D array
-                    self.acquired.emit(np.array(data))
-            except Exception as e: logger.error("DAQ read failed\n"+str(e))
-        self.end_task()
+        try:
+            self.task = nidaqmx.Task()
+            for v, chan in zip(self.vranges, self.channels):
+                c = self.task.ai_channels.add_ai_voltage_chan(chan, terminal_config=const.TerminalConfiguration.DIFFERENTIAL) 
+                c.ai_rng_high = v # set voltage range
+                c.ai_rng_low = -v
+            self.task.timing.cfg_samp_clk_timing(self.sample_rate, sample_mode=const.AcquisitionType.CONTINUOUS, 
+                samps_per_chan=self.n_samples+10000) # set sample rate and number of samples
+            while not self.check_stop():
+                    try:
+                        TTL = self.task.read()[self.trig] # read a single value from the trigger channel
+                    except TypeError:
+                        TTL = self.task.read() # if there is only one channel
+                    if TTL > self.lvl: 
+                        data = self.task.read(number_of_samples_per_channel=self.n_samples)
+                        if np.size(np.shape(data)) == 1:
+                            data = [data] # if there's only one channel, still make it a 2D array
+                        self.acquired.emit(np.array(data))
+            self.end_task()
+        except Exception as e: logger.error("DAQ read failed\n"+str(e))
 
     def analogue_acquisition(self):
         """Take a single acquisition on the specified channels."""
@@ -141,10 +145,10 @@ class worker(QThread):
                 data = [data] # if there's only one channel, still make it a 2D array
             self.acquired.emit(np.array(data))
 
-    def digital_acquisition(self):
+    def digital_acquisition(self, devport="Dev2/port0/line"):
         """Read in data from all of the digital input channels"""                                                                                                 
         with nidaqmx.Task() as task:
-            for i in range(4): task.di_channels.add_di_chan("Dev1/port0/line"+str(i))
+            for i in range(4): task.di_channels.add_di_chan(devport+str(i))
             #task.timing.cfg_samp_clk_timing(self.sample_rate) # set sample rate
             data = task.read(number_of_samples_per_channel=self.n_samples)
             task.wait_until_done(-1)   

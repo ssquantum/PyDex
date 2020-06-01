@@ -177,7 +177,7 @@ class histo_handler(Analysis):
             above_idxs = np.where(np.array(ih.stats['Atom detected']) > 0)[0] # index of images with counts above threshold
             atom_count = np.size(above_idxs)  # number of images with counts above threshold
             above = np.array(ih.stats['Counts'])[above_idxs] # counts above threshold
-            below_idxs = np.where(np.array(ih.stats['Atom detected']) == 0)[0] # index of images with counts below threshold
+            below_idxs = np.where(np.array(ih.stats['Atom detected']) <= 0)[0] # index of images with counts below threshold
             empty_count = np.size(below_idxs) # number of images with counts below threshold
             below = np.array(ih.stats['Counts'])[below_idxs] # counts below threshold
             # use the binomial distribution to get 1 sigma confidence intervals:

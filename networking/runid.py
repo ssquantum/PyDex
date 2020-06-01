@@ -67,6 +67,8 @@ class runnum(QThread):
         self.server.start()
 
         self.trigger = PyServer(host='', port=8088) # software trigger using TCP
+        self.monitor = PyServer(host='', port=8087) # monitor program runs separately
+        self.monitor.start()
             
     def reset_server(self, force=False):
         """Check if the server is running. If it is, don't do anything, unless 
@@ -253,7 +255,9 @@ class runnum(QThread):
                     mw.name + str(self.seq.mr.mr_param['measure_prefix']) + '.dat')
                 if not os.path.isfile(log_file_path):# start measure file, stores plot data
                     mw.save_varplot(save_file_name=log_file_path, confirm=False) 
-            
+            # tell the monitor program to save results to the new directory
+            self.monitor.add_message(self._n, results_path+'=save_dir')
+            self.monitor.add_message(self._n, 'start')
             # insert TCP messages at the front of the queue: once the multirun starts don't interrupt it.
             repeats = self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']
             mr_queue = [] # list of TCP messages for the whole multirun
@@ -339,6 +343,8 @@ class runnum(QThread):
     def multirun_savehist(self, msg):
         """end of histogram: fit, save, and reset --- check this doesn't miss an image if there's lag"""
         v = self.seq.mr.ind // (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) - 1 # previous variable
+        self.monitor.add_message(self._n, 'DAQtrace'+str(v+self.seq.mr.mr_param['1st hist ID'])+'.csv=trace_file')
+        self.monitor.add_message(self._n, 'save trace') # get the monitor to save the last acquired trace
         try:
             prv = self.seq.mr.mr_vals[v][0] # get user variable from the previous row
         except AttributeError as e:     
@@ -374,6 +380,8 @@ class runnum(QThread):
             mw.set_bins() # reconnects signal with given histogram binning settings
             mw.display_fit() # display the empty histograms
             mw.multirun = False
+        self.monitor.add_message(self._n, 'save graph') # get the monitor to save the graph  
+        self.monitor.add_message(self._n, 'stop') # stop monitoring
         self.multirun_go(False) # reconnect signals
         self.seq.mr.ind = 0
         # save over log file with the parameters used for this multirun (now including run numbers):

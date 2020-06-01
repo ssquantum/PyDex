@@ -21,7 +21,7 @@ class PyClient(QThread):
     the thread, set PyClient.stop = True.
     host - a string giving domain hostname or IPv4 address. 'localhost' is this.
     port - the unique port number used for the next socket connection."""
-    txtin = pyqtSignal(str) # received message
+    textin = pyqtSignal(str) # received message
     dxnum = pyqtSignal(str) # received run number, synchronised with DExTer
     stop  = False           # toggle whether to stop listening
     
@@ -54,7 +54,8 @@ class PyClient(QThread):
                 self.textin.emit(str(msg, encoding))
             except ConnectionRefusedError as e:
                 pass
-                # logger.error('Python client: connection was refused.\n'+str(e))
+            except ConnectionResetError as e:
+                logger.error('Python client: server cancelled connection.\n'+str(e))
                 
     def check_stop(self):
         """Check if the thread has been told to stop"""

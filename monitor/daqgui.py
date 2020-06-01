@@ -48,8 +48,8 @@ bool_validator = QIntValidator(0,1)   # boolean, 0=False, 1=True
 
 def channel_stats(text):
     """Convert a string list of channel settings into an 
-    ordered dictionary: "[['Dev1/ai0', '', '1.0', '0.0', '0', '0', '0']]"
-    -> OrderedDict([('Dev1/ai0', {'label':'', 'offset':1.0,
+    ordered dictionary: "[['Dev2/ai0', '', '1.0', '0.0', '0', '0', '0']]"
+    -> OrderedDict([('Dev2/ai0', {'label':'', 'offset':1.0,
         'range':0, 'acquire':0, 'plot':0})])
     """
     d = OrderedDict()
@@ -79,17 +79,20 @@ class daq_window(QMainWindow):
     n       -- run number for synchronisation
     rate    -- max sample rate in samples / second
     dt      -- desired acquisition period in seconds
-    config_file -- path to file storing default settings.
+    config_file -- path to file storing default settings
+    port    -- the port number to open for TCP connections
     """
-    def __init__(self, n=0, rate=100, dt=500, config_file='daqconfig.dat'):
+    def __init__(self, n=0, rate=250, dt=500, config_file='monitor\\daqconfig.dat', port=8087):
         super().__init__()
-        self.types = OrderedDict([('save_dir', str), ('n', int), ('Sample Rate (kS/s)',float), 
+        self.types = OrderedDict([('n', int), ('config_file', str), ('trace_file', str), ('graph_file', str),
+            ('save_dir', str), ('Sample Rate (kS/s)',float), 
             ('Duration (ms)', float), ('Trigger Channel', str), ('Trigger Level (V)', float), 
             ('Trigger Edge', str), ('channels',channel_stats)])
-        self.stats = OrderedDict([('save_dir', '.'), ('n', n), 
-            ('Sample Rate (kS/s)', rate), ('Duration (ms)', dt), ('Trigger Channel', 'Dev1/ai1'), # /Dev1/PFI0
+        self.stats = OrderedDict([('n', n), ('config_file', config_file), ('trace_file', 'DAQtrace.csv'), 
+            ('graph_file', 'DAQgraph.csv'),('save_dir', '.'), ('Sample Rate (kS/s)', rate), 
+            ('Duration (ms)', dt), ('Trigger Channel', 'Dev2/ai1'), # /Dev2/PFI0
             ('Trigger Level (V)', 1.0), ('Trigger Edge', 'rising'), 
-            ('channels', channel_stats("[['Dev1/ai1', 'TTL', '1.0', '0.0', '5', '1', '1']]"))])
+            ('channels', channel_stats("[['Dev2/ai1', 'TTL', '1.0', '0.0', '5', '1', '1']]"))])
         self.trigger_toggle = True       # whether to trigger acquisition or just take a measurement
         self.slave = worker(rate*1e3, dt/1e3, self.stats['Trigger Channel'], 
                 self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], list(self.stats['channels'].keys()), 
@@ -103,9 +106,9 @@ class daq_window(QMainWindow):
         self.y = [] # average voltages in slice of acquired trace 
 
         remove_slot(self.slave.acquired, self.update_trace, True) # plot new data when it arrives
-        self.tcp = PyClient(port=8087)
+        self.tcp = PyClient(port=port)
         remove_slot(self.tcp.dxnum, self.set_n, True)
-        remove_slot(self.tcp.txtin, self.respond, True)
+        remove_slot(self.tcp.textin, self.respond, True)
         self.tcp.start()
 
     def init_UI(self):
@@ -170,7 +173,7 @@ class daq_window(QMainWindow):
         settings_grid.addWidget(self.channels, 2,0, 1,1) 
         validators = [None, double_validator, double_validator, None, bool_validator, bool_validator]
         for i in range(8):
-            chan = 'Dev1/ai'+str(i)  # name of virtual channel
+            chan = 'Dev2/ai'+str(i)  # name of virtual channel
             table_item = QLabel(chan)
             self.channels.setCellWidget(i,0, table_item)
             if chan in self.stats['channels']: # load values from previous
@@ -206,7 +209,7 @@ class daq_window(QMainWindow):
             self.lines.append(self.trace_canvas.plot([1], name=chan, 
                     pen=pg.mkPen(pg.intColor(i), width=3)))
             self.lines[i].hide()
-        trace_grid.addWidget(self.trace_canvas, 0,1, 6,8)
+        trace_grid.addWidget(self.trace_canvas, 0,0, 6,8)
 
         #### Plot for graph of accumulated data ####
         graph_tab = QWidget()
@@ -242,9 +245,21 @@ class daq_window(QMainWindow):
         self.save_edit.textEdited[str].connect(self.set_save_dir)
         tcp_grid.addWidget(self.save_edit, 1,1, 1,1)
         
+        label = QLabel('Trace file name: ')
+        tcp_grid.addWidget(label, 2,0, 1,1)
+        self.trace_edit = QLineEdit(self.stats['trace_file'])
+        self.trace_edit.textEdited[str].connect(self.set_trace_file)
+        tcp_grid.addWidget(self.trace_edit, 2,1, 1,1)
+        
+        label = QLabel('Graph file name: ')
+        tcp_grid.addWidget(label, 3,0, 1,1)
+        self.graph_edit = QLineEdit(self.stats['graph_file'])
+        self.graph_edit.textEdited[str].connect(self.set_graph_file)
+        tcp_grid.addWidget(self.graph_edit, 3,1, 1,1)
+        
         reset = QPushButton('Reset TCP client', self)
         reset.clicked.connect(self.reset_client)
-        tcp_grid.addWidget(reset, 2,0, 1,1)
+        tcp_grid.addWidget(reset, 4,0, 1,1)
 
         #### Title and icon ####
         self.setWindowTitle('- NI DAQ Controller -')
@@ -275,10 +290,10 @@ class daq_window(QMainWindow):
         self.n_samples = int(self.stats['Duration (ms)'] * self.stats['Sample Rate (kS/s)'])
         # check the trigger channel is valid
         trig_chan = self.settings.cellWidget(0,2).text() 
-        if 'Dev1/PFI' in trig_chan or 'Dev1/ai' in trig_chan:
+        if 'Dev2/PFI' in trig_chan or 'Dev2/ai' in trig_chan:
             self.stats['Trigger Channel'] = trig_chan
         else: 
-            self.stats['Trigger Channel'] = 'Dev1/ai0'
+            self.stats['Trigger Channel'] = 'Dev2/ai0'
         self.settings.cellWidget(0,2).setText(str(self.stats['Trigger Channel']))
         self.stats['Trigger Level (V)'] = float(self.settings.cellWidget(0,3).text())
         self.stats['Trigger Edge'] = self.settings.cellWidget(0,4).text()
@@ -308,9 +323,19 @@ class daq_window(QMainWindow):
         self.n_edit.setText(str(num))
         
     def set_save_dir(self, directory):
-        """Choose the directory to save results to"""
+        """Set the directory to save results to"""
         self.stats['save_dir'] = directory
         self.save_edit.setText(directory)
+        
+    def set_trace_file(self, fname):
+        """Set the default name for trace files when they're saved."""
+        self.stats['trace_file'] = fname
+        self.trace_edit.setText(fname)
+    
+    def set_graph_file(self, fname):
+        """Set the default name for graph files when they're saved."""
+        self.stats['graph_file'] = fname
+        self.graph_edit.setText(fname)
         
     def reset_client(self, toggle=True):
         """Stop the TCP client thread then restart it."""
@@ -322,13 +347,24 @@ class daq_window(QMainWindow):
         self.tcp.start() # restart
         
     def respond(self, msg=''):
-        """Interpret a TCP message."""
-        if 'save_dir' in msg: # e.g. Z:\Tweezer=save_dir\n0000...
+        """Interpret a TCP message. For setting properties, the syntax is:
+        value=property. E.g. 'Z:\Tweezer=save_dir'."""
+        if 'save_dir' in msg: 
             self.set_save_dir(msg.split('=')[0])
+        elif 'trace_file' in msg:
+            self.set_trace_file(msg.split('=')[0])
+        elif 'graph_file' in msg:
+            self.set_graph_file(msg.split('=')[0])
         elif 'start' in msg and not self.toggle.isChecked():
+            self.toggle.setChecked(True)
             self.activate()
         elif 'stop' in msg and self.toggle.isChecked():
+            self.toggle.setChecked(False)
             self.activate()
+        elif 'save trace' in msg:
+            self.save_trace(os.path.join(self.stats['save_dir'], self.stats['trace_file']))
+        elif 'save graph' in msg:
+            self.save_graph(os.path.join(self.stats['save_dir'], self.stats['graph_file']))
     
     #### acquisition functions #### 
 
@@ -363,7 +399,10 @@ class daq_window(QMainWindow):
         for j in range(8):
             ch = self.channels.cellWidget(j,0).text()
             if ch in self.stats['channels'] and self.stats['channels'][ch]['plot']:
-                self.lines[j].setData(t, data[i])
+                try:
+                    self.lines[j].setData(t, data[i])
+                except Exception as e:
+                    logger.error('DAQ trace could not be plotted.\n'+str(e))
                 self.lines[j].show()
                 self.trace_legend.items[j][0].show()
                 self.trace_legend.items[j][1].show()
@@ -395,20 +434,24 @@ class daq_window(QMainWindow):
 
     def save_config(self, file_name='daqconfig.dat'):
         """Save the current acquisition settings to the config file."""
-        file_name = file_name if file_name else self.try_browse(
+        self.stats['config_file'] = file_name if file_name else self.try_browse(
                 'Save Config File', 'dat (*.dat);;all (*)', QFileDialog.getSaveFileName)
-        with open(file_name, 'w+') as f:
-            for key, val in self.stats.items():
-                if key == 'channels':
-                    f.write(key+'='+channel_str(val)+'\n')
-                else:
-                    f.write(key+'='+str(val)+'\n')
+        try:
+            with open(self.stats['config_file'], 'w+') as f:
+                for key, val in self.stats.items():
+                    if key == 'channels':
+                        f.write(key+'='+channel_str(val)+'\n')
+                    else:
+                        f.write(key+'='+str(val)+'\n')
+            logger.info('DAQ config saved to '+self.stats['config_file'])
+        except Exception as e: 
+            logger.error('DAQ settings could not be saved to config file.\n'+str(e))
 
     def load_config(self, file_name='daqconfig.dat'):
         """Load the acquisition settings from the config file."""
-        file_name = file_name if file_name else self.try_browse(file_type='dat (*.dat);;all (*)')
+        self.stats['config_file'] = file_name if file_name else self.try_browse(file_type='dat (*.dat);;all (*)')
         try:
-            with open(file_name, 'r') as f:
+            with open(self.stats['config_file'], 'r') as f:
                 for line in f:
                     if len(line.split('=')) == 2:
                         key, val = line.replace('\n','').split('=') # there should only be one = per line
@@ -416,7 +459,11 @@ class daq_window(QMainWindow):
                             self.stats[key] = self.types[key](val)
                         except KeyError as e:
                             logger.warning('Failed to load DAQ default config line: '+line+'\n'+str(e))
-            self.set_table()
+            self.set_table() # make sure the updates are displayed
+            self.set_save_dir(self.stats['save_dir'])
+            self.set_trace_file(self.stats['trace_file'])
+            self.set_graph_file(self.stats['graph_file'])
+            logger.info('DAQ config loaded from '+self.stats['config_file'])
         except FileNotFoundError as e: 
             logger.warning('DAQ settings could not find the config file.\n'+str(e))
 
@@ -442,7 +489,8 @@ class daq_window(QMainWindow):
             out_arr = np.array(data).T
             try:
                 np.savetxt(file_name, out_arr, fmt='%s', delimiter=',', header=header)
-            except PermissionError as e:
+                logger.info('DAQ trace saved to '+self.stats['trace_file'])
+            except (PermissionError, FileNotFoundError) as e:
                 logger.error('DAQ controller denied permission to save file: \n'+str(e))
 
     def load_trace(self, file_name=''):
@@ -478,8 +526,15 @@ class daq_window(QMainWindow):
                 return 0 # insufficient data to load
             self.update_trace(data.T[1:])
 
-    def save_graph(self):
-        pass
+    def save_graph(self, file_name=''):
+        """Save the data accumulated from several runs that's displayed in the
+        graph into a csv file."""
+        logger.info('DAQ graph saved to '+self.stats['graph_file'])
+        
+    def closeEvent(self, event):
+        """Before closing, try to save the config settings to file."""
+        self.save_config(self.stats['config_file'])
+        event.accept()
                 
 ####    ####    ####    #### 
 

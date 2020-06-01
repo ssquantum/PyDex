@@ -53,6 +53,54 @@ from strtypes import intstrlist
 
 ####    ####    ####    ####
 
+class MonitorStatus(QMainWindow):
+    """A window to display the status of the separate monitor program.
+    Communications are carried out over TCP."""
+    def __init__(self):
+        super().__init__()
+        self.connected = False # Whether connection with monitor has been confirmed
+        self.i = 5 # index for checking connection
+        self.centre_widget = QWidget()
+        layout = QGridLayout()
+        self.centre_widget.setLayout(layout)
+        self.setCentralWidget(self.centre_widget)
+
+        self.status = QLabel('Unconfirmed.') # show current status
+        layout.addWidget(self.status, 0,0, 1,2)
+        
+        self.start_button = QPushButton('Start', self, checkable=False)
+        layout.addWidget(self.start_button, 1,0, 1,1)
+        
+        self.stop_button = QPushButton('Stop', self, checkable=False)
+        layout.addWidget(self.stop_button, 1,1, 1,1)
+        
+        self.setWindowTitle('- Check Monitor Connection -')
+        self.setWindowIcon(QIcon('docs/daqicon.png'))
+        
+    def set_label(self, text):
+        self.status.setText('Message at ' + time.strftime('%H:%M') +': '+ text)
+        
+    def set_connected(self, text=''):
+        self.connected = True
+        
+    def start_check(self, n=5):
+        """Check whether a TCP message has been received from the monitor.
+        n -- number of seconds to wait before assuming the connection is broken."""
+        self.i = n
+        QTimer.singleShot(1e3, self.check_connected) 
+        
+    def check_connected(self):
+        if not self.connected and self.i:
+            self.status.setText('Waiting for response. %s seconds remaining.'%self.i)
+            self.i -= 1
+            QTimer.singleShot(1e3, self.check_connected) 
+        elif self.i == 0:
+            self.status.setText('Lost TCP connection with monitor.')
+        elif self.connected and 'Waiting' in self.status.text():
+            self.status.setText('Connection confirmed.')
+
+####    ####    ####    ####
+
 class Master(QMainWindow):
     """A manager to synchronise and control experiment modules.
     
@@ -122,6 +170,11 @@ class Master(QMainWindow):
             self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
         self.rn.check.rh.trigger.connect(self.trigger_exp_start) # start experiment when ROIs have atoms
         
+        self.mon_win = MonitorStatus()
+        self.mon_win.start_button.clicked.connect(self.start_monitor)
+        self.mon_win.stop_button.clicked.connect(self.stop_monitor)
+        self.rn.monitor.textin[str].connect(self.mon_win.set_label)
+        self.rn.monitor.textin.connect(self.mon_win.set_connected)
         # set a timer to update the dates 2s after midnight:
         t0 = time.localtime()
         QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
@@ -181,7 +234,7 @@ class Master(QMainWindow):
         menu_items = []
         for window_title in ['Image Analyser', 'Camera Status', 
             'Image Saver', 'TCP Server', 'Sequence Previewer',
-            'Atom Checker']:
+            'Atom Checker', 'Monitor']:
             menu_items.append(QAction(window_title, self)) 
             menu_items[-1].triggered.connect(self.show_window)
             show_windows.addAction(menu_items[-1])
@@ -318,6 +371,18 @@ class Master(QMainWindow):
                 self.rn.trigger.msg_queue = []
         elif self.sender().text() == 'Atom Checker':
             self.rn.check.showMaximized()
+        elif self.sender().text() == 'Monitor':
+            self.mon_win.show()
+            
+    def start_monitor(self, toggle=True):
+        """Send a TCP command to the monitor to start its acquisition."""
+        self.mon_win.start_check()
+        self.rn.monitor.add_message(self.rn._n, 'start')
+        
+    def stop_monitor(self, toggle=True):
+        """Send a TCP command to the monitor to stop its acquisition."""
+        self.mon_win.start_check()
+        self.rn.monitor.add_message(self.rn._n, 'stop')
 
     def browse_sequence(self, toggle=True):
         """Open the file browser to search for a sequence file, then insert
@@ -554,7 +619,7 @@ class Master(QMainWindow):
             ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:
             self.stats[key] = [g.x(), g.y(), g.width(), g.height()]
         for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, 
-                self.rn.server, self.rn.trigger, self.rn.check]:
+                self.rn.server, self.rn.trigger, self.rn.check, self.mon_win]:
             obj.close()
         self.save_state()
         event.accept()
