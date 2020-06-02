@@ -38,6 +38,7 @@ sys.path.append('.')
 sys.path.append('..')
 from strtypes import strlist, BOOL
 from daqController import worker, remove_slot
+from daqAnalysis import daqCollection
 from networking.client import PyClient
 
 double_validator = QDoubleValidator() # floats
@@ -97,6 +98,8 @@ class daq_window(QMainWindow):
         self.slave = worker(rate*1e3, dt/1e3, self.stats['Trigger Channel'], 
                 self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], list(self.stats['channels'].keys()), 
                 [ch['range'] for ch in self.stats['channels'].values()]) # this controls the DAQ
+        self.dc = daqCollection(param=[['Slice0',0,1,OrderedDict([('Dev2/ai0',0)])]],
+                channels=list(self.stats['channels'].keys()))
         self.init_UI()
         self.load_config(config_file)    # load default settings          
         self.n_samples = int(self.stats['Duration (ms)'] * self.stats['Sample Rate (kS/s)']) # number of samples per acquisition
@@ -210,6 +213,25 @@ class daq_window(QMainWindow):
                     pen=pg.mkPen(pg.intColor(i), width=3)))
             self.lines[i].hide()
         trace_grid.addWidget(self.trace_canvas, 0,0, 6,8)
+        
+        #### Settings for slices of the trace accumulating into the graph ####
+        slice_tab = QWidget()
+        slice_grid = QGridLayout()
+        slice_tab.setLayout(slice_grid)
+        self.tabs.addTab(slice_tab, "Slice")
+        
+        # add another row
+        addslice = QPushButton('Add slice', self)
+        addslice.clicked.connect(self.add_slice)
+        slice_grid.addWidget(addslice, 0,0, 1,1)
+        
+        # remove a row
+        delslice = QPushButton('Remove slice', self)
+        delslice.clicked.connect(self.del_slice)
+        slice_grid.addWidget(delslice, 0,1, 1,1)
+
+        # parameters for slices
+        self.slices = QTableWidget(1, 4) # make table
 
         #### Plot for graph of accumulated data ####
         graph_tab = QWidget()

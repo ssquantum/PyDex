@@ -1,4 +1,0 @@
-# config_file, trace_file, graph_file, save_dir, n, Sample Rate (kS/s), Duration (ms), Trigger Channel, Trigger Level (V), Trigger Edge, channels
-# daqconfig.dat, DAQtrace.csv, DAQgraph.csv, Z:\Tweezer\Code\Python 3.5\PyDex\monitor, 0, 250, 500, Dev1/ai1, 1.0, rising, [[Dev1/ai1, TTL, 1.0, 0.0, 5.0, 1, 1]]
-# Time (s), Dev1/ai1
-0,1
