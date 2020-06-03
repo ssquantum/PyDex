@@ -10,12 +10,30 @@ import sys
 sys.path.append('.')
 sys.path.append('..')
 import numpy as np
+try:
+    from PyQt4.QtCore import pyqtSignal, QThread
+except ImportError:
+    from PyQt5.QtCore import pyqtSignal, QThread
 from collections import OrderedDict
 from strtypes import strlist, listlist
-from daqgui import channel_stats
 import logging
 logger = logging.getLogger(__name__)
 
+def channel_stats(text):
+    """Convert a string list of channel settings into an 
+    ordered dictionary: "[['Dev2/ai0', '', '1.0', '0.0', '0', '0', '0']]"
+    -> OrderedDict([('Dev2/ai0', {'label':'', 'offset':1.0,
+        'range':0, 'acquire':0, 'plot':0})])
+    """
+    d = OrderedDict()
+    keys = ['label', 'scale', 'offset', 'range', 'acquire', 'plot']
+    types = [str, float, float, float, BOOL, BOOL]
+    for channel in map(strlist, re.findall("\[['\w,\s\./]+\]", text)):
+        d[channel[0]] = OrderedDict([(keys[i], types[i](val)) 
+                for i, val in enumerate(channel[1:])])
+    return d
+
+####    ####    ####    ####
 
 class daqSlice:
     """Analyse the data from part of a DAQ measurement.
@@ -46,7 +64,7 @@ class daqSlice:
         
 ####    ####    ####    ####
             
-class daqCollection:
+class daqCollection(QThread):
     """Handle a collection of daqSlice classes.
     param -- list of parameters to create daqSlice: [name,start,end,channels].
     channels -- list of channels used in the measurement.
@@ -55,6 +73,7 @@ class daqCollection:
 
     def __init__(self, param=[['Slice0',0,1,OrderedDict([('Dev2/ai0',0)])]],
             channels=['Dev2/ai0']):
+        super().__init__()
         self.slices = [daqSlice(*p) for p in param]
         self.channels = channels
         self.ind = 0 # number of shots processed
@@ -62,6 +81,7 @@ class daqCollection:
 
     def reset_arrays(self, *args):
         """Reset all of the data to empty"""
+        self.runs = []
         for s in self.slices:
             for c in s.stats.keys():
                 s.stats[c] = OrderedDict([('mean',[]), ('stdv',[])])
@@ -122,18 +142,17 @@ class daqCollection:
         Fifth row is data column headings
         Then data follows.
         """
-        header = '# '+', '.join(meta_head) + '\n'
-        header += '# '+', '.join(meta_vals) + '\n'
-        header += '# name, start index, end index, [channels]; ...\n'
-        header += '# ' + '; '.join([s.name+", %s, %s, ['"%(s.i0, s.i1)
+        header = ', '.join(meta_head) + '\n'
+        header += ', '.join(meta_vals) + '\n'
+        header += 'name, start index, end index, [channels]; ...\n'
+        header += '; '.join([s.name+", %s, %s, ['"%(s.i0, s.i1)
             + "', '".join(self.channels) + "']" for s in self.slices]) +'\n'
-        header += '# Run, ' + ', '.join([s.name + '//' chan + val 
-            for val in [' mean', ' stdv'] for s in self.slices for chan in 
-            s.stats.keys()])
+        header += 'Run, ' + ', '.join([s.name + '//' + chan + val for val in [
+            ' mean', ' stdv'] for s in self.slices for chan in s.stats.keys()])
         try:
             out_arr = np.array([self.runs] + [s.stats[chan][val] for val in 
                 ['mean', 'stdv'] for s in self.slices for chan in 
-                s.stats.keys()])
-            np.savetxt(file_name, out_arr, delimiter=',', header=header)
+                s.stats.keys()]).T
+            np.savetxt(file_name, out_arr, delimiter=',', fmt='%s', header=header)
         except PermissionError as e:
             logger.error('DAQ Analysis denied permission to save file: \n'+str(e))

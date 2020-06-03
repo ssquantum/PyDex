@@ -1,11 +1,11 @@
+n=1
 config_file=monitor\daqconfig.dat
 trace_file=DAQtrace.csv
 graph_file=DAQgraph.csv
 save_dir=Z:\Tweezer\Code\Python 3.5\PyDex\monitor
-n=0
 Sample Rate (kS/s)=122.5
 Duration (ms)=50.0
-Trigger Channel=Dev1/ai1
+Trigger Channel=Dev2/ai1
 Trigger Level (V)=1.0
 Trigger Edge=rising
-channels=[[Dev2/ai1, TTL, 1.0, 0.0, 5.0, 1, 1], [Dev2/ai3, sine, 1.0, 0.0, 5.0, 1, 1]]
+channels=[[Dev2/ai1, TTL, 1.0, 0.0, 5.0, 1, 1], [Dev2/ai3, Sine, 1.0, 0.0, 5.0, 1, 1]]

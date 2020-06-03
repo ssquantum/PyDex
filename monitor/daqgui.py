@@ -18,14 +18,14 @@ pg.setConfigOption('foreground', 'k') # set graph foreground default black
 from collections import OrderedDict
 # some python packages use PyQt4, some use PyQt5...
 try:
-    from PyQt4.QtCore import pyqtSignal, QRegExp
+    from PyQt4.QtCore import pyqtSignal, QRegExp, QItemSelectionModel
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
             QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
             QMenu, QActionGroup, QFont, QTableWidget, QTableWidgetItem, QTabWidget, 
             QVBoxLayout, QDoubleValidator, QIntValidator, QRegExpValidator, 
             QComboBox, QListWidget) 
 except ImportError:
-    from PyQt5.QtCore import pyqtSignal, QRegExp
+    from PyQt5.QtCore import pyqtSignal, QRegExp, QItemSelectionModel
     from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, QFont,
         QRegExpValidator)
     from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
@@ -61,6 +61,8 @@ def channel_stats(text):
                 for i, val in enumerate(channel[1:])])
     return d
 
+####    ####    ####    ####
+
 def channel_str(channel_list):
     """Convert an ordered dictionary of channel settings
     into a string. Inverse operation of channel_stats()."""
@@ -68,6 +70,8 @@ def channel_str(channel_list):
     for key, d in channel_list.items():
         outstr += '['+key+', '+', '.join(map(str, d.values()))+'], '
     return outstr[:-2] + ']'
+
+####    ####    ####    ####
 
 class daq_window(QMainWindow):
     """Window to control and visualise DAQ measurements.
@@ -107,8 +111,8 @@ class daq_window(QMainWindow):
         self.x = [] # run numbers for graphing collections of acquired data
         self.y = [] # average voltages in slice of acquired trace 
 
-        remove_slot(self.slave.acquired, self.update_trace, True) # plot new data when it arrives
-        remove_slot(self.slave.acquired, self.update_graph, True) # take average of slices
+        self.slave.acquired.connect(self.update_graph) # take average of slices
+        self.slave.acquired.connect(self.update_trace) # plot new data when it arrives
         self.tcp = PyClient(port=port)
         remove_slot(self.tcp.dxnum, self.set_n, True)
         remove_slot(self.tcp.textin, self.respond, True)
@@ -155,13 +159,14 @@ class daq_window(QMainWindow):
         defaults = [str(self.stats['Duration (ms)']), str(self.stats['Sample Rate (kS/s)']), 
             self.stats['Trigger Channel'], str(self.stats['Trigger Level (V)']), 
             self.stats['Trigger Edge'], '1']
-        validators = [int_validator, double_validator, None, double_validator, None, bool_validator]
+        validators = [double_validator, double_validator, None, double_validator, None, bool_validator]
         for i in range(6):
             table_item = QLineEdit(defaults[i]) # user can edit text to change the setting
             table_item.setValidator(validators[i]) # validator limits the values that can be entered
             self.settings.setCellWidget(0,i, table_item)
         self.settings.resizeColumnToContents(1) 
         self.settings.setMaximumHeight(70) # make it take up less space
+        self.settings.cellWidget(0,0).textChanged.connect(self.check_slice_duration)
                     
         # start/stop: start waiting for a trigger or taking an acquisition
         self.toggle = QPushButton('Start', self)
@@ -185,6 +190,8 @@ class daq_window(QMainWindow):
                 defaults = channel_stats("[dummy, "+str(i)+", 1.0, 0.0, 5.0, 0, 0]")['dummy']
             for j, key in zip([0,1,2,4,5], ['label', 'scale', 'offset', 'acquire', 'plot']):
                 table_item = QLineEdit(str(defaults[key]))
+                if 'acquire' in key:
+                    table_item.textChanged.connect(self.check_slice_channels)
                 table_item.setValidator(validators[j])        
                 self.channels.setCellWidget(i,j+1, table_item)
             vrange = QComboBox() # only allow certain values for voltage range
@@ -222,7 +229,7 @@ class daq_window(QMainWindow):
         
         # Buttons to add/remove slices and reset graph
         for i, (label, func) in enumerate([['Add slice', self.add_slice],
-                ['Remove slice', self.del_slice], ['Reset graph', self.reset_graph]])
+                ['Remove slice', self.del_slice], ['Reset graph', self.reset_graph]]):
             button = QPushButton(label, self)
             button.clicked.connect(func)
             slice_grid.addWidget(button, 0,i, 1,1)
@@ -232,7 +239,6 @@ class daq_window(QMainWindow):
         self.slices.setHorizontalHeaderLabels(['Slice name', 
             'Start (ms)', 'End (ms)', 'Channels'])
         slice_grid.addWidget(self.slices, 1,0, 1,3) 
-        self.slices.itemChanged.connect(self.update_slices)
 
         #### Plot for graph of accumulated data ####
         graph_tab = QWidget()
@@ -242,12 +248,14 @@ class daq_window(QMainWindow):
 
         self.mean_graph = pg.PlotWidget() # for plotting means
         self.stdv_graph = pg.PlotWidget() # for plotting standard deviations
+        self.graph_legends = []
         for i, g in enumerate([self.mean_graph, self.stdv_graph]):
-            graph.getAxis('bottom').tickFont = font
-            graph.getAxis('bottom').setFont(font)
-            graph.getAxis('left').tickFont = font
-            graph.getAxis('left').setFont(font)
-            graph_grid.addWidget(graph, i,0, 1,1)
+            g.getAxis('bottom').tickFont = font
+            g.getAxis('bottom').setFont(font)
+            g.getAxis('left').tickFont = font
+            g.getAxis('left').setFont(font)
+            graph_grid.addWidget(g, i,0, 1,1)
+        self.reset_lines() # make a line for every slice channel
         self.stdv_graph.setLabel('bottom', 'Shot', '', **{'font-size':'18pt'})
         self.stdv_graph.setLabel('left', 'Standard Deviation', 'V', **{'font-size':'18pt'})
         self.mean_graph.setLabel('left', 'Mean', 'V', **{'font-size':'18pt'})
@@ -326,6 +334,7 @@ class daq_window(QMainWindow):
         self.stats['Trigger Edge'] = self.settings.cellWidget(0,4).text()
         self.trigger_toggle = BOOL(self.settings.cellWidget(0,5).text())
         
+        
     def set_table(self):
         """Display the acquisition and channel settings in the table."""
         for i in range(5):
@@ -351,47 +360,89 @@ class daq_window(QMainWindow):
         try:
             name, start, end, channels = param
         except TypeError:
-            name = 'Slice' + str(self.slices.rowCount)
+            name = 'Slice' + str(self.slices.rowCount())
             start = 0
             end = self.stats['Duration (ms)']
             channels = list(self.stats['channels'].keys())
         i = self.slices.rowCount() # index to add row at
         self.slices.insertRow(i) # add row to table
+        validator = QDoubleValidator(0.,float(self.stats['Duration (ms)']),3)
         for j, text in enumerate([name, str(start), str(end)]):
-            item = QTableWidgetItem()
-            self.slices.setItem(i, j, item)
-            self.slices.item(i, j).setText(text)
+            item = QLineEdit(text)
+            item.pos = (i, j)
+            if j > 0:
+                item.setValidator(validator)
+            item.textChanged.connect(self.update_slices)
+            self.slices.setCellWidget(i, j, item)
         chanbox = QListWidget(self)
+        chanbox.setSelectionMode(3) # extended selection, allows multiple selection
+        chanbox.itemSelectionChanged.connect(self.update_slices)
+        chanbox.pos = (i, 3)
+        chanbox.text = chanbox.objectName
         chanlist = list(self.stats['channels'].keys())
         chanbox.addItems(chanlist)
-        self.slices.setCellWidget(chanbox)
+        self.slices.setCellWidget(i, j+1, chanbox)
+        self.slices.resizeRowToContents(i) 
         # add to the dc list of slices
         t = np.linspace(0, self.stats['Duration (ms)'], self.n_samples)
         self.dc.add_slice(name, np.argmin(np.abs(t-start)), np.argmin(np.abs(t-end)), 
             OrderedDict([(chan, chanlist.index(chan)) for chan in channels]))
+            
+        self.reset_lines()
+            
 
     def del_slice(self, toggle=True):
         """Remove the slice at the selected row of the slice table."""
         index = self.slices.currentRow()
         self.slices.removeRow(index)
-        self.dc.slices.pop(index)
-
-    def update_slices(self, item=None):
-        """Use the current item from the table to update the parameter for the slices."""
-        i, j = self.slices.currentRow(), self.slices.currentColumn()
-        t = np.linspace(0, self.stats['Duration (ms)'], self.n_samples)
-        if j == 0: # name
-            self.dc[i].name = self.slices.currentItem().text()
-        elif j == 1: # start (ms)
-            self.dc[i].i0 = np.argmin(np.abs(t-float(self.slice.currntItem().text())))
-        elif j == 2: # end (ms)
-            self.dc[i].i1 = np.argmin(np.abs(t-float(self.slice.currntItem().text())))
-        elif j == 3:
-            lw = self.slices.cellWidget(i, j) # list widget
-            self.dc[i].channels = OrderedDict([(x.text(), lw.row(x)) for x in lw.selectedItems()])
-        self.inds = slice(self.dc[i].i0, self.dc[i].i1+1)
-        self.size = self.dc[i].i1 - self.dc[i].i0
+        if index >= 0:
+            self.dc.slices.pop(index)
         
+    def check_slice_duration(self, newtxt):
+        """If the acquisition duration is changed, make sure the slices can't
+        use times beyond this."""
+        self.check_settings() # update DAQ acquisition settings first
+        for i in range(self.slices.rowCount()):
+            for j in [1,2]: # force slice to be within max duration
+                validator = QDoubleValidator(0.,float(self.stats['Duration (ms)']),3)
+                self.slices.cellWidget(i, j).setValidator(validator)
+
+    def check_slice_channels(self, newtxt):
+        """If the channels that can be used for the acquisition are changed, 
+        change the list widgets in the slice settings to match."""
+        self.check_settings() # update DAQ acquisition settings first
+        for i in range(self.slices.rowCount()):
+            w = self.slices.cellWidget(i, 3) # widget shorthand
+            selected = [w.row(x) for x in w.selectedItems()] # make record of selected channels
+            w.clear()
+            w.addItems(list(self.stats['channels'].keys()))
+            for r in selected:
+                try:
+                    w.setCurrentRow(r, QItemSelectionModel.SelectCurrent)
+                except Exception as e: pass
+
+    def update_slices(self, newtxt=''):
+        """Use the current item from the table to update the parameter for the slices."""
+        try:
+            w = self.sender()
+            i, j = w.pos
+            t = np.linspace(0, self.stats['Duration (ms)'], self.n_samples)
+            x = self.dc.slices[i] # shorthand
+            if j == 0: # name
+                x.name = w.text()
+            elif j == 1: # start (ms)
+                x.i0 = np.argmin(np.abs(t-float(w.text())))
+            elif j == 2: # end (ms)
+                x.i1 = np.argmin(np.abs(t-float(w.text())))
+            elif j == 3:
+                x.channels = OrderedDict([(x.text(), w.row(x)) for x in w.selectedItems()])
+                x.stats = OrderedDict([(chan, OrderedDict([
+                    ('mean',[]), ('stdv',[])])) for chan in x.channels.keys()])
+                self.reset_lines()
+                self.reset_graph()
+            x.inds = slice(x.i0, x.i1+1)
+            x.size = x.i1 - x.i0
+        except IndexError as e: pass # logger.error("Couldn't update slice.\n"+str(e))    
 
     #### TCP functions ####
     
@@ -455,6 +506,7 @@ class daq_window(QMainWindow):
                 self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], list(self.stats['channels'].keys()), 
                 [ch['range'] for ch in self.stats['channels'].values()])
             remove_slot(self.slave.acquired, self.update_trace, True)
+            remove_slot(self.slave.acquired, self.update_graph, True)
             if self.trigger_toggle:
                 # remove_slot(self.slave.finished, self.activate, True)
                 self.slave.start()
@@ -490,6 +542,25 @@ class daq_window(QMainWindow):
                 self.trace_legend.items[j][0].hide()
                 self.trace_legend.items[j][1].hide()
         self.trace_legend.resize(0,0)
+        
+    def reset_lines(self):
+        """Clear the mean and stdv graphs, reset the legends, then make new 
+        lines for each of the slice channels."""
+        for legend in self.graph_legends: # reset the legends
+            try:
+                legend.scene().removeItem(legend)
+            except AttributeError: pass
+        for g in [self.mean_graph, self.stdv_graph]:
+            g.clear()
+            g.lines = OrderedDict([])
+            self.graph_legends.append(g.addLegend())
+            i = 0
+            for s in self.dc.slices:
+                for chan, val in s.stats.items():
+                    g.lines[s.name+'/'+chan] = g.plot([1], name=s.name+'/'+chan, 
+                        pen=None, symbol='o', symbolPen=pg.mkPen(pg.intColor(i)),
+                        symbolBrush=pg.intColor(i)) 
+                    i += 1
 
     def reset_graph(self):
         """Reset the collection of slice data, then replot the graph."""
@@ -502,23 +573,10 @@ class daq_window(QMainWindow):
         of the measurements."""
         if np.size(data):
             self.dc.process(data, self.stats['n'])
-        self.mean_graph.clear()
-        self.stdv_graph.clear()
-        for graph in [self.mean_graph, self.stdv_graph]:
-            try: # reset legends
-                legend = graph.addLegend()
-                legend.scene().removeItem(legend)
-            except AttributeError:
-                pass    
-            graph.addLegend()
-        i=0
         for s in self.dc.slices:
-            for chan, val in s.stats
-                self.mean_graph.plot(val['mean'], name=s.name+'/'+chan, 
-                    pen=pg.mkPen(pg.intColor(i), width=3))
-                self.stdv_graph.plot(val['stdv'], name=s.name+'/'+chan, 
-                    pen=pg.mkPen(pg.intColor(i), width=3))
-                i += 1
+            for chan, val in s.stats.items():
+                self.mean_graph.lines[s.name+'/'+chan].setData(self.dc.runs, val['mean'])
+                self.stdv_graph.lines[s.name+'/'+chan].setData(self.dc.runs, val['stdv'])
 
     #### save/load functions ####
 
