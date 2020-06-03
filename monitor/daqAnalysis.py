@@ -12,6 +12,7 @@ sys.path.append('..')
 import numpy as np
 from collections import OrderedDict
 from strtypes import strlist, listlist
+from daqgui import channel_stats
 import logging
 logger = logging.getLogger(__name__)
 
@@ -24,19 +25,16 @@ class daqSlice:
         self.name = name
         self.i0   = start
         self.i1   = end
-        self.inds = slice(start, end+1)
+        self.inds = slice(start, end+1) # the indices to use for the slice
         self.size = end - start
-        self.runs = []
-        self.channels = channels
+        self.channels = channels # dict of channelname, index
         self.stats = OrderedDict([(chan, OrderedDict([
             ('mean',[]), ('stdv',[])])) for chan in channels.keys()])
         
-    def process(self, data, n):
+    def process(self, data):
         """Apply the slice to the given data, extract the mean and std dev.
         Note that the data must have shape to match the expected # channels.
-        data -- measured voltages [[measurement] * # channels]
-        n    -- the run number to identify this point with."""
-        self.runs.append(n)
+        data -- measured voltages [[measurement] * # channels]"""
         for chan, i in self.channels.items():
             try:
                 row = data[i]
@@ -53,53 +51,89 @@ class daqCollection:
     param -- list of parameters to create daqSlice: [name,start,end,channels].
     channels -- list of channels used in the measurement.
     """
+    acq_settings = pyqtSignal(str, str) # emit loaded DAQ acquisition settings
 
     def __init__(self, param=[['Slice0',0,1,OrderedDict([('Dev2/ai0',0)])]],
             channels=['Dev2/ai0']):
         self.slices = [daqSlice(*p) for p in param]
         self.channels = channels
         self.ind = 0 # number of shots processed
+        self.runs = [] # run number for identifying the trace
 
-    def reset_arrays(self):
+    def reset_arrays(self, *args):
         """Reset all of the data to empty"""
         for s in self.slices:
             for c in s.stats.keys():
                 s.stats[c] = OrderedDict([('mean',[]), ('stdv',[])])
         self.ind = 0   
+
+    def add_slice(self, name, start, end, channels):
+        """Add another slice to the set. Also empties lists.
+        name     -- a label to identify the slice
+        start    -- first index
+        end      -- last index
+        channels -- OrderedDict of channel names and indexes"""
+        self.slices.append(daqSlice(name, start, end, channels))
+        self.reset_arrays() # make sure they're the same length
         
     def process(self, data, n):
         """Send the data to all of the slices. It must have the right shape."""
+        self.runs.append(n)
         for s in self.slices:
-            s.process(data, n)
+            s.process(data)
         self.ind += 1
             
     def load(self, file_name):
-        """Load back data stored in csv. 
-        First row is metadata column headings
-        Second row is metadata values
-        Third row is data column headings
+        """Load back data stored in csv. Metadata for the DAQ 
+        acquisition and the slices are stored in the header. 
         Then data follows."""
-        pass
+        head = [[],[],[],[],[]] # get metadata
+        with open(file_name, 'r') as f:
+            for i in range(5):
+                row = f.readline()
+                if row[:2] == '# ':
+                    head[i] = row[2:].replace('\n','')
+        self.acq_settings.emit(head[0], head[1]) # acquisition settings
+        self.slices = []
+        self.channels = list(channel_stats(head[1]).keys())
+        for sstr in head[3].split('; '): # slice settings
+            str1, chanstr = sstr.split('[')
+            name, si0, si1 = str1.split(', ')
+            chans = chanstr.replace(']','').split(', ')
+            self.add_slice(name, int(si0), int(si1), chans)
+        data = np.genfromtxt(file_name, delimiter=',')
+        if np.size(data) > 1: # load data into lists
+            self.runs = list(map(int, data[:,0]))
+            nchans = (len(data[0]) - 1) // 2 # number of channels
+            i = 1
+            for s in self.slices:
+                for chan, stats in s.stats.items():
+                    stats['mean'] = list(data[:,i])
+                    stats['stdv'] = list(data[:,i+nchans])
+                    i += 1
+
         
     def save(self, file_name, meta_head=[], meta_vals=[]):
         """Save the processed data to csv. 
         First row is metadata column headings as list
         Second row is metadata values as list
-        Third row is number of slices and list of channels measured
+        Third row is slice settings column headings
+        Fourth row is slice settings values
+        Fifth row is data column headings
         Then data follows.
         """
+        header = '# '+', '.join(meta_head) + '\n'
+        header += '# '+', '.join(meta_vals) + '\n'
+        header += '# name, start index, end index, [channels]; ...\n'
+        header += '# ' + '; '.join([s.name+", %s, %s, ['"%(s.i0, s.i1)
+            + "', '".join(self.channels) + "']" for s in self.slices]) +'\n'
+        header += '# Run, ' + ', '.join([s.name + '//' chan + val 
+            for val in [' mean', ' stdv'] for s in self.slices for chan in 
+            s.stats.keys()])
         try:
-            with open(file_name, 'w+') as f:
-                f.write('# '+'; '.join(meta_head) + '\n')
-                f.write('# '+'; '.join(meta_vals) + '\n')
-                f.write('# '+str(len(self.slices)) + " slices; ['" + 
-                        "', '".join(self.channels) + "']\n")
-                for s in self.slices:
-                    f.write(s.name + "; %s; %s; ['"%(s.i0, s.i1) + 
-                        "', '".join(s.channels.keys()) + "']\n")
-                    f.write('runs: ' + str(s.runs) + '\n')
-                    for key, val in s.stats.items():
-                        f.write(key + ' mean: ' + str(val['mean'])+'\n')
-                        f.write(key + ' stdv: ' + str(val['stdv'])+'\n')
+            out_arr = np.array([self.runs] + [s.stats[chan][val] for val in 
+                ['mean', 'stdv'] for s in self.slices for chan in 
+                s.stats.keys()])
+            np.savetxt(file_name, out_arr, delimiter=',', header=header)
         except PermissionError as e:
             logger.error('DAQ Analysis denied permission to save file: \n'+str(e))

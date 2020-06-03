@@ -54,7 +54,7 @@ class PyClient(QThread):
                 self.textin.emit(str(msg, encoding))
             except ConnectionRefusedError as e:
                 pass
-            except ConnectionResetError as e:
+            except (ConnectionResetError, ConnectionAbortedError) as e:
                 logger.error('Python client: server cancelled connection.\n'+str(e))
                 
     def check_stop(self):

@@ -23,7 +23,7 @@ try:
             QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
             QMenu, QActionGroup, QFont, QTableWidget, QTableWidgetItem, QTabWidget, 
             QVBoxLayout, QDoubleValidator, QIntValidator, QRegExpValidator, 
-            QComboBox) 
+            QComboBox, QListWidget) 
 except ImportError:
     from PyQt5.QtCore import pyqtSignal, QRegExp
     from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, QFont,
@@ -31,7 +31,7 @@ except ImportError:
     from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
         QFileDialog, QMessageBox, QLineEdit, QGridLayout, QWidget,
         QApplication, QPushButton, QAction, QMainWindow, QTabWidget,
-        QTableWidget, QTableWidgetItem, QLabel, QComboBox)
+        QTableWidget, QTableWidgetItem, QLabel, QComboBox, QListWidget)
 import logging
 logger = logging.getLogger(__name__)
 sys.path.append('.')
@@ -98,8 +98,7 @@ class daq_window(QMainWindow):
         self.slave = worker(rate*1e3, dt/1e3, self.stats['Trigger Channel'], 
                 self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], list(self.stats['channels'].keys()), 
                 [ch['range'] for ch in self.stats['channels'].values()]) # this controls the DAQ
-        self.dc = daqCollection(param=[['Slice0',0,1,OrderedDict([('Dev2/ai0',0)])]],
-                channels=list(self.stats['channels'].keys()))
+        self.dc = daqCollection(param=[], channels=list(self.stats['channels'].keys()))
         self.init_UI()
         self.load_config(config_file)    # load default settings          
         self.n_samples = int(self.stats['Duration (ms)'] * self.stats['Sample Rate (kS/s)']) # number of samples per acquisition
@@ -109,6 +108,7 @@ class daq_window(QMainWindow):
         self.y = [] # average voltages in slice of acquired trace 
 
         remove_slot(self.slave.acquired, self.update_trace, True) # plot new data when it arrives
+        remove_slot(self.slave.acquired, self.update_graph, True) # take average of slices
         self.tcp = PyClient(port=port)
         remove_slot(self.tcp.dxnum, self.set_n, True)
         remove_slot(self.tcp.textin, self.respond, True)
@@ -220,18 +220,19 @@ class daq_window(QMainWindow):
         slice_tab.setLayout(slice_grid)
         self.tabs.addTab(slice_tab, "Slice")
         
-        # add another row
-        addslice = QPushButton('Add slice', self)
-        addslice.clicked.connect(self.add_slice)
-        slice_grid.addWidget(addslice, 0,0, 1,1)
+        # Buttons to add/remove slices and reset graph
+        for i, (label, func) in enumerate([['Add slice', self.add_slice],
+                ['Remove slice', self.del_slice], ['Reset graph', self.reset_graph]])
+            button = QPushButton(label, self)
+            button.clicked.connect(func)
+            slice_grid.addWidget(button, 0,i, 1,1)
         
-        # remove a row
-        delslice = QPushButton('Remove slice', self)
-        delslice.clicked.connect(self.del_slice)
-        slice_grid.addWidget(delslice, 0,1, 1,1)
-
         # parameters for slices
-        self.slices = QTableWidget(1, 4) # make table
+        self.slices = QTableWidget(0, 4) # make table
+        self.slices.setHorizontalHeaderLabels(['Slice name', 
+            'Start (ms)', 'End (ms)', 'Channels'])
+        slice_grid.addWidget(self.slices, 1,0, 1,3) 
+        self.slices.itemChanged.connect(self.update_slices)
 
         #### Plot for graph of accumulated data ####
         graph_tab = QWidget()
@@ -239,14 +240,17 @@ class daq_window(QMainWindow):
         graph_tab.setLayout(graph_grid)
         self.tabs.addTab(graph_tab, "Graph")
 
-        self.graph_canvas = pg.PlotWidget()
-        self.graph_canvas.getAxis('bottom').tickFont = font
-        self.graph_canvas.getAxis('bottom').setFont(font)
-        self.graph_canvas.getAxis('left').tickFont = font
-        self.graph_canvas.getAxis('left').setFont(font)
-        self.graph_canvas.setLabel('bottom', 'Shot', '', **{'font-size':'18pt'})
-        self.graph_canvas.setLabel('left', 'Voltage', 'V', **{'font-size':'18pt'})
-        graph_grid.addWidget(self.graph_canvas, 0,1, 6,8)
+        self.mean_graph = pg.PlotWidget() # for plotting means
+        self.stdv_graph = pg.PlotWidget() # for plotting standard deviations
+        for i, g in enumerate([self.mean_graph, self.stdv_graph]):
+            graph.getAxis('bottom').tickFont = font
+            graph.getAxis('bottom').setFont(font)
+            graph.getAxis('left').tickFont = font
+            graph.getAxis('left').setFont(font)
+            graph_grid.addWidget(graph, i,0, 1,1)
+        self.stdv_graph.setLabel('bottom', 'Shot', '', **{'font-size':'18pt'})
+        self.stdv_graph.setLabel('left', 'Standard Deviation', 'V', **{'font-size':'18pt'})
+        self.mean_graph.setLabel('left', 'Mean', 'V', **{'font-size':'18pt'})
         
         #### tab for TCP message settings  ####
         tcp_tab = QWidget()
@@ -298,6 +302,7 @@ class daq_window(QMainWindow):
                 statstr += ', '.join([self.channels.cellWidget(i,j).text() 
                     for j in range(self.channels.columnCount())]) + '],['
         self.stats['channels'] = channel_stats(statstr[:-2] + ']')
+        self.dc.channels = self.stats['channels'].keys()
 
         # acquisition settings
         self.stats['Duration (ms)'] = float(self.settings.cellWidget(0,0).text())
@@ -336,6 +341,57 @@ class daq_window(QMainWindow):
             else:
                 self.channels.cellWidget(i,5).setText('0') # don't acquire
                 self.channels.cellWidget(i,6).setText('0') # don't plot
+
+    #### slice settings functions ####
+
+    def add_slice(self, param=[]):
+        """Add a row to the slice table and append it to the
+        daqCollection instance for analysis.
+        param -- [name, start (ms), end (ms), channels]"""
+        try:
+            name, start, end, channels = param
+        except TypeError:
+            name = 'Slice' + str(self.slices.rowCount)
+            start = 0
+            end = self.stats['Duration (ms)']
+            channels = list(self.stats['channels'].keys())
+        i = self.slices.rowCount() # index to add row at
+        self.slices.insertRow(i) # add row to table
+        for j, text in enumerate([name, str(start), str(end)]):
+            item = QTableWidgetItem()
+            self.slices.setItem(i, j, item)
+            self.slices.item(i, j).setText(text)
+        chanbox = QListWidget(self)
+        chanlist = list(self.stats['channels'].keys())
+        chanbox.addItems(chanlist)
+        self.slices.setCellWidget(chanbox)
+        # add to the dc list of slices
+        t = np.linspace(0, self.stats['Duration (ms)'], self.n_samples)
+        self.dc.add_slice(name, np.argmin(np.abs(t-start)), np.argmin(np.abs(t-end)), 
+            OrderedDict([(chan, chanlist.index(chan)) for chan in channels]))
+
+    def del_slice(self, toggle=True):
+        """Remove the slice at the selected row of the slice table."""
+        index = self.slices.currentRow()
+        self.slices.removeRow(index)
+        self.dc.slices.pop(index)
+
+    def update_slices(self, item=None):
+        """Use the current item from the table to update the parameter for the slices."""
+        i, j = self.slices.currentRow(), self.slices.currentColumn()
+        t = np.linspace(0, self.stats['Duration (ms)'], self.n_samples)
+        if j == 0: # name
+            self.dc[i].name = self.slices.currentItem().text()
+        elif j == 1: # start (ms)
+            self.dc[i].i0 = np.argmin(np.abs(t-float(self.slice.currntItem().text())))
+        elif j == 2: # end (ms)
+            self.dc[i].i1 = np.argmin(np.abs(t-float(self.slice.currntItem().text())))
+        elif j == 3:
+            lw = self.slices.cellWidget(i, j) # list widget
+            self.dc[i].channels = OrderedDict([(x.text(), lw.row(x)) for x in lw.selectedItems()])
+        self.inds = slice(self.dc[i].i0, self.dc[i].i1+1)
+        self.size = self.dc[i].i1 - self.dc[i].i0
+        
 
     #### TCP functions ####
     
@@ -435,6 +491,35 @@ class daq_window(QMainWindow):
                 self.trace_legend.items[j][1].hide()
         self.trace_legend.resize(0,0)
 
+    def reset_graph(self):
+        """Reset the collection of slice data, then replot the graph."""
+        self.dc.reset_arrays()
+        self.update_graph()
+
+    def update_graph(self, data=[]):
+        """Extract averages from slices of the data.
+        Replot the stored data accumulated from averages in slices
+        of the measurements."""
+        if np.size(data):
+            self.dc.process(data, self.stats['n'])
+        self.mean_graph.clear()
+        self.stdv_graph.clear()
+        for graph in [self.mean_graph, self.stdv_graph]:
+            try: # reset legends
+                legend = graph.addLegend()
+                legend.scene().removeItem(legend)
+            except AttributeError:
+                pass    
+            graph.addLegend()
+        i=0
+        for s in self.dc.slices:
+            for chan, val in s.stats
+                self.mean_graph.plot(val['mean'], name=s.name+'/'+chan, 
+                    pen=pg.mkPen(pg.intColor(i), width=3))
+                self.stdv_graph.plot(val['stdv'], name=s.name+'/'+chan, 
+                    pen=pg.mkPen(pg.intColor(i), width=3))
+                i += 1
+
     #### save/load functions ####
 
     def try_browse(self, title='Select a File', file_type='all (*)', 
@@ -485,6 +570,7 @@ class daq_window(QMainWindow):
             self.set_save_dir(self.stats['save_dir'])
             self.set_trace_file(self.stats['trace_file'])
             self.set_graph_file(self.stats['graph_file'])
+            self.dc.channels = list(self.stats['channels'].keys())
             logger.info('DAQ config loaded from '+self.stats['config_file'])
         except FileNotFoundError as e: 
             logger.warning('DAQ settings could not find the config file.\n'+str(e))
@@ -511,7 +597,7 @@ class daq_window(QMainWindow):
             out_arr = np.array(data).T
             try:
                 np.savetxt(file_name, out_arr, fmt='%s', delimiter=',', header=header)
-                logger.info('DAQ trace saved to '+self.stats['trace_file'])
+                logger.info('DAQ trace saved to '+file_name)
             except (PermissionError, FileNotFoundError) as e:
                 logger.error('DAQ controller denied permission to save file: \n'+str(e))
 
@@ -551,7 +637,13 @@ class daq_window(QMainWindow):
     def save_graph(self, file_name=''):
         """Save the data accumulated from several runs that's displayed in the
         graph into a csv file."""
-        logger.info('DAQ graph saved to '+self.stats['graph_file'])
+        file_name = file_name if file_name else self.try_browse(
+                'Save File', 'csv (*.csv);;all (*)', QFileDialog.getSaveFileName)
+        if file_name:
+            self.dc.save(file_name, list(self.stats.keys()), 
+                list(map(str, self.stats.values()))[:-1]
+                 + [channel_str(self.stats['channels'])])
+            logger.info('DAQ graph saved to '+file_name)
         
     def closeEvent(self, event):
         """Before closing, try to save the config settings to file."""

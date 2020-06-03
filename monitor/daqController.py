@@ -56,7 +56,7 @@ class worker(QThread):
         self.time = duration
         self.n_samples = int(rate * duration) # number of samples to acquire
         self.lvl  = trigger_lvl
-        self.edge = trigger_edge
+        self.edge = const.Edge.RISING if 'rising' in trigger_edge else const.Edge.FALLING
         try:
             self.trig = channels.index(trigger_chan)
         except ValueError: # want the trigger channel to be in the list of channels
@@ -85,27 +85,43 @@ class worker(QThread):
     def end_task(self):
         """Make sure that tasks are closed when we're done using them, 
         so that resources can be reallocated."""
+        self.stop = True
         if hasattr(self.task, 'close'):
             self.task.close()
             self.task = None 
         self.stop = False
 
-    def trigger_analog_input(self,chan="Dev2/ai1", trigger="/Dev2/PFI0", 
-            edge=const.Edge.RISING, timeout=20):
+    def digtrigrun(self):
         """Configures the input channel and sample clock. Sets the task to 
-        acquire when a digital trigger is recevied. 
-        chan    -- virtual analogue channel to read from
-        trigger -- physical digital input channel to trigger off
-        edge    -- trigger off the rising or falling edge
-        timeout -- seconds to wait before timing out."""
-        max_num_samples = 2
-        with nidaqmx.Task() as task:
-            task.ai_channels.add_ai_voltage_chan(chan,terminal_config = const.TerminalConfiguration.DIFFERENTIAL)
-            task.timing.cfg_samp_clk_timing(self.sample_rate, active_edge=edge) 
-            task.triggers.start_trigger.cfg_dig_edge_start_trig(trigger, trigger_edge=edge)
-            # task.register_done_event(task.close) # close the task when finished
-            data = task.read(number_of_samples_per_channel=self.n_samples, timeout=timeout)
+        acquire when a digital trigger is recevied. End the task when 
+        stop=True is set externally."""
+        try:
+            with nidaqmx.Task() as task:
+                for v, chan in zip(self.vranges, self.channels):
+                    c = task.ai_channels.add_ai_voltage_chan(chan, 
+                        terminal_config=const.TerminalConfiguration.DIFFERENTIAL) 
+                    c.ai_rng_high = v # set voltage range
+                    c.ai_rng_low = -v
+                task.timing.cfg_samp_clk_timing(self.sample_rate, 
+                    sample_mode=const.AcquisitionType.CONTINUOUS, 
+                    samps_per_chan=self.n_samples+10000,
+                    active_edge=self.edge) # set sample rate and number of samples
+                task.triggers.start_trigger.cfg_dig_edge_start_trig(trigger, trigger_edge=self.edge)
+                task.register_signal_event(const.Signal.SAMPLE_COMPLETE, self.acquire_callback) # read when data has been acquired
+                while not self.check_stop():
+                    time.sleep(0.01) # wait here for until stop = True tells the task to close
+            self.end_task()
+        except Exception as e: logger.error('DAQ task was stopped.\n'+str(e))
+
+    def acquire_callback(self, task, signaltype, callbackdata):
+        """Upon receiving a hardware event, read from the task and emit the acquired data.
+        task         -- handle for the task that registered the event 
+        signaltype   -- the type of event that was registered (Sample Complete)
+        callbackdata -- 'the value you passed in the callback data parameter'."""
+        try:
+            data = task.read(number_of_samples_per_channel=self.n_samples)
             self.acquired.emit(np.array(data))
+        except Exception as e: logger.error("DAQ read failed\n"+str(e))
 
     def run(self):
         """Read the input from the trigger channel. When it surpasses the set trigger level, start an acquisition."""
