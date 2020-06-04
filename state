@@ -1,7 +1,7 @@
-File#=71
+File#=23
 Date=01,May,2020
-CameraConfig=.\\andorcamera\4x4_13.3.2020.dat
+CameraConfig=.\andorcamera\4x4_13.3.2020.dat
 SaveConfig=.\\config\\config.dat
-MasterGeometry=[23, 36, 488, 129]
-AnalysisGeometry=[1220, 468, 668, 558]
-SequencesGeometry=[45, 221, 798, 884]
+MasterGeometry=[42, 45, 488, 129]
+AnalysisGeometry=[1228, 479, 668, 558]
+SequencesGeometry=[88, 132, 798, 884]

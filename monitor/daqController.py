@@ -57,6 +57,7 @@ class worker(QThread):
         self.n_samples = int(rate * duration) # number of samples to acquire
         self.lvl  = trigger_lvl
         self.edge = const.Edge.RISING if 'rising' in trigger_edge else const.Edge.FALLING
+        self.trig_chan = trigger_chan
         try:
             self.trig = channels.index(trigger_chan)
         except ValueError: # want the trigger channel to be in the list of channels
@@ -106,7 +107,7 @@ class worker(QThread):
                     sample_mode=const.AcquisitionType.CONTINUOUS, 
                     samps_per_chan=self.n_samples+10000,
                     active_edge=self.edge) # set sample rate and number of samples
-                task.triggers.start_trigger.cfg_dig_edge_start_trig(trigger, trigger_edge=self.edge)
+                task.triggers.start_trigger.cfg_dig_edge_start_trig(self.trig_chan, trigger_edge=self.edge)
                 task.register_signal_event(const.Signal.SAMPLE_COMPLETE, self.acquire_callback) # read when data has been acquired
                 while not self.check_stop():
                     time.sleep(0.01) # wait here for until stop = True tells the task to close

@@ -157,7 +157,7 @@ class atom_window(QMainWindow):
         layout.addWidget(button, 2+num_plots//k*3,9+i+1, 1,1)
 
         # maximum duration to wait for
-        timeout_label = QLabel('Timeout: ', self)
+        timeout_label = QLabel('Timeout (s): ', self)
         layout.addWidget(timeout_label, 2+num_plots//k*3,9+i+2, 1,1)
         self.timeout_edit = QLineEdit('0', self)
         self.timeout_edit.setValidator(int_validator)

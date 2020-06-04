@@ -202,7 +202,7 @@ class Previewer(QMainWindow):
         self.e_list = QTableWidget(4, num_e)
         self.e_list.setVerticalHeaderLabels(['Event name: ', 
             'Routine specific event? ', 'Event indices: ', 'Event path: '])
-        self.e_list.setFixedHeight(250)
+        self.e_list.setFixedHeight(150)
         self.reset_table(self.e_list, 0)
         prv_vbox.addWidget(self.e_list)
         
@@ -214,7 +214,7 @@ class Previewer(QMainWindow):
             'Time step length: ', 'Time unit: ', 'D/A trigger: ',
             'Trigger this time step? ', 'Channel: ', 'Analogue voltage (V): ',
             'GPIB event name: ', 'GPIB on/off? '])
-        self.head_top.setFixedHeight(600)
+        self.head_top.setFixedHeight(450)
         self.reset_table(self.head_top, 0)
         prv_vbox.addWidget(self.head_top)
           
@@ -231,7 +231,7 @@ class Previewer(QMainWindow):
         fa_head = QLabel('Fast Analogue', self) 
         prv_vbox.addWidget(fa_head)
         self.fa_chans = QTableWidget(self.tr.nfa, num_s*2)
-        self.fa_chans.setFixedHeight(330)
+        self.fa_chans.setFixedHeight(260)
         self.reset_table(self.fa_chans, 0)
         prv_vbox.addWidget(self.fa_chans)
         
@@ -243,7 +243,7 @@ class Previewer(QMainWindow):
             'Time step length: ', 'Time unit: ', 'D/A trigger: ',
             'Trigger this time step? ', 'Channel: ', 'Analogue voltage (V): ',
             'GPIB event name: ', 'GPIB on/off? '])
-        self.head_mid.setFixedHeight(560)
+        self.head_mid.setFixedHeight(450)
         self.reset_table(self.head_mid, 0)
         prv_vbox.addWidget(self.head_mid)
         

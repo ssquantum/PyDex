@@ -407,7 +407,10 @@ class settings_window(QMainWindow):
         # note: setting the origin as bottom left but the image has origin top left
         xc, yc = int(x0 + w//2), int(y0 + h//2)  # centre
         self.stats['ROIs'][i] = [xc, yc, int(w), int(h), r.t] # should never be indexerror
-        self.rois[i].label.setPos(x0, y0)
+        R = self.rois[i] # shorthand
+        R.label.setPos(x0, y0)
+        R.x, R.y, R.w, R.h = xc, yc, int(w), int(h)
+        R.create_rect_mask()
         self.replot_rois() # updates image analysis windows
         self.reset_table() # diplays ROI in table
 
@@ -431,6 +434,8 @@ class settings_window(QMainWindow):
                 x, y, w, h, t = 1, 1, 1, 1, 1
             if not i % self._m: # for the first window in each set of _m
                 try:
+                    self.rois[j].roi.show()
+                    self.rois[j].label.show()
                     self.rois[j].resize(x, y, w, h)
                     self.rois[j].t = t
                 except IndexError: # make a new ROI 
@@ -443,6 +448,9 @@ class settings_window(QMainWindow):
             mw.roi_y_edit.setText(str(y))
             mw.roi_l_edit.setText(str(w))
             mw.bias_offset_edit.setText(str(self.stats['bias']))
+        for j in range(len(self.mw[:self._a+1])//self._m, len(self.rois)):
+            self.rois[j].roi.hide() # remove extra ROIs
+            self.rois[j].label.hide()
 
     def replot_rois(self, masks=[]):
         """Once an ROI has been edited, redraw all of them on the image.
@@ -515,7 +523,8 @@ class settings_window(QMainWindow):
     def show_ROI_masks(self, toggle=True):
         """Make an image out of all of the masks from the ROIs and display it."""
         im = np.zeros((self.stats['pic_width'], self.stats['pic_height'])) + self.stats['bias']
-        for roi in self.rois:
+        n = 1 if self._m != 1 else 0 # make a new ROI when there are a windows for m images
+        for roi in self.rois[:(self._a+n)//self._m]:
             try: im += roi.mask
             except ValueError as e: logger.error('ROI %s has mask of wrong shape\n'%roi.id+str(e))
         self.update_im(im)

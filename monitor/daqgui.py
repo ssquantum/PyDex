@@ -165,7 +165,7 @@ class daq_window(QMainWindow):
             table_item.setValidator(validators[i]) # validator limits the values that can be entered
             self.settings.setCellWidget(0,i, table_item)
         self.settings.resizeColumnToContents(1) 
-        self.settings.setMaximumHeight(70) # make it take up less space
+        self.settings.setFixedHeight(70) # make it take up less space
         self.settings.cellWidget(0,0).textChanged.connect(self.check_slice_duration)
                     
         # start/stop: start waiting for a trigger or taking an acquisition

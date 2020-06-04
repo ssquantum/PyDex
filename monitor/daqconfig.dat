@@ -1,4 +1,4 @@
-n=1
+n=9
 config_file=monitor\daqconfig.dat
 trace_file=DAQtrace.csv
 graph_file=DAQgraph.csv

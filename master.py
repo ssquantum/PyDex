@@ -117,7 +117,7 @@ class Master(QMainWindow):
                     Default directories for camera settings and image 
                     saving are also saved in this file.
     """
-    def __init__(self, pop_up=1, state_config='.\\state'):
+    def __init__(self, pop_up=0, state_config='.\\state'):
         super().__init__()
         self.types = OrderedDict([('File#',int), ('Date',str), ('CameraConfig',str), 
             ('SaveConfig',str), ('MasterGeometry',intstrlist), ('AnalysisGeometry',intstrlist), 
@@ -259,7 +259,7 @@ class Master(QMainWindow):
         self.status_label = QLabel('Initiating...', self)
         self.centre_widget.layout.addWidget(self.status_label, 0,0, 1,3)
         
-        Dx_label = QLabel('Dx #: ', self)
+        Dx_label = QLabel('Run #: ', self)
         self.centre_widget.layout.addWidget(Dx_label, 1,0, 1,1)
         self.Dx_label = QLabel(str(startn), self)
         self.centre_widget.layout.addWidget(self.Dx_label, 1,1, 1,1)
