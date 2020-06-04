@@ -97,7 +97,7 @@ class daq_window(QMainWindow):
             ('graph_file', 'DAQgraph.csv'),('save_dir', '.'), ('Sample Rate (kS/s)', rate), 
             ('Duration (ms)', dt), ('Trigger Channel', 'Dev2/ai1'), # /Dev2/PFI0
             ('Trigger Level (V)', 1.0), ('Trigger Edge', 'rising'), 
-            ('channels', channel_stats("[['Dev2/ai1', 'TTL', '1.0', '0.0', '5', '1', '1']]"))])
+            ('channels', channel_stats("[['Dev2/ai0', '0', '1.0', '0.0', '5', '1', '1']]"))])
         self.trigger_toggle = True       # whether to trigger acquisition or just take a measurement
         self.slave = worker(rate*1e3, dt/1e3, self.stats['Trigger Channel'], 
                 self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], list(self.stats['channels'].keys()), 
@@ -337,16 +337,17 @@ class daq_window(QMainWindow):
         
     def set_table(self):
         """Display the acquisition and channel settings in the table."""
+        x = self.stats.copy() # prevent it getting overwritten
         for i in range(5):
-            self.settings.cellWidget(0,i).setText(str(self.stats[
+            self.settings.cellWidget(0,i).setText(str(x[
                 self.settings.horizontalHeaderItem(i).text()]))
         for i in range(8):
             ch = self.channels.cellWidget(i,0).text()
-            if ch in self.stats['channels']:
+            if ch in x['channels']:
                 for j, key in zip([0,1,2,4,5], 
                         ['label', 'scale', 'offset', 'acquire', 'plot']):
-                    self.channels.cellWidget(i,j+1).setText(str(self.stats['channels'][ch][key]))
-                self.channels.cellWidget(i,4).setCurrentText('%.1f'%self.stats['channels'][ch]['range'])
+                    self.channels.cellWidget(i,j+1).setText(str(x['channels'][ch][key]))
+                self.channels.cellWidget(i,4).setCurrentText('%.1f'%x['channels'][ch]['range'])
             else:
                 self.channels.cellWidget(i,5).setText('0') # don't acquire
                 self.channels.cellWidget(i,6).setText('0') # don't plot
@@ -625,6 +626,7 @@ class daq_window(QMainWindow):
                         except KeyError as e:
                             logger.warning('Failed to load DAQ default config line: '+line+'\n'+str(e))
             self.set_table() # make sure the updates are displayed
+            self.set_n(self.stats['n'])
             self.set_save_dir(self.stats['save_dir'])
             self.set_trace_file(self.stats['trace_file'])
             self.set_graph_file(self.stats['graph_file'])

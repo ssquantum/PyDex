@@ -1,9 +1,9 @@
 n=9
-config_file=monitor\daqconfig.dat
+config_file=daqconfig.dat
 trace_file=DAQtrace.csv
 graph_file=DAQgraph.csv
 save_dir=Z:\Tweezer\Code\Python 3.5\PyDex\monitor
-Sample Rate (kS/s)=122.5
+Sample Rate (kS/s)=112.5
 Duration (ms)=50.0
 Trigger Channel=Dev2/ai1
 Trigger Level (V)=1.0
