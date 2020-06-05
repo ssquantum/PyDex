@@ -206,20 +206,38 @@ class daq_window(QMainWindow):
         trace_grid = QGridLayout()
         trace_tab.setLayout(trace_grid)
         self.tabs.addTab(trace_tab, "Trace")
+        
+        # button activates horizontal line
+        self.hline_toggle = QPushButton('Horizontal line', self, checkable=True)
+        self.hline_toggle.clicked.connect(self.add_horizontal)
+        trace_grid.addWidget(self.hline_toggle, 0,0, 1,1)
+        self.hline_label = QLabel()
+        trace_grid.addWidget(self.hline_label, 0,1, 1,1)
 
+        # plot the trace
         self.trace_canvas = pg.PlotWidget()
         self.trace_legend = self.trace_canvas.addLegend()
         self.trace_canvas.getAxis('bottom').tickFont = font
         self.trace_canvas.getAxis('left').tickFont = font
         self.trace_canvas.setLabel('bottom', 'Time', 's', **{'font-size':'18pt'})
         self.trace_canvas.setLabel('left', 'Voltage', 'V', **{'font-size':'18pt'})
-        self.lines = []
+        self.lines = [] # handles for lines plotting the last measurement
+        self.fadelines = [] # handles for previous measurement lines
         for i in range(8):
             chan = self.channels.cellWidget(i,1).text()
             self.lines.append(self.trace_canvas.plot([1], name=chan, 
                     pen=pg.mkPen(pg.intColor(i), width=3)))
             self.lines[i].hide()
-        trace_grid.addWidget(self.trace_canvas, 0,0, 6,8)
+            self.fadelines.append(self.trace_canvas.plot([1], 
+                    pen=pg.mkPen(pg.intColor(i, alpha=50), width=2)))
+            self.fadelines[i].hide()
+        self.hline = pg.InfiniteLine(1., angle=0, pen='k', movable=True)
+        self.trace_canvas.addItem(self.hline)
+        self.hline.sigPositionChanged.connect(self.update_hline)
+        self.hline.hide()
+        
+            
+        trace_grid.addWidget(self.trace_canvas, 1,0, 1,2)
         
         #### Settings for slices of the trace accumulating into the graph ####
         slice_tab = QWidget()
@@ -529,17 +547,21 @@ class daq_window(QMainWindow):
         i = 0 # index to keep track of which channels have been plotted
         for j in range(8):
             ch = self.channels.cellWidget(j,0).text()
+            l = self.lines[j] # shorthand
             if ch in self.stats['channels'] and self.stats['channels'][ch]['plot']:
                 try:
-                    self.lines[j].setData(t, data[i])
+                    self.fadelines[j].setData(l.xData, l.yData)
+                    l.setData(t, data[i])
                 except Exception as e:
                     logger.error('DAQ trace could not be plotted.\n'+str(e))
-                self.lines[j].show()
+                self.fadelines[j].show()
+                l.show()
                 self.trace_legend.items[j][0].show()
                 self.trace_legend.items[j][1].show()
                 i += 1
             else:
-                self.lines[j].hide()
+                l.hide()
+                self.fadelines[j].hide()
                 self.trace_legend.items[j][0].hide()
                 self.trace_legend.items[j][1].hide()
         self.trace_legend.resize(0,0)
@@ -578,6 +600,17 @@ class daq_window(QMainWindow):
             for chan, val in s.stats.items():
                 self.mean_graph.lines[s.name+'/'+chan].setData(self.dc.runs, val['mean'])
                 self.stdv_graph.lines[s.name+'/'+chan].setData(self.dc.runs, val['stdv'])
+                
+    def add_horizontal(self, toggle=True):
+        """Display a horizontal line on the trace"""
+        if toggle: self.hline.show()
+        else: 
+            self.hline.hide()
+            self.hline_label.setText('')
+        
+    def update_hline(self):
+        """Display the value of the horizontal line in the label"""
+        self.hline_label.setText(str(self.hline.value()))
 
     #### save/load functions ####
 
