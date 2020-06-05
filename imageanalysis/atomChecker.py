@@ -189,6 +189,7 @@ class atom_window(QMainWindow):
         xc, yc = int(x0 + w//2), int(y0 + h//2) # centre of ROI
         r.x, r.y, r.w, r.h = xc, yc, w, h
         r.label.setPos(x0, y0)
+        r.create_rect_mask()
         for key, val in zip(r.edits.keys(), [xc, yc, w, h]):
             r.edits[key].setText(str(val))
 
@@ -226,7 +227,7 @@ class atom_window(QMainWindow):
                         logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(newx, newy)+
                         ' outside of the image')
                         newx, newy = 0, 0
-                    self.rh.ROIs[i].resize(*map(int, [newx, newy, shape[0], shape[1]]))
+                    self.rh.ROIs[i].resize(*map(int, [newx, newy, 1, 1]))
                 except ZeroDivisionError as e:
                     logger.error('Invalid parameters for square ROI grid: '+
                         'x - %s, y - %s, pic size - %s, roi size - %s.\n'%(
@@ -234,7 +235,7 @@ class atom_window(QMainWindow):
                         + 'Calculated width - %s, height - %s.\n'%(X, Y) + str(e))
         elif method == '2D Gaussian masks':
             try: 
-                im = self.im_canvas.image.copy()
+                im = self.im_canvas.image.copy() - self.rh.bias
                 if np.size(np.shape(im)) == 2:
                     for r in self.rh.ROIs:
                         r.create_gauss_mask(im) # fit 2D Gaussian to max pixel region
@@ -285,7 +286,8 @@ class atom_window(QMainWindow):
     def reset_plots(self):
         """Empty the lists of counts in the ROIs and update the plots."""
         self.rh.reset_count_lists(range(len(self.rh.ROIs)))
-        for l in self.plots[i]['counts']: l.setData(np.zeros(10))
+        for p in self.plots:
+            for l in p['counts']: l.setData([1])
 
     def update_im(self, im):
         """Display the image in the image canvas."""

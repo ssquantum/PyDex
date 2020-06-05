@@ -111,13 +111,11 @@ class Master(QMainWindow):
     This master module will define the run number. It must confirm that
     each Dexter sequence has run successfully in order to stay synchronised.
     Keyword arguments:
-    pop_up       -- 0: initiate a single instance of saia1.
-                    1: open a dialog asking the user which image analyser.
     state_config -- path to the file that saved the previous state.
                     Default directories for camera settings and image 
                     saving are also saved in this file.
     """
-    def __init__(self, pop_up=0, state_config='.\\state'):
+    def __init__(self, state_config='.\\state'):
         super().__init__()
         self.types = OrderedDict([('File#',int), ('Date',str), ('CameraConfig',str), 
             ('SaveConfig',str), ('MasterGeometry',intstrlist), ('AnalysisGeometry',intstrlist), 
@@ -135,22 +133,14 @@ class Master(QMainWindow):
         startn = self.restore_state(file_name=state_config)
         # choose which image analyser to use from number images in sequence
         self.init_UI(startn)
-        if pop_up: # also option to choose config file?
-            m, ok = QInputDialog.getInt( # user chooses image analyser
-                self, 'Initiate Image Analyser(s)',
-                'Select the number of images per sequence\n(0 for survival probability)',
-                value=0, min=0, max=100)
-        else:
-            m = 0
         # initialise the thread controlling run # and emitting images
         self.rn = runnum(camera(config_file=self.stats['CameraConfig']), # Andor camera
                 event_handler(self.stats['SaveConfig']), # image saver
-                settings_window(nsaia=m if m!=0 else 2, nreim=1 if m==0 else 1,
-                    results_path =sv_dirs['Results Path: '],
+                settings_window(results_path =sv_dirs['Results Path: '],
                     im_store_path=sv_dirs['Image Storage Path: ']), # image analysis
                 atom_window(last_im_path=sv_dirs['Image Storage Path: ']), # check if atoms are in ROIs to trigger experiment
                 Previewer(), # sequence editor
-                n=startn, m=m if m!=0 else 2, k=0) 
+                n=startn, m=2, k=0) 
         # now the signals are connected, send camera settings to image analysis
         if self.rn.cam.initialised > 2:
             check = self.rn.cam.ApplySettingsFromConfig(self.stats['CameraConfig'])
@@ -456,29 +446,25 @@ class Master(QMainWindow):
                 self.action_button.setEnabled(False) # only process 1 run at a time
                 self.rn._k = 0 # reset image per run count 
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000) 
+                self.rn.monitor.add_message(self.rn._n, 'update run number')
             elif action_text == 'Multirun run':
                 if self.rn.seq.mr.check_table():
                     if not self.sync_toggle.isChecked():
                         self.sync_toggle.setChecked(True) # it's better to multirun in synced mode
                         QMessageBox.warning(self, 'Synced acquisition', 
                             'Multirun has changed the sync with DExTer setting.')
-                    self.rn.seq.mr.mr_queue.append([copy.deepcopy(self.rn.seq.mr.ui_param),
-                        self.rn.seq.mr.tr.copy(), self.rn.seq.mr.get_table()]) # add parameters to queue
-                    # suggest new multirun measure ID and prefix
-                    n = self.rn.seq.mr.mr_param['measure'] + len(self.rn.seq.mr.mr_queue)
-                    self.rn.seq.mr.measures['measure'].setText(str(n))
-                    self.rn.seq.mr.measures['measure_prefix'].setText('Measure'+str(n))  
+                    status = self.rn.seq.mr.check_mr_params(self.rn.sv.results_path) # add to queue if valid
                     self.check_mr_queue() # prevent multiple multiruns occurring simultaneously
                 else: logger.warning('Tried to start multirun with invalid values. Check the table.\n')
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':
                 if 'multirun' in self.status_label.text():
-                    self.seq.mr.mr_queue = []  # remove all queued multiruns
-                    self.rn.multirun_go(False)
+                    # self.rn.seq.mr.mr_queue = []  # remove all queued multiruns
+                    self.rn.multirun_go(False, stillrunning=True)
             elif action_text == 'Cancel multirun':
                 if 'multirun' in self.status_label.text():
-                    self.seq.mr.mr_queue = []  # remove all queued multiruns
+                    # self.rn.seq.mr.mr_queue = []  # remove all queued multiruns
                     self.rn.multirun_go(False)
                     self.rn.seq.mr.ind = 0
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
@@ -498,6 +484,7 @@ class Master(QMainWindow):
         """Atom checker sends signal saying all ROIs have atoms in, start the experiment"""
         self.rn.check.timer.stop() # in case the timer was going to trigger the experiment as well
         self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
+        self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # in case the first fails
         self.rn.check.checking = False
         QTimer.singleShot(30, self.reset_cam_signals) # in 30ms, start sending images to analysis
 
@@ -528,7 +515,7 @@ class Master(QMainWindow):
         This prevents multiple multiruns being sent to DExTer at the same time."""
         num_mrs = len(self.rn.seq.mr.mr_queue) # number of multiruns queued
         if num_mrs:
-            if not self.rn.multirun and num_mrs < 2: 
+            if not self.rn.multirun: 
                 self.rn.multirun = True
                 self.rn.server.add_message(TCPENUM['TCP read'], # send the first multirun to DExTer
                     'start measure %s'%(self.rn.seq.mr.mr_param['measure'] + num_mrs - 1)+'\n'+'0'*2000)
@@ -570,6 +557,8 @@ class Master(QMainWindow):
             self.rn.multirun_end(msg)
             # self.rn.server.save_times()
             self.end_run(msg)
+        elif 'STOPPED' in msg:
+            self.status_label.setText('STOPPED. Multirun has been interrupted.')
         self.ts['msg end'] = time.time()
         self.ts['blocking'] = time.time() - self.ts['msg start']
         # self.print_times()

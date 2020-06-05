@@ -230,7 +230,8 @@ class roi_handler(QWidget):
         """Receive new image dimensions from Andor camera"""
         if self.shape != (width, height):
             self.shape = (width, height)
-            for r in self.ROIs:
+        for r in self.ROIs:
+            if r.s != self.shape:
                 r.create_rect_mask(self.shape)
         
     def load_full_im(self, im_name):

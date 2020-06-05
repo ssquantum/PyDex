@@ -1,4 +1,4 @@
-n=9
+n=1324
 config_file=daqconfig.dat
 trace_file=DAQtrace.csv
 graph_file=DAQgraph.csv
@@ -8,4 +8,4 @@ Duration (ms)=50.0
 Trigger Channel=Dev2/ai1
 Trigger Level (V)=1.0
 Trigger Edge=rising
-channels=[[Dev2/ai1, TTL, 1.0, 0.0, 5.0, 1, 1], [Dev2/ai3, Sine, 1.0, 0.0, 5.0, 1, 1]]
+channels=[[Dev2/ai1, TTL, 1.0, 0.0, 5.0, 1, 1], [Dev2/ai3, Sine, 1.0, 0.0, 5.0, 1, 0]]

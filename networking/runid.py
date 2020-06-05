@@ -62,13 +62,14 @@ class runnum(QThread):
         self.check.roi_values.connect(self.sw.set_rois)
         self.seq = seq   # sequence editor
         
-        self.server = PyServer(host='') # server will run continuously on a thread
+        self.server = PyServer(host='', port=8620) # server will run continuously on a thread
         self.server.dxnum.connect(self.set_n) # signal gives run number
         self.server.start()
 
-        self.trigger = PyServer(host='', port=8088) # software trigger using TCP
-        self.monitor = PyServer(host='', port=8087) # monitor program runs separately
+        self.trigger = PyServer(host='', port=8621) # software trigger using TCP
+        self.monitor = PyServer(host='', port=8622) # monitor program runs separately
         self.monitor.start()
+        self.monitor.add_message(self._n, 'resync run number')
             
     def reset_server(self, force=False):
         """Check if the server is running. If it is, don't do anything, unless 
@@ -205,7 +206,7 @@ class runnum(QThread):
 
     #### multirun ####
     
-    def multirun_go(self, toggle):
+    def multirun_go(self, toggle, stillrunning=False):
         """Initiate the multi-run: omit N files, save a histogram of M files, and
         repeat for the user variables in the list. A new sequence is generated for 
         each multirun run. These are sent via TCP and then run. Once the multirun
@@ -219,14 +220,6 @@ class runnum(QThread):
                 return 0
                 
             results_path = os.path.join(self.sv.results_path, self.seq.mr.mr_param['measure_prefix'])
-            if os.path.isdir(results_path) and self.seq.mr.mr_param['1st hist ID'] == 0: 
-                # this measure exists, check if user wants to overwrite
-                reply = QMessageBox.question(self.seq.mr, 'Confirm Overwrite',
-                    "Results path already exists, do you want to overwrite the files?\n"+results_path,
-                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-                if reply == QMessageBox.No:
-                    self.multirun = False
-                    return 0
             remove_slot(self.cam.AcquireEnd, self.receive, False) # only receive if not in '# omit'
             remove_slot(self.cam.AcquireEnd, self.mr_receive, True)
             self.seq.mr.ind = 0 # counter for how far through the multirun we are
@@ -280,8 +273,13 @@ class runnum(QThread):
             self.cam.AF.AbortAcquisition()
             for mw in self.sw.mw + self.sw.rw:
                 mw.multirun = False
-            self.multirun = False
+            self.multirun = stillrunning
+            if not stillrunning: 
+                self.seq.mr.ind = 0
+                self._k = 0
             self.seq.mr.progress.emit('STOPPED. Multirun has been interrupted.')
+            self.server.add_message(TCPENUM['TCP read'], 'STOPPED. Multirun has been interrupted.')
+            self.server.add_message(TCPENUM['TCP read'], 'STOPPED. Multirun has been interrupted.')
 
     def multirun_resume(self, status):
         """Resume the multi-run where it was left off.
@@ -318,6 +316,7 @@ class runnum(QThread):
         based on the run number +1.
         repeat this for the user variables in the multirun list,
         then return to normal operation as set by the histogram binning"""
+        self.monitor.add_message(self._n, 'update run number')
         if self._k != self._m:
             logger.warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
         self._k = 0

@@ -49,42 +49,43 @@ class settings_window(QMainWindow):
     m_changed = pyqtSignal(int) # gives the number of images per run
     bias_changed = pyqtSignal(int) # gives the bias offset to subtract from counts in images
 
-    def __init__(self, nsaia=1, nreim=1, results_path='', im_store_path='', 
-            config_file='.\\imageanalysis\\default.config'):
+    def __init__(self, results_path='', im_store_path='', config_file='.\\imageanalysis\\default.config'):
         super().__init__()
         self.types = OrderedDict([('pic_width',int), ('pic_height',int), ('ROIs',listlist), 
             ('bias', int), ('image_path', str), ('results_path', str), ('last_image', str),
-            ('window_pos',intstrlist)])
+            ('window_pos',intstrlist), ('num_images',int), ('num_saia',int), ('num_reim',int)])
         self.stats = OrderedDict([('pic_width',512), ('pic_height',512), ('ROIs',[[1,1,1,1,1]]), 
             ('bias',697), ('image_path', im_store_path), ('results_path', results_path),
-            ('last_image', ''), ('window_pos', [550, 20, 10, 200, 600, 400])])
+            ('last_image', ''), ('window_pos', [550, 20, 10, 200, 600, 400]),
+            ('num_images',2), ('num_saia',2), ('num_reim',1)])
         self.load_settings(fname=config_file) # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.results_path = results_path if results_path else self.stats['results_path'] # used for saving results
         self.last_path = self.stats['last_image'] # path history helps user get to the file they want
         self.image_storage_path = im_store_path if im_store_path else self.stats['image_path'] # used for loading image files
-        self._m = nsaia # number of images per run 
-        self._a = nsaia # number of SAIA instances
+        self._m = self.stats['num_images'] # number of images per run 
+        self._a = self.stats['num_saia'] # number of SAIA instances
         if len(self.stats['ROIs']) < self._a // self._m: # make the correct number of ROIs
             for i in range(len(self.stats['ROIs']), self._a // self._m):
                 self.stats['ROIs'].append([1,1,1,1,1])
         self.mw = [main_window(results_path, im_store_path, 
-            'ROI' + str(i//self._m) + '.Im' + str(i%self._m) + '.') for i in range(nsaia)] # saia instances
-        self.mw_inds = list(range(nsaia)) # the index, m, of the image in the sequence to use 
+            'ROI' + str(i//self._m) + '.Im' + str(i%self._m) + '.') for i in range(self._a)] # saia instances
+        self.mw_inds = [i%self._m for i in range(self._a)] # the index of the image in the sequence to use 
         self.rw = [] # re-image analysis instances
         self.rw_inds = [] # which saia instances are used for the re-image instances
-        if np.size(self.mw) >= nreim*2:
+        if np.size(self.mw) >= self.stats['num_reim']*2:
             self.rw = [reim_window(self.mw[2*i].event_im, 
                 [self.mw[2*i].image_handler, self.mw[2*i+1].image_handler],
                 [self.mw[2*i].histo_handler, self.mw[2*i+1].histo_handler],
-                results_path, im_store_path, 'ROI'+str(i)+'_Re_') for i in range(nreim)]
-            self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(nreim)]
+                results_path, im_store_path, 'ROI'+str(i)+'_Re_') for i in range(self.stats['num_reim'])]
+            self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(self.stats['num_reim'])]
         self.rois = []  # list to hold ROI objects
         self.init_UI()  # make the widgets
         # make sure the analysis windows have the default settings:
         self.pic_size_text_edit()
         self.CCD_stat_edit()
         self.replot_rois()
+        self.m_changed.emit(self._m)
 
     def reset_dates(self, date):
         """Reset the dates in all of the saia instances"""
@@ -185,37 +186,46 @@ class settings_window(QMainWindow):
         settings_tab.setLayout(settings_grid)
         self.tabs.addTab(settings_tab, "Analysers")
         
+        info_label = QLabel('In each run, the camera takes (# images per run).'+ 
+            ' For each ROI, we create (# images per run) analysers.\nThe images'+
+            ' are sent to these analysers in turn.\nIf you want to change the '+
+            'order, use the comma-separated list in (Image indices for analyse'+
+            'rs).\nIn total there will be (# images per run) x (# ROIs) analys'+
+            'ers.\nEach re-image analyser uses 2 image analysers.')
+        info_label.setFixedHeight(100)
+        settings_grid.addWidget(info_label, 0,0, 1,4)
+        
         # choose the number of image per run 
-        m_label = QLabel('Number of images per run: ', self)
-        settings_grid.addWidget(m_label, 0,0, 1,1)
+        m_label = QLabel('# images per run: ', self)
+        settings_grid.addWidget(m_label, 1,0, 1,1)
         self.m_edit = QLineEdit(self)
-        settings_grid.addWidget(self.m_edit, 0,1, 1,1)
+        settings_grid.addWidget(self.m_edit, 1,1, 1,1)
         self.m_edit.setText(str(self._m)) # default
         self.m_edit.editingFinished.connect(self.im_inds_validator)
         self.m_edit.setValidator(int_validator)
 
-        # choose the number of SAIA instances
-        a_label = QLabel('Number of image analysers: ', self)
-        settings_grid.addWidget(a_label, 0,2, 1,1)
+        # choose the number of SAIA instances = #images x #ROIs
+        a_label = QLabel('# ROIs: ', self) 
+        settings_grid.addWidget(a_label, 1,2, 1,1)
         self.a_edit = QLineEdit(self)
-        settings_grid.addWidget(self.a_edit, 0,3, 1,1)
-        self.a_edit.setText(str(self._a)) # default
+        settings_grid.addWidget(self.a_edit, 1,3, 1,1)
+        self.a_edit.setText(str(self._a//self._m)) # default
         self.a_edit.editingFinished.connect(self.im_inds_validator)
         self.a_edit.setValidator(nat_validator)
 
         # choose which histogram to use for survival probability calculations
         aind_label = QLabel('Image indices for analysers: ', self)
-        settings_grid.addWidget(aind_label, 1,0, 1,1)
+        settings_grid.addWidget(aind_label, 2,0, 1,1)
         self.a_ind_edit = QLineEdit(self)
-        settings_grid.addWidget(self.a_ind_edit, 1,1, 1,1)
+        settings_grid.addWidget(self.a_ind_edit, 2,1, 1,1)
         self.a_ind_edit.setText(','.join(map(str, self.mw_inds))) # default
         self.a_ind_edit.setValidator(comma_validator)
 
         # choose which histogram to use for survival probability calculations
-        reim_label = QLabel('Number of re-image analysers', self)
-        settings_grid.addWidget(reim_label, 1,2, 1,1)
+        reim_label = QLabel('# re-image analysers', self)
+        settings_grid.addWidget(reim_label, 2,2, 1,1)
         self.reim_edit = QLineEdit(self)
-        settings_grid.addWidget(self.reim_edit, 1,3, 1,1)
+        settings_grid.addWidget(self.reim_edit, 2,3, 1,1)
         self.reim_edit.setText(str(len(self.rw_inds)))
         self.reim_edit.setValidator(int_validator)
         # self.reim_edit.setText('; '.join(map(str, self.rw_inds))) # default # 'Histogram indices for re-imaging: '
@@ -229,8 +239,8 @@ class settings_window(QMainWindow):
             button = QPushButton(label[0], self)
             button.clicked.connect(self.load_im_size) # load image size from image
             button.resize(button.sizeHint())
-            settings_grid.addWidget(button, 2,2*i, 1,1)
-            settings_grid.addWidget(label[1], 2,2*i+1, 1,1)
+            settings_grid.addWidget(button, 3,2*i, 1,1)
+            settings_grid.addWidget(label[1], 3,2*i+1, 1,1)
             label[1].textChanged.connect(self.pic_size_text_edit)
             label[1].setText(str(self.stats[label[2]])) # default
             label[1].setValidator(nat_validator)
@@ -239,45 +249,45 @@ class settings_window(QMainWindow):
         self.thresh_toggle = QPushButton('User Threshold: ', self)
         self.thresh_toggle.setCheckable(True)
         self.thresh_toggle.clicked.connect(self.set_thresh)
-        settings_grid.addWidget(self.thresh_toggle, 3,0, 1,1)
+        settings_grid.addWidget(self.thresh_toggle, 4,0, 1,1)
         # user inputs threshold
         self.thresh_edit = QLineEdit(self)
-        settings_grid.addWidget(self.thresh_edit, 3,1, 1,1)
+        settings_grid.addWidget(self.thresh_edit, 4,1, 1,1)
         self.thresh_edit.textChanged.connect(self.set_thresh)
         self.thresh_edit.setValidator(int_validator)
         
         # EMCCD bias offset
         bias_offset_label = QLabel('EMCCD bias offset: ', self)
-        settings_grid.addWidget(bias_offset_label, 4,0, 1,1)
+        settings_grid.addWidget(bias_offset_label, 5,0, 1,1)
         self.bias_offset_edit = QLineEdit(self)
-        settings_grid.addWidget(self.bias_offset_edit, 4,1, 1,1)
+        settings_grid.addWidget(self.bias_offset_edit, 5,1, 1,1)
         self.bias_offset_edit.setText(str(self.stats['bias'])) # default
         self.bias_offset_edit.editingFinished.connect(self.CCD_stat_edit)
         self.bias_offset_edit.setValidator(double_validator) # only floats
         
         # user variable value
         user_var_label = QLabel('User Variable: ', self)
-        settings_grid.addWidget(user_var_label, 4,2, 1,1)
+        settings_grid.addWidget(user_var_label, 5,2, 1,1)
         self.var_edit = QLineEdit(self)
         self.var_edit.editingFinished.connect(self.set_user_var)
-        settings_grid.addWidget(self.var_edit, 4,3, 1,1)
+        settings_grid.addWidget(self.var_edit, 5,3, 1,1)
         self.var_edit.setText('0')  # default
         self.var_edit.setValidator(double_validator) # only numbers
 
         reset_win = QPushButton('Reset Analyses', self) 
         reset_win.clicked.connect(self.reset_analyses)
         reset_win.resize(reset_win.sizeHint())
-        settings_grid.addWidget(reset_win, 5,0, 1,1)
+        settings_grid.addWidget(reset_win, 6,0, 1,1)
 
         load_set = QPushButton('Reload Default Settings', self) 
         load_set.clicked.connect(self.load_settings)
         load_set.resize(load_set.sizeHint())
-        settings_grid.addWidget(load_set, 5,1, 1,1)
+        settings_grid.addWidget(load_set, 6,1, 1,1)
         
         show_win = QPushButton('Show Current Analyses', self) 
         show_win.clicked.connect(self.show_analyses)
         show_win.resize(show_win.sizeHint())
-        settings_grid.addWidget(show_win, 5,2, 1,1)
+        settings_grid.addWidget(show_win, 6,2, 1,1)
         
         #### tab for ROI ####
         roi_tab = QWidget()
@@ -407,10 +417,9 @@ class settings_window(QMainWindow):
         # note: setting the origin as bottom left but the image has origin top left
         xc, yc = int(x0 + w//2), int(y0 + h//2)  # centre
         self.stats['ROIs'][i] = [xc, yc, int(w), int(h), r.t] # should never be indexerror
-        R = self.rois[i] # shorthand
-        R.label.setPos(x0, y0)
-        R.x, R.y, R.w, R.h = xc, yc, int(w), int(h)
-        R.create_rect_mask()
+        r.label.setPos(x0, y0)
+        r.x, r.y, r.w, r.h = xc, yc, int(w), int(h)
+        r.create_rect_mask()
         self.replot_rois() # updates image analysis windows
         self.reset_table() # diplays ROI in table
 
@@ -493,7 +502,7 @@ class settings_window(QMainWindow):
                         ' outside of the image')
                         newpos = [0,0]
                     self.stats['ROIs'][i] = list(map(int, [newpos[0], newpos[1], shape[0], shape[1], self.stats['ROIs'][i][-1]]))
-                    self.rois[i].resize(*map(int, [newpos[0], newpos[1], shape[0], shape[1]]))
+                    self.rois[i].resize(*map(int, [newpos[0], newpos[1], 1, 1]))
                 except ZeroDivisionError as e:
                     logger.error('Invalid parameters for square ROI grid: '+
                         'x - %s, y - %s, pic size - (%s, %s), roi size - %s.\n'%(
@@ -762,20 +771,33 @@ class settings_window(QMainWindow):
         """The validator on the 'Image indices for analysers' line edit
         should only allow indices within the number of images per run,
         and should be a list with length of the total number of image analysers."""
-        up = int(self.m_edit.text())-1 # upper limit
-        a = int(self.a_edit.text())
-        if up < 10: # defines which image index is allowed
-            regstr = '[0-%s]'%up
-        elif up < 100: 
-            regstr = '[0-9]|[1-%s][0-9]|%s[0-%s]'%(up//10 - 1, up//10, up%10)
-        else: regstr = r'\d+'
-        if a > 1: # must have indices for all _a analysers
-            regstr = '('+regstr+r',){0,%s}'%(a-1) + regstr
-        regexp_validator = QRegExpValidator(QRegExp(regstr))
-        self.a_ind_edit.setValidator(regexp_validator)
+        try:
+            up = int(self.m_edit.text())-1 # upper limit
+            a = int(self.a_edit.text()) * (up+1) # user chooses number ROIs not analysers
+            self.stats['num_images'] = up + 1
+            self.stats['num_saia'] = a
+            self.stats['num_reim'] = int(self.reim_edit.text())
+            if up < 10: # defines which image index is allowed
+                regstr = '[0-%s]'%up
+            elif up < 100: 
+                regstr = '[0-9]|[1-%s][0-9]|%s[0-%s]'%(up//10 - 1, up//10, up%10)
+            else: regstr = r'\d+'
+            if a > 1: # must have indices for all _a analysers
+                regstr = '('+regstr+r',){0,%s}'%(a-1) + regstr
+            regexp_validator = QRegExpValidator(QRegExp(regstr))
+            self.a_ind_edit.setValidator(regexp_validator)
+        except ValueError as e: pass # logger.error('Invalid analysis setting.\n'+str(e))
 
     def reset_analyses(self):
         """Remake the analyses instances for SAIA and re-image"""
+        try:
+            x = int(self.reim_edit.text())
+            m, a = map(int, [self.m_edit.text(), self.a_edit.text()])
+            ainds = list(map(int, self.a_ind_edit.text().split(',')))
+        except ValueError as e:
+            logger.error('Invalid analysis settings.\n'+str(e))
+            return 0
+        
         for mw in self.mw + self.rw:
             mw.image_handler.reset_arrays()
             mw.histo_handler.reset_arrays()
@@ -783,8 +805,8 @@ class settings_window(QMainWindow):
             mw.set_bins()
             mw.close() # closes the display
         
-        m, a = map(int, [self.m_edit.text(), self.a_edit.text()])
         self._m = m
+        a *= m # user is choosing the number of ROIs, rather than number of analysers
         # make sure there are the right numer of main_window instances
         if a > self._a:
             for i in range(self._a, a):
@@ -799,11 +821,6 @@ class settings_window(QMainWindow):
         self.create_rois() # display ROIs on image
         self.reset_table() # display (xc, yc, size) of ROIs in table
 
-        ainds = []
-        try: # set which images in the sequence each image analyser will use.
-            ainds = list(map(int, self.a_ind_edit.text().split(',')))
-        except ValueError as e:
-            logger.warning('Invalid syntax for image analysis indices: '+self.a_ind_edit.text()+'\n'+str(e))
         if len(ainds) != self._a: 
             logger.warning('While creating new analysers: there are %s image indices for the %s image analysers.\n'%(len(ainds), self._a))
         for i, a in enumerate(ainds):
@@ -814,28 +831,27 @@ class settings_window(QMainWindow):
                 logger.warning('Cannot set image index for image analyser %s.\n'%i+str(e))
 
         self.im_inds_validator('')
-        self.a_ind_edit.setText(','.join(map(str, self.mw_inds)))
+        self.a_ind_edit.setText(','.join(map(str, self.mw_inds[:self._a])))
 
-        if self.reim_edit.text(): # don't do anything if the line edit is empty
-            # rinds = self.reim_edit.text().split(';') # indices of SAIA instances used for re-imaging
-            # for i in range(len(rinds)): # check the list input from the user has the right syntax
-            #     try: 
-            #         j, k = map(int, rinds[i].split(','))
-            #         if j >= self._a or k >= self._a:
-            #             rind = rinds.pop(i)
-            #             logger.warning('Invalid histogram indices for re-imaging: '+rind)
-            #     except ValueError as e:
-            #         rind = rinds.pop(i)
-            #         logger.error('Invalid syntax for re-imaging histogram indices: '+rind+'\n'+str(e))    
-            #     except IndexError:
-            #         break # since we're popping elements from the list its length shortens
-            # self.rw_inds = rinds
-            self.rw_inds = []
-            for i in range(int(self.reim_edit.text())):
-                if 2*i+1 < self._a:
-                    self.rw_inds.append(str(2*i)+','+str(2*i+1))
-                else:
-                    self.rw_inds.append('0,1')
+        # rinds = self.reim_edit.text().split(';') # indices of SAIA instances used for re-imaging
+        # for i in range(len(rinds)): # check the list input from the user has the right syntax
+        #     try: 
+        #         j, k = map(int, rinds[i].split(','))
+        #         if j >= self._a or k >= self._a:
+        #             rind = rinds.pop(i)
+        #             logger.warning('Invalid histogram indices for re-imaging: '+rind)
+        #     except ValueError as e:
+        #         rind = rinds.pop(i)
+        #         logger.error('Invalid syntax for re-imaging histogram indices: '+rind+'\n'+str(e))    
+        #     except IndexError:
+        #         break # since we're popping elements from the list its length shortens
+        # self.rw_inds = rinds
+        self.rw_inds = []
+        for i in range(int(self.reim_edit.text())):
+            if 2*i+1 < self._a:
+                self.rw_inds.append(str(2*i)+','+str(2*i+1))
+            else:
+                self.rw_inds.append('0,1')
         
         for i in range(min(len(self.rw_inds), len(self.rw))): # update current re-image instances
             j, k = map(int, self.rw_inds[i].split(','))

@@ -46,82 +46,6 @@ def fmt(val, p):
     except ValueError:
         return str(val)[:p]
 
-#### #### Edit sequences #### ####
-
-# class Editor(QMainWindow):
-#     """Provide a GUI for quickly editing DExTer sequences.
-#     """
-#     def __init__(self, num_steps=1):
-#         super().__init__()
-#         self.tr = translate(num_steps)
-#         self.pre = Previewer(self.tr)
-#         self.init_UI()
-
-#     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
-#             default_text='', validator=None):
-#         """Make a QLabel with an accompanying QLineEdit and add them to the 
-#         given layout with an input validator. The position argument should
-#         be [row number, column number, row width, column width]."""
-#         label = QLabel(label_text, self)
-#         layout.addWidget(label, *position)
-#         line_edit = QLineEdit(self)
-#         if np.size(position) == 4:
-#             position[1] += 1
-#         layout.addWidget(line_edit, *position)
-#         line_edit.setText(default_text) 
-#         line_edit.setValidator(validator)
-#         return label, line_edit
-        
-#     def init_UI(self):
-#         """Create all of the widget objects required"""
-#         self.centre_widget = QWidget()
-#         self.centre_widget.layout = QGridLayout()
-#         self.centre_widget.setLayout(self.centre_widget.layout)
-#         self.setCentralWidget(self.centre_widget)
-        
-#         #### validators for user input ####
-#         # reg_exp = QRegExp(r'([0-9]+(\.[0-9]+)?,?)+')
-#         # comma_validator = QRegExpValidator(reg_exp) # floats and commas
-#         double_validator = QDoubleValidator() # floats
-#         int_validator = QIntValidator()       # integers
-        
-#         #### menubar at top gives options ####
-#         # menubar = self.menuBar()
-#         # show_windows = menubar.addMenu('Windows')
-#         # menu_items = []
-#         # for window_title in ['Image Analyser', 'Camera Status', 
-#         #     'Image Saver', 'Monitoring']:
-#         #     menu_items.append(QAction(window_title, self)) 
-#         #     menu_items[-1].triggered.connect(self.show_window)
-#         #     show_windows.addAction(menu_items[-1])
-
-#         #### choose event indices ####
-#         # by name
-#         # by index
-#         self.make_label_edit('Event index', self.centre_widget.layout, 
-#             position=[1,0, 1,1], default_text='0', validator=int_validator)
-        
-#         #### choose channel ####
-#         self.make_label_edit('Channel', self.centre_widget.layout, 
-#             position=[2,0, 1,1], default_text='')
-
-#         #### choose new value ####
-#         self.make_label_edit('New value', self.centre_widget.layout, 
-#             position=[3,0, 1,1], default_text='0', validator=double_validator)
-
-#         #### preview sequence ####
-#         self.preview_button = QPushButton('Preview sequence', self)
-#         self.preview_button.resize(self.preview_button.sizeHint())
-#         self.preview_button.clicked.connect(self.pre.show)
-#         self.centre_widget.layout.addWidget(self.preview_button, 5,0, 1,1)
-
-#         #### save to file ####
-        
-#         #### choose main window position and dimensions: (xpos,ypos,width,height)
-#         self.setGeometry(60, 60, 900, 800)
-#         self.setWindowTitle('DExTer Sequence Editor')
-#         self.setWindowIcon(QIcon('docs/translatoricon.png'))
-
 #### #### Preview sequences #### ####
 
 class Previewer(QMainWindow):
@@ -288,7 +212,7 @@ class Previewer(QMainWindow):
         mr_menu.addAction(mrqueue)
         
         # choose main window position and dimensions: (xpos,ypos,width,height)
-        self.setWindowTitle('Sequence Preview')
+        self.setWindowTitle('Multirun Editor and Sequence Preview')
         self.setWindowIcon(QIcon('docs/previewicon.png'))
 
 

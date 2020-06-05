@@ -87,7 +87,7 @@ class daq_window(QMainWindow):
     config_file -- path to file storing default settings
     port    -- the port number to open for TCP connections
     """
-    def __init__(self, n=0, rate=250, dt=500, config_file='monitor\\daqconfig.dat', port=8087):
+    def __init__(self, n=0, rate=250, dt=500, config_file='monitor\\daqconfig.dat', port=8622):
         super().__init__()
         self.types = OrderedDict([('n', int), ('config_file', str), ('trace_file', str), ('graph_file', str),
             ('save_dir', str), ('Sample Rate (kS/s)',float), 
@@ -403,7 +403,7 @@ class daq_window(QMainWindow):
         self.slices.setCellWidget(i, j+1, chanbox)
         self.slices.resizeRowToContents(i) 
         # add to the dc list of slices
-        t = np.linspace(0, self.stats['Duration (ms)'], self.n_samples)
+        t = np.linspace(0, self.stats['Duration (ms)']/1000, self.n_samples)
         self.dc.add_slice(name, np.argmin(np.abs(t-start)), np.argmin(np.abs(t-end)), 
             OrderedDict([(chan, chanlist.index(chan)) for chan in channels]))
             
@@ -445,7 +445,7 @@ class daq_window(QMainWindow):
         try:
             w = self.sender()
             i, j = w.pos
-            t = np.linspace(0, self.stats['Duration (ms)'], self.n_samples)
+            t = np.linspace(0, self.stats['Duration (ms)']/1000, self.n_samples)
             x = self.dc.slices[i] # shorthand
             if j == 0: # name
                 x.name = w.text()
@@ -543,7 +543,7 @@ class daq_window(QMainWindow):
 
     def update_trace(self, data):
         """Plot the supplied data with labels on the trace canvas."""
-        t = np.linspace(0, self.stats['Duration (ms)'], self.n_samples)
+        t = np.linspace(0, self.stats['Duration (ms)']/1000, self.n_samples)
         i = 0 # index to keep track of which channels have been plotted
         for j in range(8):
             ch = self.channels.cellWidget(j,0).text()

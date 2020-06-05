@@ -112,8 +112,9 @@ class multirun_widget(QWidget):
 
         #### validators for user input ####
         double_validator = QDoubleValidator() # floats
-        int_validator = QIntValidator()       # integers
-        nat_validator = QIntValidator(1,10000)# natural numbers
+        int_validator = QIntValidator(0,10000000) # positive integers
+        msr_validator = QIntValidator(-1,1000000) # integers >= -1
+        nat_validator = QIntValidator(1,10000000) # natural numbers
         col_validator = QIntValidator(1,self.ncols-1) # for number of columns
 
         #### table dimensions and ordering ####
@@ -146,7 +147,8 @@ class multirun_widget(QWidget):
             self.measures[labels[i]].textChanged.connect(self.update_all_stats)
             self.grid.addWidget(self.measures[labels[i]], i+1,1, 1,3)
         self.measures['measure'].setValidator(int_validator)
-        self.measures['1st hist ID'].setValidator(int_validator)
+        self.measures['1st hist ID'].setValidator(msr_validator)
+        label.setText('1st ID (-1 to append)') # change label
 
         self.chan_choices = OrderedDict()
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
@@ -276,7 +278,9 @@ class multirun_widget(QWidget):
         self.update_last_step()
         for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
             if self.measures[key].text(): # don't do anything if the line edit is empty
-                self.ui_param[key] = self.types[key](self.measures[key].text())
+                try:
+                    self.ui_param[key] = self.types[key](self.measures[key].text())
+                except: pass # probably while user was typing the '-' in '-1'
         
     def update_repeats(self, txt=''):
         """Take the current values of the line edits and use them to set the
@@ -528,3 +532,35 @@ class multirun_widget(QWidget):
             self.omit_edit.setText(nomit)
             self.last_step_run_edit.setText(runstep) # triggers update_last_step
             self.last_step_end_edit.setText(endstep)
+            
+    def check_mr_params(self, save_results_path='.'):
+        """Check that the multirun parameters are valid before adding it to the queue"""
+        results_path = os.path.join(save_results_path, self.ui_param['measure_prefix'])
+        imax = 0
+        try: 
+            filelist = os.listdir(results_path)
+            for fname in filelist:
+                if '.csv' in fname:
+                    try:
+                        imax = max(imax, int(fname[-5]))
+                    except: pass
+        except FileNotFoundError: pass
+        
+        if self.ui_param['1st hist ID'] == -1: # append at the end 
+            self.ui_param['1st hist ID'] = imax + 1
+                    
+        if os.path.isdir(results_path) and imax > self.ui_param['1st hist ID']:
+            # this measure exists, check if user wants to overwrite
+            reply = QMessageBox.question(self, 'Confirm Overwrite',
+                "Results path already exists, do you want to overwrite the files?\n"+results_path,
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.No:
+                return 0
+
+        # parameters are valid, add to queue
+        self.mr_queue.append([copy.deepcopy(self.ui_param), self.tr.copy(), self.get_table()]) 
+        # suggest new multirun measure ID and prefix
+        n = self.ui_param['measure'] + len(self.mr_queue)
+        self.measures['measure'].setText(str(n))
+        self.measures['measure_prefix'].setText('Measure'+str(n))  
+        return 1
