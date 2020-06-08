@@ -158,7 +158,6 @@ class Master(QMainWindow):
         self.rn.sw.show_analyses(show_all=True)
         if self.rn.server.isRunning():
             self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
-        self.rn.check.rh.trigger.connect(self.trigger_exp_start) # start experiment when ROIs have atoms
         
         self.mon_win = MonitorStatus()
         self.mon_win.start_button.clicked.connect(self.start_monitor)
@@ -463,7 +462,7 @@ class Master(QMainWindow):
                     # self.rn.seq.mr.mr_queue = []  # remove all queued multiruns
                     self.rn.multirun_go(False, stillrunning=True)
             elif action_text == 'Cancel multirun':
-                if 'multirun' in self.status_label.text():
+                if 'multirun' in self.status_label.text() or self.rn.multirun:
                     # self.rn.seq.mr.mr_queue = []  # remove all queued multiruns
                     self.rn.multirun_go(False)
                     self.rn.seq.mr.ind = 0
@@ -483,13 +482,17 @@ class Master(QMainWindow):
     def trigger_exp_start(self, n=None):
         """Atom checker sends signal saying all ROIs have atoms in, start the experiment"""
         self.rn.check.timer.stop() # in case the timer was going to trigger the experiment as well
+        print(1)
+        remove_slot(self.rn.trigger.dxnum, self.reset_cam_signals, True) # swap signals when msg confirmed
         self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
         self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # in case the first fails
-        self.rn.check.checking = False
-        QTimer.singleShot(30, self.reset_cam_signals) # in 30ms, start sending images to analysis
+        # QTimer.singleShot(30, self.reset_cam_signals) # in 30ms, start sending images to analysis
 
     def reset_cam_signals(self, toggle=True):
         """Stop sending images to the atom checker, send them to image analysis instead"""
+        print(2)
+        self.rn.check.checking = False
+        time.sleep(30e-3) # wait 30ms to make sure we don't send the wrong images to analysis.
         remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
         remove_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
         remove_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
@@ -529,7 +532,9 @@ class Master(QMainWindow):
             self.end_run(msg)
         elif 'start acquisition' in msg:
             self.status_label.setText('Running')
-            if self.check_rois.isChecked(): self.rn.atomcheck_go() # start camera in internal trigger mode
+            if self.check_rois.isChecked(): # start experiment when ROIs have atoms
+                remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
+                self.rn.atomcheck_go() # start camera acuiring
             elif self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam() # wait for camera to initialise before running
@@ -540,14 +545,18 @@ class Master(QMainWindow):
                 (TCPENUM['TCP read'], 'finished run '+str(self.rn._n)+'\n'+'0'*2000)]) # second message confirms end
         elif 'start measure' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
-            if self.check_rois.isChecked(): self.rn.atomcheck_go() # start camera in internal trigger mode
+            if self.check_rois.isChecked(): # start experiment when ROIs have atoms
+                remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
+                self.rn.atomcheck_go() # start camera acquiring
             elif self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam()
             else: logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
             self.rn.multirun_go(msg)
         elif 'multirun run' in msg:
-            if self.check_rois.isChecked(): self.rn.atomcheck_go() # start camera in internal trigger mode
+            if self.check_rois.isChecked(): # start experiment when ROIs have atoms
+                remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
+                self.rn.atomcheck_go() # start camera in internal trigger mode
             self.rn.multirun_step(msg)
             self.rn._k = 0 # reset image per run count
         elif 'save and reset histogram' in msg:
@@ -558,7 +567,7 @@ class Master(QMainWindow):
             # self.rn.server.save_times()
             self.end_run(msg)
         elif 'STOPPED' in msg:
-            self.status_label.setText('STOPPED. Multirun has been interrupted.')
+            self.status_label.setText(msg)
         self.ts['msg end'] = time.time()
         self.ts['blocking'] = time.time() - self.ts['msg start']
         # self.print_times()
@@ -569,6 +578,7 @@ class Master(QMainWindow):
         First, disconnect the server.textin signal from this slot to it
         only triggers once."""
         self.action_button.setEnabled(True)
+        remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, False)
         try:
             unprocessed = self.rn.cam.EmptyBuffer()
             self.rn.cam.AF.AbortAcquisition()

@@ -318,7 +318,7 @@ class multirun_widget(QWidget):
                 self.ui_param[key] = self.types[key](self.measures[key].text())
         # order the list of values
         if self.ui_param['Order'] == 'descending':
-            vals = reversed(vals)
+            vals = list(reversed(vals))
         elif 'random' in self.ui_param['Order']:
             vals = list(vals)
             shuffle(vals)

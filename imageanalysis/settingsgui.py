@@ -418,8 +418,8 @@ class settings_window(QMainWindow):
         xc, yc = int(x0 + w//2), int(y0 + h//2)  # centre
         self.stats['ROIs'][i] = [xc, yc, int(w), int(h), r.t] # should never be indexerror
         r.label.setPos(x0, y0)
-        r.x, r.y, r.w, r.h = xc, yc, int(w), int(h)
-        r.create_rect_mask()
+        r.w, r.h = int(w), int(h)
+        r.translate_mask(xc, yc)
         self.replot_rois() # updates image analysis windows
         self.reset_table() # diplays ROI in table
 

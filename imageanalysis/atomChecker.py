@@ -187,9 +187,9 @@ class atom_window(QMainWindow):
         x0, y0 = roi.pos()  # lower left corner of bounding rectangle
         w, h = map(int, roi.size()) # width, height
         xc, yc = int(x0 + w//2), int(y0 + h//2) # centre of ROI
-        r.x, r.y, r.w, r.h = xc, yc, w, h
+        r.w, r.h = w, h
         r.label.setPos(x0, y0)
-        r.create_rect_mask()
+        r.translate_mask(xc, yc)
         for key, val in zip(r.edits.keys(), [xc, yc, w, h]):
             r.edits[key].setText(str(val))
 

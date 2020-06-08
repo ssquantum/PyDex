@@ -294,14 +294,18 @@ class Previewer(QMainWindow):
                 else:
                     self.head_top.item(j, i).setText(str(esc['Sequence header top'][i][key]))
                     self.head_mid.item(j, i).setText(str(esc['Sequence header middle'][i][key]))
+            self.fd_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header top']])
             for j in range(self.tr.nfd):
                 self.fd_chans.item(j, i).setBackground(Qt.green if BOOL(esc['Fast digital channels'][i][j]) else Qt.red)
+            self.fa_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header top'] for j in range(2)])
             for j in range(self.tr.nfa):
                 self.fa_chans.item(j, 2*i).setText(fmt(esc['Fast analogue array'][j]['Voltage'][i], self.p))
                 self.fa_chans.item(j, 2*i+1).setText(
                     'Ramp' if BOOL(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
+            self.sd_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header middle']])
             for j in range(self.tr.nsd):
                 self.sd_chans.item(j, i).setBackground(Qt.green if BOOL(esc['Slow digital channels'][i][j]) else Qt.red)
+            self.sa_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header middle'] for j in range(2)])
             for j in range(self.tr.nsa):
                 self.sa_chans.item(j, 2*i).setText(fmt(esc['Slow analogue array'][j]['Voltage'][i], self.p))
                 self.sa_chans.item(j, 2*i+1).setText(

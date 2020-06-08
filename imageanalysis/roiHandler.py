@@ -60,6 +60,9 @@ class ROI(QWidget):
         self.autothresh = QCheckBox(self) # toggle whether to auto update threshold
         self.autothresh.setChecked(autothresh)
         self.create_rect_mask(imshape) # the values of the image included in ROI
+        self.mask_type = 'rect' # what type of mask is being used
+        self.ps = np.zeros(4) # parameters for gauss mask
+        self.d = 3 # number of pixels around centre point to use for gauss mask
 
     def create_rect_mask(self, image_shape=None):
         """Use the current ROI dimensions to create a mask for the image.
@@ -75,6 +78,7 @@ class ROI(QWidget):
             self.mask[self.x - self.w//2 : (self.x + self.w//2 + self.w%2),
                 self.y - self.h//2 : (self.y + self.h//2 + self.h%2)
                 ] = np.ones((self.w, self.h))
+            self.mask_type = 'rect'
         else: logger.warning('ROI tried to create invalid mask.\n' + 
             'shape %s, x %s, y %s, w %s, h %s'%(self.s, self.x, self.y, self.w, self.h))
 
@@ -89,27 +93,45 @@ class ROI(QWidget):
                 if self.autothresh:
                     self.t = int(0.5*(np.max(im) + np.min(im))) # threshold in middle of histogram
                     self.threshedit.setText(str(self.t))
-                d = 3 # round(np.size(im[im > self.t])**0.5) # guess PSF size from pixels > threshold
+                d = self.d # = round(np.size(im[im > self.t])**0.5) # guess PSF size from pixels > threshold
                 l0 = xc - d if xc-d>0 else 0
                 l1 = yc - d if yc-d>0 else 0
                 im2 = im[l0:xc+d, l1:yc+d] # better for fitting to use zoom in
-                ps = np.zeros(4)
+                self.ps = np.zeros(4)
                 for i in range(2): # do Gaussian fit along each axis
                     vals = np.sum(im2, axis=i)
                     f = fit(np.arange(len(vals)), vals)
                     f.estGaussParam()
                     f.p0 = f.p0[:2] + [f.p0[2]*2, np.min(vals)]
                     f.getBestFit(f.offGauss) # only interested in the width
-                    ps[2*i], ps[2*i+1] = f.ps[1], abs(f.ps[2]) # centre, width
-                xy = np.meshgrid(range(2*d), range(2*d))
+                    self.ps[2*i], self.ps[2*i+1] = f.ps[1], abs(f.ps[2]) # centre, width
+                xy = np.meshgrid(range(d+xc-l0), range(d+yc-l1))
                 self.mask[l0:xc+d, l1:yc+d] = np.exp( # fill in 2D Gaussian
-                    -2*(xy[0]-ps[0])**2 / ps[1]**2 -2*(xy[1]-ps[2])**2 / ps[3]**2) # if we want to normalise: /ps[1]/ps[3]/np.pi*2
+                    -2*(xy[0]-self.ps[0])**2 / self.ps[1]**2 -2*(xy[1]-self.ps[2])**2 / self.ps[3]**2) 
                 self.mask /= np.sum(self.mask) # normalise (we care about integrated counts)
-                y, h, x, w = map(int, map(round, ps)) # ROI coordinates must be int
+                y, h, x, w = map(int, map(round, self.ps)) # ROI coordinates must be int
+                self.mask_type = 'gauss'
                 if not np.isfinite(self.mask).all(): # need mask to have only finite values
                     self.resize(l0+x, l1+y, 1, 1, True) # update stored ROI values and make square mask
                 else: self.resize(l0+x, l1+y, w, h, False) # update stored ROI values
         except Exception as e: logger.error('ROI %s failed to set Gaussian mask\n'%self.id+str(e))
+        
+    def translate_mask(self, xc, yc):
+        """Take the new positions as the centre of the ROI and recreate the mask."""
+        self.x, self.y = xc, yc
+        if self.mask_type == 'rect':
+            self.create_rect_mask()
+        elif self.mask_type == 'gauss':
+            l0 = xc - self.d if xc-self.d>0 else 0
+            l1 = yc - self.d if yc-self.d>0 else 0
+            xy = np.meshgrid(range(l0, self.d+xc), range(l1, self.d+yc))
+            try:
+                self.mask = np.zeros(self.s)
+                self.mask[l0:xc+self.d, l1:yc+self.d] = np.exp( # fill in 2D Gaussian
+                        -2*(xy[0]-xc)**2 / self.ps[1]**2 -2*(xy[1]-yc)**2 / self.ps[3]**2) 
+                self.mask /= np.sum(self.mask) # normalise (we care about integrated counts)
+            except Exception as e: logger.error('ROI %s failed to set Gaussian mask\n'%self.id+str(e))
+        
     
     def resize(self, xc, yc, width, height, create_sq_mask=True):
         """Reset the position and dimensions of the ROI"""

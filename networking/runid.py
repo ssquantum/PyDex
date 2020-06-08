@@ -277,14 +277,15 @@ class runnum(QThread):
             if not stillrunning: 
                 self.seq.mr.ind = 0
                 self._k = 0
-            self.seq.mr.progress.emit('STOPPED. Multirun has been interrupted.')
-            self.server.add_message(TCPENUM['TCP read'], 'STOPPED. Multirun has been interrupted.')
-            self.server.add_message(TCPENUM['TCP read'], 'STOPPED. Multirun has been interrupted.')
+            status = ' paused.' if stillrunning else ' cancelled.'
+            self.seq.mr.progress.emit('STOPPED. Multirun has been'+status)
+            self.server.add_message(TCPENUM['TCP read'], 'STOPPED. Multirun has been'+status)
+            self.server.add_message(TCPENUM['TCP read'], 'STOPPED. Multirun has been'+status)
 
     def multirun_resume(self, status):
         """Resume the multi-run where it was left off.
         If the multirun is already running, do nothing."""
-        if 'multirun' in status: 
+        if 'paused' in status: 
             remove_slot(self.cam.AcquireEnd, self.receive, False) # only receive if not in '# omit'
             remove_slot(self.cam.AcquireEnd, self.mr_receive, True)
             self._k = 0 # reset image per run count

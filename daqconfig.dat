@@ -1,4 +1,4 @@
-n=1324
+n=1325
 config_file=daqconfig.dat
 trace_file=DAQtrace.csv
 graph_file=DAQgraph.csv

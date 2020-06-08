@@ -13,6 +13,7 @@ import sys
 import time 
 import nidaqmx
 import nidaqmx.constants as const
+from nidaqmx import * # imports errors, scale, stream_readers, stream_writers, task
 import numpy as np
 import pyqtgraph as pg
 from collections import OrderedDict
@@ -170,4 +171,59 @@ class worker(QThread):
             for i in range(4): task.di_channels.add_di_chan(devport+str(i))
             #task.timing.cfg_samp_clk_timing(self.sample_rate) # set sample rate
             data = task.read(number_of_samples_per_channel=self.n_samples)
-            task.wait_until_done(-1)   
+            # task.wait_until_done(-1)   
+            self.acquired.emit(np.array(data))
+            
+    def analogue_awg_out(self, channel, data, sample_rate, n_samples, acq_type=const.AcquisitionType.FINITE):
+        """Write the data provided to the analogue output channel.
+        channel     -- channel name, e.g. 'Dev2/ao0'
+        data        -- numpy array of the data to write to the channel
+        sample_rate -- the rate at which to take samples from the data
+        n_samples   -- the number of samples to write. If n_samples > size(data) it will loop over the data
+        acq_type    -- FINITE writes n_samples then stops, CONTINUOUS loops indefinitely."""
+        try:
+            with nidaqmx.Task() as task:
+                task.ao_channels.add_ao_voltage_chan(channel)
+                task.timing.cfg_samp_clk_timing(rate=sample_rate, sample_mode=acq_type, samps_per_chan=n_samples)
+                writer = stream_writers.AnalogSingleChannelWriter(task.out_stream, auto_start=True)
+                writer.write_many_sample(data)
+                # task.wait_until_done() # blocks until the task has finished
+                # task.stop() # end the task properly
+        except Exception as e: logger.error("DAQ AO write failed.\n"+str(e))
+            
+    def digital_out(self, channel, data):
+        """Write teh data provided to the digital output channel. Note that the 
+        DO channels only support on-demand writing, they can't use clock timing.
+        channel -- channel name, e.g. Dev2/port1/line0
+        data    -- numpy array of the data to write, with the appropriate type."""
+        try:
+            with nidaqmx.Task() as task:
+                task.do_channels.add_do_chan(channel)
+                writer = stream_writers.DigitalSingleChannelWriter(task.out_stream)
+                if data.dtype == bool: # type of write depends on type of data
+                    func = writer.write_one_sample_one_line
+                elif data.dtype == np.uint8:
+                    func = writer.write_many_sample_port_byte
+                elif data.dtype == np.uint16:
+                    func = writer.write_many_sample_port_uint16
+                elif data.dtype == np.uint32:
+                    func = writer.write_many_sample_port_uint32
+                else: raise(Exception('DAQ DO invalid data type '+str(data.dtype)))
+                task.start() # have to start task first since it's on-demand
+                func(data) # write data to output channel
+                # task.wait_until_done() # blocks until the task has finished
+                # task.stop() # end the task properly
+        except Exception as e: logger.error("DAQ DO write failed.\n"+str(e))
+        
+    def counter_out(self, channel, high_time, low_time):
+        """Start a continuous counter output channel which is high for high_time
+        and low for low_time in units of seconds. The counter channels are Dev/ctr0
+        and Dev/ctr1."""
+        try:
+            with nidaqmx.Task() as task:
+                task.co_channels.add_co_pulse_chan_time(channel)
+                task.cfg_implicit_timing(const.AcquisitionType.CONTINUOUS)
+                task.start()
+                task.write(nidaqmx.types.CtrTime(high_time=high_time, low_time=low_time))
+        except Exception as e: logger.error("DAQ CO write failed.\n"+str(e))
+        
