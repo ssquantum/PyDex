@@ -65,8 +65,11 @@ class runnum(QThread):
         self.server = PyServer(host='', port=8620) # server will run continuously on a thread
         self.server.dxnum.connect(self.set_n) # signal gives run number
         self.server.start()
+        if self.server.isRunning():
+            self.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
 
         self.trigger = PyServer(host='', port=8621) # software trigger using TCP
+        self.trigger.start()
         self.monitor = PyServer(host='', port=8622) # monitor program runs separately
         self.monitor.start()
         self.monitor.add_message(self._n, 'resync run number')
@@ -75,12 +78,14 @@ class runnum(QThread):
         """Check if the server is running. If it is, don't do anything, unless 
         force=True, then stop and restart the server. If the server isn't 
         running, then start it."""
-        if self.server.isRunning():
-            if force:
-                self.server.msg_queue = []
-                self.server.close()
-                self.server.start()
-        else: self.server.start()
+        for server in [self.server, self.trigger]:
+            if server.isRunning():
+                if force:
+                    server.msg_queue = []
+                    server.close()
+                    time.sleep(0.1) # give time for it to close
+                    server.start()
+            else: server.start()
             
     def set_n(self, dxn):
         """Change the Dexter run number to the new value.
@@ -192,8 +197,9 @@ class runnum(QThread):
         """Disconnect camera images from analysis, start the camera
         acquisition and redirect the images to the atom checker."""
         if self.cam.initialised > 1:
+            print(0)
+            # self.trigger.msg_queue = [] # in case there was a previous trigger that wasn't sent
             self.check.checking = True
-            self.trigger.msg_queue = [] # in case there was a previous trigger that wasn't sent
             self.trigger.start() # start server for TCP to send msg when atoms loaded
             # redirect images from analysis to atom checker
             remove_slot(self.cam.AcquireEnd, self.receive, False)

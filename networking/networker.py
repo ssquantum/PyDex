@@ -113,7 +113,8 @@ class PyServer(QThread):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try: 
                 s.bind(self.server_address)
-                s.listen() # start the socket that waits for connections
+                # start the socket that waits for connections
+                s.listen(0) # only allow one connection at a time
             except OSError as e:
                 logger.error('Failed to start server at address: ' + 
                     ', '.join(map(str, self.server_address)) + '\n' + str(e))
@@ -124,11 +125,11 @@ class PyServer(QThread):
                 if self.check_stop():
                     break # toggle
                 elif len(self.msg_queue):
-                    enum, mes_len, message = self.msg_queue.pop(0)
                     conn, addr = s.accept() # create a new socket
-                    self.ts['connect'].append(time.time())
-                    self.ts['waiting'].append(time.time() - self.ts['disconnect'][-1])
-                    with conn:
+                    with conn: # close the connection after this code is executed:
+                        enum, mes_len, message = self.msg_queue.pop(0)
+                        self.ts['connect'].append(time.time())
+                        self.ts['waiting'].append(time.time() - self.ts['disconnect'][-1])
                         try:
                             conn.sendall(enum) # send enum
                             conn.sendall(mes_len) # send text length

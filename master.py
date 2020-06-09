@@ -156,8 +156,6 @@ class Master(QMainWindow):
         self.rn.sw.setGeometry(*self.stats['AnalysisGeometry'])
         self.rn.sw.show()
         self.rn.sw.show_analyses(show_all=True)
-        if self.rn.server.isRunning():
-            self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
         
         self.mon_win = MonitorStatus()
         self.mon_win.start_button.clicked.connect(self.start_monitor)
@@ -334,8 +332,9 @@ class Master(QMainWindow):
         elif self.sender().text() == 'Sequence Previewer':
             self.rn.seq.show()
         elif self.sender().text() == 'TCP Server':
+            info = 'Trigger server is running.\n' if self.rn.trigger.isRunning() else 'Trigger server stopped.\n'
             if self.rn.server.isRunning():
-                info = "TCP server is running. %s queued message(s)."%len(self.rn.server.msg_queue)
+                info += "TCP server is running. %s queued message(s)."%len(self.rn.server.msg_queue)
                 info += '\nCommand Enum | Length |\t Message\n'
                 for msg in self.rn.server.msg_queue[:5]:
                     msglen = int.from_bytes(msg[1], 'big')
@@ -346,7 +345,7 @@ class Master(QMainWindow):
                 if len(self.rn.server.msg_queue) > 5:
                     info += '...\n'
             else:
-                info = "TCP server stopped."
+                info += "TCP server stopped."
             reply = QMessageBox.question(self, 'TCP Server Status', 
                 info+"\nDo you want to restart the server?", 
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -356,8 +355,6 @@ class Master(QMainWindow):
                 self.rn.multirun = False
                 self.rn.reset_server(force=True) # stop and then restart the main server
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
-                self.rn.trigger.close() # stop the TCP server for the atom checker software trigger
-                self.rn.trigger.msg_queue = []
         elif self.sender().text() == 'Atom Checker':
             self.rn.check.showMaximized()
         elif self.sender().text() == 'Monitor':
@@ -485,9 +482,15 @@ class Master(QMainWindow):
         print(1)
         remove_slot(self.rn.trigger.dxnum, self.reset_cam_signals, True) # swap signals when msg confirmed
         self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
-        self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # in case the first fails
-        # QTimer.singleShot(30, self.reset_cam_signals) # in 30ms, start sending images to analysis
-
+        # QTimer.singleShot(20, self.resend_exp_trigger) # wait in ms
+        
+    def resend_exp_trigger(self, wait=20):
+        """DExTer doesn't always receive the first trigger, send another.
+        wait -- time in ms before checking if the message was received."""
+        if self.rn.check.checking:
+            self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # in case the first fails
+            QTimer.singleShot(wait, self.resend_exp_trigger) # wait in ms
+        
     def reset_cam_signals(self, toggle=True):
         """Stop sending images to the atom checker, send them to image analysis instead"""
         print(2)
@@ -496,6 +499,8 @@ class Master(QMainWindow):
         remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
         remove_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
         remove_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
+        remove_slot(self.rn.trigger.dxnum, self.reset_cam_signals, False) # only trigger once
+        self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # flush TCP
             
     def sync_mode(self, toggle=True):
         """Toggle whether to receive the run number from DExTer,
@@ -579,6 +584,7 @@ class Master(QMainWindow):
         only triggers once."""
         self.action_button.setEnabled(True)
         remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, False)
+        self.rn.trigger.msg_queue = [] # in case there was a previous trigger that wasn't sent
         try:
             unprocessed = self.rn.cam.EmptyBuffer()
             self.rn.cam.AF.AbortAcquisition()
