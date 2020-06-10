@@ -78,11 +78,11 @@ class runnum(QThread):
         """Check if the server is running. If it is, don't do anything, unless 
         force=True, then stop and restart the server. If the server isn't 
         running, then start it."""
-        for server in [self.server, self.trigger]:
+        for server in [self.server, self.trigger, self.monitor]:
             if server.isRunning():
                 if force:
-                    server.msg_queue = []
                     server.close()
+                    server.clear_queue()
                     time.sleep(0.1) # give time for it to close
                     server.start()
             else: server.start()
@@ -197,8 +197,6 @@ class runnum(QThread):
         """Disconnect camera images from analysis, start the camera
         acquisition and redirect the images to the atom checker."""
         if self.cam.initialised > 1:
-            print(0)
-            # self.trigger.msg_queue = [] # in case there was a previous trigger that wasn't sent
             self.check.checking = True
             self.trigger.start() # start server for TCP to send msg when atoms loaded
             # redirect images from analysis to atom checker
@@ -275,7 +273,7 @@ class runnum(QThread):
         else: # pause the multi-run
             remove_slot(self.cam.AcquireEnd, self.mr_receive, False)
             remove_slot(self.cam.AcquireEnd, self.receive, True) # process every image
-            self.server.msg_queue = [] # remove all messages from the queue 
+            self.server.clear_queue()
             self.cam.AF.AbortAcquisition()
             for mw in self.sw.mw + self.sw.rw:
                 mw.multirun = False
@@ -283,10 +281,11 @@ class runnum(QThread):
             if not stillrunning: 
                 self.seq.mr.ind = 0
                 self._k = 0
-            status = ' paused.' if stillrunning else ' cancelled.'
-            self.seq.mr.progress.emit('STOPPED. Multirun has been'+status)
-            self.server.add_message(TCPENUM['TCP read'], 'STOPPED. Multirun has been'+status)
-            self.server.add_message(TCPENUM['TCP read'], 'STOPPED. Multirun has been'+status)
+            status = ' paused.' if stillrunning else ' ended.'
+            text = 'STOPPED. Multirun measure %s: %s is'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label'])
+            self.seq.mr.progress.emit(text+status)
+            self.server.add_message(TCPENUM['TCP read'], text+status)
+            self.server.add_message(TCPENUM['TCP read'], text+status)
 
     def multirun_resume(self, status):
         """Resume the multi-run where it was left off.

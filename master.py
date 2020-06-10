@@ -334,15 +334,14 @@ class Master(QMainWindow):
         elif self.sender().text() == 'TCP Server':
             info = 'Trigger server is running.\n' if self.rn.trigger.isRunning() else 'Trigger server stopped.\n'
             if self.rn.server.isRunning():
-                info += "TCP server is running. %s queued message(s)."%len(self.rn.server.msg_queue)
+                msgs = self.rn.server.get_queue()
+                info += "TCP server is running. %s queued message(s)."%len(msgs)
                 info += '\nCommand Enum | Length |\t Message\n'
-                for msg in self.rn.server.msg_queue[:5]:
-                    msglen = int.from_bytes(msg[1], 'big')
-                    info += ' | '.join([str(int.from_bytes(msg[0], 'big')), 
-                            str(msglen), str(msg[2], 'mbcs')[:20]])
-                    if msglen > 20:  info += '...'
+                for enum, textlength, text in msgs[:5]:
+                    info += enum + ' | ' + text[:20]
+                    if textlength > 20:  info += '...'
                     info += '\n'
-                if len(self.rn.server.msg_queue) > 5:
+                if len(msgs) > 5:
                     info += '...\n'
             else:
                 info += "TCP server stopped."
@@ -353,8 +352,10 @@ class Master(QMainWindow):
                 self.action_button.setEnabled(True)
                 self.rn.seq.mr.mr_queue = []
                 self.rn.multirun = False
-                self.rn.reset_server(force=True) # stop and then restart the main server
+                self.rn.reset_server(force=True) # stop and then restart the servers
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
+            elif reply == QMessageBox.No:
+                self.rn.reset_server(force=False) # restart the server if it stopped
         elif self.sender().text() == 'Atom Checker':
             self.rn.check.showMaximized()
         elif self.sender().text() == 'Monitor':
@@ -456,11 +457,11 @@ class Master(QMainWindow):
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':
                 if 'multirun' in self.status_label.text():
-                    # self.rn.seq.mr.mr_queue = []  # remove all queued multiruns
                     self.rn.multirun_go(False, stillrunning=True)
             elif action_text == 'Cancel multirun':
                 if 'multirun' in self.status_label.text() or self.rn.multirun:
-                    # self.rn.seq.mr.mr_queue = []  # remove all queued multiruns
+                    if self.rn.check.checking:
+                        self.rn.check.rh.trigger.emit(1) # send software trigger to end
                     self.rn.multirun_go(False)
                     self.rn.seq.mr.ind = 0
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
@@ -479,7 +480,6 @@ class Master(QMainWindow):
     def trigger_exp_start(self, n=None):
         """Atom checker sends signal saying all ROIs have atoms in, start the experiment"""
         self.rn.check.timer.stop() # in case the timer was going to trigger the experiment as well
-        print(1)
         remove_slot(self.rn.trigger.dxnum, self.reset_cam_signals, True) # swap signals when msg confirmed
         self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
         # QTimer.singleShot(20, self.resend_exp_trigger) # wait in ms
@@ -493,9 +493,7 @@ class Master(QMainWindow):
         
     def reset_cam_signals(self, toggle=True):
         """Stop sending images to the atom checker, send them to image analysis instead"""
-        print(2)
         self.rn.check.checking = False
-        time.sleep(30e-3) # wait 30ms to make sure we don't send the wrong images to analysis.
         remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
         remove_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
         remove_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
@@ -582,9 +580,12 @@ class Master(QMainWindow):
         check for unprocessed images, and check synchronisation.
         First, disconnect the server.textin signal from this slot to it
         only triggers once."""
-        self.action_button.setEnabled(True)
+        self.action_button.setEnabled(True) # allow another command to be sent
+         # reset atom checker trigger
         remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, False)
-        self.rn.trigger.msg_queue = [] # in case there was a previous trigger that wasn't sent
+        if self.rn.trigger.connected:
+            remove_slot(self.rn.trigger.textin, self.rn.trigger.clear_queue, True)
+            self.rn.trigger.add_message(TCPENUM['TCP read'], 'end connection'*150)
         try:
             unprocessed = self.rn.cam.EmptyBuffer()
             self.rn.cam.AF.AbortAcquisition()
