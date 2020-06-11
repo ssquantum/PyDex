@@ -162,6 +162,7 @@ class daq_window(QMainWindow):
         validators = [double_validator, double_validator, None, double_validator, None, bool_validator]
         for i in range(6):
             table_item = QLineEdit(defaults[i]) # user can edit text to change the setting
+            if defaults[i] == 'Sample Rate (kS/s)': table_item.setEnabled(False)
             table_item.setValidator(validators[i]) # validator limits the values that can be entered
             self.settings.setCellWidget(0,i, table_item)
         self.settings.resizeColumnToContents(1) 
@@ -213,6 +214,10 @@ class daq_window(QMainWindow):
         trace_grid.addWidget(self.hline_toggle, 0,0, 1,1)
         self.hline_label = QLabel()
         trace_grid.addWidget(self.hline_label, 0,1, 1,1)
+        fadeline_button = QPushButton('Persist', self)
+        fadeline_button.clicked.connect(self.set_fadelines)
+        trace_grid.addWidget(fadeline_button, 0,2, 1,1)
+        
 
         # plot the trace
         self.trace_canvas = pg.PlotWidget()
@@ -237,7 +242,7 @@ class daq_window(QMainWindow):
         self.hline.hide()
         
             
-        trace_grid.addWidget(self.trace_canvas, 1,0, 1,2)
+        trace_grid.addWidget(self.trace_canvas, 1,0, 1,3)
         
         #### Settings for slices of the trace accumulating into the graph ####
         slice_tab = QWidget()
@@ -316,6 +321,7 @@ class daq_window(QMainWindow):
         #### Title and icon ####
         self.setWindowTitle('- NI DAQ Controller -')
         self.setWindowIcon(QIcon('docs/daqicon.png'))
+        self.setGeometry(200, 200, 800, 600)
 
     #### user input functions ####
 
@@ -445,7 +451,7 @@ class daq_window(QMainWindow):
         try:
             w = self.sender()
             i, j = w.pos
-            t = np.linspace(0, self.stats['Duration (ms)']/1000, self.n_samples)
+            t = np.linspace(0, self.stats['Duration (ms)'], self.n_samples)
             x = self.dc.slices[i] # shorthand
             if j == 0: # name
                 x.name = w.text()
@@ -513,6 +519,8 @@ class daq_window(QMainWindow):
             self.save_trace(os.path.join(self.stats['save_dir'], self.stats['trace_file']))
         elif 'save graph' in msg:
             self.save_graph(os.path.join(self.stats['save_dir'], self.stats['graph_file']))
+        elif 'set fadelines' in msg:
+            self.set_fadelines()
     
     #### acquisition functions #### 
 
@@ -550,7 +558,6 @@ class daq_window(QMainWindow):
             l = self.lines[j] # shorthand
             if ch in self.stats['channels'] and self.stats['channels'][ch]['plot']:
                 try:
-                    self.fadelines[j].setData(l.xData, l.yData)
                     l.setData(t, data[i])
                 except Exception as e:
                     logger.error('DAQ trace could not be plotted.\n'+str(e))
@@ -565,6 +572,20 @@ class daq_window(QMainWindow):
                 self.trace_legend.items[j][0].hide()
                 self.trace_legend.items[j][1].hide()
         self.trace_legend.resize(0,0)
+        
+    def set_fadelines(self):
+        """Take the data from the current lines and sets it to the fadelines."""
+        for j in range(8):
+            ch = self.channels.cellWidget(j,0).text()
+            l = self.lines[j] # shorthand
+            if ch in self.stats['channels'] and self.stats['channels'][ch]['plot']:
+                try:
+                    self.fadelines[j].setData(l.xData, l.yData)
+                except Exception as e:
+                    logger.error('DAQ trace could not be plotted.\n'+str(e))
+                self.fadelines[j].show()
+            else:
+                self.fadelines[j].hide()
         
     def reset_lines(self):
         """Clear the mean and stdv graphs, reset the legends, then make new 

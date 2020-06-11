@@ -300,7 +300,11 @@ class Master(QMainWindow):
             if self.rn.cam.initialised:
                 msg = 'Current state: ' + self.rn.cam.AF.GetStatus() + '\nChoose a new config file: '
             else: msg = 'Camera not initialised. See log file for details. Press OK to retry.'
-            text, ok = QInputDialog.getText( self, 'Camera Status', msg, text=self.stats['CameraConfig'])
+            newfile = self.rn.sw.try_browse(title='Choose new config file', 
+                    file_type='config (*.dat);;all (*)', 
+                    defaultpath=os.path.dirname(self.stats['CameraConfig']))
+            text, ok = QInputDialog.getText( self, 'Camera Status', msg, 
+                    text=newfile if newfile else self.stats['CameraConfig'])
             if text and ok:
                 if self.rn.cam.initialised > 2:
                     if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
@@ -448,11 +452,12 @@ class Master(QMainWindow):
                 if self.rn.seq.mr.check_table():
                     if not self.sync_toggle.isChecked():
                         self.sync_toggle.setChecked(True) # it's better to multirun in synced mode
-                        QMessageBox.warning(self, 'Synced acquisition', 
-                            'Multirun has changed the sync with DExTer setting.')
+                        logger.warning('Multirun has changed the "sync with DExTer" setting.')
                     status = self.rn.seq.mr.check_mr_params(self.rn.sv.results_path) # add to queue if valid
                     self.check_mr_queue() # prevent multiple multiruns occurring simultaneously
-                else: logger.warning('Tried to start multirun with invalid values. Check the table.\n')
+                else: 
+                    QMessageBox.warning(self, 'Invalid multirun', 
+                        'All cells in the multirun table must be populated.')
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':

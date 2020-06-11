@@ -1,7 +1,7 @@
-File#=384
+File#=3662
 Date=08,June,2020
-CameraConfig=.\andorcamera\4x4_13.3.2020.dat
+CameraConfig=Z:/Tweezer/Code/Python 3.5/PyDex/andorcamera/4x4_13.3.2020.dat
 SaveConfig=.\\config\\config.dat
-MasterGeometry=[42, 45, 520, 129]
+MasterGeometry=[42, 45, 528, 129]
 AnalysisGeometry=[1183, 346, 668, 558]
-SequencesGeometry=[19, 128, 798, 884]
+SequencesGeometry=[426, 117, 798, 884]

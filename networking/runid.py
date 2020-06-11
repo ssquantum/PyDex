@@ -218,7 +218,7 @@ class runnum(QThread):
         r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # ID of run in repetition cycle
         if toggle: # and self.sw.check_reset() < now will auto reset (so you can queue up multiruns)
             try: # take the multirun parameters from the queue (they're added to the queue in master.py)
-                self.seq.mr.mr_param, self.seq.mr.mrtr, self.seq.mr.mr_vals = self.seq.mr.mr_queue.pop(0) # parameters, sequence, values
+                self.seq.mr.mr_param, self.seq.mr.mrtr, self.seq.mr.mr_vals, appending = self.seq.mr.mr_queue.pop(0) # parameters, sequence, values, whether to append
             except IndexError as e:
                 logger.error('runid.py could not start multirun because no multirun was queued.\n'+str(e))
                 return 0
@@ -246,8 +246,8 @@ class runnum(QThread):
                 mw.image_handler.reset_arrays() # gets rid of old data
                 mw.histo_handler.bf = None
                 mw.plot_current_hist(mw.image_handler.histogram, mw.hist_canvas)
-                mw.clear_varplot()
-                mw.multirun = True
+                if not appending: mw.clear_varplot() # keep the previous data if this multirun is to be appended
+                mw.multirun = self.seq.mr.mr_param['measure_prefix']
                 log_file_path = os.path.join(results_path, 
                     mw.name + str(self.seq.mr.mr_param['measure_prefix']) + '.dat')
                 if not os.path.isfile(log_file_path):# start measure file, stores plot data
@@ -276,7 +276,7 @@ class runnum(QThread):
             self.server.clear_queue()
             self.cam.AF.AbortAcquisition()
             for mw in self.sw.mw + self.sw.rw:
-                mw.multirun = False
+                mw.multirun = ''
             self.multirun = stillrunning
             if not stillrunning: 
                 self.seq.mr.ind = 0
@@ -314,19 +314,17 @@ class runnum(QThread):
             self.server.priority_messages(mr_queue) # adds at front of queue
             
     def multirun_step(self, msg):
-        """Execute a single run as part of a multirun.
-        For the first '# omit' runs, only save the files.
-        Then for '# hist' runs, add files to histogram.
+        """Update the status label for the multirun
         The data for the run is received and processed when the command for the 
         next run is being sent, so the histogram is saved, fitted, and reset
-        based on the run number +1.
-        repeat this for the user variables in the multirun list,
-        then return to normal operation as set by the histogram binning"""
+        based on the run number +1."""
         self.monitor.add_message(self._n, 'update run number')
         if self._k != self._m:
             logger.warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
         self._k = 0
         r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # repeat
+        if r == 1:
+            self.monitor.add_message(self._n, 'set fadelines') # keep the trace from the start of the histogram
         v = self.seq.mr.get_next_index(self.seq.mr.ind) # variable
         try:
             if r >= self.seq.mr.mr_param['# omitted']: 
@@ -361,7 +359,9 @@ class runnum(QThread):
             mw.set_user_var() # just in case not triggered by the signal
             mw.bins_text_edit(text='reset') # set histogram bins 
             success = mw.display_fit(fit_method='check action') # get best fit
+            success = mw.display_fit(fit_method='check action') # get best fit
             if not success:                   # if fit fails, use peak search
+                mw.display_fit(fit_method='quick')
                 mw.display_fit(fit_method='quick')
                 logger.warning('\nMultirun run %s fitting failed. '%self._n +
                     'Histogram data in '+ self.seq.mr.mr_param['measure_prefix']+'\\'+mw.name + 
@@ -384,7 +384,7 @@ class runnum(QThread):
             # reconnect previous signals
             mw.set_bins() # reconnects signal with given histogram binning settings
             mw.display_fit() # display the empty histograms
-            mw.multirun = False
+            mw.multirun = ''
         self.monitor.add_message(self._n, 'save graph') # get the monitor to save the graph  
         self.monitor.add_message(self._n, 'stop') # stop monitoring
         self.multirun_go(False) # reconnect signals

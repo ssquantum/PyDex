@@ -85,7 +85,7 @@ class main_window(QMainWindow):
         self.name = name  # name is displayed in the window title
         self.image_handler = im_handler if im_handler else ih.image_handler() # class to process images
         self.histo_handler = hist_handler if hist_handler else hh.histo_handler() # class to process histograms
-        self.multirun = False # whether currently doing a multirun or not
+        self.multirun = '' # whether currently doing a multirun or not
         pg.setConfigOption('background', 'w') # set graph background default white
         pg.setConfigOption('foreground', 'k') # set graph foreground default black
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
@@ -606,7 +606,7 @@ class main_window(QMainWindow):
             self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
             if len(self.image_handler.stats['Counts']) > 50 and not any(self.image_handler.stats['Atom detected'][-50:]):
                 logger.warning('Zero atoms detected in the last 50 shots of analysis '
-                    +self.name+' histogram %s.'%self.histo_handler.temp_vals['File ID']) # add in measure number
+                    +self.name+' '+self.multirun+' histogram %s.'%self.histo_handler.temp_vals['File ID']) 
             bf = self.histo_handler.bf # short hand
             if bf and bf.bffunc and type(bf.ps)!=type(None): # plot the curve on the histogram
                 xs = np.linspace(min(bf.x), max(bf.x), 200)

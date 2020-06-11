@@ -6,6 +6,7 @@ Stefan Spence 01/06/20
  - Accumulate a slice for every trace taken
 """
 import os
+import re
 import sys
 sys.path.append('.')
 sys.path.append('..')
@@ -15,7 +16,7 @@ try:
 except ImportError:
     from PyQt5.QtCore import pyqtSignal, QThread
 from collections import OrderedDict
-from strtypes import strlist, listlist
+from strtypes import strlist, listlist, BOOL
 import logging
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class daqSlice:
                 self.stats[chan]['mean'].append(np.mean(row[self.inds]))
                 self.stats[chan]['stdv'].append(np.std(row[self.inds], ddof=1))
             except IndexError as e:
-                logger.error('Data wrong shape to take slice at %s.\n'%n + str(e))
+                logger.error('Data wrong shape to take slice at %s.\n'%i + str(e))
 
         
 ####    ####    ####    ####

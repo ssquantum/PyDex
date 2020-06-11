@@ -193,7 +193,13 @@ class multirun_widget(QWidget):
         clear_vars_button = QPushButton('Clear', self)
         clear_vars_button.clicked.connect(self.clear_array)
         clear_vars_button.resize(clear_vars_button.sizeHint())
-        self.grid.addWidget(clear_vars_button, 6,1, 1,2)
+        self.grid.addWidget(clear_vars_button, 6,1, 1,1)
+        
+        # suggest new measure when multirun started
+        self.suggest_button = QPushButton('Auto-increment measure', self, 
+                checkable=True, checked=True)
+        self.suggest_button.resize(self.suggest_button.sizeHint())
+        self.grid.addWidget(self.suggest_button, 6,2, 1,2)
         
         # choose last time step for multirun
         lts_label = QLabel('Last time step: ', self)
@@ -415,7 +421,7 @@ class multirun_widget(QWidget):
         # elif self.mr_param['Order'] == 'random':
         #     return randint(0, self.nrows - 1)
         # else: # if descending, ascending, or coarse random, the order has already been set
-        return (rn // (self.mr_param['# omitted'] + self.mr_param['# in hist'])) % self.nrows # ID of histogram in repetition cycle
+        return (rn // (self.mr_param['# omitted'] + self.mr_param['# in hist'])) % len(self.mr_param['runs included'])# ID of histogram in repetition cycle
 
     def get_next_sequence(self, i=None, save_dir=''):
         """Use the values in the multirun array to make the next
@@ -457,7 +463,7 @@ class multirun_widget(QWidget):
     def view_mr_queue(self):
         """Pop up message box displays the queued multiruns"""
         text = 'Would you like to clear the following list of queued multiruns?\n'
-        for params, _, _ in self.mr_queue:
+        for params, _, _, _ in self.mr_queue:
             text += params['measure_prefix'] + '\t' + params['Variable label'] + '\n'
         reply = QMessageBox.question(self, 'Queued Multiruns',
             text, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -536,20 +542,33 @@ class multirun_widget(QWidget):
     def check_mr_params(self, save_results_path='.'):
         """Check that the multirun parameters are valid before adding it to the queue"""
         results_path = os.path.join(save_results_path, self.ui_param['measure_prefix'])
+        appending = False
+        # first check if the measure folder already exists with some files in
         imax = 0
         try: 
             filelist = os.listdir(results_path)
             for fname in filelist:
-                if '.csv' in fname:
-                    try:
-                        imax = max(imax, int(fname[-5]))
+                if 'params' in fname:
+                    try: # look for multirun parameters file
+                        with open(os.path.join(results_path, fname), 'r') as f:
+                            _ = f.readline()
+                            vals = f.readline().replace('\n','').split(';')
+                            header = f.readline().replace('\n','').split(';')
+                            params = f.readline().split(';')
+                            imax = max(imax, len(vals) + int(params[header.index('1st hist ID')]) - 1)
                     except: pass
         except FileNotFoundError: pass
+        # then check the multirun queue
+        for m in self.mr_queue:
+            if self.ui_param['measure_prefix'] == m[0]['measure_prefix']:
+                imax = max(imax, len(m[2]) + m[0]['1st hist ID'] - 1)
         
         if self.ui_param['1st hist ID'] == -1: # append at the end 
-            self.ui_param['1st hist ID'] = imax + 1
+            appending = True
+            self.ui_param['1st hist ID'] = imax + 1 if imax>0 else 0
                     
-        if os.path.isdir(results_path) and imax > self.ui_param['1st hist ID']:
+        if (os.path.isdir(results_path) or self.ui_param['measure_prefix'] in [
+            x[0]['measure_prefix'] for x in self.mr_queue]) and imax >= self.ui_param['1st hist ID']:
             # this measure exists, check if user wants to overwrite
             reply = QMessageBox.question(self, 'Confirm Overwrite',
                 "Results path already exists, do you want to overwrite the files?\n"+results_path,
@@ -558,9 +577,9 @@ class multirun_widget(QWidget):
                 return 0
 
         # parameters are valid, add to queue
-        self.mr_queue.append([copy.deepcopy(self.ui_param), self.tr.copy(), self.get_table()]) 
-        # suggest new multirun measure ID and prefix
-        n = self.ui_param['measure'] + len(self.mr_queue)
-        self.measures['measure'].setText(str(n))
-        self.measures['measure_prefix'].setText('Measure'+str(n))  
+        self.mr_queue.append([copy.deepcopy(self.ui_param), self.tr.copy(), self.get_table(), appending]) 
+        if self.suggest_button.isChecked(): # suggest new multirun measure ID and prefix
+            n = self.ui_param['measure'] + 1
+            self.measures['measure'].setText(str(n))
+            self.measures['measure_prefix'].setText('Measure'+str(n))  
         return 1
