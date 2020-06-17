@@ -17,7 +17,7 @@ except ImportError:
 import time
 t = translate()
 t0 = time.time()
-t.load_xml('.\\SequenceFiles\\0_17 September 2019_09 30 18.xml')
+t.load_xml('sequences\\SequenceFiles\\0_17 September 2019_09 30 18.xml')
 t1 = time.time()
 t.seq_dic['Routine name in'] = "My new routine"
 t.seq_dic['Routine description in'] = "An example of editing sequences"
@@ -79,7 +79,7 @@ for timestep in range(2, len(esc['Sequence header top'])):
         esc['Slow analogue array'][channel]['Voltage'][timestep] = shim_values[i]
 
 t2 = time.time()
-t.write_to_file('.\\SequenceFiles\\example.xml')
+t.write_to_file('sequences\\SequenceFiles\\example.xml')
 if len(sys.argv) > 1 and sys.argv[1] == '-timeit':
     t3 = time.time()
     t.write_to_str()
