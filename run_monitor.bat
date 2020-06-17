@@ -9,7 +9,7 @@ if EXIST %ALLUSERSPROFILE%\Anaconda3 (
 rem -- activate the Python environment to load modules
 call conda activate pydexenv
 
-rem -- now start the monitoring program in a separate shell, and the main PyDex script in this shell
-start cmd /k run_monitor.bat & python master.py
+rem -- now run the program
+python monitor\daqgui.py
 
 conda deactivate

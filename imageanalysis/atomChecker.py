@@ -15,25 +15,22 @@ import pyqtgraph as pg
 from collections import OrderedDict
 # some python packages use PyQt4, some use PyQt5...
 try:
-    from PyQt4.QtCore import pyqtSignal, QRegExp
+    from PyQt4.QtCore import pyqtSignal, QTimer
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
             QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
-            QDoubleValidator, QIntValidator, QMenu, QActionGroup, QFont,
-            QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QRegExpValidator) 
+            QMenu, QFont) 
 except ImportError:
-    from PyQt5.QtCore import pyqtSignal, QRegExp
-    from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
-        QRegExpValidator, QFont)
-    from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
-        QFileDialog, QMessageBox, QLineEdit, QGridLayout, QWidget,
-        QApplication, QPushButton, QAction, QMainWindow, QTabWidget,
-        QTableWidget, QTableWidgetItem, QLabel)
+    from PyQt5.QtCore import pyqtSignal, QTimer
+    from PyQt5.QtGui import QIcon, QFont
+    from PyQt5.QtWidgets import (QMenu, QFileDialog, QMessageBox, QLineEdit, 
+        QGridLayout, QWidget, QApplication, QPushButton, QAction, QMainWindow, 
+        QLabel)
 import logging
 logger = logging.getLogger(__name__)
 sys.path.append('.')
 sys.path.append('..')
 from strtypes import intstrlist, listlist
-from maingui import remove_slot # single atom image analysis
+from maingui import remove_slot, int_validator # single atom image analysis
 from roiHandler import ROI, roi_handler
 
 ####    ####    ####    ####
@@ -42,31 +39,37 @@ class atom_window(QMainWindow):
     """GUI window displaying ROIs and the counts recorded in them
 
     Keyword arguments:
-    im_store_path -- the directory where images are saved.
-    num_rois      -- number of ROIs to initiate.
-    image_shape   -- shape of the images being taken, in pixels (x,y).
-    name          -- an ID for this window, prepended to saved files.
+    last_im_path -- the directory where images are saved.
+    rois         -- list of ROI coordinates (xc, yc, width, height).
+    num_plots    -- number of plots to display counts on. A square number.
+    image_shape  -- shape of the images being taken, in pixels (x,y).
+    name         -- an ID for this window, prepended to saved files.
     """
-    event_im = pyqtSignal([np.ndarray, bool])
-    trigger = pyqtSignal(int)
-
-    def __init__(self, im_store_path='.', num_rois=1, image_shape=(512,512), name=''):
+    event_im = pyqtSignal(np.ndarray) # image taken by the camera as np array
+    roi_values = pyqtSignal(list) # list of ROIs (x, y, w, h, threshold)
+    
+    def __init__(self, last_im_path='.', rois=[(1,1,1,1)], num_plots=4, 
+            image_shape=(512,512), name=''):
         super().__init__()
-        self.image_storage_path = im_store_path
-        self.h = roi_handler(num_rois, image_shape)
-        self.init_UI() # adjust widgets from main_window
+        self.name = name
+        self.last_im_path = last_im_path
+        self.rh = roi_handler(rois, image_shape)
+        self.init_UI(num_plots) # adjust widgets from main_window
+        self.event_im.connect(self.rh.process)
+        self.event_im.connect(self.update_plots)
+        self.checking = False # whether the atom checker is active or not
+        self.timer = QTimer() 
+        self.timer.t0 = 0 # trigger the experiment after the timeout
         
-    def init_UI(self):
+    def init_UI(self, num_plots=4):
         """Create all the widgets and position them in the layout"""
         self.centre_widget = QWidget()
         layout = QGridLayout()       # make tabs for each main display 
         self.centre_widget.setLayout(layout)
         self.setCentralWidget(self.centre_widget)
 
-        # validators for user input
-        double_validator = QDoubleValidator() # floats
-        int_validator    = QIntValidator()    # integers
-        int_validator.setBottom(0) # don't allow -ve numbers
+        font = QFont() 
+        font.setPixelSize(16) # make text size bigger
 
         #### menubar at top gives options ####
         menubar = self.menuBar()
@@ -77,55 +80,233 @@ class atom_window(QMainWindow):
         load_im.triggered.connect(self.load_image)
         file_menu.addAction(load_im)
         
-        make_im_menu = QMenu('Make Average Image', self) # display ave. image
-        make_im = QAction('From Files', self) # from image files (using file browser)
+        make_im = QAction('Make average image', self) # from image files (using file browser)
         make_im.triggered.connect(self.make_ave_im)
-        make_im_menu.addAction(make_im)
-        make_im_fn = QAction('From File Numbers', self) # from image file numbers
-        make_im_fn.triggered.connect(self.make_ave_im)
-        make_im_menu.addAction(make_im_fn)
-        file_menu.addMenu(make_im_menu)
+        file_menu.addAction(make_im)
 
         pg.setConfigOption('background', 'w') # set graph background default white
         pg.setConfigOption('foreground', 'k') # set graph foreground default black
 
-
-        #### display image with ROIs ####
         # toggle to continuously plot images as they come in
         self.im_show_toggle = QPushButton('Auto-display last image', self)
         self.im_show_toggle.setCheckable(True)
         self.im_show_toggle.clicked[bool].connect(self.set_im_show)
         layout.addWidget(self.im_show_toggle, 0,0, 1,1)
 
+        # number of ROIs chosen by user
+        nrois_label = QLabel('Number of ROIs: ', self)
+        layout.addWidget(nrois_label, 0,1, 1,1)
+        self.nrois_edit = QLineEdit(str(len(self.rh.ROIs)), self)
+        layout.addWidget(self.nrois_edit, 0,2, 1,1)
+        self.nrois_edit.setValidator(int_validator)
+
+        # reset the list of counts in each ROI displayed in the plots
+        self.reset_button = QPushButton('Reset plots', self)
+        self.reset_button.clicked.connect(self.reset_plots)
+        layout.addWidget(self.reset_button, 0,3, 1,1)
+        
+        #### display image with ROIs ####
+        
         im_widget = pg.GraphicsLayoutWidget() # containing widget
         viewbox = im_widget.addViewBox() # plot area to display image
         self.im_canvas = pg.ImageItem() # the image
         viewbox.addItem(self.im_canvas)
-        layout.addWidget(im_widget, 1,0, 6,8)
-        # make an ROI that the user can drag
-        self.roi = pg.ROI([0,0], [1,1], movable=False) 
-        self.roi.sigRegionChangeFinished.connect(self.user_roi)
-        viewbox.addItem(self.roi)
-        self.roi.setZValue(10)   # make sure the ROI is drawn above the image
-
+        layout.addWidget(im_widget, 1,0, 9,6)
+        # update number of ROIs and display them when user inputs
+        self.nrois_edit.textChanged[str].connect(self.display_rois)
+        
         #### display plots of counts for each ROI ####
+        self.plots = [] # plot to display counts history
+        k = int(np.sqrt(num_plots))
+        for i in range(num_plots):
+            pw = pg.PlotWidget() # main subplot of histogram
+            self.plots.append({'plot':pw, 'counts':pw.plot(np.zeros(1000)),
+                'thresh':pw.addLine(y=1, pen='r')})
+            pw.getAxis('bottom').tickFont = font
+            pw.getAxis('left').tickFont = font
+            layout.addWidget(pw, 1+(i//k)*3, 7+(i%k)*6, 2,6)  # allocate space in the grid
+            try:
+                r = self.rh.ROIs[i]
+                pw.setTitle('ROI '+str(r.id))
+                # line edits with ROI x, y, w, h, threshold, auto update threshold
+                for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]): 
+                    layout.addWidget(label, (i//k)*3, 7+(i%k)*6+j, 1,1)
+            except IndexError as e: pass # logger.warning('Atom Checker has more plots than ROIs')
         
-        
+        self.display_rois() # put ROIs on the image
 
-        # change font size
-        font = QFont()
-        font.setPixelSize(14)
+        #### extra buttons ####
+        # send the ROIs used here to the image analysis settings window
+        self.roi_matching = QPushButton('Send ROIs to analysis', self)
+        self.roi_matching.clicked.connect(self.send_rois)
+        layout.addWidget(self.roi_matching, 2+num_plots//k*3,7, 1,1)
+        # the user can trigger the experiment early by pressing this button
+        self.trigger_button = QPushButton('Manual trigger experiment', self)
+        self.trigger_button.clicked.connect(self.send_trigger)
+        layout.addWidget(self.trigger_button, 2+num_plots//k*3,8, 1,1)
+        # get ROI coordinates by fitting to image
+        for i, label in enumerate(['Single ROI', 'Square grid', '2D Gaussian masks']):
+            button = QPushButton(label, self) 
+            button.clicked.connect(self.make_roi_grid)
+            button.resize(button.sizeHint())
+            layout.addWidget(button, 2+num_plots//k*3,9+i, 1,1)
 
-        
+        button = QPushButton('Display masks', self) # button to display masks
+        button.clicked.connect(self.show_ROI_masks)
+        button.resize(button.sizeHint())
+        layout.addWidget(button, 2+num_plots//k*3,9+i+1, 1,1)
+
+        # maximum duration to wait for
+        timeout_label = QLabel('Timeout (s): ', self)
+        layout.addWidget(timeout_label, 2+num_plots//k*3,9+i+2, 1,1)
+        self.timeout_edit = QLineEdit('0', self)
+        self.timeout_edit.setValidator(int_validator)
+        self.timeout_edit.textEdited[str].connect(self.change_timeout)
+        layout.addWidget(self.timeout_edit, 2+num_plots//k*3,9+i+3, 1,1)
+        #
+        self.setWindowTitle(self.name+' - Atom Checker -')
+        self.setWindowIcon(QIcon('docs/atomcheckicon.png'))
+
+    #### #### user input functions #### ####
+
+    def set_im_show(self, toggle):
+        """If the toggle is True, always update the display with the last image."""
+        remove_slot(self.event_im, self.update_im, toggle)
+
+    def change_timeout(self, newval):
+        """Time in seconds to wait before sending the trigger to continue the 
+        experiment. Default is 0 which waits indefinitely."""
+        self.timer.t0 = int(newval)
+
+    def user_roi(self, roi):
+        """The user drags an ROI and this updates the ROI centre and width"""
+        # find which ROI was dragged
+        for r in self.rh.ROIs:
+            if r.roi == roi:
+                break
+        x0, y0 = roi.pos()  # lower left corner of bounding rectangle
+        w, h = map(int, roi.size()) # width, height
+        xc, yc = int(x0 + w//2), int(y0 + h//2) # centre of ROI
+        r.w, r.h = w, h
+        r.label.setPos(x0, y0)
+        r.translate_mask(xc, yc)
+        for key, val in zip(r.edits.keys(), [xc, yc, w, h]):
+            r.edits[key].setText(str(val))
+
+    def send_rois(self, toggle=0):
+        """Emit the signal with the list of ROIs"""
+        self.roi_values.emit([[r.x, r.y, r.w, r.h, r.t] for r in self.rh.ROIs])
+
+    def send_trigger(self, toggle=0):
+        """Emit the roi_handler's trigger signal to start the experiment"""
+        if self.checking: self.rh.trigger.emit(1)
+
+    #### #### automatic ROI assignment #### ####
+
+    def make_roi_grid(self, toggle=True, method=''):
+        """Create a grid of ROIs and assign them to analysers that are using the
+        same image. Methods:
+        Single ROI       -- make all ROIs the same as the first analyser's 
+        Square grid      -- evenly divide the image into a square region for
+            each of the analysers on this image.  
+        2D Gaussian masks-- fit 2D Gaussians to atoms in the image."""
+        method = method if method else self.sender().text()
+        pos, shape = self.rh.ROIs[0].roi.pos(), self.rh.ROIs[0].roi.size()
+        if method == 'Single ROI':
+            for r in self.rh.ROIs:
+                r.resize(*map(int, [pos[0], pos[1], shape[0], shape[1]]))
+        elif method == 'Square grid':
+            n = len(self.rh.ROIs) # number of ROIs
+            d = int((n - 1)**0.5 + 1)  # number of ROIs per row
+            X = int(self.rh.shape[0] / d) # horizontal distance between ROIs
+            Y = int(self.rh.shape[1] / int((n - 3/4)**0.5 + 0.5)) # vertical distance
+            for i in range(n): # ID of ROI
+                try:
+                    newx, newy = int(X * (i%d + 0.5)), int(Y * (i//d + 0.5))
+                    if any([newx//self.rh.shape[0], newy//self.rh.shape[1]]):
+                        logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(newx, newy)+
+                        ' outside of the image')
+                        newx, newy = 0, 0
+                    self.rh.ROIs[i].resize(*map(int, [newx, newy, 1, 1]))
+                except ZeroDivisionError as e:
+                    logger.error('Invalid parameters for square ROI grid: '+
+                        'x - %s, y - %s, pic size - %s, roi size - %s.\n'%(
+                            pos[0], pos[1], self.rh.shape[0], (shape[0], shape[1]))
+                        + 'Calculated width - %s, height - %s.\n'%(X, Y) + str(e))
+        elif method == '2D Gaussian masks':
+            try: 
+                im = self.im_canvas.image.copy() - self.rh.bias
+                if np.size(np.shape(im)) == 2:
+                    for r in self.rh.ROIs:
+                        r.create_gauss_mask(im) # fit 2D Gaussian to max pixel region
+                        # then block that region out of the image
+                        try:
+                            im[r.x-r.w : r.x+r.w+1, r.y-r.h:r.y+r.h+1] = np.zeros((2*r.w+1, 2*r.h+1)) + np.min(im)
+                        except (IndexError, ValueError): pass
+            except AttributeError: pass
+
     #### #### canvas functions #### ####
 
+    def display_rois(self, n=''):
+        """Add the ROIs from the roi_handler to the viewbox if they're
+        not already displayed."""
+        if n:
+            self.rh.create_rois(int(n))
+        viewbox = self.im_canvas.getViewBox()
+        for item in viewbox.allChildren(): # remove unused ROIs
+            if ((type(item) == pg.graphicsItems.ROI.ROI or 
+                    type(item) == pg.graphicsItems.TextItem.TextItem) and 
+                    item not in [r.roi for r in self.rh.ROIs] + [r.label for r in self.rh.ROIs]):
+                viewbox.removeItem(item)
+        layout = self.centre_widget.layout()
+        k = np.sqrt(len(self.plots))
+        for i, r in enumerate(self.rh.ROIs):
+            if r.roi not in viewbox.allChildren():
+                remove_slot(r.roi.sigRegionChangeFinished, self.user_roi, True) 
+                remove_slot(r.threshedit.textEdited, self.update_plots, True)
+                r.roi.setZValue(10)   # make sure the ROI is drawn above the image
+                viewbox.addItem(r.roi)
+                viewbox.addItem(r.label)
+                try:
+                    self.plots[i]['plot'].setTitle('ROI '+str(r.id))
+                    for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]):
+                        layout.addWidget(label, (i//k)*3, 7+(i%k)*6+j, 1,1)
+                except IndexError as e: pass # logger.warning('Atom Checker has more plots than ROIs')
+    
+    def update_plots(self, im=0, include=1):
+        """Plot the history of counts in each ROI in the associated plots"""
+        for i, r in enumerate(self.rh.ROIs):
+            try:
+                self.plots[i]['counts'].setData(r.c[:r.i]) # history of counts
+                if r.autothresh.isChecked(): r.thresh() # update threshold
+                self.plots[i]['thresh'].setValue(r.t) # plot threshold
+                self.plots[i]['plot'].setTitle('ROI %s, LP=%.3g'%(r.id, r.LP()))
+            except IndexError: pass
+
+    def reset_plots(self):
+        """Empty the lists of counts in the ROIs and update the plots."""
+        self.rh.reset_count_lists(range(len(self.rh.ROIs)))
+        for p in self.plots:
+            for l in p['counts']: l.setData([1])
+
+    def update_im(self, im):
+        """Display the image in the image canvas."""
+        self.im_canvas.setImage(im)
+
+    def show_ROI_masks(self, toggle=True):
+        """Make an image out of all of the masks from the ROIs and display it."""
+        im = np.zeros(self.rh.shape)
+        for roi in self.rh.ROIs:
+            try: im += roi.mask
+            except ValueError as e: logger.error('ROI %s has mask of wrong shape\n'%roi.id+str(e))
+        self.update_im(im)
 
     #### #### save and load data functions #### ####
 
     def get_default_path(self, default_path=''):
         """Get a default path for saving/loading images
         default_path: set the default path if the function doesn't find one."""
-        return default_path if default_path else os.path.dirname(self.last_path)
+        return default_path if default_path else os.path.dirname(self.last_im_path)
 
     def try_browse(self, title='Select a File', file_type='all (*)', 
                 open_func=QFileDialog.getOpenFileName, default_path=''):
@@ -140,106 +321,40 @@ class atom_window(QMainWindow):
                 file_name = open_func(self, title, default_path, file_type)
             elif 'PyQt5' in sys.modules:
                 file_name, _ = open_func(self, title, default_path, file_type)
-            self.last_path = file_name
             return file_name
         except OSError: return '' # probably user cancelled
 
-    def load_from_files(self, trigger=None, process=1):
+    def load_from_files(self, trigger=None):
         """Prompt the user to select image files to process using the file
         browser.
         Keyword arguments:
             trigger:        Boolean passed from the QObject that triggers
-                            this function.
-            process:        1: process images and add to histogram.
-                            0: return list of image arrays."""
+                            this function."""
         im_list = []
-        if self.check_reset():
-            file_list = self.try_browse(title='Select Files', 
-                    file_type='Images(*.asc);;all (*)', 
-                    open_func=QFileDialog.getOpenFileNames, 
-                    default_path=self.image_storage_path)
-            self.recent_label.setText('Processing files...') # comes first otherwise not executed
-            for file_name in file_list:
-                try:
-                    im_vals = self.image_handler.load_full_im(file_name)
-                    if process:
-                        self.image_handler.process(im_vals)
-                    else: im_list.append(im_vals)
-                    self.recent_label.setText( # only updates at end of loop
-                        'Just processed: '+os.path.basename(file_name)) 
-                except Exception as e: # probably file size was wrong
-                    logger.warning("Failed to load image file: "+file_name+'\n'+str(e)) 
-            self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
-            self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
-                        fix_thresh=self.thresh_toggle.isChecked(), method='quick')
-            if self.recent_label.text == 'Processing files...':
-                self.recent_label.setText('Finished Processing')
-        return im_list
-
-    def load_from_file_nums(self, trigger=None, label='Im', process=1):
-        """Prompt the user to enter a range of image file numbers.
-        Use these to select the image files from the current image storage path.
-        Sequentially process the images then update the histogram
-        Keyword arguments:
-            trigger:        Boolean passed from the QObject that triggers
-                            this function.
-            label:        part of the labelling convention for image files
-            process:        1: process images and add to histogram.
-                            0: return list of image arrays."""
-        im_list = []
-        try: # which image in the sequence is being used
-            imid = str(int(self.name.split('Im')[1].replace('.','')))
-        except:
-            imid = '0'
-        default_range = ''
-        image_storage_path = self.image_storage_path + '\%s\%s\%s'%(
-                self.date[3],self.date[2],self.date[0])  
-        date = self.date[0]+self.date[1]+self.date[3]
-        if self.image_handler.ind > 0: # defualt load all files in folder
-            default_range = '0 - ' + str(self.image_handler.ind)
-        text, ok = QInputDialog.getText( # user inputs the range
-            self, 'Choose file numbers to load from','Range of file numbers: ',
-            text=default_range)
-        if ok and text and image_storage_path: # if user cancels or empty text, do nothing
-            for file_range in text.split(','):
-                minmax = file_range.split('-')
-                if np.size(minmax) == 1: # only entered one file number
-                    file_list = [
-                        os.path.join(image_storage_path, label) + '_' + date + '_' + 
-                        minmax[0].replace(' ','') + '_' + imid + '.asc']
-                if np.size(minmax) == 2:
-                    file_list = [
-                        os.path.join(image_storage_path, label) + '_' + date + '_' + 
-                        dfn + '_' + imid + '.asc' for dfn in list(map(str, 
-                            range(int(minmax[0]), int(minmax[1]))))] 
-            for file_name in file_list:
-                try:
-                    im_vals = self.image_handler.load_full_im(file_name)
-                    if process:
-                        self.image_handler.process(im_vals)
-                    else: im_list.append(im_vals)
-                    self.recent_label.setText(
-                        'Just processed: '+os.path.basename(file_name)) # only updates at end of loop
-                except:
-                    print("\n WARNING: failed to load "+file_name) # probably file size was wrong
+        file_list = self.try_browse(title='Select Files', 
+                file_type='Images(*.asc);;all (*)', 
+                open_func=QFileDialog.getOpenFileNames)
+        for file_name in file_list:
+            try:
+                im_vals = self.rh.load_full_im(file_name)
+                im_list.append(im_vals)
+            except Exception as e: # probably file size was wrong
+                logger.warning("Failed to load image file: "+file_name+'\n'+str(e)) 
         return im_list
 
     def load_image(self, trigger=None):
         """Prompt the user to select an image file to display"""
-        file_name = self.try_browse(file_type='Images (*.asc);;all (*)', 
-                default_path=self.image_storage_path)
+        file_name = self.try_browse(file_type='Images (*.asc);;all (*)')
         if file_name:  # avoid crash if the user cancelled
-            im_vals = self.image_handler.load_full_im(file_name)
-            self.update_im(im_vals)
+            self.last_im_path = file_name
+            self.rh.set_pic_size(file_name) # get image size
+            im_vals = self.rh.load_full_im(file_name)
+            self.update_im(im_vals) # display image
         
     def make_ave_im(self):
         """Make an average image from the files selected by the user and 
         display it."""
-        if self.sender().text() == 'From Files':
-            im_list = self.load_from_files(process=0)
-        elif self.sender().text() == 'From File Numbers':
-            im_list = self.load_from_file_nums(process=0)
-        else: im_list = []
+        im_list = self.load_from_files()
         if len(im_list):
             aveim = np.zeros(np.shape(im_list[0]))
         else: return 0 # no images selected
@@ -247,3 +362,23 @@ class atom_window(QMainWindow):
             aveim += im
         self.update_im(aveim / len(im_list))
         return 1
+
+####    ####    ####    #### 
+
+def run():
+    """Initiate an app to run the program
+    if running in Pylab/IPython then there may already be an app instance"""
+    app = QApplication.instance()
+    standalone = app is None # false if there is already an app instance
+    if standalone: # if there isn't an instance, make one
+        app = QApplication(sys.argv) 
+        
+    boss = atom_window()
+    boss.showMaximized()
+    if standalone: # if an app instance was made, execute it
+        sys.exit(app.exec_()) # when the window is closed, the python code also stops
+            
+if __name__ == "__main__":
+    # change directory to PyDex folder
+    os.chdir(os.path.dirname(os.path.realpath(__file__))) 
+    run()

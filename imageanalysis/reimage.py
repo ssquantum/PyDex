@@ -22,7 +22,7 @@ except ImportError:
     from PyQt5.QtCore import pyqtSignal
     from PyQt5.QtGui import QFont
     from PyQt5.QtWidgets import QLabel, QMessageBox
-from maingui import main_window, remove_slot  # a single instance of SAIA
+from maingui import main_window, remove_slot
 
 # main GUI window contains all the widgets                
 class reim_window(main_window):
@@ -120,7 +120,7 @@ class reim_window(main_window):
             self.image_handler.thresh = int(self.thresh_edit.text()) if self.thresh_edit.text() else self.ih2.thresh
             t2 = time.time()
             self.int_time = t2 - t1
-        except (ValueError, OverflowError): t2 = 0 # invalid threshold, don't process
+        except (ValueError, OverflowError, IndexError): t2 = 0 # invalid threshold, don't process
         return t2
 
     #### #### Overridden display functions #### ####
@@ -128,6 +128,7 @@ class reim_window(main_window):
     def display_fit(self, toggle=True, fit_method='quick'):
         """Plot the best fit calculated by histo_handler.process
         and display the histogram statistics in the stat_labels"""
+        remove_slot(self.event_im, self.update_plot) # in case it gets disconnected by maingui
         sendertext = ''
         if hasattr(self.sender(), 'text'): # could be called by a different sender
             sendertext = self.sender().text()

@@ -67,6 +67,7 @@ class PyServer(QThread):
     While stop=False the server waits for a connection. Once a connection is
     made, send a message from the queue. If the queue is empty, wait until 
     there is a message in the queue before using the connection.
+    Keep the connection open for multiple messages.
     host - a string giving either the internet domain hostname, or the 
         IPv4 address. 'localhost' uses the computer running this script. 
     port - the unique port number used for the next socket connection."""
@@ -77,11 +78,22 @@ class PyServer(QThread):
     
     def __init__(self, host='localhost', port=8089):
         super().__init__()
-        self.server_address = (host, port)
-        self.__mq = []
+        self.__s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.bind(host, port)
+        self.__mq = [] # the message queue is a private attribute
         self.ts = {label:[time.time()] for label in ['start', 'connect', 'waiting', 
             'sent', 'received', 'disconnect']}
         self.app = QApplication.instance() # the main application that's running
+        
+    def bind(self, host, port):
+        """Start the socket listening on the given host and port. Fails if the
+        socket is already bound, or if the port is already in use."""
+        try:
+            self.__s.bind((host, port))
+            self.__s.listen(0) # only one connection at a time
+        except OSError as e: 
+            logger.error('Server address %s, %s'%(host, port) +
+                ' already in use.\n'+str(e))
         
     def add_message(self, enum, text, encoding="mbcs"):
         """Append a message to the queue that will be sent by TCP connection.
@@ -99,20 +111,20 @@ class PyServer(QThread):
         self.__mq = [[struct.pack("!L", int(enum)), # enum 
                             struct.pack("!L", len(bytes(text, encoding))), # msg length 
                             bytes(text, encoding)] for enum, text in message_list] + self.__mq
-        
+                            
     def get_queue(self):
         """Return a list of the queued messages."""
         return [(str(int.from_bytes(enum, 'big')), int.from_bytes(tlen, 'big'), 
                 str(text, 'mbcs')) for enum, tlen, text in self.__mq]
-                        
+    
     def clear_queue(self):
         """Remove all of the messages from the queue."""
         remove_slot(self.textin, self.clear_queue, False) # only trigger clear_queue once
         self.__mq = []
 
     def run(self, encoding="mbcs"):
-        """Keeps a socket open that waits for new connections. For each new
-        connection, open a new socket that sends the following 3 messages:
+        """Keeps a socket open that waits for a connection. Use the connection
+        to send the following 3 messages:
          1) the enum as int32 (4 bytes), which will correspond to a command. 
          2) the length of the text string as int32 (4 bytes).
          3) the text string.
@@ -121,50 +133,36 @@ class PyServer(QThread):
          2) the length of the message to come as int32 (4 bytes).
          3) the sent message as str."""
         self.ts['start'] = time.time() 
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try: 
-                s.bind(self.server_address)
-                # start the socket that waits for connections
-                s.listen(0) # only allow one connection at a time
-            except OSError as e:
-                logger.error('Failed to start server at address: ' + 
-                    ', '.join(map(str, self.server_address)) + '\n' + str(e))
-                remove_slot(self.finished, self.reset_stop)
-                self.stop = True # stop the thread running
-            while True:
+        conn, addr = self.__s.accept() # create a new socket
+        self.connected = True
+        with conn: # close the connection after this code is executed:
+            while not self.check_stop():
                 self.app.processEvents() # hopefully helps prevent GUI lag
-                if self.check_stop():
-                    break # toggle
-                elif len(self.__mq):
-                    conn, addr = s.accept() # create a new socket
-                    self.connected = True
-                    with conn: # close the connection after this code is executed:
-                        try:
-                            enum, mes_len, message = self.__mq.pop(0)
-                            self.ts['connect'].append(time.time())
-                            self.ts['waiting'].append(time.time() - self.ts['disconnect'][-1])
-                            try:
-                                conn.sendall(enum) # send enum
-                                conn.sendall(mes_len) # send text length
-                                conn.sendall(message) # send text
-                            except (ConnectionResetError, ConnectionAbortedError) as e:
-                                self.__mq.insert(0, [enum, mes_len, message]) # check this doesn't infinitely add the message back
-                                logger.error('Python server: client terminated connection before message was sent.' +
-                                    ' Re-inserting message at front of queue.\n'+str(e))
-                            self.ts['sent'].append(time.time() - self.ts['connect'][-1])
-                            try:
-                                # receive current run number from DExTer as 4 bytes
-                                self.dxnum.emit(str(int.from_bytes(conn.recv(4), 'big'))) # long int
-                                # receive message from DExTer
-                                buffer_size = int.from_bytes(conn.recv(4), 'big')
-                                self.textin.emit(str(conn.recv(buffer_size), encoding))
-                            except (ConnectionResetError, ConnectionAbortedError) as e:
-                                logger.error('Python server: client terminated connection before receive.\n'+str(e))
-                            self.ts['received'].append(time.time() - self.ts['connect'][-1] - self.ts['sent'][-1])
-                            self.ts['disconnect'].append(time.time())
-                        except IndexError as e: 
-                            logger.error('Server msg queue was emptied before msg could be sent.\n'+str(e))
-                    self.connected = False
+                try:
+                    enum, mes_len, message = self.__mq.pop(0)
+                    self.ts['connect'].append(time.time())
+                    self.ts['waiting'].append(time.time() - self.ts['disconnect'][-1])
+                    try:
+                        conn.sendall(enum) # send enum
+                        conn.sendall(mes_len) # send text length
+                        conn.sendall(message) # send text
+                    except (ConnectionResetError, ConnectionAbortedError) as e:
+                        self.msg_queue.insert(0, [enum, mes_len, message]) # check this doesn't infinitely add the message back
+                        logger.error('Python server: client terminated connection before message was sent.' +
+                            ' Re-inserting message at front of queue.\n'+str(e))
+                    self.ts['sent'].append(time.time() - self.ts['connect'][-1])
+                    try:
+                        # receive current run number from DExTer as 4 bytes
+                        self.dxnum.emit(str(int.from_bytes(conn.recv(4), 'big'))) # long int
+                        # receive message from DExTer
+                        buffer_size = int.from_bytes(conn.recv(4), 'big')
+                        self.textin.emit(str(conn.recv(buffer_size), encoding))
+                    except (ConnectionResetError, ConnectionAbortedError) as e:
+                        logger.error('Python server: client terminated connection before receive.\n'+str(e))
+                    self.ts['received'].append(time.time() - self.ts['connect'][-1] - self.ts['sent'][-1])
+                    self.ts['disconnect'].append(time.time())
+                except IndexError: pass # there was no message to send
+        self.connected = False
                         
     def save_times(self):
         """Print the timings between messages."""

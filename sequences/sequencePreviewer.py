@@ -46,82 +46,6 @@ def fmt(val, p):
     except ValueError:
         return str(val)[:p]
 
-#### #### Edit sequences #### ####
-
-# class Editor(QMainWindow):
-#     """Provide a GUI for quickly editing DExTer sequences.
-#     """
-#     def __init__(self, num_steps=1):
-#         super().__init__()
-#         self.tr = translate(num_steps)
-#         self.pre = Previewer(self.tr)
-#         self.init_UI()
-
-#     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
-#             default_text='', validator=None):
-#         """Make a QLabel with an accompanying QLineEdit and add them to the 
-#         given layout with an input validator. The position argument should
-#         be [row number, column number, row width, column width]."""
-#         label = QLabel(label_text, self)
-#         layout.addWidget(label, *position)
-#         line_edit = QLineEdit(self)
-#         if np.size(position) == 4:
-#             position[1] += 1
-#         layout.addWidget(line_edit, *position)
-#         line_edit.setText(default_text) 
-#         line_edit.setValidator(validator)
-#         return label, line_edit
-        
-#     def init_UI(self):
-#         """Create all of the widget objects required"""
-#         self.centre_widget = QWidget()
-#         self.centre_widget.layout = QGridLayout()
-#         self.centre_widget.setLayout(self.centre_widget.layout)
-#         self.setCentralWidget(self.centre_widget)
-        
-#         #### validators for user input ####
-#         # reg_exp = QRegExp(r'([0-9]+(\.[0-9]+)?,?)+')
-#         # comma_validator = QRegExpValidator(reg_exp) # floats and commas
-#         double_validator = QDoubleValidator() # floats
-#         int_validator = QIntValidator()       # integers
-        
-#         #### menubar at top gives options ####
-#         # menubar = self.menuBar()
-#         # show_windows = menubar.addMenu('Windows')
-#         # menu_items = []
-#         # for window_title in ['Image Analyser', 'Camera Status', 
-#         #     'Image Saver', 'Monitoring']:
-#         #     menu_items.append(QAction(window_title, self)) 
-#         #     menu_items[-1].triggered.connect(self.show_window)
-#         #     show_windows.addAction(menu_items[-1])
-
-#         #### choose event indices ####
-#         # by name
-#         # by index
-#         self.make_label_edit('Event index', self.centre_widget.layout, 
-#             position=[1,0, 1,1], default_text='0', validator=int_validator)
-        
-#         #### choose channel ####
-#         self.make_label_edit('Channel', self.centre_widget.layout, 
-#             position=[2,0, 1,1], default_text='')
-
-#         #### choose new value ####
-#         self.make_label_edit('New value', self.centre_widget.layout, 
-#             position=[3,0, 1,1], default_text='0', validator=double_validator)
-
-#         #### preview sequence ####
-#         self.preview_button = QPushButton('Preview sequence', self)
-#         self.preview_button.resize(self.preview_button.sizeHint())
-#         self.preview_button.clicked.connect(self.pre.show)
-#         self.centre_widget.layout.addWidget(self.preview_button, 5,0, 1,1)
-
-#         #### save to file ####
-        
-#         #### choose main window position and dimensions: (xpos,ypos,width,height)
-#         self.setGeometry(60, 60, 900, 800)
-#         self.setWindowTitle('DExTer Sequence Editor')
-#         self.setWindowIcon(QIcon('docs/translatoricon.png'))
-
 #### #### Preview sequences #### ####
 
 class Previewer(QMainWindow):
@@ -137,12 +61,14 @@ class Previewer(QMainWindow):
     
     def reset_table(self, table, digital=1):
         """Set empty table items in all of the cells of the
-        given table. 
+        given table. The items are not editable.
         digital -- 1: Set the background colour red
                 -- 0: Set the text as ''."""
         for i in range(table.rowCount()):
             for j in range(table.columnCount()):
-                table.setItem(i, j, QTableWidgetItem())
+                item = QTableWidgetItem()
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                table.setItem(i, j, item)
                 if digital:
                     table.item(i, j).setBackground(Qt.red)
                 else:
@@ -200,7 +126,7 @@ class Previewer(QMainWindow):
         self.e_list = QTableWidget(4, num_e)
         self.e_list.setVerticalHeaderLabels(['Event name: ', 
             'Routine specific event? ', 'Event indices: ', 'Event path: '])
-        self.e_list.setFixedHeight(250)
+        self.e_list.setFixedHeight(150)
         self.reset_table(self.e_list, 0)
         prv_vbox.addWidget(self.e_list)
         
@@ -212,7 +138,7 @@ class Previewer(QMainWindow):
             'Time step length: ', 'Time unit: ', 'D/A trigger: ',
             'Trigger this time step? ', 'Channel: ', 'Analogue voltage (V): ',
             'GPIB event name: ', 'GPIB on/off? '])
-        self.head_top.setFixedHeight(600)
+        self.head_top.setFixedHeight(450)
         self.reset_table(self.head_top, 0)
         prv_vbox.addWidget(self.head_top)
           
@@ -229,7 +155,7 @@ class Previewer(QMainWindow):
         fa_head = QLabel('Fast Analogue', self) 
         prv_vbox.addWidget(fa_head)
         self.fa_chans = QTableWidget(self.tr.nfa, num_s*2)
-        self.fa_chans.setFixedHeight(330)
+        self.fa_chans.setFixedHeight(260)
         self.reset_table(self.fa_chans, 0)
         prv_vbox.addWidget(self.fa_chans)
         
@@ -241,7 +167,7 @@ class Previewer(QMainWindow):
             'Time step length: ', 'Time unit: ', 'D/A trigger: ',
             'Trigger this time step? ', 'Channel: ', 'Analogue voltage (V): ',
             'GPIB event name: ', 'GPIB on/off? '])
-        self.head_mid.setFixedHeight(560)
+        self.head_mid.setFixedHeight(450)
         self.reset_table(self.head_mid, 0)
         prv_vbox.addWidget(self.head_mid)
         
@@ -286,7 +212,7 @@ class Previewer(QMainWindow):
         mr_menu.addAction(mrqueue)
         
         # choose main window position and dimensions: (xpos,ypos,width,height)
-        self.setWindowTitle('Sequence Preview')
+        self.setWindowTitle('Multirun Editor and Sequence Preview')
         self.setWindowIcon(QIcon('docs/previewicon.png'))
 
 
@@ -368,14 +294,18 @@ class Previewer(QMainWindow):
                 else:
                     self.head_top.item(j, i).setText(str(esc['Sequence header top'][i][key]))
                     self.head_mid.item(j, i).setText(str(esc['Sequence header middle'][i][key]))
+            self.fd_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header top']])
             for j in range(self.tr.nfd):
                 self.fd_chans.item(j, i).setBackground(Qt.green if BOOL(esc['Fast digital channels'][i][j]) else Qt.red)
+            self.fa_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header top'] for j in range(2)])
             for j in range(self.tr.nfa):
                 self.fa_chans.item(j, 2*i).setText(fmt(esc['Fast analogue array'][j]['Voltage'][i], self.p))
                 self.fa_chans.item(j, 2*i+1).setText(
                     'Ramp' if BOOL(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
+            self.sd_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header middle']])
             for j in range(self.tr.nsd):
                 self.sd_chans.item(j, i).setBackground(Qt.green if BOOL(esc['Slow digital channels'][i][j]) else Qt.red)
+            self.sa_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header middle'] for j in range(2)])
             for j in range(self.tr.nsa):
                 self.sa_chans.item(j, 2*i).setText(fmt(esc['Slow analogue array'][j]['Voltage'][i], self.p))
                 self.sa_chans.item(j, 2*i+1).setText(

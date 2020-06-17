@@ -33,7 +33,7 @@ class camera(QThread):
     # emit (EM gain, preamp gain, readout noise) when the acquisition settings are updated
     SettingsChanged = pyqtSignal([float, float, float, bool])
     # emit the smallest dimension of image height/width when ROI is updated
-    ROIChanged = pyqtSignal([str, str])
+    ROIChanged = pyqtSignal([int, int])
 
     def __init__(self, config_file=".\\ExExposure_config.dat"):
         super().__init__()   # Initialise the parent classes
@@ -102,7 +102,7 @@ class camera(QThread):
             self.AF.GetDetector()
 
         else:
-            print("Connection error: " + ERROR_CODE[err]) 
+            raise(Exception("Connection error: " + ERROR_CODE[err])) 
         
     def ApplySettings(self, setPointT=-60, coolerMode=1, shutterMode=2, 
             outamp=0, hsspeed=2, vsspeed=4, preampgain=3, EMgain=1, 
@@ -193,6 +193,7 @@ class camera(QThread):
             errors.append(ERROR_CODE[self.AF.SetNumberKinetics(numKin)])
             # errors.append(ERROR_CODE[self.cam.AF.SetFastKineticsEx(
             #                     100, numKin, expTime, 4, 1, 1, 1)])
+        self.AF.PrevTrigger = triggerMode # store the trigger mode so it can be reset later
         errors.append(ERROR_CODE[self.AF.SetTriggerMode(triggerMode)])
         errors.append(ERROR_CODE[self.AF.SetFastExtTrigger(fastTrigger)])
         errors.append(ERROR_CODE[self.AF.SetFrameTransferMode(frameTransf)])
@@ -260,6 +261,7 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.AF.SetAcquisitionMode(cvals[16])])
         if cvals[22] > 1:
             errors.append(ERROR_CODE[self.AF.SetNumberKinetics(cvals[22])])
+        self.AF.PrevTrigger = cvals[17] # store the trigger mode so it can be reset later
         errors.append(ERROR_CODE[self.AF.SetTriggerMode(cvals[17])])
         errors.append(ERROR_CODE[self.AF.SetFrameTransferMode(cvals[18])])
         errors.append(ERROR_CODE[self.AF.SetFastExtTrigger(cvals[19])])
@@ -307,7 +309,7 @@ class camera(QThread):
             self.AF.SetIsolatedCropModeType(slowcrop)
         else:
             error = self.AF.SetImage(hbin,vbin,hstart,hend,vstart,vend)
-        self.ROIChanged.emit(str(self.AF.ROIwidth), str(self.AF.ROIheight))
+        self.ROIChanged.emit(self.AF.ROIwidth, self.AF.ROIheight)
         return error
             
     def CheckCurrentSettings(self):
@@ -390,7 +392,6 @@ class camera(QThread):
         """Start an Acquisition and wait for a signal to abort"""
         self.idle_time = time.time() - self.t2 # time since last acquisition
         self.AF.StartAcquisition()
-        # i = 0
         while self.AF.GetStatus() == 'DRV_ACQUIRING':
             self.t0 = time.time() 
             result = win32event.WaitForSingleObject(
@@ -402,8 +403,6 @@ class camera(QThread):
                 if self.lastImage.any(): # sometimes last image is empty
                     self.AcquireEnd.emit(self.lastImage[0]) # emit signals
             self.t2 = time.time()
-            # print(i, end=' ')
-            # i += 1
         
     def PrintTimes(self, unit="s"):
         """Display the times measured for functions"""
@@ -450,8 +449,10 @@ if __name__ == "__main__":
     # change directory to this file's location
     os.chdir(os.path.dirname(os.path.realpath(__file__))) 
     iXon = camera()
-    iXon.verbosity = True
+    iXon.AF.verbosity = True
     iXon.timeout = 20e3
     iXon.CheckCurrentSettings()
-    iXon.run()
+    iXon.start()
+    time.sleep(10)
+    iXon.AF.AbortAcquisition()
     iXon.SafeShutdown()

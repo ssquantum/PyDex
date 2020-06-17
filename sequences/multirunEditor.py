@@ -73,8 +73,8 @@ class multirun_widget(QWidget):
             ('Order', order), ('Type', ['Time step length']*ncols), 
             ('Analogue type', ['Fast analogue']*ncols), ('Time step name', [[]]*ncols), 
             ('Analogue channel', [[]]*ncols), ('runs included', [[] for i in range(nrows)]),
-            ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\RbMOTendstep.evt'), 
-            ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.3\Last Timesteps\feb2020_940and812.evt'),
+            ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\RbMOTendstep.evt'), 
+            ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'),
             ('# omitted', 0), ('# in hist', 100)])
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
@@ -112,8 +112,9 @@ class multirun_widget(QWidget):
 
         #### validators for user input ####
         double_validator = QDoubleValidator() # floats
-        int_validator = QIntValidator()       # integers
-        nat_validator = QIntValidator(1,10000)# natural numbers
+        int_validator = QIntValidator(0,10000000) # positive integers
+        msr_validator = QIntValidator(-1,1000000) # integers >= -1
+        nat_validator = QIntValidator(1,10000000) # natural numbers
         col_validator = QIntValidator(1,self.ncols-1) # for number of columns
 
         #### table dimensions and ordering ####
@@ -146,7 +147,8 @@ class multirun_widget(QWidget):
             self.measures[labels[i]].textChanged.connect(self.update_all_stats)
             self.grid.addWidget(self.measures[labels[i]], i+1,1, 1,3)
         self.measures['measure'].setValidator(int_validator)
-        self.measures['1st hist ID'].setValidator(int_validator)
+        self.measures['1st hist ID'].setValidator(msr_validator)
+        label.setText('1st ID (-1 to append)') # change label
 
         self.chan_choices = OrderedDict()
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
@@ -169,19 +171,17 @@ class multirun_widget(QWidget):
         self.chan_choices['Analogue channel'].setEnabled(False)
 
         # add a new list of multirun values to the array
-        self.col_val_edit = []
-        labels = ['column index', 'start', 'stop']
-        validators = [col_validator, double_validator, double_validator]
-        for i in range(0, len(labels)*2, 2):
-            self.col_val_edit.append(self.make_label_edit(labels[i//2], self.grid, 
-                position=[5,i, 1,1], default_text='1', 
-                validator=validators[i//2])[1])
+        self.col_index = self.make_label_edit('column index:', self.grid, 
+                position=[5,0, 1,1], default_text='0', 
+                validator=col_validator)[1]
+        self.col_range = QLineEdit('linspace(0,1,%s)'%(self.nrows+1), self)
+        self.grid.addWidget(self.col_range, 5,2, 1,2)
         # show the previously selected channels for this column:
         self.chan_choices['Time step name'].itemClicked.connect(self.save_chan_selection)
         self.chan_choices['Analogue channel'].itemClicked.connect(self.save_chan_selection)
         self.chan_choices['Type'].activated[str].connect(self.save_chan_selection)
         self.chan_choices['Analogue type'].activated[str].connect(self.save_chan_selection)
-        self.col_val_edit[0].textChanged[str].connect(self.set_chan_listbox)
+        self.col_index.textChanged[str].connect(self.set_chan_listbox)
 
         # add the column to the multirun values array
         add_var_button = QPushButton('Add column', self)
@@ -193,7 +193,13 @@ class multirun_widget(QWidget):
         clear_vars_button = QPushButton('Clear', self)
         clear_vars_button.clicked.connect(self.clear_array)
         clear_vars_button.resize(clear_vars_button.sizeHint())
-        self.grid.addWidget(clear_vars_button, 6,1, 1,2)
+        self.grid.addWidget(clear_vars_button, 6,1, 1,1)
+        
+        # suggest new measure when multirun started
+        self.suggest_button = QPushButton('Auto-increment measure', self, 
+                checkable=True, checked=True)
+        self.suggest_button.resize(self.suggest_button.sizeHint())
+        self.grid.addWidget(self.suggest_button, 6,2, 1,2)
         
         # choose last time step for multirun
         lts_label = QLabel('Last time step: ', self)
@@ -259,9 +265,9 @@ class multirun_widget(QWidget):
         self.table.setRowCount(self.nrows)
         self.ncols = int(self.cols_edit.text()) if self.cols_edit.text() else 1
         self.table.setColumnCount(self.ncols)
-        self.col_val_edit[0].setValidator(QIntValidator(1,self.ncols-1))
-        if self.col_val_edit[0].text() and int(self.col_val_edit[0].text()) > self.ncols-1:
-            self.col_val_edit[0].setText(str(self.ncols-1))
+        self.col_index.setValidator(QIntValidator(1,self.ncols-1))
+        if self.col_index.text() and int(self.col_index.text()) > self.ncols-1:
+            self.col_index.setText(str(self.ncols-1))
         self.reset_array()
         self.ui_param['runs included'] = [[] for i in range(self.nrows)]
         for key, default in zip(['Type', 'Analogue type', 'Time step name', 'Analogue channel'],
@@ -278,7 +284,9 @@ class multirun_widget(QWidget):
         self.update_last_step()
         for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
             if self.measures[key].text(): # don't do anything if the line edit is empty
-                self.ui_param[key] = self.types[key](self.measures[key].text())
+                try:
+                    self.ui_param[key] = self.types[key](self.measures[key].text())
+                except: pass # probably while user was typing the '-' in '-1'
         
     def update_repeats(self, txt=''):
         """Take the current values of the line edits and use them to set the
@@ -293,33 +301,38 @@ class multirun_widget(QWidget):
            
     def add_column_to_array(self):
         """Make a list of values and add it to the given column 
-        in the multirun values array. The list is range(start, stop, step) 
-        repeated a set number of times, ordered according to the 
+        in the multirun values array. The function is chosen by the user.
+        Values are repeated a set number of times, ordered according to the 
         ComboBox text. The selected channels are stored in lists."""
-        if all(x.text() for x in self.col_val_edit):
-            col = int(self.col_val_edit[0].text()) if self.col_val_edit[0].text() else 0
-            # store the selected channels
-            self.ui_param['Order'] = self.order_edit.currentText()
-            for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
-                if self.measures[key].text(): # don't do anything if the line edit is empty
-                    self.ui_param[key] = self.types[key](self.measures[key].text())
-            # make the list of values:
-            try:
-                vals = np.linspace(*map(float, [x.text() for x in self.col_val_edit[1:3]]), self.nrows)
-            except ZeroDivisionError as e: 
-                logger.warning('Add column to multirun: attempted to use step of 0.\n'+str(e))
-                return 0
-            # order the list of values
-            if self.ui_param['Order'] == 'descending':
-                vals = reversed(vals)
-            elif 'random' in self.ui_param['Order']:
-                vals = list(vals)
-                shuffle(vals)
-            for i in range(self.table.rowCount()): 
-                try: # set vals in table cells
-                    self.table.item(i, col).setText('%.5g'%vals[i])
-                except IndexError: # occurs if invalid range
-                    self.table.item(i, col).setText('')
+        if 'linspace' in self.col_range.text(): # choose the generating function
+            f = np.linspace
+        elif 'logspace' in self.col_range.text():
+            f = np.logspace
+        elif 'range' in self.col_range.text():
+            f = np.arange
+        else: return 0
+        try: # make the list of values
+            vals = f(*map(float, self.col_range.text().split('(')[-1].replace(')','').split(',')))
+        except (ZeroDivisionError, TypeError, ValueError) as e: 
+            logger.warning('Add column to multirun: invalid syntax "'+self.col_range.text()+'".\n'+str(e))
+            return 0
+        col = int(self.col_index.text()) if self.col_index.text() else 0
+        # store the selected channels
+        self.ui_param['Order'] = self.order_edit.currentText()
+        for key in self.measures.keys(): # ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
+            if self.measures[key].text(): # don't do anything if the line edit is empty
+                self.ui_param[key] = self.types[key](self.measures[key].text())
+        # order the list of values
+        if self.ui_param['Order'] == 'descending':
+            vals = list(reversed(vals))
+        elif 'random' in self.ui_param['Order']:
+            vals = list(vals)
+            shuffle(vals)
+        for i in range(self.table.rowCount()): 
+            try: # set vals in table cells
+                self.table.item(i, col).setText('%.5g'%vals[i])
+            except IndexError: # occurs if invalid range
+                self.table.item(i, col).setText('')
 
     #### multirun channel selection ####
 
@@ -335,13 +348,13 @@ class multirun_widget(QWidget):
             self.chan_choices[key].clear()
             self.chan_choices[key].addItems(items)
         # note: selected channels might have changed order
-        self.set_chan_listbox(self.col_val_edit[0].text())
+        self.set_chan_listbox(self.col_index.text())
 
     def save_chan_selection(self, arg=None):
         """When the user changes the selection of channels/timesteps for the
         given column, save it. The selection will be reloaded if the user
         changes the column and then comes back."""
-        col = int(self.col_val_edit[0].text()) if self.col_val_edit[0].text() else 0
+        col = int(self.col_index.text()) if self.col_index.text() else 0
         for key in ['Type', 'Analogue type']:
             self.ui_param[key][col] = self.chan_choices[key].currentText()
         for key in ['Time step name', 'Analogue channel']:
@@ -408,7 +421,7 @@ class multirun_widget(QWidget):
         # elif self.mr_param['Order'] == 'random':
         #     return randint(0, self.nrows - 1)
         # else: # if descending, ascending, or coarse random, the order has already been set
-        return (rn // (self.mr_param['# omitted'] + self.mr_param['# in hist'])) % self.nrows # ID of histogram in repetition cycle
+        return (rn // (self.mr_param['# omitted'] + self.mr_param['# in hist'])) % len(self.mr_param['runs included'])# ID of histogram in repetition cycle
 
     def get_next_sequence(self, i=None, save_dir=''):
         """Use the values in the multirun array to make the next
@@ -450,7 +463,7 @@ class multirun_widget(QWidget):
     def view_mr_queue(self):
         """Pop up message box displays the queued multiruns"""
         text = 'Would you like to clear the following list of queued multiruns?\n'
-        for params, _, _ in self.mr_queue:
+        for params, _, _, _ in self.mr_queue:
             text += params['measure_prefix'] + '\t' + params['Variable label'] + '\n'
         reply = QMessageBox.question(self, 'Queued Multiruns',
             text, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -508,7 +521,7 @@ class multirun_widget(QWidget):
                         logger.error('Multirun editor could not load parameter: %s\n'%params[i]+str(e))
             # store values in case they're overwritten after setText()
             nrows, ncols = np.shape(vals) # update array of values
-            col = int(self.col_val_edit[0].text()) if self.col_val_edit[0].text() else 0
+            col = int(self.col_index.text()) if self.col_index.text() else 0
             nhist, nomit = map(str, [self.ui_param['# in hist'], self.ui_param['# omitted']])
             runstep, endstep = self.ui_param['Last time step run'], self.ui_param['Last time step end']
             # then update the label edits
@@ -525,3 +538,48 @@ class multirun_widget(QWidget):
             self.omit_edit.setText(nomit)
             self.last_step_run_edit.setText(runstep) # triggers update_last_step
             self.last_step_end_edit.setText(endstep)
+            
+    def check_mr_params(self, save_results_path='.'):
+        """Check that the multirun parameters are valid before adding it to the queue"""
+        results_path = os.path.join(save_results_path, self.ui_param['measure_prefix'])
+        appending = False
+        # first check if the measure folder already exists with some files in
+        imax = 0
+        try: 
+            filelist = os.listdir(results_path)
+            for fname in filelist:
+                if 'params' in fname:
+                    try: # look for multirun parameters file
+                        with open(os.path.join(results_path, fname), 'r') as f:
+                            _ = f.readline()
+                            vals = f.readline().replace('\n','').split(';')
+                            header = f.readline().replace('\n','').split(';')
+                            params = f.readline().split(';')
+                            imax = max(imax, len(vals) + int(params[header.index('1st hist ID')]) - 1)
+                    except: pass
+        except FileNotFoundError: pass
+        # then check the multirun queue
+        for m in self.mr_queue:
+            if self.ui_param['measure_prefix'] == m[0]['measure_prefix']:
+                imax = max(imax, len(m[2]) + m[0]['1st hist ID'] - 1)
+        
+        if self.ui_param['1st hist ID'] == -1: # append at the end 
+            appending = True
+            self.ui_param['1st hist ID'] = imax + 1 if imax>0 else 0
+                    
+        if (os.path.isdir(results_path) or self.ui_param['measure_prefix'] in [
+            x[0]['measure_prefix'] for x in self.mr_queue]) and imax >= self.ui_param['1st hist ID']:
+            # this measure exists, check if user wants to overwrite
+            reply = QMessageBox.question(self, 'Confirm Overwrite',
+                "Results path already exists, do you want to overwrite the files?\n"+results_path,
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.No:
+                return 0
+
+        # parameters are valid, add to queue
+        self.mr_queue.append([copy.deepcopy(self.ui_param), self.tr.copy(), self.get_table(), appending]) 
+        if self.suggest_button.isChecked(): # suggest new multirun measure ID and prefix
+            n = self.ui_param['measure'] + 1
+            self.measures['measure'].setText(str(n))
+            self.measures['measure_prefix'].setText('Measure'+str(n))  
+        return 1

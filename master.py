@@ -31,14 +31,15 @@ except ImportError:
         QVBoxLayout)
 # change directory to this file's location
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
-# import warnings
-# warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
+import warnings
+warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
 import logging
 import logerrs
 logerrs.setup_log()
 logger = logging.getLogger(__name__)
 sys.path.append('./imageanalysis')
 from imageanalysis.settingsgui import settings_window
+from imageanalysis.atomChecker import atom_window
 sys.path.append('./andorcamera')
 from andorcamera.cameraHandler import camera # manages Andor camera
 sys.path.append('./saveimages')
@@ -52,6 +53,54 @@ from strtypes import intstrlist
 
 ####    ####    ####    ####
 
+class MonitorStatus(QMainWindow):
+    """A window to display the status of the separate monitor program.
+    Communications are carried out over TCP."""
+    def __init__(self):
+        super().__init__()
+        self.connected = False # Whether connection with monitor has been confirmed
+        self.i = 5 # index for checking connection
+        self.centre_widget = QWidget()
+        layout = QGridLayout()
+        self.centre_widget.setLayout(layout)
+        self.setCentralWidget(self.centre_widget)
+
+        self.status = QLabel('Unconfirmed.') # show current status
+        layout.addWidget(self.status, 0,0, 1,2)
+        
+        self.start_button = QPushButton('Start', self, checkable=False)
+        layout.addWidget(self.start_button, 1,0, 1,1)
+        
+        self.stop_button = QPushButton('Stop', self, checkable=False)
+        layout.addWidget(self.stop_button, 1,1, 1,1)
+        
+        self.setWindowTitle('- Check Monitor Connection -')
+        self.setWindowIcon(QIcon('docs/daqicon.png'))
+        
+    def set_label(self, text):
+        self.status.setText('Message at ' + time.strftime('%H:%M') +': '+ text)
+        
+    def set_connected(self, text=''):
+        self.connected = True
+        
+    def start_check(self, n=5):
+        """Check whether a TCP message has been received from the monitor.
+        n -- number of seconds to wait before assuming the connection is broken."""
+        self.i = n
+        QTimer.singleShot(1e3, self.check_connected) 
+        
+    def check_connected(self):
+        if not self.connected and self.i:
+            self.status.setText('Waiting for response. %s seconds remaining.'%self.i)
+            self.i -= 1
+            QTimer.singleShot(1e3, self.check_connected) 
+        elif self.i == 0:
+            self.status.setText('Lost TCP connection with monitor.')
+        elif self.connected and 'Waiting' in self.status.text():
+            self.status.setText('Connection confirmed.')
+
+####    ####    ####    ####
+
 class Master(QMainWindow):
     """A manager to synchronise and control experiment modules.
     
@@ -62,19 +111,17 @@ class Master(QMainWindow):
     This master module will define the run number. It must confirm that
     each Dexter sequence has run successfully in order to stay synchronised.
     Keyword arguments:
-    pop_up       -- 0: initiate a single instance of saia1.
-                    1: open a dialog asking the user which image analyser.
     state_config -- path to the file that saved the previous state.
                     Default directories for camera settings and image 
                     saving are also saved in this file.
     """
-    def __init__(self, pop_up=1, state_config='.\\state'):
+    def __init__(self, state_config='.\\state'):
         super().__init__()
         self.types = OrderedDict([('File#',int), ('Date',str), ('CameraConfig',str), 
             ('SaveConfig',str), ('MasterGeometry',intstrlist), ('AnalysisGeometry',intstrlist), 
             ('SequencesGeometry',intstrlist)])
         self.stats = OrderedDict([('File#', 0), ('Date', time.strftime("%d,%B,%Y")), 
-            ('CameraConfig', '.\\andorcamera\\ExExposure_config.dat'), 
+            ('CameraConfig', '.\\andorcamera\\Standard modes\\ExExposure_config.dat'), 
             ('SaveConfig', '.\\config\\config.dat'), ('MasterGeometry', [10, 10, 500, 150]), 
             ('AnalysisGeometry', [1400, 400, 600, 500]), 
             ('SequencesGeometry', [20, 100, 1000, 800])])
@@ -86,21 +133,14 @@ class Master(QMainWindow):
         startn = self.restore_state(file_name=state_config)
         # choose which image analyser to use from number images in sequence
         self.init_UI(startn)
-        if pop_up: # also option to choose config file?
-            m, ok = QInputDialog.getInt( # user chooses image analyser
-                self, 'Initiate Image Analyser(s)',
-                'Select the number of images per sequence\n(0 for survival probability)',
-                value=0, min=0, max=100)
-        else:
-            m = 0
         # initialise the thread controlling run # and emitting images
         self.rn = runnum(camera(config_file=self.stats['CameraConfig']), # Andor camera
                 event_handler(self.stats['SaveConfig']), # image saver
-                settings_window(nsaia=m if m!=0 else 2, nreim=1 if m==0 else 1,
-                    results_path =sv_dirs['Results Path: '],
+                settings_window(results_path =sv_dirs['Results Path: '],
                     im_store_path=sv_dirs['Image Storage Path: ']), # image analysis
+                atom_window(last_im_path=sv_dirs['Image Storage Path: ']), # check if atoms are in ROIs to trigger experiment
                 Previewer(), # sequence editor
-                n=startn, m=m if m!=0 else 2, k=0) 
+                n=startn, m=2, k=0) 
         # now the signals are connected, send camera settings to image analysis
         if self.rn.cam.initialised > 2:
             check = self.rn.cam.ApplySettingsFromConfig(self.stats['CameraConfig'])
@@ -110,14 +150,18 @@ class Master(QMainWindow):
         self.status_label.setText('Initialising...')
         QTimer.singleShot(0, self.idle_state) # takes a while for other windows to load
         
+        self.rn.check.showMaximized()
         self.rn.seq.setGeometry(*self.stats['SequencesGeometry'])
         self.rn.seq.show()
         self.rn.sw.setGeometry(*self.stats['AnalysisGeometry'])
         self.rn.sw.show()
         self.rn.sw.show_analyses(show_all=True)
-        if self.rn.server.isRunning():
-            self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
         
+        self.mon_win = MonitorStatus()
+        self.mon_win.start_button.clicked.connect(self.start_monitor)
+        self.mon_win.stop_button.clicked.connect(self.stop_monitor)
+        self.rn.monitor.textin[str].connect(self.mon_win.set_label)
+        self.rn.monitor.textin.connect(self.mon_win.set_connected)
         # set a timer to update the dates 2s after midnight:
         t0 = time.localtime()
         QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
@@ -176,17 +220,23 @@ class Master(QMainWindow):
         show_windows = menubar.addMenu('Windows')
         menu_items = []
         for window_title in ['Image Analyser', 'Camera Status', 
-            'Image Saver', 'TCP Server', 'Sequence Previewer']:
+            'Image Saver', 'TCP Server', 'Sequence Previewer',
+            'Atom Checker', 'Monitor']:
             menu_items.append(QAction(window_title, self)) 
             menu_items[-1].triggered.connect(self.show_window)
             show_windows.addAction(menu_items[-1])
 
-        sync_menu = menubar.addMenu('Run Synchronisation')
+        sync_menu = menubar.addMenu('Run Settings')
         self.sync_toggle = QAction('Sync with DExTer', sync_menu, 
                 checkable=True, checked=True)
         self.sync_toggle.setChecked(True)
         self.sync_toggle.toggled.connect(self.sync_mode)
         sync_menu.addAction(self.sync_toggle)
+
+        self.check_rois = QAction('Trigger on atoms loaded', sync_menu, 
+                checkable=True, checked=False)
+        self.check_rois.setChecked(False)
+        sync_menu.addAction(self.check_rois)
 
         reset_date = QAction('Reset date', sync_menu, checkable=False)
         reset_date.triggered.connect(self.reset_dates)
@@ -196,7 +246,7 @@ class Master(QMainWindow):
         self.status_label = QLabel('Initiating...', self)
         self.centre_widget.layout.addWidget(self.status_label, 0,0, 1,3)
         
-        Dx_label = QLabel('Dx #: ', self)
+        Dx_label = QLabel('Run #: ', self)
         self.centre_widget.layout.addWidget(Dx_label, 1,0, 1,1)
         self.Dx_label = QLabel(str(startn), self)
         self.centre_widget.layout.addWidget(self.Dx_label, 1,1, 1,1)
@@ -250,7 +300,11 @@ class Master(QMainWindow):
             if self.rn.cam.initialised:
                 msg = 'Current state: ' + self.rn.cam.AF.GetStatus() + '\nChoose a new config file: '
             else: msg = 'Camera not initialised. See log file for details. Press OK to retry.'
-            text, ok = QInputDialog.getText( self, 'Camera Status', msg, text=self.stats['CameraConfig'])
+            newfile = self.rn.sw.try_browse(title='Choose new config file', 
+                    file_type='config (*.dat);;all (*)', 
+                    defaultpath=os.path.dirname(self.stats['CameraConfig']))
+            text, ok = QInputDialog.getText( self, 'Camera Status', msg, 
+                    text=newfile if newfile else self.stats['CameraConfig'])
             if text and ok:
                 if self.rn.cam.initialised > 2:
                     if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
@@ -282,19 +336,19 @@ class Master(QMainWindow):
         elif self.sender().text() == 'Sequence Previewer':
             self.rn.seq.show()
         elif self.sender().text() == 'TCP Server':
+            info = 'Trigger server is running.\n' if self.rn.trigger.isRunning() else 'Trigger server stopped.\n'
             if self.rn.server.isRunning():
-                info = "TCP server is running. %s queued message(s)."%len(self.rn.server.msg_queue)
+                msgs = self.rn.server.get_queue()
+                info += "TCP server is running. %s queued message(s)."%len(msgs)
                 info += '\nCommand Enum | Length |\t Message\n'
-                for msg in self.rn.server.msg_queue[:5]:
-                    msglen = int.from_bytes(msg[1], 'big')
-                    info += ' | '.join([str(int.from_bytes(msg[0], 'big')), 
-                            str(msglen), str(msg[2], 'mbcs')[:20]])
-                    if msglen > 20:  info += '...'
+                for enum, textlength, text in msgs[:5]:
+                    info += enum + ' | ' + text[:20]
+                    if textlength > 20:  info += '...'
                     info += '\n'
-                if len(self.rn.server.msg_queue) > 5:
+                if len(msgs) > 5:
                     info += '...\n'
             else:
-                info = "TCP server stopped."
+                info += "TCP server stopped."
             reply = QMessageBox.question(self, 'TCP Server Status', 
                 info+"\nDo you want to restart the server?", 
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -302,7 +356,24 @@ class Master(QMainWindow):
                 self.action_button.setEnabled(True)
                 self.rn.seq.mr.mr_queue = []
                 self.rn.multirun = False
-                self.rn.reset_server(force=True)
+                self.rn.reset_server(force=True) # stop and then restart the servers
+                self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
+            elif reply == QMessageBox.No:
+                self.rn.reset_server(force=False) # restart the server if it stopped
+        elif self.sender().text() == 'Atom Checker':
+            self.rn.check.showMaximized()
+        elif self.sender().text() == 'Monitor':
+            self.mon_win.show()
+            
+    def start_monitor(self, toggle=True):
+        """Send a TCP command to the monitor to start its acquisition."""
+        self.mon_win.start_check()
+        self.rn.monitor.add_message(self.rn._n, 'start')
+        
+    def stop_monitor(self, toggle=True):
+        """Send a TCP command to the monitor to stop its acquisition."""
+        self.mon_win.start_check()
+        self.rn.monitor.add_message(self.rn._n, 'stop')
 
     def browse_sequence(self, toggle=True):
         """Open the file browser to search for a sequence file, then insert
@@ -357,7 +428,7 @@ class Master(QMainWindow):
                 if self.sync_toggle.isChecked():
                     QMessageBox.warning(self, 'Unscyned acquisition', 
                         'Warning: started acquisition in synced mode. Without messages to DExTer, the file ID will not update.'+
-                        '\nTry unchecking: "Run Synchronisation" > "Sync with DExTer".')
+                        '\nTry unchecking: "Run Settings" > "Sync with DExTer".')
                 self.actions.setEnabled(False) # don't process other actions in this mode
                 self.rn._k = 0 # reset image per run count
                 self.action_button.setText('Stop acquisition')
@@ -376,27 +447,26 @@ class Master(QMainWindow):
                 self.action_button.setEnabled(False) # only process 1 run at a time
                 self.rn._k = 0 # reset image per run count 
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000) 
+                self.rn.monitor.add_message(self.rn._n, 'update run number')
             elif action_text == 'Multirun run':
                 if self.rn.seq.mr.check_table():
                     if not self.sync_toggle.isChecked():
                         self.sync_toggle.setChecked(True) # it's better to multirun in synced mode
-                        QMessageBox.warning(self, 'Synced acquisition', 
-                            'Multirun has changed the sync with DExTer setting.')
-                    self.rn.seq.mr.mr_queue.append([copy.deepcopy(self.rn.seq.mr.ui_param),
-                        self.rn.seq.mr.tr.copy(), self.rn.seq.mr.get_table()]) # add parameters to queue
-                    # suggest new multirun measure ID and prefix
-                    n = self.rn.seq.mr.mr_param['measure'] + len(self.rn.seq.mr.mr_queue)
-                    self.rn.seq.mr.measures['measure'].setText(str(n))
-                    self.rn.seq.mr.measures['measure_prefix'].setText('Measure'+str(n))  
+                        logger.warning('Multirun has changed the "sync with DExTer" setting.')
+                    status = self.rn.seq.mr.check_mr_params(self.rn.sv.results_path) # add to queue if valid
                     self.check_mr_queue() # prevent multiple multiruns occurring simultaneously
-                else: logger.warning('Tried to start multirun with invalid values. Check the table.\n')
+                else: 
+                    QMessageBox.warning(self, 'Invalid multirun', 
+                        'All cells in the multirun table must be populated.')
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':
                 if 'multirun' in self.status_label.text():
-                    self.rn.multirun_go(False)
+                    self.rn.multirun_go(False, stillrunning=True)
             elif action_text == 'Cancel multirun':
-                if 'multirun' in self.status_label.text():
+                if 'multirun' in self.status_label.text() or self.rn.multirun:
+                    if self.rn.check.checking:
+                        self.rn.check.rh.trigger.emit(1) # send software trigger to end
                     self.rn.multirun_go(False)
                     self.rn.seq.mr.ind = 0
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
@@ -411,6 +481,29 @@ class Master(QMainWindow):
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Resync DExTer\n'+'0'*2000) # for when it reconnects
             elif action_text ==  'Resync DExTer':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Resync DExTer\n'+'0'*2000)
+
+    def trigger_exp_start(self, n=None):
+        """Atom checker sends signal saying all ROIs have atoms in, start the experiment"""
+        self.rn.check.timer.stop() # in case the timer was going to trigger the experiment as well
+        remove_slot(self.rn.trigger.dxnum, self.reset_cam_signals, True) # swap signals when msg confirmed
+        self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
+        # QTimer.singleShot(20, self.resend_exp_trigger) # wait in ms
+        
+    def resend_exp_trigger(self, wait=20):
+        """DExTer doesn't always receive the first trigger, send another.
+        wait -- time in ms before checking if the message was received."""
+        if self.rn.check.checking:
+            self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # in case the first fails
+            QTimer.singleShot(wait, self.resend_exp_trigger) # wait in ms
+        
+    def reset_cam_signals(self, toggle=True):
+        """Stop sending images to the atom checker, send them to image analysis instead"""
+        self.rn.check.checking = False
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
+        remove_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
+        remove_slot(self.rn.trigger.dxnum, self.reset_cam_signals, False) # only trigger once
+        self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # flush TCP
             
     def sync_mode(self, toggle=True):
         """Toggle whether to receive the run number from DExTer,
@@ -433,7 +526,7 @@ class Master(QMainWindow):
         This prevents multiple multiruns being sent to DExTer at the same time."""
         num_mrs = len(self.rn.seq.mr.mr_queue) # number of multiruns queued
         if num_mrs:
-            if not self.rn.multirun and num_mrs < 2: 
+            if not self.rn.multirun: 
                 self.rn.multirun = True
                 self.rn.server.add_message(TCPENUM['TCP read'], # send the first multirun to DExTer
                     'start measure %s'%(self.rn.seq.mr.mr_param['measure'] + num_mrs - 1)+'\n'+'0'*2000)
@@ -446,7 +539,11 @@ class Master(QMainWindow):
         if 'finished run' in msg:
             self.end_run(msg)
         elif 'start acquisition' in msg:
-            if self.rn.cam.initialised:
+            self.status_label.setText('Running')
+            if self.check_rois.isChecked(): # start experiment when ROIs have atoms
+                remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
+                self.rn.atomcheck_go() # start camera acuiring
+            elif self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam() # wait for camera to initialise before running
             else: 
@@ -456,12 +553,18 @@ class Master(QMainWindow):
                 (TCPENUM['TCP read'], 'finished run '+str(self.rn._n)+'\n'+'0'*2000)]) # second message confirms end
         elif 'start measure' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
-            if self.rn.cam.initialised:
+            if self.check_rois.isChecked(): # start experiment when ROIs have atoms
+                remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
+                self.rn.atomcheck_go() # start camera acquiring
+            elif self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam()
             else: logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
             self.rn.multirun_go(msg)
         elif 'multirun run' in msg:
+            if self.check_rois.isChecked(): # start experiment when ROIs have atoms
+                remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
+                self.rn.atomcheck_go() # start camera in internal trigger mode
             self.rn.multirun_step(msg)
             self.rn._k = 0 # reset image per run count
         elif 'save and reset histogram' in msg:
@@ -471,6 +574,8 @@ class Master(QMainWindow):
             self.rn.multirun_end(msg)
             # self.rn.server.save_times()
             self.end_run(msg)
+        elif 'STOPPED' in msg:
+            self.status_label.setText(msg)
         self.ts['msg end'] = time.time()
         self.ts['blocking'] = time.time() - self.ts['msg start']
         # self.print_times()
@@ -480,7 +585,12 @@ class Master(QMainWindow):
         check for unprocessed images, and check synchronisation.
         First, disconnect the server.textin signal from this slot to it
         only triggers once."""
-        self.action_button.setEnabled(True)
+        self.action_button.setEnabled(True) # allow another command to be sent
+         # reset atom checker trigger
+        remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, False)
+        if self.rn.trigger.connected:
+            remove_slot(self.rn.trigger.textin, self.rn.trigger.clear_queue, True)
+            self.rn.trigger.add_message(TCPENUM['TCP read'], 'end connection'*150)
         try:
             unprocessed = self.rn.cam.EmptyBuffer()
             self.rn.cam.AF.AbortAcquisition()
@@ -514,11 +624,13 @@ class Master(QMainWindow):
         try:
             self.rn.cam.SafeShutdown()
         except Exception as e: logger.warning('camera safe shutdown failed.\n'+str(e))
+        self.rn.check.send_rois() # give ROIs from atom checker to image analysis
         self.rn.sw.save_settings('.\\imageanalysis\\default.config')
         for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
             ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:
             self.stats[key] = [g.x(), g.y(), g.width(), g.height()]
-        for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, self.rn.server]:
+        for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, 
+                self.rn.server, self.rn.trigger, self.rn.check, self.mon_win]:
             obj.close()
         self.save_state()
         event.accept()

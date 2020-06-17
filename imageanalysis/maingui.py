@@ -32,7 +32,16 @@ logger = logging.getLogger(__name__)
 import imageHandler as ih # process images to build up a histogram
 import histoHandler as hh # collect data from histograms together
 import fitCurve as fc   # custom class to get best fit parameters using curve_fit
-          
+
+####    ####    ####    ####
+
+# validators for user input
+double_validator = QDoubleValidator() # floats
+int_validator    = QIntValidator()    # integers
+int_validator.setBottom(0) # don't allow -ve numbers
+nat_validator    = QIntValidator()    # natural numbers 
+nat_validator.setBottom(1) # > 0
+
 ####    ####    ####    ####
 
 def remove_slot(signal, slot, reconnect=True):
@@ -76,7 +85,7 @@ class main_window(QMainWindow):
         self.name = name  # name is displayed in the window title
         self.image_handler = im_handler if im_handler else ih.image_handler() # class to process images
         self.histo_handler = hist_handler if hist_handler else hh.histo_handler() # class to process histograms
-        self.multirun = False # whether currently doing a multirun or not
+        self.multirun = '' # whether currently doing a multirun or not
         pg.setConfigOption('background', 'w') # set graph background default white
         pg.setConfigOption('foreground', 'k') # set graph foreground default black
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
@@ -124,11 +133,6 @@ class main_window(QMainWindow):
         self.centre_widget.setLayout(self.centre_widget.layout)
         self.setCentralWidget(self.centre_widget)
         
-        # validators for user input
-        double_validator = QDoubleValidator() # floats
-        int_validator    = QIntValidator()    # integers
-        int_validator.setBottom(0) # don't allow -ve numbers
-
         # change font size
         font = QFont()
         font.setPixelSize(14)
@@ -233,7 +237,7 @@ class main_window(QMainWindow):
             settings_grid.addWidget(label[1], 1,2*i+1, 1,1)
             label[1].setText(str(label[2])) # default
             label[1].textChanged.connect(self.pic_size_text_edit)
-            label[1].setValidator(int_validator)
+            label[1].setValidator(nat_validator)
 
         # get image size from loading an image
         # load_im_size = QPushButton('Load size from image', self)
@@ -270,7 +274,7 @@ class main_window(QMainWindow):
         settings_grid.addWidget(self.roi_l_edit, 4,1, 1,1)
         self.roi_l_edit.setText('1')  # default
         self.roi_l_edit.textEdited[str].connect(self.roi_text_edit)
-        self.roi_l_edit.setValidator(int_validator) # only numbers
+        self.roi_l_edit.setValidator(nat_validator) # only numbers
         self.roi_l_edit.setEnabled(edit_ROI)
 
         # EMCCD bias offset
@@ -322,7 +326,7 @@ class main_window(QMainWindow):
         self.num_bins_edit = QLineEdit(self)
         hist_grid.addWidget(self.num_bins_edit, 0,5, 1,1)
         self.num_bins_edit.textChanged[str].connect(self.bins_text_edit)
-        self.num_bins_edit.setValidator(int_validator)
+        self.num_bins_edit.setValidator(nat_validator)
 
         # user can set the threshold
         self.thresh_toggle = QPushButton('User Threshold: ', self)
@@ -333,7 +337,7 @@ class main_window(QMainWindow):
         self.thresh_edit = QLineEdit(self)
         hist_grid.addWidget(self.thresh_edit, 0,7, 1,1)
         self.thresh_edit.textChanged[str].connect(self.bins_text_edit)
-        self.thresh_edit.setValidator(int_validator)
+        self.thresh_edit.setValidator(nat_validator)
         
         #### tab for current histogram statistics ####
         stat_tab = QWidget()
@@ -535,7 +539,7 @@ class main_window(QMainWindow):
         # update ROI on image canvas
         # note: setting the origin as top left because image is inverted
         self.roi.setPos(xc - l//2, yc - l//2)
-        self.roi.setSize(l, l)
+        self.roi.setSize((l, l))
 
     def user_roi(self, pos):
         """Update position of ROI"""
@@ -600,8 +604,9 @@ class main_window(QMainWindow):
             for key in self.histo_handler.stats.keys(): # update the text labels
                 self.stat_labels[key].setText(str(self.histo_handler.temp_vals[key]))
             self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
-            if len(self.image_handler.stats['Counts']) > 30 and not any(self.image_handler.stats['Atom detected']):
-                logger.warning('Analysis '+self.name+' detected zero atoms in the last 30 shots.')
+            if len(self.image_handler.stats['Counts']) > 50 and not any(self.image_handler.stats['Atom detected'][-50:]):
+                logger.warning('Zero atoms detected in the last 50 shots of analysis '
+                    +self.name+' '+self.multirun+' histogram %s.'%self.histo_handler.temp_vals['File ID']) 
             bf = self.histo_handler.bf # short hand
             if bf and bf.bffunc and type(bf.ps)!=type(None): # plot the curve on the histogram
                 xs = np.linspace(min(bf.x), max(bf.x), 200)
@@ -670,9 +675,7 @@ class main_window(QMainWindow):
             self.bins_text_edit('reset') # update histogram
 
     def set_im_show(self, toggle):
-        """If the toggle is True, always update the widget with the last image.
-        Note that disconnecting all slots means that this toggle might have to
-        be reset when other buttons are pressed."""
+        """If the toggle is True, always update the widget with the last image."""
         remove_slot(self.event_im, self.update_im, toggle)
 
     def swap_signals(self):
@@ -808,7 +811,7 @@ class main_window(QMainWindow):
                 file_name = open_func(self, title, default_path, file_type)
             elif 'PyQt5' in sys.modules:
                 file_name, _ = open_func(self, title, default_path, file_type)
-            self.last_path = file_name
+            if type(file_name) == str: self.last_path = file_name 
             return file_name
         except OSError: return '' # probably user cancelled
 
@@ -1052,7 +1055,7 @@ class main_window(QMainWindow):
         self.histo_handler = hist_handler if hist_handler else hh.histo_handler() # class to process histograms
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.init_log(results_path) # write header to the log file that collects histograms
-        self.image_storage_path = im_store_path # used for loading image files
+        self.image_storage_path = os.path.join(im_store_path, time.strftime(r"%Y\%B\%d")) # loading image files
         self.init_UI()  # make the widgets
         self.t0 = time.time() # time of initiation
         self.int_time = 0     # time taken to process an image

@@ -263,7 +263,9 @@ class image_handler(Analysis):
         im_vals = np.genfromtxt(im_name, delimiter=self.delim)
         self.pic_width = int(np.size(im_vals[0]) - 1) # the first column of ASCII image is row number
         try: self.pic_height = int(np.size(im_vals[:,0])) 
-        except IndexError: self.pic_height = 1
+        except IndexError: 
+            self.pic_width = int(np.size(im_vals) - 1)
+            self.pic_height = 1
         self.create_rect_mask()
         return self.pic_width, self.pic_height
 
