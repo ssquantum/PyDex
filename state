@@ -1,7 +1,7 @@
-File#=23893
+File#=0
 Date=08,June,2020
 CameraConfig=Z:/Tweezer/Code/Python 3.5/PyDex/andorcamera/Standard modes/FULLCCD.dat
 SaveConfig=.\\config\\config.dat
 MasterGeometry=[42, 45, 567, 129]
 AnalysisGeometry=[336, 282, 668, 558]
-SequencesGeometry=[770, 171, 943, 884]
+SequencesGeometry=[725, 122, 943, 884]
