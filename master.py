@@ -150,7 +150,7 @@ class Master(QMainWindow):
         self.status_label.setText('Initialising...')
         QTimer.singleShot(0, self.idle_state) # takes a while for other windows to load
         
-        self.rn.check.showMaximized()
+        # self.rn.check.showMaximized()
         self.rn.seq.setGeometry(*self.stats['SequencesGeometry'])
         self.rn.seq.show()
         self.rn.sw.setGeometry(*self.stats['AnalysisGeometry'])

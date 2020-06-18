@@ -76,7 +76,11 @@ class Analysis(QThread):
         if np.size(data) < len(self.stats.keys()):
             return 0 # insufficient data to load
 
-        n = len(data[:,0]) # number of processed events
+        try:
+            n = len(data[:,0]) # number of processed events
+        except IndexError:
+            n = 1
+            data = np.array([data])
         for key in self.stats.keys():
             index = np.where([k == key for k in head[2]])[0]
             if np.size(index): # if the key is in the header

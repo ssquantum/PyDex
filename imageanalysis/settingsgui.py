@@ -823,6 +823,7 @@ class settings_window(QMainWindow):
 
         if len(ainds) != self._a: 
             logger.warning('While creating new analysers: there are %s image indices for the %s image analysers.\n'%(len(ainds), self._a))
+            ainds = [i % self._m for i in range(self._a)]
         for i, a in enumerate(ainds):
             try: 
                 self.mw_inds[i] = a

@@ -15,13 +15,13 @@ from histoHandler import histo_handler
 from scipy.optimize import curve_fit
 
 # choose all of the options to plot
-fdir = r'Z:\Tweezer\Experimental Results\2020\January\15' # directory files are stored in 
+fdir = r'Z:\Tweezer\Experimental Results\2020\June\17\Measure4' # directory files are stored in 
 hh = histo_handler()
-hh.load(fdir+r'\meas0.dat') # load the log/measure file containing histogram statistics to plot
+hh.load(fdir+r'\ROI0.Im0.Measure4.dat') # load the log/measure file containing histogram statistics to plot
 # hh.sort_dict() # sort the histograms in ascending order of user_var measured
-prestring = r'\meas0_' # prestring at the start of the histogram csv files
+prestring = r'\ROI0.Im0.' # prestring at the start of the histogram csv files
 num_bins = 25   # number of bins to make the histograms with
-var_unit = 'ms' # units for the user variable
+var_unit = 'V' # units for the user variable
 def conv(x): 
     """conversion function for the user variable"""
     return x#-2*(16.41*x + 65.04-95.12) 

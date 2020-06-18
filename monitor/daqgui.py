@@ -193,6 +193,8 @@ class daq_window(QMainWindow):
                 table_item = QLineEdit(str(defaults[key]))
                 if 'acquire' in key:
                     table_item.textChanged.connect(self.check_slice_channels)
+                elif 'plot' in key:
+                    table_item.textChanged.connect(self.set_acquire)
                 table_item.setValidator(validators[j])        
                 self.channels.setCellWidget(i,j+1, table_item)
             vrange = QComboBox() # only allow certain values for voltage range
@@ -325,11 +327,17 @@ class daq_window(QMainWindow):
 
     #### user input functions ####
 
+    def set_acquire(self):
+        """If the user chooses to plot, set the same channel to acquire."""
+        for i in range(self.channels.rowCount()):
+            if BOOL(self.channels.cellWidget(i,6).text()): # plot
+                self.channels.cellWidget(i,5).setText('1') # only plot if acquiring
+    
     def check_settings(self):
         """Coerce the settings into allowed values."""
         statstr = "[[" # dictionary of channel names and properties
         for i in range(self.channels.rowCount()):
-            self.trace_legend.items[i][1].setText(self.channels.cellWidget(i,1).text())
+            self.trace_legend.items[i][1].setText(self.channels.cellWidget(i,1).text()) # label
             if BOOL(self.channels.cellWidget(i,5).text()): # acquire
                 statstr += ', '.join([self.channels.cellWidget(i,j).text() 
                     for j in range(self.channels.columnCount())]) + '],['

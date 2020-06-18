@@ -448,11 +448,11 @@ class camera(QThread):
 if __name__ == "__main__":
     # change directory to this file's location
     os.chdir(os.path.dirname(os.path.realpath(__file__))) 
-    iXon = camera()
+    iXon = camera('./Standard modes/FULLCCD.dat')
     iXon.AF.verbosity = True
     iXon.timeout = 20e3
     iXon.CheckCurrentSettings()
-    iXon.start()
-    time.sleep(10)
-    iXon.AF.AbortAcquisition()
-    iXon.SafeShutdown()
+    # iXon.start()
+    # time.sleep(10)
+    # iXon.AF.AbortAcquisition()
+    # iXon.SafeShutdown()

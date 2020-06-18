@@ -235,14 +235,15 @@ class runnum(QThread):
                 'multirun measure %s: %s: %s, omit %s of %s files, %s of %s histogram files, 0%% complete'%(
                     self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label'], 
                     uv, 0, self.seq.mr.mr_param['# omitted'], 0, self.seq.mr.mr_param['# in hist']))
-            # save log file with the parameters used for this multirun:
+            # make the directories
             os.makedirs(results_path, exist_ok=True)
+            os.makedirs(os.path.join(results_path, 'sequences'), exist_ok=True)
             # save sequences and make list of messages to send and the order:
-            self.seq.mr.mrtr.write_to_file(os.path.join(results_path, self.seq.mr.mr_param['measure_prefix'] + '_base.xml'))
-            self.seq.mr.get_all_sequences(save_dir=results_path)
+            self.seq.mr.mrtr.write_to_file(os.path.join(results_path, 'sequences', self.seq.mr.mr_param['measure_prefix'] + '_base.xml'))
+            self.seq.mr.get_all_sequences(save_dir=os.path.join(results_path, 'sequences'))
             self.seq.mr.save_mr_params(os.path.join(results_path, self.seq.mr.mr_param['measure_prefix'] + 
                 'params' + str(self.seq.mr.mr_param['1st hist ID']) + '.csv'))
-            for mw in self.sw.mw + self.sw.rw:
+            for mw in self.sw.mw[:self.sw._a] + self.sw.rw[:len(self.sw.rw_inds)]:
                 mw.image_handler.reset_arrays() # gets rid of old data
                 mw.histo_handler.bf = None
                 mw.plot_current_hist(mw.image_handler.histogram, mw.hist_canvas)
@@ -354,7 +355,7 @@ class runnum(QThread):
             logger.error('Multirun step could not extract user variable from table at row %s.\n'%v+str(e))
             prv = ''
         # get best fit on histograms, doing reimage last since their fits depend on the main hists
-        for mw in self.sw.mw + self.sw.rw: 
+        for mw in self.sw.mw[:self.sw._a] + self.sw.rw[:len(self.sw.rw_inds)]: 
             mw.var_edit.setText(prv) # also updates histo_handler temp vals
             mw.set_user_var() # just in case not triggered by the signal
             mw.bins_text_edit(text='reset') # set histogram bins 
@@ -372,7 +373,7 @@ class runnum(QThread):
                     mw.name + str(self.seq.mr.mr_param['measure_prefix']) + '.dat')), 'a') as f:
                 f.write(','.join(list(map(str, mw.histo_handler.temp_vals.values()))) + '\n')
         # save and reset the histograms, make sure to do reimage windows first!
-        for mw in self.sw.rw + self.sw.mw: 
+        for mw in self.sw.rw[:len(self.sw.rw_inds)] + self.sw.mw[:self.sw._a]: 
             mw.save_hist_data(save_file_name=os.path.join(
                 self.sv.results_path, os.path.join(self.seq.mr.mr_param['measure_prefix'], mw.name + 
                     str(v+self.seq.mr.mr_param['1st hist ID']) + '.csv')), confirm=False) # save histogram
