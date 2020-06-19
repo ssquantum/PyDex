@@ -571,6 +571,64 @@ class settings_window(QMainWindow):
             mw.set_bins()
             for i in range(len(self.fit_methods)):
                 mw.fit_methods[i].setChecked(self.fit_methods[i].isChecked())
+                
+    #### #### multirun functions #### ####
+    
+    def end_multirun(self, *args, **kwargs):
+        """Reconnect analyser event_im signals and display the empty histogram."""
+        for mw in self.rw + self.mw:
+            # reconnect previous signals
+            mw.set_bins() # reconnects signal with given histogram binning settings
+            mw.display_fit() # display the empty histograms
+            mw.multirun = ''
+    
+    def multirun_save(self, results_path, measure_prefix, n=0, var='0', hist_id='0', *args, **kwargs):
+        """Save the histograms as part of the multirun.
+        results_path   -- base directory results are saved in
+        measure_prefix -- label for the subdirectory results are saved in
+        n              -- the current run number
+        var            -- the user variable associated with this histogram
+        hist_id        -- unique ID for histogram"""
+        # get best fit on histograms, doing reimage last since their fits depend on the main hists
+        for mw in self.mw[:self._a] + self.rw[:len(self.rw_inds)]: 
+            mw.var_edit.setText(var) # also updates histo_handler temp vals
+            mw.set_user_var() # just in case not triggered by the signal
+            mw.bins_text_edit(text='reset') # set histogram bins 
+            success = mw.display_fit(fit_method='check action') # get best fit
+            success = mw.display_fit(fit_method='check action') # get best fit
+            if not success:                   # if fit fails, use peak search
+                mw.display_fit(fit_method='quick')
+                mw.display_fit(fit_method='quick')
+                logger.warning('\nMultirun run %s fitting failed. '%n +
+                    'Histogram data in '+ measure_prefix+'\\'+mw.name + 
+                    str(hist_id) + '.csv')
+            # append histogram stats to measure log file:
+            with open(os.path.join(results_path, measure_prefix, 
+                    mw.name + measure_prefix + '.dat'), 'a') as f:
+                f.write(','.join(list(map(str, mw.histo_handler.temp_vals.values()))) + '\n')
+        # save and reset the histograms, make sure to do reimage windows first!
+        for mw in self.rw[:len(self.rw_inds)] + self.mw[:self._a]: 
+            mw.save_hist_data(save_file_name=os.path.join(results_path, measure_prefix, 
+                    mw.name + str(hist_id) + '.csv'), confirm=False) # save histogram
+            mw.image_handler.reset_arrays() # clear histogram
+                
+    def init_analysers_multirun(self, results_path, measure_prefix, appending=False, *args, **kwargs):
+        """Prepare the active analysis windows for a multirun.
+        results_path   -- the folder to save results files to
+        measure_prefix -- label identifying this multirun, a folder with this
+            name is created within results_path
+        appending      -- whether to append results to the varplot"""
+        for mw in self.mw[:self._a] + self.rw[:len(self.rw_inds)]:
+            mw.image_handler.reset_arrays() # gets rid of old data
+            mw.histo_handler.bf = None
+            mw.plot_current_hist(mw.image_handler.histogram, mw.hist_canvas)
+            if not appending: mw.clear_varplot() # keep the previous data if this multirun is to be appended
+            mw.multirun = measure_prefix
+            log_file_path = os.path.join(results_path, 
+                mw.name + measure_prefix + '.dat')
+            if not os.path.isfile(log_file_path):# start measure file, stores plot data
+                mw.save_varplot(save_file_name=log_file_path, confirm=False) 
+
 
     #### #### save and load data functions #### ####
 

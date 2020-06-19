@@ -148,49 +148,6 @@ class runnum(QThread):
         self.sw.reset_dates(date)
         return ' '.join([date[0]] + date[2:])
     
-    def synchronise(self, option='', verbose=0):
-        """Check the run number in each of the associated modules.
-        option: 'reset' = if out of sync, reset to master's run #
-                'popup' = if out of sync, create pop-up dialog
-                    to ask the user whether to reset."""
-        checks = []
-        if self.sv.dfn != str(self._n):
-            checks.append('Lost sync: Image saver # %s /= run # %s'%(
-                                self.sv.dfn, self._n))
-        for mw in self.sw.mw:
-            if mw.image_handler.fid != self._n:
-                checks.append('Lost sync: Image analysis # %s /= run # %s'%(
-                            mw.image_handler.fid, self._n))
-        for rw in self.sw.rw:
-            if (rw.ih1.fid != self._n or rw.ih2.fid != self._n):
-                checks.append('Lost sync: Re-image windows # %s, %s /= run # %s'%(
-                            rw.ih1.fid, rw.ih2.fid, self._n))
-        # if self._k != self._n*self._m + self._k % self._m:
-        #     checks.append('Lost sync: %s images taken in %s runs'%(
-        #             self._k, self._n))
-        # also check synced with DExTer
-
-        if verbose:
-            for message in checks:
-                print(message)
-
-        if option == 'popup':
-            reply = QMessageBox.question(self, 'Confirm Reset',
-            "\n".join(checks) + \
-            "Do you want to resynchronise the run # to %s?"%self._n, 
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply == QMessageBox.No:
-                return checks
-        if option == 'reset' or (option == 'popup' and reply == QMessageBox.Yes):
-            self.sv.dfn = str(self._n)
-            for mw in self.sw.mw:
-                mw.image_handler.fid = self._n
-            for rw in self.sw.rw:
-                rw.ih1.fid = self._n
-                rw.ih2.fid = self._n
-            self._k = self._n * self._m # number images that should've been taken
-        return checks
-
     #### atom checker ####
 
     def atomcheck_go(self, toggle=True):
@@ -243,16 +200,7 @@ class runnum(QThread):
             self.seq.mr.get_all_sequences(save_dir=os.path.join(results_path, 'sequences'))
             self.seq.mr.save_mr_params(os.path.join(results_path, self.seq.mr.mr_param['measure_prefix'] + 
                 'params' + str(self.seq.mr.mr_param['1st hist ID']) + '.csv'))
-            for mw in self.sw.mw[:self.sw._a] + self.sw.rw[:len(self.sw.rw_inds)]:
-                mw.image_handler.reset_arrays() # gets rid of old data
-                mw.histo_handler.bf = None
-                mw.plot_current_hist(mw.image_handler.histogram, mw.hist_canvas)
-                if not appending: mw.clear_varplot() # keep the previous data if this multirun is to be appended
-                mw.multirun = self.seq.mr.mr_param['measure_prefix']
-                log_file_path = os.path.join(results_path, 
-                    mw.name + str(self.seq.mr.mr_param['measure_prefix']) + '.dat')
-                if not os.path.isfile(log_file_path):# start measure file, stores plot data
-                    mw.save_varplot(save_file_name=log_file_path, confirm=False) 
+            self.sw.init_analysers_multirun(results_path, str(self.seq.mr.mr_param['measure_prefix']), appending)
             # tell the monitor program to save results to the new directory
             self.monitor.add_message(self._n, results_path+'=save_dir')
             self.monitor.add_message(self._n, 'start')
@@ -276,12 +224,12 @@ class runnum(QThread):
             remove_slot(self.cam.AcquireEnd, self.receive, True) # process every image
             self.server.clear_queue()
             self.cam.AF.AbortAcquisition()
-            for mw in self.sw.mw + self.sw.rw:
-                mw.multirun = ''
             self.multirun = stillrunning
             if not stillrunning: 
                 self.seq.mr.ind = 0
                 self._k = 0
+                for mw in self.sw.mw + self.sw.rw:
+                    mw.multirun = ''
             status = ' paused.' if stillrunning else ' ended.'
             text = 'STOPPED. Multirun measure %s: %s is'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label'])
             self.seq.mr.progress.emit(text+status)
@@ -301,7 +249,8 @@ class runnum(QThread):
             nrows = len(self.seq.mr.mr_vals)
             if v > nrows - 1: v = nrows - 1
             # finish this histogram
-            mr_queue = [[TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step run']+'0'*2000],
+            mr_queue = [[TCPENUM['TCP read'], 'restart measure %s'%(self.seq.mr.mr_param['measure'])+'\n'+'0'*2000],
+                [TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step run']+'0'*2000],
                 [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]]
             mr_queue += [[TCPENUM['Run sequence'], 'multirun run '+str(self._n + i)+'\n'+'0'*2000] for i in range(repeats - r + 1)
                 ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]
@@ -347,45 +296,21 @@ class runnum(QThread):
     def multirun_savehist(self, msg):
         """end of histogram: fit, save, and reset --- check this doesn't miss an image if there's lag"""
         v = self.seq.mr.ind // (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) - 1 # previous variable
-        self.monitor.add_message(self._n, 'DAQtrace'+str(v+self.seq.mr.mr_param['1st hist ID'])+'.csv=trace_file')
-        self.monitor.add_message(self._n, 'save trace') # get the monitor to save the last acquired trace
         try:
             prv = self.seq.mr.mr_vals[v][0] # get user variable from the previous row
         except AttributeError as e:     
             logger.error('Multirun step could not extract user variable from table at row %s.\n'%v+str(e))
             prv = ''
-        # get best fit on histograms, doing reimage last since their fits depend on the main hists
-        for mw in self.sw.mw[:self.sw._a] + self.sw.rw[:len(self.sw.rw_inds)]: 
-            mw.var_edit.setText(prv) # also updates histo_handler temp vals
-            mw.set_user_var() # just in case not triggered by the signal
-            mw.bins_text_edit(text='reset') # set histogram bins 
-            success = mw.display_fit(fit_method='check action') # get best fit
-            success = mw.display_fit(fit_method='check action') # get best fit
-            if not success:                   # if fit fails, use peak search
-                mw.display_fit(fit_method='quick')
-                mw.display_fit(fit_method='quick')
-                logger.warning('\nMultirun run %s fitting failed. '%self._n +
-                    'Histogram data in '+ self.seq.mr.mr_param['measure_prefix']+'\\'+mw.name + 
-                    str(v+self.seq.mr.mr_param['1st hist ID']) + '.csv')
-            # append histogram stats to measure log file:
-            with open(os.path.join(self.sv.results_path, os.path.join(
-                    self.seq.mr.mr_param['measure_prefix'], 
-                    mw.name + str(self.seq.mr.mr_param['measure_prefix']) + '.dat')), 'a') as f:
-                f.write(','.join(list(map(str, mw.histo_handler.temp_vals.values()))) + '\n')
-        # save and reset the histograms, make sure to do reimage windows first!
-        for mw in self.sw.rw[:len(self.sw.rw_inds)] + self.sw.mw[:self.sw._a]: 
-            mw.save_hist_data(save_file_name=os.path.join(
-                self.sv.results_path, os.path.join(self.seq.mr.mr_param['measure_prefix'], mw.name + 
-                    str(v+self.seq.mr.mr_param['1st hist ID']) + '.csv')), confirm=False) # save histogram
-            mw.image_handler.reset_arrays() # clear histogram
+        # fit and save data
+        self.sw.multirun_save(self.sv.results_path, 
+            self.seq.mr.mr_param['measure_prefix'], 
+            self._n, prv, str(v+self.seq.mr.mr_param['1st hist ID']))
         
     def multirun_end(self, msg):
         """At the end of the multirun, save the plot data and reset"""
-        for mw in self.sw.rw + self.sw.mw:
-            # reconnect previous signals
-            mw.set_bins() # reconnects signal with given histogram binning settings
-            mw.display_fit() # display the empty histograms
-            mw.multirun = ''
+        self.monitor.add_message(self._n, 'DAQtrace.csv=trace_file')
+        self.monitor.add_message(self._n, 'save trace') # get the monitor to save the last acquired trace
+        self.sw.end_multirun() # reconnect signals and display empty hist
         self.monitor.add_message(self._n, 'save graph') # get the monitor to save the graph  
         self.monitor.add_message(self._n, 'stop') # stop monitoring
         self.multirun_go(False) # reconnect signals

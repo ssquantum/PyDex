@@ -769,6 +769,12 @@ class daq_window(QMainWindow):
         
     def closeEvent(self, event):
         """Before closing, try to save the config settings to file."""
+        statstr = "[[" # dictionary of channel names and properties
+        for i in range(self.channels.rowCount()):
+            statstr += ', '.join([self.channels.cellWidget(i,j).text() 
+                    for j in range(self.channels.columnCount())]) + '],['
+        self.stats['channels'] = channel_stats(statstr[:-2] + ']')
+        # add all channels to stats
         self.save_config(self.stats['config_file'])
         event.accept()
                 

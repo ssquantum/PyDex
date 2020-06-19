@@ -73,7 +73,7 @@ class multirun_widget(QWidget):
             ('Order', order), ('Type', ['Time step length']*ncols), 
             ('Analogue type', ['Fast analogue']*ncols), ('Time step name', [[]]*ncols), 
             ('Analogue channel', [[]]*ncols), ('runs included', [[] for i in range(nrows)]),
-            ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\RbMOTendstep.evt'), 
+            ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'), 
             ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'),
             ('# omitted', 0), ('# in hist', 100)])
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun

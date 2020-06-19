@@ -114,8 +114,10 @@ class Master(QMainWindow):
     state_config -- path to the file that saved the previous state.
                     Default directories for camera settings and image 
                     saving are also saved in this file.
+    image_analysis -- a class inheriting QMainWindow that can perform all of the
+                    required image analysis methods
     """
-    def __init__(self, state_config='.\\state'):
+    def __init__(self, state_config='.\\state', image_analysis=settings_window):
         super().__init__()
         self.types = OrderedDict([('File#',int), ('Date',str), ('CameraConfig',str), 
             ('SaveConfig',str), ('MasterGeometry',intstrlist), ('AnalysisGeometry',intstrlist), 
@@ -136,7 +138,7 @@ class Master(QMainWindow):
         # initialise the thread controlling run # and emitting images
         self.rn = runnum(camera(config_file=self.stats['CameraConfig']), # Andor camera
                 event_handler(self.stats['SaveConfig']), # image saver
-                settings_window(results_path =sv_dirs['Results Path: '],
+                image_analysis(results_path =sv_dirs['Results Path: '],
                     im_store_path=sv_dirs['Image Storage Path: ']), # image analysis
                 atom_window(last_im_path=sv_dirs['Image Storage Path: ']), # check if atoms are in ROIs to trigger experiment
                 Previewer(), # sequence editor
@@ -236,7 +238,8 @@ class Master(QMainWindow):
         self.check_rois = QAction('Trigger on atoms loaded', sync_menu, 
                 checkable=True, checked=False)
         self.check_rois.setChecked(False)
-        sync_menu.addAction(self.check_rois)
+        self.check_rois.setEnabled(False) # not functional yet
+        sync_menu.addAction(self.check_rois) 
 
         reset_date = QAction('Reset date', sync_menu, checkable=False)
         reset_date.triggered.connect(self.reset_dates)
@@ -560,7 +563,7 @@ class Master(QMainWindow):
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam()
             else: logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
-            self.rn.multirun_go(msg)
+            if 'restart' not in msg: self.rn.multirun_go(msg) # might be resuming multirun instead of starting a new one
         elif 'multirun run' in msg:
             if self.check_rois.isChecked(): # start experiment when ROIs have atoms
                 remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
@@ -604,7 +607,6 @@ class Master(QMainWindow):
         #         for im in unprocessed:
         #             # image dimensions: (# kscans, width pixels, height pixels)
         #             self.rn.receive(im[0]) 
-        self.rn.synchronise()
         self.idle_state()
         
     def print_times(self, keys=['waiting', 'blocking']):
