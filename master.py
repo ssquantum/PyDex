@@ -571,7 +571,7 @@ class Master(QMainWindow):
             self.rn.multirun_step(msg)
             self.rn._k = 0 # reset image per run count
         elif 'save and reset histogram' in msg:
-            self.rn.multirun_savehist(msg)
+            self.rn.multirun_save(msg)
         elif 'end multirun' in msg:
             remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
             self.rn.multirun_end(msg)

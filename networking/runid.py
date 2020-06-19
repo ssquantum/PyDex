@@ -293,7 +293,7 @@ class runnum(QThread):
                 r - self.seq.mr.mr_param['# omitted'] if r > self.seq.mr.mr_param['# omitted'] else 0, self.seq.mr.mr_param['# in hist'], 
                 self.seq.mr.ind / (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) / len(self.seq.mr.mr_vals)*100))
                 
-    def multirun_savehist(self, msg):
+    def multirun_save(self, msg):
         """end of histogram: fit, save, and reset --- check this doesn't miss an image if there's lag"""
         v = self.seq.mr.ind // (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) - 1 # previous variable
         try:
