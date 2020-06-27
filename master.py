@@ -46,7 +46,7 @@ sys.path.append('./saveimages')
 from saveimages.imsaver import event_handler # saves images
 sys.path.append('./networking')
 from networking.runid import runnum # synchronises run number, sends signals
-from networking.networker import TCPENUM, remove_slot # enum for DExTer produce-consumer loop cases
+from networking.networker import TCPENUM, reset_slot # enum for DExTer produce-consumer loop cases
 sys.path.append('./sequences')
 from sequences.sequencePreviewer import Previewer
 from strtypes import intstrlist
@@ -327,11 +327,11 @@ class Master(QMainWindow):
         '\nEnter the path to a config file to reset the image saver: ',
         text=self.stats['SaveConfig'])
             if text and ok:
-                remove_slot(self.rn.im_save, self.rn.sv.add_item, False)
+                reset_slot(self.rn.im_save, self.rn.sv.add_item, False)
                 self.rn.sv = event_handler(text)
                 if self.rn.sv.image_storage_path:
                     self.status_label.setText('Image Saver config: '+text)
-                    remove_slot(self.rn.im_save, self.rn.sv.add_item, True)
+                    reset_slot(self.rn.im_save, self.rn.sv.add_item, True)
                     self.stats['SaveConfig'] = text
                 else:
                     self.status_label.setText('Failed to find config file.')
@@ -404,7 +404,7 @@ class Master(QMainWindow):
             self.rn.cam.SafeShutdown()
         except: logger.warning('Andor camera safe shutdown failed') # probably not initialised
         self.rn.cam = camera(config_file=ancam_config) # Andor camera
-        remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, True) # connect signal
+        reset_slot(self.rn.cam.AcquireEnd, self.rn.receive, True) # connect signal
         self.status_label.setText('Camera settings config: '+ancam_config)
         self.stats['CameraConfig'] = ancam_config
 
@@ -488,7 +488,7 @@ class Master(QMainWindow):
     def trigger_exp_start(self, n=None):
         """Atom checker sends signal saying all ROIs have atoms in, start the experiment"""
         self.rn.check.timer.stop() # in case the timer was going to trigger the experiment as well
-        remove_slot(self.rn.trigger.dxnum, self.reset_cam_signals, True) # swap signals when msg confirmed
+        reset_slot(self.rn.trigger.dxnum, self.reset_cam_signals, True) # swap signals when msg confirmed
         self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # trigger experiment
         # QTimer.singleShot(20, self.resend_exp_trigger) # wait in ms
         
@@ -502,18 +502,18 @@ class Master(QMainWindow):
     def reset_cam_signals(self, toggle=True):
         """Stop sending images to the atom checker, send them to image analysis instead"""
         self.rn.check.checking = False
-        remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
-        remove_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
-        remove_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
-        remove_slot(self.rn.trigger.dxnum, self.reset_cam_signals, False) # only trigger once
+        reset_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
+        reset_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
+        reset_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
+        reset_slot(self.rn.trigger.dxnum, self.reset_cam_signals, False) # only trigger once
         self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # flush TCP
             
     def sync_mode(self, toggle=True):
         """Toggle whether to receive the run number from DExTer,
         or whether to increment the run number every time the expected
         number of images per sequence is received."""
-        remove_slot(self.rn.cam.AcquireEnd, self.rn.receive, toggle) 
-        remove_slot(self.rn.cam.AcquireEnd, self.rn.unsync_receive, not toggle)
+        reset_slot(self.rn.cam.AcquireEnd, self.rn.receive, toggle) 
+        reset_slot(self.rn.cam.AcquireEnd, self.rn.unsync_receive, not toggle)
                 
     def wait_for_cam(self, timeout=10):
         """Wait (timeout / 10) ms, periodically checking whether the camera
@@ -544,7 +544,7 @@ class Master(QMainWindow):
         elif 'start acquisition' in msg:
             self.status_label.setText('Running')
             if self.check_rois.isChecked(): # start experiment when ROIs have atoms
-                remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
+                reset_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
                 self.rn.atomcheck_go() # start camera acuiring
             elif self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
@@ -555,9 +555,9 @@ class Master(QMainWindow):
                 (TCPENUM['Run sequence'], 'single run '+str(self.rn._n)+'\n'+'0'*2000),
                 (TCPENUM['TCP read'], 'finished run '+str(self.rn._n)+'\n'+'0'*2000)]) # second message confirms end
         elif 'start measure' in msg:
-            remove_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
+            reset_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
             if self.check_rois.isChecked(): # start experiment when ROIs have atoms
-                remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
+                reset_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
                 self.rn.atomcheck_go() # start camera acquiring
             elif self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
@@ -566,14 +566,14 @@ class Master(QMainWindow):
             if 'restart' not in msg: self.rn.multirun_go(msg) # might be resuming multirun instead of starting a new one
         elif 'multirun run' in msg:
             if self.check_rois.isChecked(): # start experiment when ROIs have atoms
-                remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
+                reset_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
                 self.rn.atomcheck_go() # start camera in internal trigger mode
             self.rn.multirun_step(msg)
             self.rn._k = 0 # reset image per run count
         elif 'save and reset histogram' in msg:
             self.rn.multirun_save(msg)
         elif 'end multirun' in msg:
-            remove_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
+            reset_slot(self.rn.seq.mr.progress, self.status_label.setText, False)
             self.rn.multirun_end(msg)
             # self.rn.server.save_times()
             self.end_run(msg)
@@ -590,9 +590,9 @@ class Master(QMainWindow):
         only triggers once."""
         self.action_button.setEnabled(True) # allow another command to be sent
          # reset atom checker trigger
-        remove_slot(self.rn.check.rh.trigger, self.trigger_exp_start, False)
+        reset_slot(self.rn.check.rh.trigger, self.trigger_exp_start, False)
         if self.rn.trigger.connected:
-            remove_slot(self.rn.trigger.textin, self.rn.trigger.clear_queue, True)
+            reset_slot(self.rn.trigger.textin, self.rn.trigger.clear_queue, True)
             self.rn.trigger.add_message(TCPENUM['TCP read'], 'end connection'*150)
         try:
             unprocessed = self.rn.cam.EmptyBuffer()

@@ -15,7 +15,7 @@ except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
     from PyQt5.QtWidgets import QApplication 
 
-def remove_slot(signal, slot, reconnect=True):
+def reset_slot(signal, slot, reconnect=True):
     """Make sure all instances of slot are disconnected
     from signal. Prevents multiple connections to the same 
     slot. If reconnect=True, then reconnect slot to signal."""
@@ -65,5 +65,5 @@ class PyDexThread(QThread):
         """Stop the thread safely. Once the thread has stopped, 
         reset the stop toggle so that it doesn't block the 
         thread from starting again the next time."""
-        remove_slot(self.finished, self.reset_stop)
+        reset_slot(self.finished, self.reset_stop)
         self.stop = True

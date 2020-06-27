@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 sys.path.append('.')
 sys.path.append('..')
 from strtypes import intstrlist, listlist
-from maingui import remove_slot, int_validator # single atom image analysis
+from maingui import reset_slot, int_validator # single atom image analysis
 from roiHandler import ROI, roi_handler
 
 ####    ####    ####    ####
@@ -171,7 +171,7 @@ class atom_window(QMainWindow):
 
     def set_im_show(self, toggle):
         """If the toggle is True, always update the display with the last image."""
-        remove_slot(self.event_im, self.update_im, toggle)
+        reset_slot(self.event_im, self.update_im, toggle)
 
     def change_timeout(self, newval):
         """Time in seconds to wait before sending the trigger to continue the 
@@ -262,8 +262,8 @@ class atom_window(QMainWindow):
         k = np.sqrt(len(self.plots))
         for i, r in enumerate(self.rh.ROIs):
             if r.roi not in viewbox.allChildren():
-                remove_slot(r.roi.sigRegionChangeFinished, self.user_roi, True) 
-                remove_slot(r.threshedit.textEdited, self.update_plots, True)
+                reset_slot(r.roi.sigRegionChangeFinished, self.user_roi, True) 
+                reset_slot(r.threshedit.textEdited, self.update_plots, True)
                 r.roi.setZValue(10)   # make sure the ROI is drawn above the image
                 viewbox.addItem(r.roi)
                 viewbox.addItem(r.label)

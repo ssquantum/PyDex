@@ -30,7 +30,7 @@ import logging
 logger = logging.getLogger(__name__)
 sys.path.append('.')
 sys.path.append('..')
-from mythread import remove_slot # for dis- and re-connecting slots
+from mythread import reset_slot # for dis- and re-connecting slots
 from strtypes import strlist, intstrlist, listlist
 from translator import translate
 
@@ -69,7 +69,7 @@ class multirun_widget(QWidget):
             ('Last time step run', str), ('Last time step end', str),
             ('# omitted', int), ('# in hist', int)])
         self.ui_param = OrderedDict([('measure',0), ('measure_prefix','Measure0'),
-            ('1st hist ID', 0), ('Variable label', ''), 
+            ('1st hist ID', -1), ('Variable label', ''), 
             ('Order', order), ('Type', ['Time step length']*ncols), 
             ('Analogue type', ['Fast analogue']*ncols), ('Time step name', [[]]*ncols), 
             ('Analogue channel', [[]]*ncols), ('runs included', [[] for i in range(nrows)]),
@@ -79,6 +79,7 @@ class multirun_widget(QWidget):
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
         self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
+        self.appending = False # whether the current multirun will be appended on to the displayed results
         self.init_UI()  # make the widgets
 
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
@@ -215,7 +216,7 @@ class multirun_widget(QWidget):
         multirun_progress = QLabel(
             'User variable: , omit 0 of 0 files, 0 of 100 histogram files, 0% complete')
         self.grid.addWidget(multirun_progress, 8,0, 1,12)
-        remove_slot(self.progress, multirun_progress.setText, True)
+        reset_slot(self.progress, multirun_progress.setText, True)
 
         # table stores multirun values:
         self.table = QTableWidget(self.nrows, self.ncols)
@@ -354,11 +355,14 @@ class multirun_widget(QWidget):
         """When the user changes the selection of channels/timesteps for the
         given column, save it. The selection will be reloaded if the user
         changes the column and then comes back."""
-        col = int(self.col_index.text()) if self.col_index.text() else 0
-        for key in ['Type', 'Analogue type']:
-            self.ui_param[key][col] = self.chan_choices[key].currentText()
-        for key in ['Time step name', 'Analogue channel']:
-            self.ui_param[key][col] = list(map(self.chan_choices[key].row, self.chan_choices[key].selectedItems()))
+        try:
+            col = int(self.col_index.text()) if self.col_index.text() else 0
+            for key in ['Type', 'Analogue type']:
+                self.ui_param[key][col] = self.chan_choices[key].currentText()
+            for key in ['Time step name', 'Analogue channel']:
+                self.ui_param[key][col] = list(map(self.chan_choices[key].row, self.chan_choices[key].selectedItems()))
+        except IndexError as e:
+            logger.error("Multirun couldn't save channel choices for column "+self.col_index.text()+'.\n'+str(e))
         
     def set_chan_listbox(self, col):
         """Set the selected channels and timesteps with the values
@@ -526,9 +530,9 @@ class multirun_widget(QWidget):
             runstep, endstep = self.ui_param['Last time step run'], self.ui_param['Last time step end']
             # then update the label edits
             for key in self.measures.keys(): # update variable label and measure
-                remove_slot(self.measures[key].textChanged, self.update_all_stats, False)
+                reset_slot(self.measures[key].textChanged, self.update_all_stats, False)
                 self.measures[key].setText(str(self.ui_param[key]))
-                remove_slot(self.measures[key].textChanged, self.update_all_stats, True)
+                reset_slot(self.measures[key].textChanged, self.update_all_stats, True)
             self.set_chan_listbox(col if col < ncols else 0)
             self.rows_edit.setText(str(nrows)) # triggers change_array_size
             self.cols_edit.setText(str(ncols))
@@ -542,7 +546,7 @@ class multirun_widget(QWidget):
     def check_mr_params(self, save_results_path='.'):
         """Check that the multirun parameters are valid before adding it to the queue"""
         results_path = os.path.join(save_results_path, self.ui_param['measure_prefix'])
-        appending = False
+        self.appending = False
         # first check if the measure folder already exists with some files in
         imax = 0
         try: 
@@ -564,7 +568,7 @@ class multirun_widget(QWidget):
                 imax = max(imax, len(m[2]) + m[0]['1st hist ID'] - 1)
         
         if self.ui_param['1st hist ID'] == -1: # append at the end 
-            appending = True
+            self.appending = True
             self.ui_param['1st hist ID'] = imax + 1 if imax>0 else 0
                     
         if (os.path.isdir(results_path) or self.ui_param['measure_prefix'] in [
@@ -577,7 +581,7 @@ class multirun_widget(QWidget):
                 return 0
 
         # parameters are valid, add to queue
-        self.mr_queue.append([copy.deepcopy(self.ui_param), self.tr.copy(), self.get_table(), appending]) 
+        self.mr_queue.append([copy.deepcopy(self.ui_param), self.tr.copy(), self.get_table(), self.appending]) 
         if self.suggest_button.isChecked(): # suggest new multirun measure ID and prefix
             n = self.ui_param['measure'] + 1
             self.measures['measure'].setText(str(n))

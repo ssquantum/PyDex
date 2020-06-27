@@ -108,7 +108,7 @@ class worker(QThread):
                         self.task.timing.cfg_samp_clk_timing(self.sample_rate, 
                             source='/Dev2/Ctr0InternalOutput',
                             sample_mode=const.AcquisitionType.CONTINUOUS, 
-                            samps_per_chan=self.n_samples+1000,
+                            samps_per_chan=self.n_samples*10, # buffer size must be multiple of n_samples and at least > 10x
                             active_edge=self.edge) # set sample rate and number of samples
                         ctr.co_channels.add_co_pulse_chan_freq('/Dev2/ctr0',  # add a counter for triggering
                             freq=self.sample_rate, idle_state=const.Level.LOW)

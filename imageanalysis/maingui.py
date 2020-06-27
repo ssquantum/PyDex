@@ -44,7 +44,7 @@ nat_validator.setBottom(1) # > 0
 
 ####    ####    ####    ####
 
-def remove_slot(signal, slot, reconnect=True):
+def reset_slot(signal, slot, reconnect=True):
     """Make sure all instances of slot are disconnected
     from signal. Prevents multiple connections to the same 
     slot. If reconnect=True, then reconnect slot to signal."""
@@ -558,11 +558,9 @@ class main_window(QMainWindow):
         
     def bins_text_edit(self, text):
         """Update the histogram bins every time a text edit is made by the user
-        to one of the line edit widgets.
-        Don't update the histogram binning if the multirun is going because it
-        can affect the statistics."""
+        to one of the line edit widgets."""
         # bin_actions = [Auto, Manual, No Display, No Update]
-        if self.bin_actions[1].isChecked() and not self.multirun: 
+        if self.bin_actions[1].isChecked(): 
             new_vals = [
                 self.min_counts_edit.text(), self.max_counts_edit.text(), self.num_bins_edit.text()]          
             # if the line edit widget is empty, take an estimate from histogram values
@@ -669,20 +667,19 @@ class main_window(QMainWindow):
         """If the toggle is true, the user supplies the threshold value and it is
         kept constant using the image_handler.histogram() function. Otherwise,
         update the threshold with image_handler.hist_and_thresh()"""
-        if not self.multirun: # don't interrupt multirun
-            remove_slot(self.event_im, self.update_plot, not toggle) # remove slot
-            remove_slot(self.event_im, self.update_plot_only, toggle) # reconnect
-            self.bins_text_edit('reset') # update histogram
+        reset_slot(self.event_im, self.update_plot, not toggle) # remove slot
+        reset_slot(self.event_im, self.update_plot_only, toggle) # reconnect
+        self.bins_text_edit('reset') # update histogram
 
     def set_im_show(self, toggle):
         """If the toggle is True, always update the widget with the last image."""
-        remove_slot(self.event_im, self.update_im, toggle)
+        reset_slot(self.event_im, self.update_im, toggle)
 
     def swap_signals(self):
         """Disconnect the image_handler process signal from the signal
         and (re)connect the update plot"""
-        remove_slot(self.event_im, self.update_plot_only, self.thresh_toggle.isChecked())
-        remove_slot(self.event_im, self.update_plot, not self.thresh_toggle.isChecked())
+        reset_slot(self.event_im, self.update_plot_only, self.thresh_toggle.isChecked())
+        reset_slot(self.event_im, self.update_plot, not self.thresh_toggle.isChecked())
     
     def set_bins(self, action=None):
         """Check which of the bin action menu bar options is checked.
@@ -691,26 +688,25 @@ class main_window(QMainWindow):
         widgets.
         If the toggle is No Display, processes files but doesn't show on histogram
         If the toggle is No Update, files are not processed for the histogram."""
-        if not self.multirun: # don't interrupt multirun
-            if self.bin_actions[1].isChecked(): # manual
-                self.swap_signals()  # disconnect image handler, reconnect plot
-                self.bins_text_edit('reset')            
-            elif self.bin_actions[0].isChecked(): # automatic
-                self.swap_signals()  # disconnect image handler, reconnect plot
-                self.image_handler.bin_array = []
-                if self.image_handler.ind > 0:
-                    if self.thresh_toggle.isChecked():
-                        self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
-                    else:
-                        self.plot_current_hist(self.image_handler.hist_and_thresh, self.hist_canvas)
-            elif self.bin_actions[2].isChecked() or self.bin_actions[3].isChecked(): # No Display or No Update
-                remove_slot(self.event_im, self.update_plot, False)
-                remove_slot(self.event_im, self.update_plot_only, False)
-                # set the text of the most recent file
-                remove_slot(self.event_im, self.show_recent_file, True) # might need a better label
-                # just process the image
-                if self.bin_actions[2].isChecked():
-                    remove_slot(self.event_im, self.image_handler.process, True)
+        if self.bin_actions[1].isChecked(): # manual
+            self.swap_signals()  # disconnect image handler, reconnect plot
+            self.bins_text_edit('reset')            
+        elif self.bin_actions[0].isChecked(): # automatic
+            self.swap_signals()  # disconnect image handler, reconnect plot
+            self.image_handler.bin_array = []
+            if self.image_handler.ind > 0:
+                if self.thresh_toggle.isChecked():
+                    self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
+                else:
+                    self.plot_current_hist(self.image_handler.hist_and_thresh, self.hist_canvas)
+        elif self.bin_actions[2].isChecked() or self.bin_actions[3].isChecked(): # No Display or No Update
+            reset_slot(self.event_im, self.update_plot, False)
+            reset_slot(self.event_im, self.update_plot_only, False)
+            # set the text of the most recent file
+            reset_slot(self.event_im, self.show_recent_file, True) # might need a better label
+            # just process the image
+            if self.bin_actions[2].isChecked():
+                reset_slot(self.event_im, self.image_handler.process, True)
                 
             
     #### #### canvas functions #### #### 

@@ -53,7 +53,7 @@ TCPENUM = { # enum for DExTer's producer-consumer loop cases
 'TCP load last time step':27
 }
 
-def remove_slot(signal, slot, reconnect=True):
+def reset_slot(signal, slot, reconnect=True):
     """Make sure all instances of slot are disconnected
     from signal. Prevents multiple connections to the same 
     slot. If reconnect=True, then reconnect slot to signal."""
@@ -107,7 +107,7 @@ class PyServer(QThread):
                         
     def clear_queue(self):
         """Remove all of the messages from the queue."""
-        remove_slot(self.textin, self.clear_queue, False) # only trigger clear_queue once
+        reset_slot(self.textin, self.clear_queue, False) # only trigger clear_queue once
         self.__mq = []
 
     def run(self, encoding="mbcs"):
@@ -129,7 +129,7 @@ class PyServer(QThread):
             except OSError as e:
                 logger.error('Failed to start server at address: ' + 
                     ', '.join(map(str, self.server_address)) + '\n' + str(e))
-                remove_slot(self.finished, self.reset_stop)
+                reset_slot(self.finished, self.reset_stop)
                 self.stop = True # stop the thread running
             while True:
                 self.app.processEvents() # hopefully helps prevent GUI lag
@@ -186,7 +186,7 @@ class PyServer(QThread):
         """Stop the event loop safely, ensuring that the sockets are closed.
         Once the thread has stopped, reset the stop toggle so that it 
         doesn't block the thread starting again the next time."""
-        remove_slot(self.finished, self.reset_stop)
+        reset_slot(self.finished, self.reset_stop)
         self.stop = True
                             
 if __name__ == "__main__":
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     ps = PyServer()
     ps.textin.connect(print)
     ps.add_message('24', 'Hello world!')
-    remove_slot(ps.dxnum, ps.close, True) # close server after message
+    reset_slot(ps.dxnum, ps.close, True) # close server after message
     ps.start() # will keep running until you call ps.close()
     w = QWidget()
     w.setWindowTitle('Server is runnning')

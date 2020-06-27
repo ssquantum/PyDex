@@ -32,10 +32,15 @@ except ImportError:
         QFileDialog, QMessageBox, QLineEdit, QGridLayout, QWidget,
         QApplication, QPushButton, QAction, QMainWindow, QTabWidget,
         QTableWidget, QTableWidgetItem, QLabel, QComboBox, QListWidget)
-import logging
-logger = logging.getLogger(__name__)
+os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.append('.')
 sys.path.append('..')
+import warnings
+warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
+import logging
+import logerrs
+logerrs.setup_log()
+logger = logging.getLogger(__name__)
 from strtypes import strlist, BOOL
 from daqController import worker, remove_slot
 from daqAnalysis import daqCollection

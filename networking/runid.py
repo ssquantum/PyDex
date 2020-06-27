@@ -14,7 +14,7 @@ try:
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal, QTimer
     from PyQt5.QtWidgets import QMessageBox
-from networker import PyServer, remove_slot, TCPENUM
+from networker import PyServer, reset_slot, TCPENUM
 import logging
 logger = logging.getLogger(__name__)
 
@@ -157,9 +157,9 @@ class runnum(QThread):
             self.check.checking = True
             self.trigger.start() # start server for TCP to send msg when atoms loaded
             # redirect images from analysis to atom checker
-            remove_slot(self.cam.AcquireEnd, self.receive, False)
-            remove_slot(self.cam.AcquireEnd, self.mr_receive, False)
-            remove_slot(self.cam.AcquireEnd, self.check_receive, True)
+            reset_slot(self.cam.AcquireEnd, self.receive, False)
+            reset_slot(self.cam.AcquireEnd, self.mr_receive, False)
+            reset_slot(self.cam.AcquireEnd, self.check_receive, True)
             # still in external exposure trigger - DExTer will send the trigger pulses
             self.cam.start() # run till abort keeps taking images
             if self.check.timer.t0 > 0: # if timeout is set, set a timer
@@ -175,14 +175,14 @@ class runnum(QThread):
         r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # ID of run in repetition cycle
         if toggle: # and self.sw.check_reset() < now will auto reset (so you can queue up multiruns)
             try: # take the multirun parameters from the queue (they're added to the queue in master.py)
-                self.seq.mr.mr_param, self.seq.mr.mrtr, self.seq.mr.mr_vals, appending = self.seq.mr.mr_queue.pop(0) # parameters, sequence, values, whether to append
+                self.seq.mr.mr_param, self.seq.mr.mrtr, self.seq.mr.mr_vals, self.seq.mr.appending = self.seq.mr.mr_queue.pop(0) # parameters, sequence, values, whether to append
             except IndexError as e:
                 logger.error('runid.py could not start multirun because no multirun was queued.\n'+str(e))
                 return 0
                 
             results_path = os.path.join(self.sv.results_path, self.seq.mr.mr_param['measure_prefix'])
-            remove_slot(self.cam.AcquireEnd, self.receive, False) # only receive if not in '# omit'
-            remove_slot(self.cam.AcquireEnd, self.mr_receive, True)
+            reset_slot(self.cam.AcquireEnd, self.receive, False) # only receive if not in '# omit'
+            reset_slot(self.cam.AcquireEnd, self.mr_receive, True)
             self.seq.mr.ind = 0 # counter for how far through the multirun we are
             self._k = 0 # reset image per run count
             try:
@@ -200,7 +200,7 @@ class runnum(QThread):
             self.seq.mr.get_all_sequences(save_dir=os.path.join(results_path, 'sequences'))
             self.seq.mr.save_mr_params(os.path.join(results_path, self.seq.mr.mr_param['measure_prefix'] + 
                 'params' + str(self.seq.mr.mr_param['1st hist ID']) + '.csv'))
-            self.sw.init_analysers_multirun(results_path, str(self.seq.mr.mr_param['measure_prefix']), appending)
+            self.sw.init_analysers_multirun(results_path, str(self.seq.mr.mr_param['measure_prefix']), self.seq.mr.appending)
             # tell the monitor program to save results to the new directory
             self.monitor.add_message(self._n, results_path+'=save_dir')
             self.monitor.add_message(self._n, 'start')
@@ -220,8 +220,8 @@ class runnum(QThread):
                 self.server.add_message(enum, text)
             self.seq.mr.mr_param['runs included'][0].append(self._n) # keep track of which runs are in the multirun.
         else: # pause the multi-run
-            remove_slot(self.cam.AcquireEnd, self.mr_receive, False)
-            remove_slot(self.cam.AcquireEnd, self.receive, True) # process every image
+            reset_slot(self.cam.AcquireEnd, self.mr_receive, False)
+            reset_slot(self.cam.AcquireEnd, self.receive, True) # process every image
             self.server.clear_queue()
             self.cam.AF.AbortAcquisition()
             self.multirun = stillrunning
@@ -240,8 +240,8 @@ class runnum(QThread):
         """Resume the multi-run where it was left off.
         If the multirun is already running, do nothing."""
         if 'paused' in status: 
-            remove_slot(self.cam.AcquireEnd, self.receive, False) # only receive if not in '# omit'
-            remove_slot(self.cam.AcquireEnd, self.mr_receive, True)
+            reset_slot(self.cam.AcquireEnd, self.receive, False) # only receive if not in '# omit'
+            reset_slot(self.cam.AcquireEnd, self.mr_receive, True)
             self._k = 0 # reset image per run count
             repeats = self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']
             r = self.seq.mr.ind % repeats  # repeat
@@ -321,3 +321,5 @@ class runnum(QThread):
         self.seq.mr.progress.emit(       # update progress label
             'Finished measure %s: %s.'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label']))
         self.multirun = False
+        if self.seq.mr.appending:
+            self.seq.mr.measures['1st hist ID'].setText('-1') # continue appending

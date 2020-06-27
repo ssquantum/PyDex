@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 sys.path.append('.')
 sys.path.append('..')
 from strtypes import intstrlist, listlist
-from maingui import main_window, remove_slot, int_validator, double_validator, nat_validator
+from maingui import main_window, reset_slot, int_validator, double_validator, nat_validator
 from reimage import reim_window # analysis for survival probability
 from roiHandler import ROI
 
@@ -482,7 +482,7 @@ class settings_window(QMainWindow):
         2D Gaussian masks-- fit 2D Gaussians to atoms in the image."""
         newmasks = [] # list of masks to pass on to analysis windows
         for r in self.rois: # disconnect slot, otherwise signal is triggered infinitely
-            remove_slot(r.roi.sigRegionChangeFinished, self.user_roi, False)
+            reset_slot(r.roi.sigRegionChangeFinished, self.user_roi, False)
         method = method if method else self.sender().text()
         pos, shape = self.rois[0].roi.pos(), self.rois[0].roi.size()
         if method == 'Single ROI':
@@ -527,7 +527,7 @@ class settings_window(QMainWindow):
         self.reset_table()
         self.replot_rois(newmasks)
         for r in self.rois: # reconnect slot
-            remove_slot(r.roi.sigRegionChangeFinished, self.user_roi, True)
+            reset_slot(r.roi.sigRegionChangeFinished, self.user_roi, True)
 
     def show_ROI_masks(self, toggle=True):
         """Make an image out of all of the masks from the ROIs and display it."""
@@ -542,7 +542,7 @@ class settings_window(QMainWindow):
         """Resize the table of ROIs and then fill it with the ROIs stored in
         stats['ROIs']. While doing so, disconnect the table's itemChanged signal
         so that there isn't recurssion with create_rois() and user_roi()."""
-        remove_slot(self.roi_table.itemChanged, self.roi_table_edit, False) # disconnect
+        reset_slot(self.roi_table.itemChanged, self.roi_table_edit, False) # disconnect
         n = 1 if self._m != 1 else 0 # make a new ROI when there are a windows for m images
         self.roi_table.setRowCount((self._a+n)//self._m) # num windows / num images per sequence
         for i in range(self.roi_table.rowCount()):
@@ -558,7 +558,7 @@ class settings_window(QMainWindow):
                     self.roi_table.setItem(i, j, QTableWidgetItem())
                     self.roi_table.item(i, j).setText(data[j])
                 logger.error('Not enough ROIs for main windows in table: %s\n'%j+str(e))
-        remove_slot(self.roi_table.itemChanged, self.roi_table_edit, True) # reconnect
+        reset_slot(self.roi_table.itemChanged, self.roi_table_edit, True) # reconnect
 
     #### #### toggle functions #### #### 
 
@@ -578,7 +578,7 @@ class settings_window(QMainWindow):
         """Reconnect analyser event_im signals and display the empty histogram."""
         for mw in self.rw + self.mw:
             # reconnect previous signals
-            mw.set_bins() # reconnects signal with given histogram binning settings
+            # mw.set_bins() # reconnects signal with given histogram binning settings
             mw.display_fit() # display the empty histograms
             mw.multirun = ''
     
