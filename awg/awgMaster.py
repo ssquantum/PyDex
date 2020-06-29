@@ -43,7 +43,7 @@ class awg_window(QMainWindow):
         self.server = PyServer(host='', port=8621) # TCP server to message DExTer
         self.server.textin[str].connect(self.recv_msg) # display the returned msg
         self.server.start()
-        self.client = PyClient(host='localhost', port=8623) # TCP client to message PyDex
+        self.client = PyClient(host='129.234.190.164', port=8623) # TCP client to message PyDex
         self.client.textin[str].connect(self.respond) # carry out the command in the msg
         self.client.start()
         self.awg = AWG() # opens AWG card and initiates

@@ -42,7 +42,7 @@ import logerrs
 logerrs.setup_log()
 logger = logging.getLogger(__name__)
 from strtypes import strlist, BOOL
-from daqController import worker, remove_slot
+from daqController import worker, reset_slot
 from daqAnalysis import daqCollection
 from networking.client import PyClient
 
@@ -119,8 +119,8 @@ class daq_window(QMainWindow):
         self.slave.acquired.connect(self.update_graph) # take average of slices
         self.slave.acquired.connect(self.update_trace) # plot new data when it arrives
         self.tcp = PyClient(port=port)
-        remove_slot(self.tcp.dxnum, self.set_n, True)
-        remove_slot(self.tcp.textin, self.respond, True)
+        reset_slot(self.tcp.dxnum, self.set_n, True)
+        reset_slot(self.tcp.textin, self.respond, True)
         self.tcp.start()
 
     def init_UI(self):
@@ -545,17 +545,17 @@ class daq_window(QMainWindow):
             self.slave = worker(self.stats['Sample Rate (kS/s)']*1e3, self.stats['Duration (ms)']/1e3, self.stats['Trigger Channel'], 
                 self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], list(self.stats['channels'].keys()), 
                 [ch['range'] for ch in self.stats['channels'].values()])
-            remove_slot(self.slave.acquired, self.update_trace, True)
-            remove_slot(self.slave.acquired, self.update_graph, True)
+            reset_slot(self.slave.acquired, self.update_trace, True)
+            reset_slot(self.slave.acquired, self.update_graph, True)
             if self.trigger_toggle:
-                # remove_slot(self.slave.finished, self.activate, True)
+                # reset_slot(self.slave.finished, self.activate, True)
                 self.slave.start()
                 self.toggle.setText('Stop')
             else: 
                 self.toggle.setChecked(False)
                 self.slave.analogue_acquisition()
         else:
-            # remove_slot(self.slave.finished, self.activate, False)
+            # reset_slot(self.slave.finished, self.activate, False)
             self.slave.stop = True
             self.slave.quit()
             self.toggle.setText('Start')

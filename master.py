@@ -238,7 +238,7 @@ class Master(QMainWindow):
         self.check_rois = QAction('Trigger on atoms loaded', sync_menu, 
                 checkable=True, checked=False)
         self.check_rois.setChecked(False)
-        self.check_rois.setEnabled(False) # not functional yet
+        # self.check_rois.setEnabled(False) # not functional yet
         sync_menu.addAction(self.check_rois) 
 
         reset_date = QAction('Reset date', sync_menu, checkable=False)

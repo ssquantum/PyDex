@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 sys.path.append('.')
 sys.path.append('..')
 from strtypes import strlist, BOOL
-from mythread import remove_slot
+from mythread import reset_slot
 
 class worker(QThread):
     """Acquire data from the NI USB-6211 DAQ.

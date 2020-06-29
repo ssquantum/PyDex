@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 sys.path.append('.')
 sys.path.append('..')
 from strtypes import intstrlist, listlist
-from maingui import reset_slot, int_validator # single atom image analysis
+from maingui import reset_slot, int_validator, double_validator # single atom image analysis
 from roiHandler import ROI, roi_handler
 
 ####    ####    ####    ####
@@ -160,7 +160,7 @@ class atom_window(QMainWindow):
         timeout_label = QLabel('Timeout (s): ', self)
         layout.addWidget(timeout_label, 2+num_plots//k*3,9+i+2, 1,1)
         self.timeout_edit = QLineEdit('0', self)
-        self.timeout_edit.setValidator(int_validator)
+        self.timeout_edit.setValidator(double_validator)
         self.timeout_edit.textEdited[str].connect(self.change_timeout)
         layout.addWidget(self.timeout_edit, 2+num_plots//k*3,9+i+3, 1,1)
         #
@@ -176,7 +176,9 @@ class atom_window(QMainWindow):
     def change_timeout(self, newval):
         """Time in seconds to wait before sending the trigger to continue the 
         experiment. Default is 0 which waits indefinitely."""
-        self.timer.t0 = int(newval)
+        try:
+            self.timer.t0 = float(newval)
+        except ValueError: pass
 
     def user_roi(self, roi):
         """The user drags an ROI and this updates the ROI centre and width"""

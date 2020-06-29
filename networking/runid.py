@@ -163,7 +163,7 @@ class runnum(QThread):
             # still in external exposure trigger - DExTer will send the trigger pulses
             self.cam.start() # run till abort keeps taking images
             if self.check.timer.t0 > 0: # if timeout is set, set a timer
-                self.check.timer.singleShot(self.check.timer.t0*1e3, self.check.send_trigger)
+                self.check.timer.singleShot(int(self.check.timer.t0*1e3), self.check.send_trigger)
 
     #### multirun ####
     
