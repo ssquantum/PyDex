@@ -13,14 +13,14 @@ import numpy as np
 from collections import OrderedDict
 from random import shuffle, randint
 try:
-    from PyQt4.QtCore import pyqtSignal, QItemSelectionModel
+    from PyQt4.QtCore import pyqtSignal, QItemSelectionModel, QThread
     from PyQt4.QtGui import (QPushButton, QWidget, QLabel,
         QGridLayout, QLineEdit, QDoubleValidator, QIntValidator, 
         QComboBox, QListWidget, QTabWidget, QVBoxLayout, QInputDialog,
         QTableWidget, QTableWidgetItem, QScrollArea, QMessageBox,
         QFileDialog) 
 except ImportError:
-    from PyQt5.QtCore import pyqtSignal, QItemSelectionModel
+    from PyQt5.QtCore import pyqtSignal, QItemSelectionModel, QThread
     from PyQt5.QtGui import QDoubleValidator, QIntValidator
     from PyQt5.QtWidgets import (QVBoxLayout, QWidget, QComboBox,
         QLineEdit, QGridLayout, QPushButton, QListWidget, QListWidgetItem, 
@@ -33,6 +33,49 @@ sys.path.append('..')
 from mythread import reset_slot # for dis- and re-connecting slots
 from strtypes import strlist, intstrlist, listlist
 from translator import translate
+
+####    ####    ####    ####
+
+class sequenceSaver(QThread):
+    """Saving DExTer sequences can sometimes take a long time.
+    Save them on this thread so that they don't make the GUI lag.
+    mrtr    -- translator instance for the multirun sequence
+    mrvals  -- table of values to change in the multirun
+    mrparam -- multirun parameters; which channels to change etc.
+    savedir -- directory to save sequences into."""
+    def __init__(self, mrtr, mrvals, mrparam, savedir):
+        super().__init__()
+        self.mrtr = mrtr 
+        self.mr_vals = mrvals
+        self.mr_param = mrparam
+        self.savedir = savedir
+    
+    def run(self):
+        """Use the values in the multirun array to make the next
+        sequence to run in the multirun. Uses saved mr_param not UI"""
+        if self.savedir:
+            for i in range(len(self.mr_vals)):
+                esc = self.mrtr.seq_dic['Experimental sequence cluster in'] # shorthand
+                try:
+                    for col in range(len(self.mr_vals[i])): # edit the sequence
+                        val = float(self.mr_vals[i][col])
+                        if self.mr_param['Type'][col] == 'Time step length':
+                            for head in ['Sequence header top', 'Sequence header middle']:
+                                for t in self.mr_param['Time step name'][col]:
+                                    esc[head][t]['Time step length'] = val
+                        elif self.mr_param['Type'][col] == 'Analogue voltage':
+                            for t in self.mr_param['Time step name'][col]:
+                                for c in self.mr_param['Analogue channel'][col]:
+                                    esc[self.mr_param['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
+
+                    self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
+                            ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
+                    self.mrtr.write_to_file(os.path.join(self.savedir, self.mr_param['measure_prefix'] + '_' + 
+                        str(i + self.mr_param['1st hist ID']) + '.xml'))
+                except IndexError as e:
+                    logger.error('Multirun failed to edit sequence at ' + self.mr_param['Variable label']
+                        + ' = ' + self.mr_vals[i][0] + '\n' + str(e))
+
 
 ####    ####    ####    ####
 
@@ -81,6 +124,7 @@ class multirun_widget(QWidget):
         self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
         self.appending = False # whether the current multirun will be appended on to the displayed results
         self.init_UI()  # make the widgets
+        self.ss = sequenceSaver(self.mrtr, self.mr_vals, self.mr_param, '') # used to save sequences
 
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
             default_text='', validator=None):
@@ -180,8 +224,8 @@ class multirun_widget(QWidget):
         # show the previously selected channels for this column:
         self.chan_choices['Time step name'].itemClicked.connect(self.save_chan_selection)
         self.chan_choices['Analogue channel'].itemClicked.connect(self.save_chan_selection)
-        self.chan_choices['Type'].activated[str].connect(self.save_chan_selection)
-        self.chan_choices['Analogue type'].activated[str].connect(self.save_chan_selection)
+        # self.chan_choices['Type'].activated[str].connect(self.save_chan_selection)
+        # self.chan_choices['Analogue type'].activated[str].connect(self.save_chan_selection)
         self.col_index.textChanged[str].connect(self.set_chan_listbox)
 
         # add the column to the multirun values array
@@ -263,8 +307,12 @@ class multirun_widget(QWidget):
         """Update the size of the multirun array based on the number of rows
         and columns specified in the line edit."""
         self.nrows = int(self.rows_edit.text()) if self.rows_edit.text() else 1
+        if self.nrows < 1:
+            self.nrows = 1
         self.table.setRowCount(self.nrows)
         self.ncols = int(self.cols_edit.text()) if self.cols_edit.text() else 1
+        if self.ncols < 1:
+            self.ncols = 1
         self.table.setColumnCount(self.ncols)
         self.col_index.setValidator(QIntValidator(1,self.ncols-1))
         if self.col_index.text() and int(self.col_index.text()) > self.ncols-1:
@@ -427,7 +475,7 @@ class multirun_widget(QWidget):
         # else: # if descending, ascending, or coarse random, the order has already been set
         return (rn // (self.mr_param['# omitted'] + self.mr_param['# in hist'])) % len(self.mr_param['runs included'])# ID of histogram in repetition cycle
 
-    def get_next_sequence(self, i=None, save_dir=''):
+    def get_next_sequence(self, i=None):
         """Use the values in the multirun array to make the next
         sequence to run in the multirun. Uses saved mr_param not UI"""
         if i == None: i = self.ind # row index
@@ -446,9 +494,6 @@ class multirun_widget(QWidget):
 
             self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
                     ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
-            if save_dir:
-                self.mrtr.write_to_file(os.path.join(save_dir, self.mr_param['measure_prefix'] + '_' + 
-                    str(i + self.mr_param['1st hist ID']) + '.xml'))
         except IndexError as e:
             logger.error('Multirun failed to edit sequence at ' + self.mr_param['Variable label']
                 + ' = ' + self.mr_vals[i][0] + '\n' + str(e))
@@ -460,7 +505,13 @@ class multirun_widget(QWidget):
         store these as a list of XML strings."""
         self.msglist = []
         for i in range(len(self.mr_vals)):
-            self.msglist.append(self.get_next_sequence(i, save_dir))
+            self.msglist.append(self.get_next_sequence(i))
+        if not self.ss.isRunning():
+            self.ss = sequenceSaver(self.mrtr, self.mr_vals, self.mr_param, save_dir)
+            self.ss.start() # save the sequences
+        else: # a backup if the first is busy saving sequences
+            self.s2 = sequenceSaver(self.mrtr, self.mr_vals, self.mr_param, save_dir)
+            self.s2.start()
 
     #### save and load parameters ####
 

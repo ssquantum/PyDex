@@ -84,7 +84,8 @@ class awg_window(QMainWindow):
                     tcp.clear_queue()
                     time.sleep(0.1) # give time for it to close
                     tcp.start()
-            else: tcp.start()
+            else: 
+                tcp.start()
 
     def recv_msg(self, txt):
         """Set the first 60 characters of a message returned to the

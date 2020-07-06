@@ -569,8 +569,7 @@ class main_window(QMainWindow):
             if new_vals[1] == '' and self.image_handler.ind > 0: # max
                 new_vals[1] = max(self.image_handler.stats['Counts'])
             elif not any(v == '' for v in new_vals[:2]) and int(new_vals[1]) < int(new_vals[0]):
-                # can't have max < min
-                new_vals[1] = max(self.image_handler.stats['Counts'])
+                return 0  # can't have min > max
             if new_vals[2] == '' and self.image_handler.ind > 0: # num bins
                 # min 17 bins. Increase with # images and with separation
                 new_vals[2] = int(17 + self.image_handler.ind//100 + 

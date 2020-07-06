@@ -11,7 +11,7 @@ def BOOL(x):
     Any string with nonzero length evaluates as true 
     e.g. bool('False') is True. So we need strtobool."""
     try: return strtobool(x)
-    except AttributeError: return bool(x)
+    except (AttributeError, ValueError): return bool(x)
 
 
 def strlist(text):

@@ -6,10 +6,12 @@ import matplotlib.pyplot as plt
 
 from pyspcm import *
 from spcm_tools import *
-from spcm_home_functions import *
 import sys
 import time
 import json
+
+#### #### define constants for unit conversion #### ####
+umPerMHz = 0.329 # convert frequency to distance tweezers move in object plane in microns
 
 
 def adjuster (requested_freq,samplerate,memSamples):
@@ -94,18 +96,13 @@ def moving(startFreq, endFreq,sampleRate,duration,a):
     """
     memBytes = math.ceil(sampleRate * (duration*10**-3)/1024) #number of bytes as a multiple of kB
     numOfSamples = memBytes*1024 # number of samples
-    t = np.arange(0.,numOfSamples)  
-    y = [] #Standard Sine function
+    t = np.arange(numOfSamples)  
     if(a==1):
-        for i in range(len(t)):
-            y.append(0.25*2**16 *math.sin(2.*math.pi*(1.*startFreq/sampleRate*t[i]+\
-            0.5*(endFreq-startFreq)/sampleRate/numOfSamples*t[i]**2 )))
-        return y
+        return list(0.25*2**16 *math.sin(2.*math.pi*(1.*startFreq/sampleRate*t+\
+            0.5*(endFreq-startFreq)/sampleRate/numOfSamples*t**2 )))
     else:
-        for i in range(len(t)):
-            y.append(0.25*2**16 *math.sin(2.*math.pi*(1.*startFreq/sampleRate*t[i]+\
-            chirp(1.*t[i],1.*(endFreq-startFreq)/sampleRate,1.*numOfSamples,1.*a) )))
-        return y
+        return list(0.25*2**16 *math.sin(2.*math.pi*(1.*startFreq/sampleRate*t+\
+            chirp(1.*t,1.*(endFreq-startFreq)/sampleRate,1.*numOfSamples,1.*a) )))
         
         
         
@@ -127,19 +124,13 @@ def moving2(startFreq, endFreq,staticFreq,sampleRate,duration,a):
     ffreq =adjuster(endFreq,sampleRate,numOfSamples)
     rfreq=adjuster((ffreq-sfreq),sampleRate,numOfSamples)
     statfreq = adjuster(staticFreq,sampleRate,numOfSamples)
-
-      
-    y = [] #Standard Sine function
+    t = np.arange(numOfSamples)
     if(a==1):
-        for i in range(numOfSamples):
-            y.append(0.25*2**16 *(math.sin(2.*math.pi*(1.*sfreq/sampleRate*i+\
-            0.5*(rfreq)/sampleRate/numOfSamples*i**2 ))+math.sin(2.*math.pi*(i)*statfreq/sampleRate)))
-        return y
+        return list(0.25*2**16 *(math.sin(2.*math.pi*(1.*sfreq/sampleRate*t+\
+            0.5*(rfreq)/sampleRate/numOfSamples*t**2 ))+math.sin(2.*math.pi*t*statfreq/sampleRate)) )
     else:
-        for i in range(numOfSamples):
-            y.append(0.25*2**16 *(math.sin(2.*math.pi*(1.*sfreq/sampleRate*i+\
-            chirp(1.*i,1.*(rfreq)/sampleRate,1.*numOfSamples,1.*a) ))+math.sin(2.*math.pi*(i)*statfreq/sampleRate)))
-        return y
+        return list(0.25*2**16 *(math.sin(2.*math.pi*(1.*sfreq/sampleRate*t+\
+            chirp(1.*t,1.*(rfreq)/sampleRate,1.*numOfSamples,1.*a) ))+math.sin(2.*math.pi*t*statfreq/sampleRate))))
         
 def moving3(startFreq, endFreq,sampleRate,numOfSamples,a):
     """
@@ -155,20 +146,16 @@ def moving3(startFreq, endFreq,sampleRate,numOfSamples,a):
     ffreq =adjuster(endFreq,sampleRate,numOfSamples)        # adjusted end frequency
     rfreq=adjuster((ffreq-sfreq),sampleRate,numOfSamples)   # adjusted relative frequency
 
-    t = np.arange(0.,numOfSamples)  
-    y = [] #Standard Sine function
+    t = np.arange(numOfSamples)  
     if(a==1):
-        for i in range(len(t)):
-            y.append(0.25*2**16 *math.sin(2.*math.pi*(1.*sfreq/sampleRate*t[i]+\
-            0.5*(rfreq)/sampleRate/numOfSamples*t[i]**2 )))
-        return y
+        return list((0.25*2**16 *math.sin(2.*math.pi*(1.*sfreq/sampleRate*t+\
+            0.5*(rfreq)/sampleRate/numOfSamples*t**2 ))))
     else:
-        for i in range(len(t)):
-            y.append(0.25*2**16 *math.sin(2.*math.pi*(1.*sfreq/sampleRate*t[i]+\
-            chirp(1.*t[i],1.*(rfreq)/sampleRate,1.*numOfSamples,1.*a) )))
+        return list(0.25*2**16 *math.sin(2.*math.pi*(1.*sfreq/sampleRate*t+\
+            chirp(1.*t,1.*(rfreq)/sampleRate,1.*numOfSamples,1.*a) )))
         return y  
         
-def static(centralFreq=170*10**6,numberOfTraps=4,distance=1.645,duration = 0.1,sampleRate = 625*10**6,umPerMHz =0.329):
+def static(centralFreq=170*10**6,numberOfTraps=4,distance=1.645,duration = 0.1,sampleRate = 512e6):
     """
     centralFreq   : Defined in [MHz]. Subsequent frequencies will appear in increasing order.
     numberOfTraps : Defines the total number of traps including the central frequency.
@@ -185,12 +172,10 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=1.645,duration = 0.1,s
     for freq in freqs:
          adjFreqs.append(adjuster(freq,sampleRate,numOfSamples))
     #print(adjFreqs) 
-    y = [] #Standard Sine function
-    for i in range(numOfSamples):
-        y.append(1/len(freqs)*0.5*2**16*sum(math.sin(2.*math.pi*(i)*freq/sampleRate) for freq in adjFreqs))
-    return y
+    t = np.arange(numOfSamples)
+    return list(1/len(freqs)*0.5*2**16*np.sum([math.sin(2.*math.pi*t*freq/sampleRate) for freq in adjFreqs],axis=0))
     
-def static2(centralFreq=170*10**6,numberOfTraps=4,distance=1.645,numOfSamples = 64*1024,sampleRate = 625*10**6,umPerMHz =0.329):
+def static2(centralFreq=170*10**6,numberOfTraps=4,distance=1.645,numOfSamples = 64*1024,sampleRate = 512e6):
     """
     centralFreq   : Defined in [MHz]. Subsequent frequencies will appear in increasing order.
     numberOfTraps : Defines the total number of traps including the central frequency.
@@ -203,12 +188,10 @@ def static2(centralFreq=170*10**6,numberOfTraps=4,distance=1.645,numOfSamples = 
     for freq in freqs:
          adjFreqs.append(adjuster(freq,sampleRate,numOfSamples))
     #print(adjFreqs) 
-    y = [] #Standard Sine function
-    for i in range(numOfSamples):
-        y.append(1/len(freqs)*0.5*2**16*sum(math.sin(2.*math.pi*(i)*freq/sampleRate) for freq in adjFreqs))
-    return y
+    t = np.arange(numOfSamples)
+    return list(1/len(freqs)*0.5*2**16*sum(math.sin(2.*math.pi*t*freq/sampleRate) for freq in adjFreqs))
 
-def ramp(freq=170*10**6,freq2 =180*10**6,startAmp=1,endAmp=0,duration =0.1,sampleRate= 625*10**6):
+def ramp(freq=170*10**6,freq2 =180*10**6,startAmp=1,endAmp=0,duration =0.1,sampleRate = 512e6):
     """
     freq     : Defined in [MHz]. Subsequent frequencies will appear in increasing order
     startAmp : 
@@ -218,13 +201,20 @@ def ramp(freq=170*10**6,freq2 =180*10**6,startAmp=1,endAmp=0,duration =0.1,sampl
     
     adj  = adjuster(freq,sampleRate,numOfSamples)
     adj2 = adjuster(freq2,sampleRate,numOfSamples)
-    y=[]
-    for i in range(numOfSamples):
-        #y.append(0.5*2**16*((startAmp + (endAmp - startAmp)/numOfSamples*i)*math.sin(2.*math.pi*(i)*adj/sampleRate)))
-        y.append(0.25*2**16*((startAmp + (endAmp - startAmp)*i/numOfSamples)*math.sin(2.*math.pi*(i)*adj/sampleRate)+math.sin(2.*math.pi*(i)*adj2/sampleRate)))
-    return y
+    t = np.arange(numOfSamples)
+    return list(0.25*2**16*((startAmp + (endAmp - startAmp)*t/numOfSamples)*math.sin(2.*math.pi*t*adj/sampleRate)+math.sin(2.*math.pi*t*adj2/sampleRate)))
     
 
+def blackman(A=1, duration=1, sampleRate=512e6):
+    """A Blackman pulse supresses sidelobe frequencies compared to a square pulse.
+    A         : amplitude
+    duration  : pulse duration in microseconds
+    sampleRate: the sample rate that the AWG is running at"""
+    memBytes = math.ceil(sampleRate * (duration*1e-6)/1024) #number of bytes as a multiple of kB
+    numOfSamples = memBytes*1024 # number of samples
+    t = np.arange(numOfSamples)
+    return A*0.25*2**16*( -0.5*math.cos(2*math.pi*t/T) + 2/25*math.cos(4*math.pi*t/T) + 21/50 )
+    
 
 """
 length = 100

@@ -166,6 +166,7 @@ class Master(QMainWindow):
         self.rn.monitor.textin.connect(self.mon_win.set_connected)
         # set a timer to update the dates 2s after midnight:
         t0 = time.localtime()
+        self.date_reset = 0 # whether the dates are waiting to be reset or not
         QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates)
 
@@ -258,7 +259,7 @@ class Master(QMainWindow):
         self.actions = QComboBox(self)
         self.actions.addItems(['Run sequence', 'Multirun run',
             'Pause multirun', 'Resume multirun', 'Cancel multirun',
-            'TCP load sequence','TCP load sequence from string',
+            'TCP load sequence from string',
             'Save DExTer sequence', 'Cancel Python Mode', 
             'Resync DExTer', 'Start acquisition'])
         self.actions.resize(self.actions.sizeHint())
@@ -269,15 +270,6 @@ class Master(QMainWindow):
         self.action_button.resize(self.action_button.sizeHint())
         self.centre_widget.layout.addWidget(self.action_button, 2,1, 1,1)
 
-        # text box to allow user to specify DExTer sequence file 
-        _, self.seq_edit = self.make_label_edit('DExTer sequence file: ', 
-            self.centre_widget.layout, position=[3,0,1,1])
-        # button to load sequence location from file browser
-        self.seq_browse = QPushButton('Browse', self, checkable=False)
-        self.seq_browse.clicked[bool].connect(self.browse_sequence)
-        self.seq_browse.resize(self.seq_browse.sizeHint())
-        self.centre_widget.layout.addWidget(self.seq_browse, 3,2, 1,1)
-        
         #### choose main window position, dimensions: (xpos,ypos,width,height)
         self.setGeometry(*self.stats['MasterGeometry'])
         self.setWindowTitle('PyDex Master')
@@ -285,14 +277,18 @@ class Master(QMainWindow):
 
     def reset_dates(self, auto=True):
         """Reset the date in the image saving and analysis, 
-        then display the updated date"""
-        t0 = time.localtime()
-        self.stats['Date'] = time.strftime("%d,%B,%Y", t0)
-        date = self.rn.reset_dates(t0)
-        if not hasattr(self.sender(), 'text'): # don't set timer if user pushed button
-            QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
-                self.reset_dates) # set the next timer to reset dates
-        logger.info(time.strftime("Date reset: %d %B %Y", t0))
+        then display the updated date. Don't reset during multirun."""
+        if not self.rn.multirun:
+            self.date_reset = 0 # whether the dates are waiting to be reset or not
+            t0 = time.localtime()
+            self.stats['Date'] = time.strftime("%d,%B,%Y", t0)
+            date = self.rn.reset_dates(t0)
+            if not hasattr(self.sender(), 'text'): # don't set timer if user pushed button
+                QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
+                    self.reset_dates) # set the next timer to reset dates
+            logger.info(time.strftime("Date reset: %d %B %Y", t0))
+        else:
+            self.date_reset = 1 # whether the dates are waiting to be reset or not
 
     def show_window(self):
         """Show the window of the submodule or adjust its settings."""
@@ -418,8 +414,6 @@ class Master(QMainWindow):
                         multirun settings.
         TCP load sequence from string: Tell DExTer to load in the sequence
                         from a string in XML format.
-        TCP load sequence:  Tell DExTer to load in the sequence file at
-                        the location in the 'DExTer sequence file' label.
         Cancel python mode: send the text 'python mode off' which triggers
                         DExTer to exit python mode.
         Resync DExTer:  send a null message just to resync the run number.
@@ -475,8 +469,6 @@ class Master(QMainWindow):
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
             elif action_text == 'TCP load sequence from string':
                 self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.seq_txt)
-            elif action_text == 'TCP load sequence':
-                self.rn.server.add_message(TCPENUM[action_text], self.seq_edit.text()+'\n'+'0'*2000)
             elif action_text == 'Save DExTer sequence':
                 self.rn.server.add_message(TCPENUM['Save sequence'], 'save log file automatic name\n'+'0'*2000)
             elif action_text == 'Cancel Python Mode':
@@ -579,6 +571,8 @@ class Master(QMainWindow):
             self.end_run(msg)
         elif 'STOPPED' in msg:
             self.status_label.setText(msg)
+            if self.date_reset: # reset dates at end of multirun
+                self.reset_dates()
         self.ts['msg end'] = time.time()
         self.ts['blocking'] = time.time() - self.ts['msg start']
         # self.print_times()

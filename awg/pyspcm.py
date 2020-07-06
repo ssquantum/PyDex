@@ -48,8 +48,6 @@ uptr64 = POINTER (uint64)
 
 # Windows
 if os.name == 'nt':
-    sys.stdout.write("Python Version: {0} on Windows\n\n".format (platform.python_version()))
-
     # define card handle type
     if (bIs64Bit):
         # for unknown reasons c_void_p gets messed up on Win7/64bit, but this works:

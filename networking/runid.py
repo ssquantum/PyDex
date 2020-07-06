@@ -277,8 +277,8 @@ class runnum(QThread):
             self.monitor.add_message(self._n, 'set fadelines') # keep the trace from the start of the histogram
         v = self.seq.mr.get_next_index(self.seq.mr.ind) # variable
         try:
-            if r >= self.seq.mr.mr_param['# omitted']: 
-                self.seq.mr.mr_param['runs included'][v].append(self._n) # include this run in the multirun
+            # if r >= self.seq.mr.mr_param['# omitted']: 
+            #     self.seq.mr.mr_param['runs included'][v].append(self._n) # include this run in the multirun
             uv = self.seq.mr.mr_vals[v][0] # get user variable 
         except IndexError: 
             if v == len(self.seq.mr.mr_vals):

@@ -38,8 +38,6 @@ sys.path.append('..')
 import warnings
 warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
 import logging
-import logerrs
-logerrs.setup_log()
 logger = logging.getLogger(__name__)
 from strtypes import strlist, BOOL
 from daqController import worker, reset_slot

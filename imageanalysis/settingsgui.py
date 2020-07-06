@@ -820,6 +820,7 @@ class settings_window(QMainWindow):
                 self.mw[i].resize(w, h)
                 self.mw[i].setGeometry(mwx+i*2*w//self._a, mwy, w, h)
                 self.mw[i].show()
+            self.mw[i].setStyleSheet("background-color: rgb(%s,%s,250)"%(250-30*(i//self._m), 250-4*(i%self._m)))
         for i in range(len(self.rw_inds)):
             self.rw[i].resize(w, h)
             self.rw[i].setGeometry(rwx+i*2*w//len(self.rw_inds), rwy, w, h)

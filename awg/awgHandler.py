@@ -7,7 +7,8 @@ import sys
 import os
 import time
 import json
-
+import logging
+logger = logging.getLogger(__name__)
     
 
 class AWG:
@@ -19,9 +20,10 @@ class AWG:
     """
     hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
     #hCard = spcm_hOpen (create_string_buffer (b'TCPIP::192.168.1.10::inst0::INSTR'))
-    if hCard == None:
-        sys.stdout.write("no card found...\n")
-        exit ()
+    try: hCard.contents
+    except ValueError as e:
+        logger.error("Could not connect to AWG card. Perhaps a connection is already active.\n"+str(e))
+        exit()
     
     #Initialisation of reading parameters and definition of memory type.
     lCardType     = int32 (0) 
@@ -110,7 +112,7 @@ class AWG:
         
         # Setting the sample rate of the card.
         if sample_rate> MEGA(625):
-            sys.stdout.write("Requested sample rate larger than maximum. Sample rate set at 625 MS/s")
+            logger.warning("Requested sample rate larger than maximum. Sample rate set at 625 MS/s")
             sample_rate = MEGA(625)
         self.sample_rate = sample_rate
         spcm_dwSetParam_i64 (AWG.hCard, SPC_SAMPLERATE, int32(self.sample_rate))    # Setting the sample rate for the card
@@ -124,27 +126,27 @@ class AWG:
         
         # Setting the card channel
         if channel_enable.value>3 or channel_enable.value<0:
-            sys.stdout.write("Available channels span from 0 to 3. Channel set to 0.")
+            logger.warning("Available channels span from 0 to 3. Channel set to 0.")
             channel_enable = uint64(1)
         self.channel_enable =  channel_enable                                   # Sets the value for the channel to open.
        
         # Setting the card into sequence replay
         if num_segment > int(65536):
-            sys.stdout.write("Total number of segments capped at: 65536")
+            logger.warning("Total number of segments capped at: 65536")
             num_segment = int(65536)
         elif num_segment <int(2):
-            sys.stdout.write("Number of segments smaller than minimum. Segments set to 2.")
+            logger.warning("Number of segments smaller than minimum. Segments set to 2.")
             num_segment = int(2)
         self.num_segment = int(2**int(math.ceil(math.log(num_segment)/math.log(2))))
         if self.num_segment != num_segment:
-             sys.stdout.write("...number of segments must be power of two.\n Segments have been set to nearest power of two:{0:d}\n".format(self.num_segment))
+             logger.warning("...number of segments must be power of two.\n Segments have been set to nearest power of two:{0:d}\n".format(self.num_segment))
         
         # Setting the first step in sequence
         if start_step > int(4096):
-            sys.stdout.write("Total number of steps capped at maximum value: 4096")
+            logger.warning("Total number of steps capped at maximum value: 4096")
             start_step = int(4096)
         elif start_step <int(0):
-            sys.stdout.write("Initialisation step must be a positive integer. Set to default value: 0")
+            logger.warning("Initialisation step must be a positive integer. Set to default value: 0")
             start_step = int(0)
         self.start_step = start_step
         
@@ -175,7 +177,7 @@ class AWG:
         The following line determines the output of the card.
         """
         if AWG.max_output>282:
-            sys.stdout.write("Maximum output exceeds damage threshold of amplifier. Value set to -1dBm (~282 mV)")
+            logger.warning("Maximum output exceeds damage threshold of amplifier. Value set to -1dBm (~282 mV)")
             AWG.max_output = round(math.sqrt(2*10**-3 * 50 *10 **(-1/10))*1000)
         spcm_dwSetParam_i32 (AWG.hCard, SPC_AMP0, int32 (AWG.max_output))               # Sets the maximum output of the card for Channel 0. 
         
@@ -223,19 +225,19 @@ class AWG:
         
     def __str__(self):
         ### Note: The functionL szTypeToName shown below is defined in the spcm_tools.py
-        sCardName = szTypeToName (lCardType.value) # M4i.6622-x8. It just reads out the value from earlier. 
-        sys.stdout.write("Found: {0} sn {1:05d}\n".format(sCardName,lSerialNumber.value))
+        sCardName = szTypeToName (self.lCardType.value) # M4i.6622-x8. It just reads out the value from earlier. 
+        logger.warning("Found: {0} sn {1:05d}\n".format(sCardName,self.lSerialNumber.value))
         
     def setNumSegments(self,num_segment):
         if num_segment > int(65536):
-            sys.stdout.write("Total number of segments capped at: 65536")
+            logger.warning("Total number of segments capped at: 65536")
             num_segment = int(65536)
         elif num_segment <int(2):
-            sys.stdout.write("Number of segments smaller than minimum. Segments set to 2.")
+            logger.warning("Number of segments smaller than minimum. Segments set to 2.")
             num_segment = int(2)
         self.num_segment = int(2**int(math.ceil(math.log(num_segment)/math.log(2))))
         if self.num_segment != num_segment:
-             sys.stdout.write("...number of segments must be power of two.\n Segments have been set to nearest power of two:{0:d}\n".format(self.num_segment))
+             logger.warning("...number of segments must be power of two.\n Segments have been set to nearest power of two:{0:d}\n".format(self.num_segment))
         
         spcm_dwSetParam_i32 (AWG.hCard, SPC_SEQMODE_MAXSEGMENTS, self.num_segment)  # The entire memory will be divided in this many segments. 
         
@@ -252,10 +254,10 @@ class AWG:
     def setStartStep(self,start_step):
         # Setting the first step in sequence
         if start_step > int(4096):
-            sys.stdout.write("Total number of steps capped at maximum value: 4096")
+            logger.warning("Total number of steps capped at maximum value: 4096")
             start_step = int(4096)
         elif start_step <int(0):
-            sys.stdout.write("Initialisation step must be a positive integer. Set to default value: 0")
+            logger.warning("Initialisation step must be a positive integer. Set to default value: 0")
             start_step = int(0)
         self.start_step = start_step
         
@@ -275,17 +277,17 @@ class AWG:
         if 1<=trig_val<=10:
             self.trig_val = trig_val
         else:
-            sys.stdout.write("trig_val can take values between 1 and 10. Check global parameters for definitions.\n Set to default value: 1")
+            logger.warning("trig_val can take values between 1 and 10. Check global parameters for definitions.\n Set to default value: 1")
             self.trig_val =1
         if -10000 <= trig_level0 <= 10000:
             self.trig_level0  = trig_level0
         else:
-            sys.stdout.write("trig_level0 can take values between +- 10000 mV. Value has been set to 2500 mV (default)")
+            logger.warning("trig_level0 can take values between +- 10000 mV. Value has been set to 2500 mV (default)")
             self.trig_level0 = 2500
         if -10000<= trig_level1 <= 10000:
             self.trig_level1  = trig_level1
         else:
-            sys.stdout.write("trig_level0 can take values between +- 10000 mV. Value has been set to 0 mV (default)")
+            logger.warning("trig_level0 can take values between +- 10000 mV. Value has been set to 0 mV (default)")
             self.trig_level1 = 0
         spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,                    SPC_TMASK_NONE)  #You must remove the software trigger otherwise it overwrites
         spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,                    SPC_TMASK_EXT0)  # Sets trigger to EXT0 (main trigger)
@@ -335,15 +337,15 @@ class AWG:
             spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[param], byref(dummy))
             if spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[param], byref(dummy)) ==0:
                 self.dummy =dummy.value
-                sys.stdout.write(switcher[param].format(self.dummy))
+                logger.warning(switcher[param].format(self.dummy))
             else: 
                 self.errVal = spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[param], byref(dummy))
-                sys.stdout.write("Parameter could not be retrieved. Error Code: {0:d}".format(self.errVal))
+                logger.warning("Parameter could not be retrieved. Error Code: {0:d}".format(self.errVal))
         
         else:
-            sys.stdout.write("Register number is between 1 and {0:d}. The options are:\n".format(len(switcher)))
+            logger.warning("Register number is between 1 and {0:d}. The options are:\n".format(len(switcher)))
             for x in options:
-                sys.stdout.write("{}: {}\n".format(x,options[x]))
+                logger.warning("{}: {}\n".format(x,options[x]))
         
     
     
@@ -362,7 +364,7 @@ class AWG:
         
         
         if segment > self.num_segment -1:
-            sys.stdout.write("The card has been segmented into {0:d} parts.\n".format(self.num_segment))
+            logger.warning("The card has been segmented into {0:d} parts.\n".format(self.num_segment))
             flag =1
         else:
             self.segment = segment
@@ -380,8 +382,8 @@ class AWG:
                 self.duration = duration
             
         else:
-            sys.stdout.write("Duration must be between 0 and {0:d} ms when using {} segments. \n".format(self.maxDuration,self.num_segment))
-            sys.stdout.write("Segment size has been set to maximum.")
+            logger.warning("Duration must be between 0 and {0:d} ms when using {} segments. \n".format(self.maxDuration,self.num_segment))
+            logger.warning("Segment size has been set to maximum.")
             self.duration = self.maxDuration
         
         if action ==1:
@@ -404,15 +406,15 @@ class AWG:
         #######################
         ### Diagnostic comments
         #######################
-        #sys.stdout.write ("ContBuf length: {0:d}\n".format(qwContBufLen.value))
+        #logger.warning ("ContBuf length: {0:d}\n".format(qwContBufLen.value))
         if qwContBufLen.value >= qwBufferSize.value:
-            sys.stdout.write("Using continuous buffer\n")
+            logger.warning("Using continuous buffer\n")
         else:
             pvBuffer = pvAllocMemPageAligned (qwBufferSize.value) ## This now makes pvBuffer a pointer to the memory block. (void types have no attributes, so it is better to think that it points to the block and not individual sample)
             #######################
             ### Diagnostic comments
             #######################
-            #sys.stdout.write("Using buffer allocated by user program\n")
+            #logger.warning("Using buffer allocated by user program\n")
         
         # calculate the data
         pnBuffer = cast  (pvBuffer, ptr16) #this now discretises the block into individual 'memory boxes', one for each sample.
@@ -459,7 +461,7 @@ class AWG:
                 if 135 <= f1 <= 225:
                     self.f1 = MEGA(f1)
                 else:
-                    sys.stdout.write("Chosen starting frequency is out of the AOD frequency range. Value defaulted at 170 MHz")
+                    logger.warning("Chosen starting frequency is out of the AOD frequency range. Value defaulted at 170 MHz")
                     self.f1 = MEGA(170)
                     flag =1
                 
@@ -471,13 +473,13 @@ class AWG:
                     for i in range (0, self.numOfSamples, 1):
                         pnBuffer[i] = int16(int(staticData[i])) 
                 else:
-                    sys.stdout.write("Some frequencies will be out of AOD diffraction range. Reduce the spacing or number of traps.\n")
+                    logger.warning("Some frequencies will be out of AOD diffraction range. Reduce the spacing or number of traps.\n")
                     flag =1
             else: 
-                sys.stdout.write("Static trap ancilla variables:\n")
+                logger.warning("Static trap ancilla variables:\n")
                 for x in staticOptions:
-                    sys.stdout.write("{}: {}\n".format(x,staticOptions[x]))
-                sys.stdout.write("\n")
+                    logger.warning("{}: {}\n".format(x,staticOptions[x]))
+                logger.warning("\n")
                 flag =1
         
         #####################################################################
@@ -518,19 +520,19 @@ class AWG:
                         pnBuffer[i] = int16(int(moveData[i])) 
                 
                 elif  f1> 225 or f1 < 135 or f2> 225 or f2 <135:
-                    sys.stdout.write("Start and end frequencies out of AOD bounds.")
+                    logger.warning("Start and end frequencies out of AOD bounds.")
                     flag = 1
                 elif fstat >225 or fstat < 135:
-                    sys.stdout.write("Static frequencies out of AOD bounds.")
+                    logger.warning("Static frequencies out of AOD bounds.")
                     flag = 1
                 elif a < 0 or a > 1:
-                    sys.stdout.write("Hybridicity paramter must lie between 0 (Min Jerk) and 1 (linear)")
+                    logger.warning("Hybridicity paramter must lie between 0 (Min Jerk) and 1 (linear)")
                     flag =1
             else:
-                sys.stdout.write("Moving trap ancilla variables:\n")
+                logger.warning("Moving trap ancilla variables:\n")
                 for x in moveOptions:
-                    sys.stdout.write("{}: {}\n".format(x,moveOptions[x]))
-                sys.stdout.write("\n")
+                    logger.warning("{}: {}\n".format(x,moveOptions[x]))
+                logger.warning("\n")
                 flag =1
         
         #####################################################################
@@ -571,31 +573,31 @@ class AWG:
                         
                 
                 elif f1 > 225 or f1 <135 or f2 > 225 or f2 <135:
-                    sys.stdout.write("Requested frequency is outside of AOD diffraction bounds")
+                    logger.warning("Requested frequency is outside of AOD diffraction bounds")
                     flag =1
                     
                 elif startAmp >100 or startAmp < 0:
-                    sys.stdout.write("Initial amplitude must be between 0 and 100")
+                    logger.warning("Initial amplitude must be between 0 and 100")
                     flag =1
                     
                 elif endAmp >100 or endAmp < 0:
-                    sys.stdout.write("Final amplitude must be between 0 and 100")
+                    logger.warning("Final amplitude must be between 0 and 100")
                     flag =1
             else:
-                sys.stdout.write("Ramp trap ancilla variables:\n")
+                logger.warning("Ramp trap ancilla variables:\n")
                 for x in rampOptions:
-                    sys.stdout.write("{}: {}\n".format(x,rampOptions[x]))
-                sys.stdout.write("\n")
+                    logger.warning("{}: {}\n".format(x,rampOptions[x]))
+                logger.warning("\n")
                 flag =1
         
         #####################################################################
         # ERROR WITH NUMBER OF VARIABLES
         #####################################################################             
         else:
-            sys.stdout.write("Ramp trap ancilla variables:\n")
+            logger.warning("Ramp trap ancilla variables:\n")
             for x in actionOptions:
-                sys.stdout.write("{}: {}\n".format(x,rampOptions[x]))
-            sys.stdout.write("\n")
+                logger.warning("{}: {}\n".format(x,rampOptions[x]))
+            logger.warning("\n")
             flag =1
               
                               
@@ -604,15 +606,15 @@ class AWG:
         if flag==0:
             # we define the buffer for transfer and start the DMA transfer
             ###
-            ####sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
+            ####logger.warning("Starting the DMA transfer and waiting until data is in board memory\n")
             ###
             spcm_dwDefTransfer_i64 (AWG.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), pvBuffer, uint64 (0), qwBufferSize)
             spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
-            sys.stdout.write("... segment number {0:d} has been transferred to board memory\n".format(segment))
-            sys.stdout.write(".................................................................\n")
+            logger.warning("... segment number {0:d} has been transferred to board memory\n".format(segment))
+            logger.warning(".................................................................\n")
         
         else:
-            sys.stdout.write("Card segment number {0:d} was not loaded due to unresolved errors\n".format(self.segment))
+            logger.warning("Card segment number {0:d} was not loaded due to unresolved errors\n".format(self.segment))
         
         
         
@@ -624,7 +626,7 @@ class AWG:
         # Determining which Step to define
         #####################################
         if stepNum > int(4096):
-            sys.stdout.write("[Issue with first parameter]\n Maximum number of steps is: 4096")
+            logger.warning("[Issue with first parameter]\n Maximum number of steps is: 4096")
             stepFlag =1
         else:
             self.lStep = int(stepNum)  
@@ -635,7 +637,7 @@ class AWG:
         if 0 <= segNum <= self.num_segment:
             self.llSegment = int(segNum) # segment associated with data memory 0
         else:
-            sys.stdout.write("[Issue with second parameter]\n The segment number must be a positive integer smaller than: {}".format(self.num_segment))
+            logger.warning("[Issue with second parameter]\n The segment number must be a positive integer smaller than: {}".format(self.num_segment))
             stepFlag=1
 
         #######################
@@ -656,7 +658,7 @@ class AWG:
         if 0 < loopNum <= 1048575:
             self.llLoop =    int(loopNum) # this should correspond to about 10 seconds
         else:
-            sys.stdout.write("[Issue with third parameter]\n The total number of loops must be smaller than: 1048575")
+            logger.warning("[Issue with third parameter]\n The total number of loops must be smaller than: 1048575")
             stepFlag=1    
 
         #######################
@@ -664,10 +666,10 @@ class AWG:
         ###########################################################        
         if 0 <= nextStep <= int(4096):
             if nextStep == stepNum:
-                sys.stdout.write("Next step sequence is the same as this step.\n Will cause an infinitely looped segment unless dynamically changed.")
+                logger.warning("Next step sequence is the same as this step.\n Will cause an infinitely looped segment unless dynamically changed.")
             self.llNext = int(nextStep) # initialisation step: the step the card starts at. Can be arbitrarily chosen.
         else:
-            sys.stdout.write("[Issue with fourth parameter]\n Next step must be positive integer smaller than: 4096")
+            logger.warning("[Issue with fourth parameter]\n Next step must be positive integer smaller than: 4096")
             stepFlag=1
     
         availStepOptions = {
@@ -680,10 +682,10 @@ class AWG:
             self.llCondition = AWG.stepOptions[stepCondition] # Leave this step immediately after loop terminates.
         
         else:
-             sys.stdout.write("Valid numbers are between 1 and {0:d}. The options are:\n".format(len(AWG.stepOptions)))
+             logger.warning("Valid numbers are between 1 and {0:d}. The options are:\n".format(len(AWG.stepOptions)))
              stepFlag=1
              for x in availStepOptions:
-                sys.stdout.write("{}: {}\n".format(x,availStepOptions[x]))
+                logger.warning("{}: {}\n".format(x,availStepOptions[x]))
         
         self.stepFlag[self.llSegment] = stepFlag
         
@@ -705,7 +707,7 @@ class AWG:
             self.path =  os.path.join(dirPath, self.ddate)
             os.makedirs(self.path, exist_ok=True)
         else:
-            sys.stdout.write("Input must be a string.")
+            logger.warning("Input must be a string.")
             
     def saveData(self):
         """
@@ -730,7 +732,7 @@ class AWG:
             if saveFile ==True:
                 self.saveData()   
             spcm_dwSetParam_i32 (AWG.hCard, SPC_TIMEOUT, int(timeOut))
-            sys.stdout.write("\nStarting the card and waiting for ready interrupt\n(continuous and single restart will have timeout)\n")
+            logger.warning("\nStarting the card and waiting for ready interrupt\n(continuous and single restart will have timeout)\n")
             dwError = spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITPREFULL)
             if dwError == ERR_TIMEOUT:
                 spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
@@ -743,8 +745,8 @@ class AWG:
             for x in range(len(self.stepFlag)):
                 if self.stepFlag[x]!=0:
                     yStep.append(x)
-            sys.stdout.write("\n Card was not initialiased due to unresolved issues in segments {}\n".format(y))
-            sys.stdout.write("\n Card was not initialiased due to unresolved issues in steps {}\n".format(yStep))
+            logger.warning("\n Card was not initialiased due to unresolved issues in segments {}\n".format(y))
+            logger.warning("\n Card was not initialiased due to unresolved issues in steps {}\n".format(yStep))
             
             
     
