@@ -33,14 +33,18 @@ def dataj(data,segVal,action,duration,*args):
     # Static
     ###########
     if action ==1: 
-        if  len(args)==3:
+        if  len(args)==6:
             data["segments"][seg].append({
             'segment'      :segVal,
             'action_type'  :'static trap',
+            'action_val'   :action,
             'duration'     :duration,
             'start_freq'   :args[0],
             'num_of_traps' :args[1],
-            'distance'     :args[2]
+            'distance'     :args[2],
+            'total_amp'    :args[3],
+            'freq_amp'     :args[4],
+            'freq_phase'   :args[5]
             })
         else:
             print('wrong number of arguments')
@@ -53,12 +57,14 @@ def dataj(data,segVal,action,duration,*args):
             data["segments"][seg].append({
             'segment'      :segVal,
             'action_type'  :'moving trap',
+            'action_val'   :action,
             'duration'     :duration,
             'start_freq'   :args[0],
             'end_freq'     :args[1],
             'static_freq'  :args[2],
             'hybridicity'  :args[3]
             })
+            
         else:
             print("wrong number of arguments")
     
@@ -71,6 +77,7 @@ def dataj(data,segVal,action,duration,*args):
             data["segments"][seg].append({
             'segment'      :segVal,
             'action_type' :'ramping trap',
+            'action_val'  :action,
             'duration'    :duration,
             'ramped_freq' :args[0],
             'static_freq' :args[1],
@@ -80,11 +87,13 @@ def dataj(data,segVal,action,duration,*args):
         else:
             print("wrong number of arguments")
             
+    data['segments'][seg]=data['segments'][seg][0]
+            
             
            
 def stepj(data,stepVal,segVal,loopNum,nextStep,condition):
     
-    step = 'step'+str(segVal)
+    step = 'step_'+str(segVal)
     data["steps"][step]=[]
 
     
@@ -96,6 +105,8 @@ def stepj(data,stepVal,segVal,loopNum,nextStep,condition):
     'condition'       :condition
     })
     
+    data['steps'][step]=data['steps'][step][0]
+    
     
 def paramj(data, *args):
     
@@ -105,7 +116,9 @@ def paramj(data, *args):
     else:
         args = ['Error']*paramLen
         
-    data["properties"].append({
+    data["properties"]["card_settings"]=[]
+    
+    data["properties"]["card_settings"].append({
     'sample_rate_Hz'        :args[0],
     'num_of_segments'    :args[1],
     'start_step'         :args[2],
@@ -117,16 +130,18 @@ def paramj(data, *args):
     'trig_level0_main' :args[8],
     'trig_level1_aux'  :args[9],
     'static_duration_ms'    :args[10]
-    })                            
+    })   
+    
+    data["properties"]["card_settings"] = data["properties"]["card_settings"][0]                         
             
 
-filedata = {}
-filedata["steps"]       = {} #Note that this is a dictionary
-filedata["segments"]    = {} #Note that this is a dictionary
-filedata["properties"]  = []
-filedata["calibration"] = []
-
-
+# filedata = {}
+# filedata["steps"]       = {} #Note that this is a dictionary
+# filedata["segments"]    = {} #Note that this is a dictionary
+# filedata["properties"]  = {}
+# filedata["calibration"] = []
+# 
+# 
 #               
 # dataj(filedata,0,1,0.02,170,2,1.645*1)
 # dataj(filedata,1,2,0.1,170,175,175,0)
@@ -136,19 +151,19 @@ filedata["calibration"] = []
 # dataj(filedata,5,1,0.02,170,2,1.645*1)
 # 
 # stepj(filedata,0,0,1000,1,1)
-
+# 
 # paramj(filedata,1,2,3,4,5,6,7,8,9,10,11)
 # ddate =time.strftime('%Y%m%d')
 # ttime =time.strftime('%H%M%S')
 # fname = ddate+"_"+ttime
 # 
-# mypath =  'C:\Users\Man\Desktop\\'+ddate
+# mypath =  'S:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin\\'+ddate
 # if not os.path.isdir(mypath):
-#    os.makedirs(mypath)
+#     os.makedirs(mypath)
 # 
 # with open(mypath+'\\'+fname+'.txt','w') as outfile:
-#     json.dump(data,outfile,sort_keys = True,indent =4)
-# 
+#     json.dump(filedata,outfile,sort_keys = True,indent =4)
+
 # with open(mypath+'\\'+fname+'.txt') as json_file:
 #     d = json.load(json_file)   
 #        

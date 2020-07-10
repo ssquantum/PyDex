@@ -198,7 +198,7 @@ class multirun_widget(QWidget):
         self.chan_choices = OrderedDict()
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
         sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
-        options = [['Time step length', 'Analogue voltage', 'GPIB'], 
+        options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG'], 
             list(map(str.__add__, [str(i) for i in range(len(sht))],
                 [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht])), 
             ['Fast analogue', 'Slow analogue'],
@@ -390,12 +390,7 @@ class multirun_widget(QWidget):
         This is used to set the labels for time step names and channel names.
         Note: the multirun sequence mrtr is not affected."""
         self.tr = tr
-        sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
-        for key, items in [['Time step name', list(map(str.__add__, [str(i) for i in range(len(sht))],
-                    [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht]))],
-                ['Analogue channel', self.get_anlg_chans('Fast')]]:
-            self.chan_choices[key].clear()
-            self.chan_choices[key].addItems(items)
+        self.change_mr_type(self.chan_choices['Type'].currentText())
         # note: selected channels might have changed order
         self.set_chan_listbox(self.col_index.text())
 
@@ -447,9 +442,20 @@ class multirun_widget(QWidget):
         """Enable/Disable list boxes to reflect the multirun type:
         newtype[str] -- Time step length: only needs timesteps
                      -- Analogue voltage: also needs channels"""
-        if newtype == 'Time step length':
+        sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
+        if newtype == 'AWG':
             self.chan_choices['Analogue channel'].setEnabled(False)
+            self.chan_choices['Time step name'].clear()
+            self.chan_choices['Time step name'].addItems(['Action Type'] + ['Arg'+str(i) for i in range(8)])
+        elif newtype == 'Time step length':
+            self.chan_choices['Analogue channel'].setEnabled(False)
+            self.chan_choices['Time step name'].clear()
+            self.chan_choices['Time step name'].addItems(list(map(str.__add__, [str(i) for i in range(len(sht))],
+                    [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht])))
         elif newtype == 'Analogue voltage':
+            self.chan_choices['Time step name'].clear()
+            self.chan_choices['Time step name'].addItems(list(map(str.__add__, [str(i) for i in range(len(sht))],
+                    [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht])))
             self.chan_choices['Analogue channel'].setEnabled(True)
             self.chan_choices['Analogue channel'].clear()
             self.chan_choices['Analogue channel'].addItems(
@@ -599,7 +605,7 @@ class multirun_widget(QWidget):
         results_path = os.path.join(save_results_path, self.ui_param['measure_prefix'])
         self.appending = False
         # first check if the measure folder already exists with some files in
-        imax = 0
+        imax = -1
         try: 
             filelist = os.listdir(results_path)
             for fname in filelist:
@@ -612,7 +618,7 @@ class multirun_widget(QWidget):
                             params = f.readline().split(';')
                             imax = max(imax, len(vals) + int(params[header.index('1st hist ID')]) - 1)
                     except: pass
-        except FileNotFoundError: pass
+        except (FileNotFoundError, PermissionError): pass
         # then check the multirun queue
         for m in self.mr_queue:
             if self.ui_param['measure_prefix'] == m[0]['measure_prefix']:
@@ -620,8 +626,8 @@ class multirun_widget(QWidget):
         
         if self.ui_param['1st hist ID'] == -1: # append at the end 
             self.appending = True
-            self.ui_param['1st hist ID'] = imax + 1 if imax>0 else 0
-                    
+            self.ui_param['1st hist ID'] = imax + 1 if imax>=0 else 0
+            
         if (os.path.isdir(results_path) or self.ui_param['measure_prefix'] in [
             x[0]['measure_prefix'] for x in self.mr_queue]) and imax >= self.ui_param['1st hist ID']:
             # this measure exists, check if user wants to overwrite
@@ -629,10 +635,16 @@ class multirun_widget(QWidget):
                 "Results path already exists, do you want to overwrite the files?\n"+results_path,
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.No:
+                if self.appending: # if appending, reset ui_param to -1. Also happens at end of multirun in runid.py
+                    self.measures['1st hist ID'].setText('') 
+                    self.measures['1st hist ID'].setText('-1') 
                 return 0
-
+        
         # parameters are valid, add to queue
         self.mr_queue.append([copy.deepcopy(self.ui_param), self.tr.copy(), self.get_table(), self.appending]) 
+        if self.appending: # if appending, reset ui_param to -1. Also happens at end of multirun in runid.py
+            self.measures['1st hist ID'].setText('') 
+            self.measures['1st hist ID'].setText('-1') 
         if self.suggest_button.isChecked(): # suggest new multirun measure ID and prefix
             n = self.ui_param['measure'] + 1
             self.measures['measure'].setText(str(n))

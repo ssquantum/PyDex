@@ -26,5 +26,5 @@ if standalone: # if there isn't an instance, make one
     app = QApplication(sys.argv) 
 boss = master.Master()
 boss.show()
-if standalone: # if an app instance was made, execute it
-    sys.exit(app.exec_())
+# if standalone: # if an app instance was made, execute it
+#     sys.exit(app.exec_())

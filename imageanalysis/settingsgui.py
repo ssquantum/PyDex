@@ -337,9 +337,6 @@ class settings_window(QMainWindow):
 
     def set_thresh(self, arg=''):
         """Sets the threshold in all of the analyser windows."""
-        if not self.bin_actions[1].isChecked():
-            msg = QMessageBox.information(self, 'Binning Mode', 
-                'The histogram binning must be in manual mode in order to set the threshold.')
         for mw in self.mw + self.rw:
             if self.thresh_edit.text():
                 mw.thresh_edit.setText(self.thresh_edit.text())

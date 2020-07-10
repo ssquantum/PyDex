@@ -582,14 +582,14 @@ class main_window(QMainWindow):
             # set the new values for the bins of the image handler
             self.image_handler.bin_array = np.linspace(min_bin, max_bin, num_bins)
             # set the new threshold if supplied
-            if self.thresh_toggle.isChecked():
-                try:
-                    self.image_handler.thresh = float(self.thresh_edit.text())
-                    self.stat_labels['Threshold'].setText(str(int(self.image_handler.thresh)))
-                except ValueError: pass # user switched toggle before inputing text
-                self.plot_current_hist(self.image_handler.histogram, self.hist_canvas) # doesn't update thresh
-            else:
-                self.plot_current_hist(self.image_handler.hist_and_thresh, self.hist_canvas) # updates thresh
+        if self.thresh_toggle.isChecked():
+            try:
+                self.image_handler.thresh = float(self.thresh_edit.text())
+                self.stat_labels['Threshold'].setText(str(int(self.image_handler.thresh)))
+            except ValueError: pass # user switched toggle before inputing text
+            self.plot_current_hist(self.image_handler.histogram, self.hist_canvas) # doesn't update thresh
+        else:
+            self.plot_current_hist(self.image_handler.hist_and_thresh, self.hist_canvas) # updates thresh
             
     #### #### toggle functions #### #### 
 

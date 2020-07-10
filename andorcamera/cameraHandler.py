@@ -44,6 +44,7 @@ class camera(QThread):
         self.pag = 4.50 # preamp gain sensitivity (e- per AD count)
         self.Nr  = 8.8  # readout noise (counts)
         
+        self.ind = 0 # counter for number of images taken
         self.idle_time = 0    # time between acquisitions
         self.t0 = time.time() # time at start of acquisition
         self.t1 = 0  # time time just after get acquisition
@@ -357,6 +358,7 @@ class camera(QThread):
                     self.AF.ROIwidth, self.AF.ROIheight)
             self.lastImage = im
             self.AcquireEnd.emit(im[0]) 
+            self.ind += 1
             if self.AF.verbosity:
                 self.PlotAcquisition(im)
                 
@@ -402,6 +404,8 @@ class camera(QThread):
                 self.t1 = time.time() 
                 if self.lastImage.any(): # sometimes last image is empty
                     self.AcquireEnd.emit(self.lastImage[0]) # emit signals
+                    # print(self.ind, ' ', np.sum(self.lastImage), end=' ')
+                    self.ind += 1
             self.t2 = time.time()
         
     def PrintTimes(self, unit="s"):

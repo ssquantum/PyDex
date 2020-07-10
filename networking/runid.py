@@ -51,6 +51,7 @@ class runnum(QThread):
         self.sw = saiaw  # image analysis settings gui
         self.sw.m_changed.connect(self.set_m)
         self.sw.CCD_stat_edit(self.cam.emg, self.cam.pag, self.cam.Nr, True) # give image analysis the camera settings
+        self.sw.reset_analyses() # make sure the loaded config settings are applied
         self.cam.SettingsChanged.connect(self.sw.CCD_stat_edit)
         self.cam.ROIChanged.connect(self.sw.cam_pic_size_changed) # triggers pic_size_text_edit()
         self.check = check  # atom checker for ROIs, trigger experiment
@@ -321,5 +322,3 @@ class runnum(QThread):
         self.seq.mr.progress.emit(       # update progress label
             'Finished measure %s: %s.'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label']))
         self.multirun = False
-        if self.seq.mr.appending:
-            self.seq.mr.measures['1st hist ID'].setText('-1') # continue appending
