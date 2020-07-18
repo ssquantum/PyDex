@@ -15,11 +15,11 @@ from imageanalysis.histoHandler import histo_handler
 from scipy.optimize import curve_fit
 
 # choose all of the options to plot
-fdir = r'Z:\Tweezer\Experimental Results\2020\July\07\06Measure12_repeat_1' # directory files are stored in 
+fdir = r'Z:\Tweezer\Experimental Results\2020\July\16\2' # directory files are stored in 
 hh = histo_handler()
-hh.load(fdir+r'\ROI0.Im1.06Measure12_repeat_1.dat') # load the log/measure file containing histogram statistics to plot
+hh.load(fdir+r'\ROI0.Im2.2.dat') # load the log/measure file containing histogram statistics to plot
 # hh.sort_dict() # sort the histograms in ascending order of user_var measured
-prestring = r'\ROI0.Im1.' # prestring at the start of the histogram csv files
+prestring = r'\ROI0.Im2.' # prestring at the start of the histogram csv files
 num_bins = 25   # number of bins to make the histograms with
 var_unit = 'V' # units for the user variable
 def conv(x): 

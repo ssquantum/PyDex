@@ -37,8 +37,8 @@ class awg_window(QMainWindow):
     """
     def __init__(self, config_file='.\\state'):
         super().__init__()
-        # self.types = OrderedDict([('File#',int)])
-        # self.stats = OrderedDict([('File#', 0)])
+        # self.types = OrderedDict([('FileName',str), ('segment',int)])
+        self.stats = OrderedDict([('FileName', 0), ('segment', 0)])
         self.init_UI()
         self.server = PyServer(host='', port=8621) # TCP server to message DExTer
         self.server.textin[str].connect(self.recv_msg) # display the returned msg
@@ -59,6 +59,7 @@ class awg_window(QMainWindow):
         cmd_info = QLabel('Type the command into the line edit then press enter. Available commands:\n' + 
             'load:[file_path]  --- load segment metadata, steps, and parameters from the json file file_path.\n'+
             'save:[file_path]  --- save segment metadata, steps, and parameters to json in directory file_path.\n'+
+            'set_data:[...]    --- set segment data: segment, action, duration, args.\n'+
             'reset_tcp         --- check the TCP server and client status. If the server has stopped, then restart it.\n'+
             'send_trigger      --- manually send a TCP message to trigger DExTer.\n'+
             'start_awg         --- manually start the AWG.\n'+
@@ -98,7 +99,11 @@ class awg_window(QMainWindow):
         if cmd == None: 
             cmd = self.edit.text()
         if 'load' in cmd:
-            self.status_label.setText('Load not implemented yet.')
+            try: 
+                path = cmd.split(':')[1]
+                self.awg.load(path)
+            except Exception as e:
+                logger.error('Failed to save AWG data to '+cmd[5:]+'\n'+str(e))
         if 'save' in cmd:
             try: 
                 path = cmd.split(':')[1]
@@ -119,10 +124,23 @@ class awg_window(QMainWindow):
             self.awg.start()
         elif 'stop_awg' in cmd:
             self.awg.stop()
+        elif 'set_data' in cmd:
+            try:
+                params = eval(cmd.split(':')[1])
+                if 'segment' in params:
+                    self.stats['segment'] = params['segment']
+                seg_dict = self.awg.filedata['segments']['segment_'+str(self.stats['segment'])]
+                for key, val in params.items():
+                    try:
+                        seg_dict[key] = val
+                    except KeyError: pass
+                self.awg.setSegment(self.stats['segment'], *list(seg_dict.values())[1:])
+            except Exception as e:
+                logger.error('Failed to set AWG data: '+cmd[5:]+'\n'+str(e))
 
     def closeEvent(self, event):
         """Safely shut down when the user closes the window."""
-        self.awg.stop()
+        self.awg.restart()
         self.client.close()
         self.server.close()
         event.accept()        

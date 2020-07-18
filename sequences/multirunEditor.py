@@ -13,14 +13,14 @@ import numpy as np
 from collections import OrderedDict
 from random import shuffle, randint
 try:
-    from PyQt4.QtCore import pyqtSignal, QItemSelectionModel, QThread
+    from PyQt4.QtCore import pyqtSignal, QItemSelectionModel, QThread, Qt
     from PyQt4.QtGui import (QPushButton, QWidget, QLabel,
         QGridLayout, QLineEdit, QDoubleValidator, QIntValidator, 
         QComboBox, QListWidget, QTabWidget, QVBoxLayout, QInputDialog,
         QTableWidget, QTableWidgetItem, QScrollArea, QMessageBox,
         QFileDialog) 
 except ImportError:
-    from PyQt5.QtCore import pyqtSignal, QItemSelectionModel, QThread
+    from PyQt5.QtCore import pyqtSignal, QItemSelectionModel, QThread, Qt
     from PyQt5.QtGui import QDoubleValidator, QIntValidator
     from PyQt5.QtWidgets import (QVBoxLayout, QWidget, QComboBox,
         QLineEdit, QGridLayout, QPushButton, QListWidget, QListWidgetItem, 
@@ -56,6 +56,9 @@ class sequenceSaver(QThread):
         if self.savedir:
             for i in range(len(self.mr_vals)):
                 esc = self.mrtr.seq_dic['Experimental sequence cluster in'] # shorthand
+                for head in ['Sequence header top', 'Sequence header middle']:
+                    for x in esc[head]: # need to populate multirun otherwise DExTer doesn't load it
+                        x['Populate multirun'] = 1
                 try:
                     for col in range(len(self.mr_vals[i])): # edit the sequence
                         val = float(self.mr_vals[i][col])
@@ -67,7 +70,9 @@ class sequenceSaver(QThread):
                             for t in self.mr_param['Time step name'][col]:
                                 for c in self.mr_param['Analogue channel'][col]:
                                     esc[self.mr_param['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
-
+                        elif self.mr_param['Type'][col] == 'AWG':
+                            self.mrtr.seq_dic['Routine description in'] += '\nAWG param %s : %s'%(
+                                self.mr_param['Time step name'][col], val)
                     self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
                             ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
                     self.mrtr.write_to_file(os.path.join(self.savedir, self.mr_param['measure_prefix'] + '_' + 
@@ -119,6 +124,9 @@ class multirun_widget(QWidget):
             ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'), 
             ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'),
             ('# omitted', 0), ('# in hist', 100)])
+        self.awg_args = ['segment', 'action', 'duration', 'start freq', 
+                'number of traps', 'distance', 'end freq', 'hybridicity', 'tot amp', 'start amps', 'end amps', 
+                'freq amps', 'freq phases', 'freq adjust']
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
         self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
@@ -214,6 +222,7 @@ class multirun_widget(QWidget):
         self.chan_choices['Type'].currentTextChanged[str].connect(self.change_mr_type)
         self.chan_choices['Analogue type'].currentTextChanged[str].connect(self.change_mr_anlg_type)
         self.chan_choices['Analogue channel'].setEnabled(False)
+        
 
         # add a new list of multirun values to the array
         self.col_index = self.make_label_edit('column index:', self.grid, 
@@ -432,6 +441,13 @@ class multirun_widget(QWidget):
             except IndexError: pass # perhaps sequence was updated but using old selection indices
             except AttributeError as e: logger.warning("Couldn't set channels for the loaded multirun parameters. Load the sequence first, then load multirun parameters.\n"+str(e))
         
+    def setListboxFlag(self, listbox, flag):
+        """Set the items of the listbox all have the given flag.
+        e.g. self.setListboxFlag(self.chan_choices['Time step name'], ~Qt.ItemIsEditable)"""
+        for i in range(listbox.count()):
+            item = listbox.item(i)
+            item.setFlags(item.flags() | flag)
+
     def get_anlg_chans(self, speed):
         """Return a list of name labels for the analogue channels.
         speed -- 'Fast' or 'Slow'"""
@@ -441,12 +457,13 @@ class multirun_widget(QWidget):
     def change_mr_type(self, newtype):
         """Enable/Disable list boxes to reflect the multirun type:
         newtype[str] -- Time step length: only needs timesteps
-                     -- Analogue voltage: also needs channels"""
+                     -- Analogue voltage: also needs channels
+                     -- AWG: needs to take non-float arguments; set listbox editable."""
         sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
         if newtype == 'AWG':
             self.chan_choices['Analogue channel'].setEnabled(False)
             self.chan_choices['Time step name'].clear()
-            self.chan_choices['Time step name'].addItems(['Action Type'] + ['Arg'+str(i) for i in range(8)])
+            self.chan_choices['Time step name'].addItems(self.awg_args)
         elif newtype == 'Time step length':
             self.chan_choices['Analogue channel'].setEnabled(False)
             self.chan_choices['Time step name'].clear()
@@ -460,7 +477,7 @@ class multirun_widget(QWidget):
             self.chan_choices['Analogue channel'].clear()
             self.chan_choices['Analogue channel'].addItems(
                 self.get_anlg_chans(self.chan_choices['Analogue type'].currentText().split(' ')[0]))
-
+            
     def change_mr_anlg_type(self, newtype):
         """Change the analogue channels listbox when fast/slow
         analogue channels are selected."""
@@ -497,7 +514,9 @@ class multirun_widget(QWidget):
                     for t in self.mr_param['Time step name'][col]:
                         for c in self.mr_param['Analogue channel'][col]:
                             esc[self.mr_param['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
-
+                elif self.mr_param['Type'][col] == 'AWG':
+                    self.mrtr.seq_dic['Routine description in'] += '\nAWG param %s : %s'%(
+                        self.mr_param['Time step name'][col], val)
             self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
                     ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
         except IndexError as e:
@@ -632,13 +651,20 @@ class multirun_widget(QWidget):
             x[0]['measure_prefix'] for x in self.mr_queue]) and imax >= self.ui_param['1st hist ID']:
             # this measure exists, check if user wants to overwrite
             reply = QMessageBox.question(self, 'Confirm Overwrite',
-                "Results path already exists, do you want to overwrite the files?\n"+results_path,
+                "Results path already exists, do you want to overwrite the csv and dat files?\n"+results_path,
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.No:
                 if self.appending: # if appending, reset ui_param to -1. Also happens at end of multirun in runid.py
                     self.measures['1st hist ID'].setText('') 
                     self.measures['1st hist ID'].setText('-1') 
                 return 0
+            # elif reply == QMessageBox.Yes:
+            #     try:
+            #         for fn in os.listdir(results_path):
+            #             if '.csv' in fn or '.dat' in fn:
+            #                 os.remove(os.path.join(results_path, fn))
+            #     except Exception as e:
+            #         logger.warning('Multirun could not remove files from '+results_dir+'\n'+str(e))
         
         # parameters are valid, add to queue
         self.mr_queue.append([copy.deepcopy(self.ui_param), self.tr.copy(), self.get_table(), self.appending]) 

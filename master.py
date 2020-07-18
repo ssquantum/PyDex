@@ -573,6 +573,8 @@ class Master(QMainWindow):
             self.status_label.setText(msg)
             if self.date_reset: # reset dates at end of multirun
                 self.reset_dates()
+        elif 'AWG set_data' in msg: # send command to AWG to set new data
+            self.rn.awgtcp.priority_messages([(self.rn._n, msg.replace('AWG ', ''))])
         self.ts['msg end'] = time.time()
         self.ts['blocking'] = time.time() - self.ts['msg start']
         # self.print_times()

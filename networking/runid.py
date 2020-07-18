@@ -74,6 +74,8 @@ class runnum(QThread):
         self.monitor = PyServer(host='', port=8622) # monitor program runs separately
         self.monitor.start()
         self.monitor.add_message(self._n, 'resync run number')
+        self.awgtcp = PyServer(host='', port=8623) # AWG program runs separately
+        self.awgtcp.start()
             
     def reset_server(self, force=False):
         """Check if the server is running. If it is, don't do anything, unless 
@@ -209,8 +211,20 @@ class runnum(QThread):
             repeats = self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']
             mr_queue = [] # list of TCP messages for the whole multirun
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
+                if self.seq.mr.mr_param['Type'][col] == 'AWG': # send AWG parameters by TCP
+                    awgmsg = 'AWG set_data:{'
+                    col = 0  # in case the for loop doesn't execute
+                    for col in range(len(self.seq.mr.mr_param['Type'])):
+                        if self.seq.mr.mr_param['Type'][col] == 'AWG':
+                            try: # argument: value
+                                awgmsg += '%s: %s, '%(self.seq.mr.awg_args[self.seq.mr.mr_param['Time step name'][col][0]], self.seq.mr.mr_vals[v][col])
+                            except Exception as e: logger.error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
+                    if col: awgmsg = awgmsg[:-2] + '}\n'
+                    else: awgmsg += '}\n'
+                else: awgmsg = '\n'
                 mr_queue += [[TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step run']+'0'*2000],
-                    [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]] + [
+                    [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]], 
+                    [TCPENUM['TCP read'], awgmsg+'0'*2000] + [
                     [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*v)+'\n'+'0'*2000] for r in range(repeats)
                     ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]
             # reset last time step for the last run:

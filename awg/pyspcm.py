@@ -48,6 +48,8 @@ uptr64 = POINTER (uint64)
 
 # Windows
 if os.name == 'nt':
+    sys.stdout.write("Python Version: {0} on Windows\n\n".format (platform.python_version()))
+
     # define card handle type
     if (bIs64Bit):
         # for unknown reasons c_void_p gets messed up on Win7/64bit, but this works:
@@ -59,7 +61,6 @@ if os.name == 'nt':
     # use windll because all driver access functions use _stdcall calling convention under windows
     if (bIs64Bit == 1):
         spcmDll = windll.LoadLibrary ("c:\\windows\\system32\\spcm_win64.dll")
-        # spcmDll = windll.LoadLibrary ("Z:\\Tweezer\\Code\\Python 3.5\\PyDex\\awg\\spcm_win64.dll")
     else:
         spcmDll = windll.LoadLibrary ("c:\\windows\\system32\\spcm_win32.dll")
 

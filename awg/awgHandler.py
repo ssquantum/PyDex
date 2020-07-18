@@ -53,6 +53,7 @@ class AWG:
     """
     
     trig_mode = {
+    0:  SPC_TMASK_SOFTWARE,
     1:  SPC_TM_POS,                    # Triggers on positive slope
     2:  SPC_TM_NEG,                    # Triggers on negatice slope
     3:  SPC_TM_POS | SPC_TM_REARM,     # Triggers on pos (Level X), rearms on Level Y to avoid noise triggering.
@@ -189,13 +190,15 @@ class AWG:
         spcm_dwSetParam_i32 (AWG.hCard, SPC_AMP0, int32 (AWG.max_output))               # Sets the maximum output of the card for Channel 0. 
         
         self.trig_val    = 1
-        self.trig_level0 = 2500
+        self.trig_level0 = 2000
         self.trig_level1 = 0
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,               SPC_TMASK_NONE)  #You must remove the software trigger otherwise it overwrites
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,               SPC_TMASK_EXT0)  # Sets trigger to EXT0 (main trigger)
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_LEVEL0,        self.trig_level0)  # Sets the trigger level for Level0 (principle level)
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_LEVEL1,        self.trig_level1)  # Sets the trigger level for Level1 (ancilla level)
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_MODE,  AWG.trig_mode[self.trig_val])  # Sets the trigger mode
+        
+        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,      SPC_TMASK_SOFTWARE) # SPC_TMASK_SOFTWARE: this is the default value of the ORMASK trigger. If not cleared it will override other modes. 
+        # spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,               SPC_TMASK_NONE)  #You must remove the software trigger otherwise it overwrites
+        # spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,               SPC_TMASK_EXT0)  # Sets trigger to EXT0 (main trigger)
+        # spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_LEVEL0,        self.trig_level0)  # Sets the trigger level for Level0 (principle level)
+        # spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_LEVEL1,        self.trig_level1)  # Sets the trigger level for Level1 (ancilla level)
+        # spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_MODE,  AWG.trig_mode[self.trig_val])  # Sets the trigger mode
         spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIGGEROUT,                             0)
         
         ##################################################################
@@ -210,9 +213,9 @@ class AWG:
         #######################################
         ### Intermediate communication between segment data and step data for static traps
         #######################################################################################
-        
+        self.rounding = 1
         self.statDur = 0.002             # Duration of a single static trap segment in MILLIseconds. Total duration handled by Loops.
-        self.effDur = math.floor(self.sample_rate.value * (self.statDur*10**-3)/1024)*1024/self.sample_rate.value*10**3
+        self.effDur = math.floor(self.sample_rate.value * (self.statDur*10**-3)/self.rounding)*self.rounding/self.sample_rate.value*10**3
         self.statDur = round(self.effDur,7)
         self.staticDuration = {}        # Keeps track of the requested duration for each static trap. Will be converted in setStep method.
         
@@ -243,6 +246,8 @@ class AWG:
         Changing the sample rate will have to also change the effective segment size for the duration of static traps.
         As always, we store the sample rate that the card stores, not the one that we introduced.
         """
+        self.stop()  # Ensure that the card is not outputting something.
+        
         if new_sampleRate> MEGA(625):
             sys.stdout.write("Requested sample rate larger than maximum. Sample rate set at 625 MS/s")
             new_sampleRate = MEGA(625)
@@ -256,9 +261,8 @@ class AWG:
         self.sample_rate = self.regSrate
         
         self.maxDuration = math.floor(self.maxSamples/self.sample_rate.value*1000) 
-        
-        self.effDur = math.floor(self.sample_rate.value * (self.statDur*10**-3)/1024)*1024/self.sample_rate.value*10**3
-        self.statDur = round(self.effDur,7)
+        minVal = self.rounding/self.sample_rate.value*10**3
+        self.setSegDur(minVal)
     
     def setNumSegments(self,num_segment):
         if num_segment > int(65536):
@@ -301,32 +305,47 @@ class AWG:
         This method sets the trigger options.
         The assumption is that you will be using an external (non-software trigger).
         Where relevant, follow the following convention:
-        --- Level0 corresponds to the UPPER level.
-        --- Level1 corresponds to the LOWER level (ancilla level).
+        --- Level0 corresponds to the LOWER level.
+        --- Level1 corresponds to the UPPER level (ancilla level).
         
         NOTE: trig_mode has been as a dictionary at the start of the class as a class parameter. 
         """
-        if 1<=trig_val<=10:
+        self.stop()  #Ensures that the card is stopped when changing the trigger. 
+        flag =0
+        
+        if 0<=trig_val<=11:
             self.trig_val = trig_val
         else:
-            sys.stdout.write("trig_val can take values between 1 and 10. Check global parameters for definitions.\n Set to default value: 1")
+            sys.stdout.write("trig_val can take values between 0 and 11. Check global parameters for definitions.\n Set to default value: 1")
             self.trig_val =1
+            flag =1
+            
         if -10000 <= trig_level0 <= 10000:
             self.trig_level0  = trig_level0
         else:
             sys.stdout.write("trig_level0 can take values between +- 10000 mV. Value has been set to 2500 mV (default)")
             self.trig_level0 = 2500
+            flag =1
         if -10000<= trig_level1 <= 10000:
             self.trig_level1  = trig_level1
         else:
             sys.stdout.write("trig_level0 can take values between +- 10000 mV. Value has been set to 0 mV (default)")
             self.trig_level1 = 0
-        #spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,                    SPC_TMASK_NONE)  # IMPORTANT that you remove the software trigger explicitely otherwise it overwrites subsequent commands
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,                    SPC_TMASK_EXT0)  # Sets trigger to EXT0 (main trigger)
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_LEVEL0,        int(self.trig_level0))  # Sets the trigger level for Level0 (principle level)
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_LEVEL1,        int(self.trig_level1))  # Sets the trigger level for Level1 (ancilla level)
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_MODE,   AWG.trig_mode[self.trig_val])  # Sets the trigger mode
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIGGEROUT,                                  0)
+            flag =1
+        
+        if flag==0:
+            if self.trig_val==0:
+                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,      SPC_TMASK_SOFTWARE) 
+                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIGGEROUT,                                  0)
+            else:    
+                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,                    SPC_TMASK_NONE)  # IMPORTANT that you remove the software trigger explicitely otherwise it overwrites subsequent commands
+                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,                    SPC_TMASK_EXT0)  # Sets trigger to EXT0 (main trigger)
+                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_LEVEL0,        int(self.trig_level0))  # Sets the trigger level for Level0 (principle level)
+                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_LEVEL1,        int(self.trig_level1))  # Sets the trigger level for Level1 (ancilla level)
+                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_MODE,   AWG.trig_mode[self.trig_val])  # Sets the trigger mode
+                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIGGEROUT,                                  0)
+        else:
+            sys.stdout.write("New trigger has not been set due to unresolved issues.")
         
     
     def setMaxOutput(self,new_maxOutput):
@@ -345,14 +364,14 @@ class AWG:
         Sets the size (duration) of the segment in static traps.
         This segment will be looped an appropriate number of times to achieve the requested value.
         """
-        if 0.0016384 <= new_segDur <= 0.05: 
+        if 0.0016384 <= new_segDur: 
             self.statDur = new_segDur             # Duration of a single static trap segment in MILLIseconds. Total duration handled by Loops.
-            self.effDur = round(math.floor(self.sample_rate.value * (self.statDur*10**-3)/1024)*1024/self.sample_rate.value*10**3,7)
+            self.effDur = round(math.floor(self.sample_rate.value * (self.statDur*10**-3)/self.rounding)*self.rounding/self.sample_rate.value*10**3,7)
             self.statDur = round(self.effDur,7)
         else:
-            sys.stdout.write("Segment size must be between 0.0016384 and 0.05 ms. Set to minimum allowed by sample rate.")
-            minVal = 1024/self.sample_rate.value*10**3
-            self.effDur = round(math.floor(self.sample_rate.value * (minVal*10**-3)/1024)*1024/self.sample_rate.value*10**3,7)
+            sys.stdout.write("Segment size must be between 0.0016384 and 0.1 ms. Set to minimum allowed by sample rate.")
+            minVal = self.rounding/self.sample_rate.value*10**3
+            self.effDur = round(math.floor(self.sample_rate.value * (minVal*10**-3)/self.rounding)*self.rounding/self.sample_rate.value*10**3,7)
             self.statDur = round(self.effDur,7)
         
     def selectSegment(self,selSeg):
@@ -439,19 +458,28 @@ class AWG:
             self.staticDuration[self.segment] = duration         # Writes down the requested duration for a static trap in a dictionary (__init__)
             self.duration = self.statDur
             
-        elif 0<= duration <= self.maxDuration:
+        elif 0< duration <= self.maxDuration:
             self.duration = duration
             
         else:
-            sys.stdout.write("Duration must be between 0 and {0:d} ms when using {} segments. \n".format(self.maxDuration,self.num_segment))
+            sys.stdout.write("Duration must be between 0 and %.3g ms when using %s segments. \n"%(self.maxDuration,self.num_segment))
             sys.stdout.write("Segment size has been set to maximum.")
             self.duration = self.maxDuration
         
         if action ==1:
-            memBytes = math.floor(self.sample_rate.value * (self.duration*10**-3)/1024) #number of bytes as a multiple of kB - FLOOR function for static traps
+            memBytes =round(self.sample_rate.value * (self.duration*10**-3)/self.rounding) #number of bytes as a multiple of kB - FLOOR function for static traps
         else:
-            memBytes = math.ceil(self.sample_rate.value * (self.duration*10**-3)/1024) #number of bytes as a multiple of kB  - CEIL function for any other
-        self.numOfSamples = memBytes*1024 # number of samples
+            memBytes = math.ceil(self.sample_rate.value * (self.duration*10**-3)/self.rounding) #number of bytes as a multiple of kB  - CEIL function for any other
+        
+        if memBytes <1:
+            """
+            This is because certain combination of sample rates vs segment sizes for the static
+            trap, might creates values like this: 0.999990234, which rounded down will give zero.
+            This is to ensure that python numerics do not interfere. 
+            """
+            memBytes=1
+        
+        self.numOfSamples = int(memBytes*self.rounding) # number of samples
         
         
         
@@ -494,10 +522,11 @@ class AWG:
         actionOptions = {
             1:  "Creates a series of static traps.",                       
             2:  "Performs a move operation from freq1 to freq2.",                  
-            3:  "Ramps freq1 from X% to Y% amplitude (increasing or decreasing)"                                                            
+            3:  r"Ramps freq1 from X% to Y% amplitude (increasing or decreasing)"                                                            
             }
         
-        
+        freqBounds=[120,225]
+
         #####################################################################
         # STATIC TRAPS
         #####################################################################
@@ -512,9 +541,12 @@ class AWG:
             2:  "Number of traps [integer].",                  
             3:  "Distance between traps [um].",
             4:  "Total Frequency Amplitude [mV]",
-            5:  "Individual Freqency amplitudes [mV]",
-            6:  "Individual Frequency phase   [deg]"                                                           
+            5:  "Individual Freqency amplitudes [fractional]",
+            6:  "Individual Frequency phase   [deg]" ,
+            7:  "Frequency Adjustment  [True/False]"                                                          
             }
+            
+            
             
             if len(args)==len(staticOptions):
             
@@ -523,16 +555,38 @@ class AWG:
                 distance   = args[2]
                 tot_amp    = args[3]
                 freq_amp   = args[4]
-                freq_phase = args[5] 
+                freq_phase = args[5]
+                fAdjust    = args[6] 
                 
-                if 135 <= f1 <= 225:
-                    self.f1 = MEGA(f1)
-                else:
-                    sys.stdout.write("Chosen starting frequency is out of the AOD frequency range. Value defaulted at 170 MHz")
-                    self.f1 = MEGA(170)
-                    flag =1
+                if type(f1) == str:
+                    """
+                    This is only to allow a cosmetic data storage in the JSON file.
+                    """
+                    f1 = eval(f1)
                     
-                if 2 <= tot_amp <= 120:
+                if type(f1) == list:
+                    """
+                    In case the user wants to place its own arbitrary frequencies, this will test
+                    whether the frequencies are within the AOD bounds. 
+                    """
+                    minFreq = min(f1)
+                    maxFreq = max(f1)
+                    if minFreq >= freqBounds[0] and maxFreq <= freqBounds[1]:
+                        self.f1 = f1
+                    else:
+                        sys.stdout.write("One of the requested frequencies is out the AOD bounds ({} - {} MHz).".format(minFreq,maxFreq))
+                        self.f1 = MEGA(170)
+                        flag =1
+
+                else:   
+                    if freqBounds[0] <= f1 <= freqBounds[1]:
+                        self.f1 = MEGA(f1)
+                    else:
+                        sys.stdout.write("Chosen starting frequency is out of the AOD frequency range. Value defaulted at 170 MHz")
+                        self.f1 = MEGA(170)
+                        flag =1
+                    
+                if 2 <= tot_amp <= 282:
                     self.tot_amp = tot_amp
                 else:
                     sys.stdout.write("Chosen amplitude will damage the spectrum analyser.")
@@ -569,15 +623,24 @@ class AWG:
                     self.freq_phase = [0]*numOfTraps
                     flag = 1
                 
-                    
+                if type(fAdjust) != bool:
+                    sys.stdout.write("Frequency Adjustment is not a boolean.\n")
+                    self.fAdjust = True
+                    flag = 1
+                else:
+                    self.fAdjust = fAdjust
                 
-                if 135 <= f1+numOfTraps*distance/AWG.umPerMHz <= 225:
-                    staticData =  static(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.freq_phase,self.sample_rate.value)            # Generates the requested data
-                    dataj(AWG.filedata,self.segment,action,duration,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),str(self.freq_phase))                # Stores information in the filedata variable, to be written when card initialises. 
+                if freqBounds[0] <= f1+(numOfTraps-1)*distance/AWG.umPerMHz <= freqBounds[1]:
+                    staticData =  static(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.freq_phase,self.fAdjust,self.sample_rate.value, rounding=self.rounding)            # Generates the requested data
+                    self.f1, numOfSamples, numberOfTraps, separation = self.staticFreqs(self.f1,numOfTraps,distance,self.duration,self.fAdjust,self.sample_rate.value,rounding=self.rounding):
+                    if type(f1)==list:
+                        f1 = str(f1)
+                    dataj(AWG.filedata,self.segment,action,duration,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),str(self.freq_phase),self.fAdjust)                # Stores information in the filedata variable, to be written when card initialises. 
                 
-            
                     for i in range (0, self.numOfSamples, 1):
-                        pnBuffer[i] = int16(int(staticData[i])) 
+                        
+                        pnBuffer[i] = int16(int(staticData[i]))
+                         
                 else:
                     sys.stdout.write("Some frequencies will be out of AOD diffraction range. Reduce the spacing or number of traps.\n")
                     flag =1
@@ -600,35 +663,39 @@ class AWG:
                  moving3(f1,f2,llSetSamplerate.value,llMemSamples2.value,0)
             """
             moveOptions = {
-            1:  "Starting Frequency [MHz].",                       
-            2:  "Ending Frequency [MHz].",
-            3:  "Static Frequency/ies [MHz]",                 
-            4:  "Hybridicity a [a=0: fully minimum jerk, a=1: fully linear]."                                                            
+            1:  "List of Starting Frequencies [MHz].",                       
+            2:  "List of Ending Frequencies [MHz].",
+            3:  "List of Amplitudes",                 
+            4:  "Hybridicity a [a=0: fully minimum jerk, a=1: fully linear].",
+            5:  "Total amplitude [mV]",
+            6:  "List of phases [deg]"       
+            7:  "Whether to adjust frequencies [bool]"
             }
             
             if len(args)==len(moveOptions):
                 f1    = args[0]     # Starting frequency
                 f2    = args[1]     # End Frequency
-                fstat = args[2]
+                amps  = args[2]
                 a     = args[3]     # Hybridicity (a= 0 -> min jerk, a =1 -> linear )
-                    
+                totAmp= args[4]
+                phases= args[5]
+                fAdjust=args[6]
                                        
-                if 135 <= f1 <= 225 and 135 <= f2 <= 225 and 135 <= fstat <= 225 and 0 <= a <= 1:
+                if freqBounds[0] <= f1 <= freqBounds[1] and freqBounds[0] <= f2 <= freqBounds[1] and 0 <= a <= 1:
                     self.f1 = MEGA(f1)
                     self.f2 = MEGA(f2)
-                    self.fstat = MEGA(fstat)
                     self.a  = a
-                    moveData =  moving2(self.f1,self.f2,self.fstat,self.sample_rate.value,self.duration,self.a)
+                    moveData =  moving2(self.f1,self.f2,amps,self.a,, self.duration, totAmp, phases, fAdjust, self.sample_rate.value, rounding=self.rounding)
                     dataj(AWG.filedata,self.segment,action,self.duration,f1,f2,fstat,self.a)
                 
             
                     for i in range (0, self.numOfSamples, 1):
                         pnBuffer[i] = int16(int(moveData[i])) 
                 
-                elif  f1> 225 or f1 < 135 or f2> 225 or f2 <135:
+                elif  f1> freqBounds[1] or f1 < freqBounds[0] or f2> freqBounds[1] or f2 <freqBounds[0]:
                     sys.stdout.write("Start and end frequencies out of AOD bounds.")
                     flag = 1
-                elif fstat >225 or fstat < 135:
+                elif fstat >freqBounds[0] or fstat < freqBounds[0]:
                     sys.stdout.write("Static frequencies out of AOD bounds.")
                     flag = 1
                 elif a < 0 or a > 1:
@@ -761,8 +828,6 @@ class AWG:
             """
             
             loopNum = int(self.staticDuration[self.llSegment]/self.statDur)
-            
-            #loopNum = int(self.staticDuration[self.llSegment]/self.statDur)
         
         if 0 < loopNum <= 1048575:
             self.llLoop =    int(loopNum) # this should correspond to about 10 seconds
@@ -923,9 +988,15 @@ class AWG:
     def restart(self):
         spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
         spcm_vClose (AWG.hCard)
+        
     
         
- 
+
+def rep(freq,srate):
+    t.setSampleRate(MEGA(srate))
+    t.setSegment(0,1,0.12,freq,1,0.329*4,20,[1],[0])
+    t.start()
+   
 t = AWG()
 
 # setSegment(segment, action, duration, *args):
@@ -933,35 +1004,50 @@ t.setNumSegments(8)
 print(t.num_segment)
 print(t.maxDuration)
 
-Ntraps = 4
-totAmp = 10
-freqAmp = [1]*Ntraps
-freqPhase = [0]*Ntraps
+staticOptions = {
+            1:  "Starting Frequency [MHz].",                       
+            2:  "Number of traps [integer].",                  
+            3:  "Distance between traps [um].",
+            4:  "Total Frequency Amplitude [mV]",
+            5:  "Individual Freqency amplitudes [fractional]",
+            6:  "Individual Frequency phase   [deg]" ,
+            7:  "Frequency Adjustment  [True/False]"                                                          
+            }
+#
+moveOptions = {
+1:"List of Starting Frequencies [MHz].",                       
+2:  "List of Ending Frequencies [MHz].",
+3:  "List of Amplitudes",                 
+4:  "Hybridicity a [a=0: fully minimum jerk, a=1: fully linear].",
+5:  "Total amplitude [mV]",
+6:  "List of phases [deg]"       
+7:  "Whether to adjust frequencies [bool]"}
 
-t.setSegment(0,1,0.12,145,Ntraps,0.329*4,totAmp,freqAmp,freqPhase) 
-# t.setSegment(1,2,0.1,170,175,175,0) 
-# t.setSegment(2,3,0.1,175,175,100,0) 
-t.setStep(0,0,1,0,2)
-# t.setStep(1,1,1,2,2)
-# t.setStep(2,2,1,0,3)
-# t.start()
+# setup trigger and segment duration
+t.setTrigger(1) # 0 software, 1 ext0
+t.setSegDur(0.002)
+# segment data parameters
+sep =1 # final separation in MHz
+tramp = 0.01 # duration shuttle trap ramps up, ms
+thold = 1 # time traps held together, ms
+tmove = 1 # duration shuttle moves away, ms
+Amp = 0.969 # amplitude shuttle trap is ramped up to
+# segment/action_type/duration/number of traps/trap_distance/AWG_output[mV]/freq_amps/freq_phases
+t.setSegment(0,1,0.02,170,2,-8.5,220,[1,0],[0,0],True) # one static
+# segment, action, duration, shuttle frq, static freq, amp0, amp1
+t.setSegment(1,3,tramp,170-sep,170,0,Amp*100) # ramp up shuttle
+t.setSegment(2,1,thold,170,2,-0.329*sep,220,[1,Amp],[0,0],True) # hold close
+# segment, action, duration, start freq, end freq, static freq, hybridicity
+t.setSegment(3,2,tmove,170-sep,144.16413373860183,170,1,220*Amp,1/Amp) # move shuttle away
+t.setSegment(4,1,100,170,2,-8.5,220,[1,Amp],[0,0],True) # hold separate
+
+# t.setSegment(0,1,0.12,135,Ntraps,0.329*4,totAmp,freqAmp,freqPhase) 
+
+t.setStep(0,0,1,1,1)
+t.setStep(1,1,1,2,2)
+t.setStep(2,2,1,3,2)
+t.setStep(3,3,1,4,2)
+t.setStep(4,4,1,0,2)
 
 
-# t.setSegment(0,1,0.12,170,1,1.645*1)           #static with 2 traps
-# t.setSegment(1,2,0.1,170,175,175,0)               #move from f1 to f2
-# t.setSegment(2,3,0.1,175,175,100,0)           #ramp down the shuttle trap
-# t.setSegment(3,3,0.1,175,175,0,100)           #ramp up the shuttle trap
-# t.setSegment(4,2,0.1,175,170,175,0)               #move the shuttle trap back
-# t.setSegment(5,1,0.02,170,2,1.645*1)               #static with 2 traps
-
-# setStep(step number, segment number, number of loops, next step, condition)
-# t.setStep(0,0,KILO(10),0,3)
-# t.setStep(1,1,1,2,2)
-# t.setStep(2,2,1,3,2)
-# t.setStep(3,3,1,4,2)
-# t.setStep(4,4,1,5,2)
-# t.setStep(5,5,KILO(10),0,2)
-
-# t.start()
-
-     
+t.start(True)

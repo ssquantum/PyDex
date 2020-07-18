@@ -33,7 +33,7 @@ def dataj(data,segVal,action,duration,*args):
     # Static
     ###########
     if action ==1: 
-        if  len(args)==6:
+        if  len(args)==7:
             data["segments"][seg].append({
             'segment'      :segVal,
             'action_type'  :'static trap',
@@ -44,7 +44,8 @@ def dataj(data,segVal,action,duration,*args):
             'distance'     :args[2],
             'total_amp'    :args[3],
             'freq_amp'     :args[4],
-            'freq_phase'   :args[5]
+            'freq_phase'   :args[5],
+            'freq_adjust'  :args[6]
             })
         else:
             print('wrong number of arguments')
