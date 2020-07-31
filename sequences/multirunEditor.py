@@ -56,9 +56,6 @@ class sequenceSaver(QThread):
         if self.savedir:
             for i in range(len(self.mr_vals)):
                 esc = self.mrtr.seq_dic['Experimental sequence cluster in'] # shorthand
-                for head in ['Sequence header top', 'Sequence header middle']:
-                    for x in esc[head]: # need to populate multirun otherwise DExTer doesn't load it
-                        x['Populate multirun'] = 1
                 try:
                     for col in range(len(self.mr_vals[i])): # edit the sequence
                         val = float(self.mr_vals[i][col])
@@ -70,9 +67,6 @@ class sequenceSaver(QThread):
                             for t in self.mr_param['Time step name'][col]:
                                 for c in self.mr_param['Analogue channel'][col]:
                                     esc[self.mr_param['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
-                        elif self.mr_param['Type'][col] == 'AWG':
-                            self.mrtr.seq_dic['Routine description in'] += '\nAWG param %s : %s'%(
-                                self.mr_param['Time step name'][col], val)
                     self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
                             ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
                     self.mrtr.write_to_file(os.path.join(self.savedir, self.mr_param['measure_prefix'] + '_' + 
@@ -101,7 +95,7 @@ class multirun_widget(QWidget):
     multirun_vals = pyqtSignal(np.ndarray) # the array of multirun values
     progress = pyqtSignal(str) # string detailing the progress of the multirun
 
-    def __init__(self, tr, nrows=10, ncols=3, order='ascending'):
+    def __init__(self, tr, nrows=8, ncols=1, order='ascending'):
         super().__init__()
         self.tr = tr # translator for the current sequence
         self.mrtr = tr.copy() # translator for multirun sequence
@@ -124,9 +118,9 @@ class multirun_widget(QWidget):
             ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'), 
             ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'),
             ('# omitted', 0), ('# in hist', 100)])
-        self.awg_args = ['segment', 'action', 'duration', 'start freq', 
-                'number of traps', 'distance', 'end freq', 'hybridicity', 'tot amp', 'start amps', 'end amps', 
-                'freq amps', 'freq phases', 'freq adjust']
+        self.awg_args = ['segment', 'action_type', 'duration', 'start_freq', 
+                'num_of_traps', 'distance', 'end_freq', 'hybridicity', 'total_amp', 'start_amp', 'end_amp', 
+                'freq_amp', 'freq_phase', 'freq_adjust', 'amp_adjust']
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
         self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
@@ -228,7 +222,7 @@ class multirun_widget(QWidget):
         self.col_index = self.make_label_edit('column index:', self.grid, 
                 position=[5,0, 1,1], default_text='0', 
                 validator=col_validator)[1]
-        self.col_range = QLineEdit('linspace(0,1,%s)'%(self.nrows+1), self)
+        self.col_range = QLineEdit('linspace(0,1,%s)'%(self.nrows), self)
         self.grid.addWidget(self.col_range, 5,2, 1,2)
         # show the previously selected channels for this column:
         self.chan_choices['Time step name'].itemClicked.connect(self.save_chan_selection)
@@ -505,18 +499,17 @@ class multirun_widget(QWidget):
         esc = self.mrtr.seq_dic['Experimental sequence cluster in'] # shorthand
         try:
             for col in range(len(self.mr_vals[i])): # edit the sequence
-                val = float(self.mr_vals[i][col])
-                if self.mr_param['Type'][col] == 'Time step length':
-                    for head in ['Sequence header top', 'Sequence header middle']:
+                try:
+                    val = float(self.mr_vals[i][col])
+                    if self.mr_param['Type'][col] == 'Time step length':
+                        for head in ['Sequence header top', 'Sequence header middle']:
+                            for t in self.mr_param['Time step name'][col]:
+                                esc[head][t]['Time step length'] = val
+                    elif self.mr_param['Type'][col] == 'Analogue voltage':
                         for t in self.mr_param['Time step name'][col]:
-                            esc[head][t]['Time step length'] = val
-                elif self.mr_param['Type'][col] == 'Analogue voltage':
-                    for t in self.mr_param['Time step name'][col]:
-                        for c in self.mr_param['Analogue channel'][col]:
-                            esc[self.mr_param['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
-                elif self.mr_param['Type'][col] == 'AWG':
-                    self.mrtr.seq_dic['Routine description in'] += '\nAWG param %s : %s'%(
-                        self.mr_param['Time step name'][col], val)
+                            for c in self.mr_param['Analogue channel'][col]:
+                                esc[self.mr_param['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
+                except ValueError as e: pass # non-float variable
             self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
                     ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
         except IndexError as e:

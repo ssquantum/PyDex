@@ -33,37 +33,51 @@ def dataj(data,segVal,action,duration,*args):
     # Static
     ###########
     if action ==1: 
-        if  len(args)==7:
+        if  len(args)==10:
             data["segments"][seg].append({
-            'segment'      :segVal,
-            'action_type'  :'static trap',
-            'action_val'   :action,
-            'duration'     :duration,
-            'start_freq'   :args[0],
-            'num_of_traps' :args[1],
-            'distance'     :args[2],
-            'total_amp'    :args[3],
-            'freq_amp'     :args[4],
-            'freq_phase'   :args[5],
-            'freq_adjust'  :args[6]
+            'segment'             :segVal,
+            'action_type'         :'static trap',
+            'action_val'          :action,
+            'duration_[ms]'       :duration,
+            'freqs_input_[MHz]'   :args[0],
+            'num_of_traps'        :args[1],
+            'distance_[um]'       :args[2],
+            'total_amp_[mV]'      :args[3],
+            'freq_amp'            :args[4],
+            'freq_phase_[deg]'    :args[5],
+            'freq_adjust'         :args[6],
+            'amp_adjust'          :args[7],
+            'freqs_output_[Hz]'   :args[8],
+            'num_of_samples'      :args[9]
             })
         else:
             print('wrong number of arguments')
     
     ###########
     # Moving
+    #  moving(startFreq, endFreq,staticFreq,duration,a,tot_amp,freq_amp,freq_phase,freq_adjust,sampleRate):
     ###########    
     elif action ==2:
-        if  len(args)==4:
+        if  len(args)==12:
             data["segments"][seg].append({
-            'segment'      :segVal,
-            'action_type'  :'moving trap',
-            'action_val'   :action,
-            'duration'     :duration,
-            'start_freq'   :args[0],
-            'end_freq'     :args[1],
-            'static_freq'  :args[2],
-            'hybridicity'  :args[3]
+            'segment'           :segVal,
+            'action_type'       :'moving trap',
+            'action_val'        :action,
+            'duration_[ms]'     :duration,
+            'start_freq_[MHz]'  :args[0],
+            'end_freq_[MHz]'    :args[1],
+            'hybridicity'       :args[2],
+            "tot_amp_[mV]"      :args[3],
+            'start_amp'         :args[4],
+            'final_amp'         :args[5],
+            "freq_phase_[deg]"  :args[6],
+            "freq_adjust"       :args[7],
+            "amp_adjust"        :args[8],
+            'start_output_[Hz]' :args[9],
+            'end_output_[Hz]'   :args[10],
+            'num_of_samples'    :args[11],
+            
+            
             })
             
         else:
@@ -72,18 +86,27 @@ def dataj(data,segVal,action,duration,*args):
     
     ###########
     # Ramping
+    # ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =0.329)
     ###########    
     elif action == 3:
-        if len(args)==4:
+
+        if len(args)==11:
             data["segments"][seg].append({
-            'segment'      :segVal,
-            'action_type' :'ramping trap',
-            'action_val'  :action,
-            'duration'    :duration,
-            'ramped_freq' :args[0],
-            'static_freq' :args[1],
-            'initial_amp' :args[2],
-            'final_amp'   :args[3]
+            'segment'             :segVal,
+            'action_type'         :'ramping trap',
+            'action_val'          :action,
+            'duration_[ms]'       :duration,
+            'freqs_input_[MHz]'   :args[0],
+            'num_of_traps'        :args[1],
+            'distance_[um]'       :args[2],
+            'tot_amp_[mV]'        :args[3],
+            'start_amp'           :args[4],
+            'final_amp'           :args[5],
+            'freq_phase_[deg]'    :args[6],
+            'freq_adjust'         :args[7],
+            'amp_adjust'          :args[8],
+            'freqs_output_[Hz]'   :args[9],
+            'num_of_samples'      :args[10]
             })
         else:
             print("wrong number of arguments")

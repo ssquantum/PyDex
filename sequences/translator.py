@@ -1,3 +1,4 @@
+# -*- coding: cp1252 -*-
 """Networking - Sequence Translator
 Stefan Spence 04/10/19
 
@@ -140,7 +141,7 @@ def wrap_hf(seq_dict, nsteps, nd, na, up=1):
                 ('Boolean', [nm_val(head, key, [int, str]) for key in
                     ['Hide event steps', 'Populate multirun', 'Skip Step']]),
                 ('EW', OrderedDict([('Name', 'Time unit'),
-                    ('Choice', ['Âµs', 'ms', 's']),
+                    ('Choice', ['µs', 'ms', 's']),
                     ('Val', head['Time unit'])
                 ])),
                 ('I32', nm_val(head, 'Event ID'))
@@ -381,12 +382,22 @@ class translate:
                             '<?xml version="1.0" encoding="utf-8"?>\n', '')
         return self.seq_txt
 
+    def setup_multirun(self):
+        """In order for DExTer to accept changes to the sequence, all
+        events must be routine specific and populate multirun true."""
+        for event in self.seq_dic['Event list array in']:
+            event['Routine specific event?'] = 1
+        for head in ['Sequence header top', 'Sequence header middle']:
+            for step in self.seq_dic['Experimental sequence cluster in'][head]: 
+                step['Populate multirun'] = 1
+                
     def load_xml(self, fname='sequence_example.xml'):
         """Load a sequence as a dictionary from an xml file."""
         try:
             with open(fname, 'r') as f:
                 whole_dict = xmltodict.parse(f.read())
                 self.seq_dic = strip_sequence(whole_dict)
+                self.setup_multirun()
                 self.write_to_str()
         except (FileNotFoundError, xml.parsers.expat.ExpatError) as e: 
             logger.error('Translator could not load sequence:\n'+str(e))

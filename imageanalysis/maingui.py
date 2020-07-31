@@ -538,8 +538,8 @@ class main_window(QMainWindow):
         self.l_label.setText('ROI size = '+str(l))
         # update ROI on image canvas
         # note: setting the origin as top left because image is inverted
-        self.roi.setPos(xc - l//2, yc - l//2)
-        self.roi.setSize((l, l))
+        self.roi.setSize((l, l)) 
+        self.roi.setPos(xc - l//2, yc - l//2) 
 
     def user_roi(self, pos):
         """Update position of ROI"""
@@ -552,9 +552,9 @@ class main_window(QMainWindow):
         self.xc_label.setText('ROI x_c = '+str(xc)) 
         self.yc_label.setText('ROI y_c = '+str(yc))
         self.l_label.setText('ROI size = '+str(l))
+        self.roi_l_edit.setText(str(l)) 
         self.roi_x_edit.setText(str(xc))
         self.roi_y_edit.setText(str(yc))
-        self.roi_l_edit.setText(str(l))
         
     def bins_text_edit(self, text):
         """Update the histogram bins every time a text edit is made by the user

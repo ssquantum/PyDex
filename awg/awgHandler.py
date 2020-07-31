@@ -11,7 +11,7 @@ import json
 def statusChecker(N):
    for i in range(N):
        test = int64(0)
-       spcm_dwGetParam_i64(hCard,SPC_SEQMODE_STATUS,byref(test))
+       spcm_dwGetParam_i64(AWG.hCard,SPC_SEQMODE_STATUS,byref(test))
        print(test.value)
        time.sleep(0.1) 
     
@@ -105,9 +105,11 @@ class AWG:
     maxdBm= -1                                                                  # Max card output in dBm
     max_output =  round(math.sqrt(2*10**-3 * 50 *10 **(maxdBm/10))*1000)        # The conversion is from dBm to MILLIvolts (amplitude Vp, not Vpp). This assumes a 50 Ohm termination. 
      
-    ########################################################################################
-    umPerMHz =0.329        # Defines the conversion between micrometers and MHz for the AOD
-    ########################################################################################
+    ###############################################################################################
+    ########################## Defined in the spcm_home_functions.py ##############################
+    ###############################################################################################
+    umPerMHz =cal_umPerMHz        # Defines the conversion between micrometers and MHz for the AOD
+    ###############################################################################################
 
 
     """
@@ -213,10 +215,10 @@ class AWG:
         #######################################
         ### Intermediate communication between segment data and step data for static traps
         #######################################################################################
-        self.rounding = 1
+        self.rounding = 1024
         self.statDur = 0.002             # Duration of a single static trap segment in MILLIseconds. Total duration handled by Loops.
-        self.effDur = math.floor(self.sample_rate.value * (self.statDur*10**-3)/self.rounding)*self.rounding/self.sample_rate.value*10**3
-        self.statDur = round(self.effDur,7)
+        #self.effDur = math.floor(self.sample_rate.value * (self.statDur*10**-3)/self.rounding)*self.rounding/self.sample_rate.value*10**3
+        #self.statDur = round(self.effDur,7)
         self.staticDuration = {}        # Keeps track of the requested duration for each static trap. Will be converted in setStep method.
         
         
@@ -364,15 +366,17 @@ class AWG:
         Sets the size (duration) of the segment in static traps.
         This segment will be looped an appropriate number of times to achieve the requested value.
         """
-        if 0.0016384 <= new_segDur: 
-            self.statDur = new_segDur             # Duration of a single static trap segment in MILLIseconds. Total duration handled by Loops.
-            self.effDur = round(math.floor(self.sample_rate.value * (self.statDur*10**-3)/self.rounding)*self.rounding/self.sample_rate.value*10**3,7)
-            self.statDur = round(self.effDur,7)
-        else:
-            sys.stdout.write("Segment size must be between 0.0016384 and 0.1 ms. Set to minimum allowed by sample rate.")
-            minVal = self.rounding/self.sample_rate.value*10**3
-            self.effDur = round(math.floor(self.sample_rate.value * (minVal*10**-3)/self.rounding)*self.rounding/self.sample_rate.value*10**3,7)
-            self.statDur = round(self.effDur,7)
+        self.statDur = new_segDur
+        # if 0.0016384 <= new_segDur: 
+        #     self.statDur = new_segDur             # Duration of a single static trap segment in MILLIseconds. Total duration handled by Loops.
+        #     self
+        #     self.effDur = round(math.floor(self.sample_rate.value * (self.statDur*10**-3)/self.rounding)*self.rounding/self.sample_rate.value*10**3,7)
+        #     self.statDur = round(self.effDur,7)
+        # else:
+        #     sys.stdout.write("Segment size must be between 0.0016384 and 0.1 ms. Set to minimum allowed by sample rate.")
+        #     minVal = self.rounding/self.sample_rate.value*10**3
+        #     self.effDur = round(math.floor(self.sample_rate.value * (minVal*10**-3)/self.rounding)*self.rounding/self.sample_rate.value*10**3,7)
+        #     self.statDur = round(self.effDur,7)
         
     def selectSegment(self,selSeg):
         spcm_dwSetParam_i32(AWG.hCard, SPC_SEQMODE_WRITESEGMENT,selSeg)    
@@ -448,6 +452,17 @@ class AWG:
         else:
             self.segment = segment
         
+        """
+        The following line is useful for when changes to the card data are done dynamically.
+        It is possible that you change a segment from static to ramp.
+        Even if you re-run the setStep, that segment might have some record of number of loops
+        associated to it (from the static trap) resulting in incorrect number of loops. 
+        This will then lead to an incorrect number of segment repetitions.
+        For this reason, it is better to clean the staticDuration var if that segment
+        is represented. This just drops the key from the dictionary.
+        """
+        if self.segment in self.staticDuration.keys():
+            del self.staticDuration[self.segment]
         
         """
         In the duration bloc that follows, it is important that the if action==1 step
@@ -469,7 +484,7 @@ class AWG:
         if action ==1:
             memBytes =round(self.sample_rate.value * (self.duration*10**-3)/self.rounding) #number of bytes as a multiple of kB - FLOOR function for static traps
         else:
-            memBytes = math.ceil(self.sample_rate.value * (self.duration*10**-3)/self.rounding) #number of bytes as a multiple of kB  - CEIL function for any other
+            memBytes = round(self.sample_rate.value * (self.duration*10**-3)/self.rounding) #number of bytes as a multiple of kB  - CEIL function for any other
         
         if memBytes <1:
             """
@@ -522,28 +537,32 @@ class AWG:
         actionOptions = {
             1:  "Creates a series of static traps.",                       
             2:  "Performs a move operation from freq1 to freq2.",                  
-            3:  r"Ramps freq1 from X% to Y% amplitude (increasing or decreasing)"                                                            
+            3:  "Ramps freq1 from X% to Y% amplitude (increasing or decreasing)"                                                            
             }
         
         freqBounds=[120,225]
-
+        
+        
+        
+        
         #####################################################################
         # STATIC TRAPS
         #####################################################################
-         
         
         if action == 1:
             """
             Generating static traps
+            
             """
             staticOptions = {
             1:  "Starting Frequency [MHz].",                       
             2:  "Number of traps [integer].",                  
             3:  "Distance between traps [um].",
             4:  "Total Frequency Amplitude [mV]",
-            5:  "Individual Freqency amplitudes [fractional]",
+            5:  "Individual Freqency amplitudes [fraction of total amplitude]",
             6:  "Individual Frequency phase   [deg]" ,
-            7:  "Frequency Adjustment  [True/False]"                                                          
+            7:  "Frequency Adjustment  [True/False]",
+            8:  "Amplitude Adjustment [True/False]"                                                          
             }
             
             
@@ -556,15 +575,19 @@ class AWG:
                 tot_amp    = args[3]
                 freq_amp   = args[4]
                 freq_phase = args[5]
-                fAdjust    = args[6] 
+                fAdjust    = args[6]
+                aAdjust    = args[7] 
                 
                 if type(f1) == str:
                     """
                     This is only to allow a cosmetic data storage in the JSON file.
                     """
                     f1 = eval(f1)
-                    
-                if type(f1) == list:
+                
+                ##############
+                # In case argument is a list
+                ######################################   
+                if type(f1) == list or type(f1)==np.ndarray:
                     """
                     In case the user wants to place its own arbitrary frequencies, this will test
                     whether the frequencies are within the AOD bounds. 
@@ -572,14 +595,19 @@ class AWG:
                     minFreq = min(f1)
                     maxFreq = max(f1)
                     if minFreq >= freqBounds[0] and maxFreq <= freqBounds[1]:
-                        self.f1 = f1
+                        if type(f1) == list:
+                            self.f1 = MEGA(np.array(f1))
+                        else:
+                            self.f1 = MEGA(f1)
+                        numOfTraps = len(self.f1)
+                        
                     else:
                         sys.stdout.write("One of the requested frequencies is out the AOD bounds ({} - {} MHz).".format(minFreq,maxFreq))
                         self.f1 = MEGA(170)
                         flag =1
 
                 else:   
-                    if freqBounds[0] <= f1 <= freqBounds[1]:
+                    if  freqBounds[0] <= f1+(numOfTraps-1)*distance/AWG.umPerMHz <= freqBounds[1]:
                         self.f1 = MEGA(f1)
                     else:
                         sys.stdout.write("Chosen starting frequency is out of the AOD frequency range. Value defaulted at 170 MHz")
@@ -629,21 +657,38 @@ class AWG:
                     flag = 1
                 else:
                     self.fAdjust = fAdjust
-                
-                if freqBounds[0] <= f1+(numOfTraps-1)*distance/AWG.umPerMHz <= freqBounds[1]:
-                    staticData =  static(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.freq_phase,self.fAdjust,self.sample_rate.value, rounding=self.rounding)            # Generates the requested data
-                    self.f1, numOfSamples, numberOfTraps, separation = self.staticFreqs(self.f1,numOfTraps,distance,self.duration,self.fAdjust,self.sample_rate.value,rounding=self.rounding):
-                    if type(f1)==list:
-                        f1 = str(f1)
-                    dataj(AWG.filedata,self.segment,action,duration,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),str(self.freq_phase),self.fAdjust)                # Stores information in the filedata variable, to be written when card initialises. 
-                
-                    for i in range (0, self.numOfSamples, 1):
-                        
-                        pnBuffer[i] = int16(int(staticData[i]))
-                         
+                    self.exp_freqs = self.f1
+                    
+                if type(aAdjust) != bool:
+                    sys.stdout.write("Amplitude Adjustment is not a boolean.\n")
+                    self.aAdjust = True
+                    flag = 1
                 else:
-                    sys.stdout.write("Some frequencies will be out of AOD diffraction range. Reduce the spacing or number of traps.\n")
-                    flag =1
+                    self.aAdjust = aAdjust
+                
+               
+                self.exp_freqs = getFrequencies(action,self.f1,numOfTraps,distance,self.duration,self.fAdjust,self.sample_rate.value,AWG.umPerMHz)
+                
+                
+                
+                
+                ##############
+                #  Generate the Data
+                #########################
+                staticData =  static(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)            # Generates the requested data
+                
+                if type(f1)==np.ndarray or type(f1)==list :
+                    f1 = str(list(f1))
+                dataj(AWG.filedata,self.segment,action,duration,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples)                # Stores information in the filedata variable, to be written when card initialises. 
+            
+                #############
+                # Set the buffer memory
+                ################################# 
+                for i in range (0, self.numOfSamples, 1):
+                    
+                    pnBuffer[i] = int16(int(staticData[i]))
+                         
+                
             else: 
                 sys.stdout.write("Static trap ancilla variables:\n")
                 for x in staticOptions:
@@ -659,48 +704,139 @@ class AWG:
         elif action == 2:
             """
             Generating moving traps
-            (startFreq, endFreq,sampleRate,duration,a):
-                 moving3(f1,f2,llSetSamplerate.value,llMemSamples2.value,0)
+            moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq_adjust,amp_adjust,sampleRate)
             """
             moveOptions = {
-            1:  "List of Starting Frequencies [MHz].",                       
-            2:  "List of Ending Frequencies [MHz].",
-            3:  "List of Amplitudes",                 
-            4:  "Hybridicity a [a=0: fully minimum jerk, a=1: fully linear].",
-            5:  "Total amplitude [mV]",
-            6:  "List of phases [deg]"       
-            7:  "Whether to adjust frequencies [bool]"
+            1:  "Starting Frequency [MHz].",                       
+            2:  "Ending Frequency [MHz].",                
+            3:  "Hybridicity a [a=0: fully minimum jerk, a=1: fully linear].",
+            4:  "Total amplitude [mV]",
+            5:  "Individual starting frequency amplitudes [fraction of total amplitude]",
+            6:  "Individual starting frequency amplitudes [fraction of total amplitude]",
+            7:  "Individual Frequency phase   [deg]" ,
+            8:  "Frequency Adjustment  [True/False]" ,
+            9:  "Amplitude Adjustment  [True/False]"      
             }
             
             if len(args)==len(moveOptions):
-                f1    = args[0]     # Starting frequency
-                f2    = args[1]     # End Frequency
-                amps  = args[2]
-                a     = args[3]     # Hybridicity (a= 0 -> min jerk, a =1 -> linear )
-                totAmp= args[4]
-                phases= args[5]
-                fAdjust=args[6]
+                f1         = args[0]     # Starting frequency
+                f2         = args[1]     # End Frequency
+                a          = args[2]     # Hybridicity (a= 0 -> min jerk, a =1 -> linear )
+                tot_amp    = args[3]     # Global amplitude control
+                start_amp  = args[4]     # Invididual frequency amplitude control
+                end_amp    = args[5]     # Invididual frequency amplitude control
+                freq_phase = args[6]     # Individual frequency phase control
+                fAdjust    = args[7]     # Boolean for frequency control
+                aAdjust    = args[8]     # Boolean for amplitude control
                                        
-                if freqBounds[0] <= f1 <= freqBounds[1] and freqBounds[0] <= f2 <= freqBounds[1] and 0 <= a <= 1:
-                    self.f1 = MEGA(f1)
-                    self.f2 = MEGA(f2)
-                    self.a  = a
-                    moveData =  moving2(self.f1,self.f2,amps,self.a,, self.duration, totAmp, phases, fAdjust, self.sample_rate.value, rounding=self.rounding)
-                    dataj(AWG.filedata,self.segment,action,self.duration,f1,f2,fstat,self.a)
+                ###########################
+                # Standarising the input into np.ndarrays
+                ###########################################
+                if type(f1 )== int or type(f1) == float:
+                    f1 =  np.array([f1])
+                if type(f2 )== int or type(f2) == float:
+                    f2 =  np.array([f2])
+                # The following lines might appear redundant,but note that it is np.array() and not np.array([]) as above.
+                # The reason for the distinction is that the input still has a length even if you introduce a single value.
+                # This will not have an effect if the input is already an np.ndarray().
+                f1 =  np.array(f1)
+                f2 =  np.array(f2)
                 
-            
+                ################################
+                # Check that the frequencies requested are within bounds.
+                ####################################
+                if freqBounds[0] <= min(f1) and max(f1) <= freqBounds[1]:
+                    self.f1 = MEGA(f1)
+                else:
+                    sys.stdout.write("Start frequencies contain values out of AOD bounds [{} - {}].".format(freqBounds[0],freqBounds[1]))
+                    flag = 1
+                    
+                if freqBounds[0] <= min(f2) and max(f2) <= freqBounds[1]:
+                    self.f2 = MEGA(f2)
+                else:
+                    sys.stdout.write("End frequencies contain values out of AOD bounds [{} - {}].".format(freqBounds[0],freqBounds[1]))
+                    flag = 1
+                
+                ##########################
+                # Check that start and end frequencies are of equal length
+                ###################################################################
+                if len(f1) != len(f2):
+                    sys.stdout.write("Start and End frequencies are of unequal length.")
+                    flag =1
+                
+                #############################
+                # Check that hybridicity is adequate
+                ########################################    
+                if 0 <= a <= 1:
+                    self.a  = a
+                else:
+                    sys.stdout.write("Hybridicity parameter must lie between 0 (Min Jerk) and 1 (linear)")
+                    flag =1
+                    
+                if 2<= tot_amp<= 282:
+                    self.tot_amp = tot_amp
+                else:
+                    self.tot_amp = 120
+                    sys.stdout.write("Maximum output voltage is 282 mV or -1 dBm. Set to 120 mV (Safe with Spec.Analyser).")
+                    flag = 1
+                
+                ##############################
+                # Check that individual frequency amp and phases are confirming
+                ########################################################################
+                if type(start_amp) == list:
+                    self.start_amp = start_amp
+                else:
+                    self.start_amp = [1]*len(f1)
+                    sys.stdout.write("Frequency amplitudes must be list.")
+                    flag = 1
+                    
+                if type(end_amp) == list:
+                    self.end_amp = end_amp
+                else:
+                    self.end_amp = [1]*len(f1)
+                    sys.stdout.write("Frequency amplitudes must be list.")
+                    flag = 1
+                
+                if type(freq_phase) == list:
+                    self.freq_phase = freq_phase
+                else:
+                    self.freq_phase = [0]*len(f1)
+                    sys.stdout.write("Phase must be list of lenght 2, i.e. [1,1]")
+                    flag = 1
+                
+                ############################
+                # Check that frequency and amplitude adjustment is boolean.
+                #############################################################
+                if type(fAdjust) == bool:
+                    self.fAdjust = fAdjust
+                else:
+                    self.fAdjust = True
+                    sys.stdout.write("Frequency Adjustment receives a boolean True/False")
+                    flag = 1
+                    
+                if type(aAdjust) == bool:
+                    self.aAdjust = aAdjust
+                else:
+                    self.aAdjust = True
+                    sys.stdout.write("Amplitude Adjustment receives a boolean True/False")
+                    flag = 1
+                
+                
+                self.exp_start,self.exp_end = getFrequencies(action,self.f1,self.f2,self.duration,self.fAdjust,self.sample_rate.value)
+                    
+                
+                if flag ==0:
+                    moveData =  moving(self.f1,self.f2,self.duration,self.a,self.tot_amp,self.start_amp,self.end_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value)
+                    dataj(AWG.filedata,self.segment,action,self.duration,str(f1),str(f2),self.a,self.tot_amp,str(self.start_amp),str(self.end_amp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),\
+                    str(list(self.exp_start)),str(list(self.exp_end)),self.numOfSamples)
+             
+                  
+                
                     for i in range (0, self.numOfSamples, 1):
                         pnBuffer[i] = int16(int(moveData[i])) 
                 
-                elif  f1> freqBounds[1] or f1 < freqBounds[0] or f2> freqBounds[1] or f2 <freqBounds[0]:
-                    sys.stdout.write("Start and end frequencies out of AOD bounds.")
-                    flag = 1
-                elif fstat >freqBounds[0] or fstat < freqBounds[0]:
-                    sys.stdout.write("Static frequencies out of AOD bounds.")
-                    flag = 1
-                elif a < 0 or a > 1:
-                    sys.stdout.write("Hybridicity paramter must lie between 0 (Min Jerk) and 1 (linear)")
-                    flag =1
+                
+                
             else:
                 sys.stdout.write("Moving trap ancilla variables:\n")
                 for x in moveOptions:
@@ -716,46 +852,118 @@ class AWG:
         elif action ==3:
             """
             Generating ramping of traps
-            ramp(freq=170*10**6, startAmp=1,endAmp=0,numOfSamples = 64*1024,sampleRate= 625*10**6)
+            ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =0.329)
             """
             rampOptions = {
-            1:  "Frequency to be ramped [MHz].", 
-            2:  "Frequency to remain constant [MHz]",                      
-            3:  "Amplitude at start of ramp [percentage].",                  
-            4:  "Amplitude at end of ramp   [percentage]."                                                            
+            1:  "Frequency(ies) to be ramped [MHz].",
+            2:  "Number of traps",
+            3:  "Distance between traps",
+            4:  "Global amplitude control [mV] up to a value 282" ,                     
+            5:  "Individual amplitude(s) at start of ramp [fraction of total amplitude] (0 to 1).",                  
+            6:  "Individual amplitude(s) at end of ramp   [fraction of total amplitude] (0 to 1)." ,
+            7:  "Individual phase(s) for each frequency used [deg]",
+            8:  "Frequency Adjustment  [True/False]",
+            9:  "Amplitude adjustment [True/False]"                                                           
             }
             
             if len(args)==len(rampOptions):
-                f1       = args[0] # Frequency to be ramped down
-                f2       = args[1] # Frequency to be kept constant
-                startAmp = args[2] # Starting amplitude of the ramp
-                endAmp   = args[3] # Final amplitude of the ramp
                 
-                if 135 <= f1 <= 225 and 135 <= f2 <= 225 and 0 <= startAmp <=100 and 0 <= endAmp <= 100:
-                    self.f1       = MEGA(f1)
-                    self.f2       = MEGA(f2)
-                    self.startAmp = startAmp/100
-                    self.endAmp   = endAmp/100
+                f1         = args[0]
+                numOfTraps = args[1] 
+                distance   = args[2]
+                tot_amp    = args[3]
+                startAmp   = args[4]
+                endAmp     = args[5]
+                freq_phase = args[6]
+                fAdjust    = args[7]
+                aAdjust    = args[8]
+                
+                if numOfTraps <= 0:
+                    numOfTraps = 1
+                    sys.stdout.write("Number of traps must be a positive integer.")
                     
-                    rampData = ramp(self.f1, self.f2,self.startAmp,self.endAmp,self.duration,self.sample_rate.value)
-                    dataj(AWG.filedata,self.segment,action,self.duration, f1, f2,int(100*self.startAmp),int(100*self.endAmp))
+                if type(f1) == list or type(f1)==np.ndarray:
+                    """
+                    In case the user wants to place its own arbitrary frequencies, this will test
+                    whether the frequencies are within the AOD bounds. 
+                    """
+                    minFreq = min(f1)
+                    maxFreq = max(f1)
+                    if minFreq >= freqBounds[0] and maxFreq <= freqBounds[1]:
+                        if type(f1) == list:
+                            self.f1 = MEGA(np.array(f1))
+                        else:
+                            self.f1 = MEGA(f1)
+                        numOfTraps = len(self.f1)
+                        
+                    else:
+                        sys.stdout.write("One of the requested frequencies is out the AOD bounds ({} - {} MHz).".format(minFreq,maxFreq))
+                        self.f1 = MEGA(170)
+                        flag =1
+
+                else:   
+                    if  freqBounds[0] <= f1+(numOfTraps-1)*distance/AWG.umPerMHz <= freqBounds[1]:
+                        self.f1 = MEGA(f1)
+                    else:
+                        sys.stdout.write("Chosen starting frequency is out of the AOD frequency range. Value defaulted at 170 MHz")
+                        self.f1 = MEGA(170)
+                        flag =1
+                
+                if 2<= tot_amp<= 282:
+                    self.tot_amp = tot_amp
+                else:
+                    self.tot_amp = 120
+                    sys.stdout.write("Maximum output voltage is 282 mV or -1 dBm. Set to 120 mV (Safe with Spec.Analyser).")
+                    flag = 1
+                
+                
+                if  type(startAmp)==list and type(endAmp)==list and len(startAmp) ==len(endAmp):
+                    self.startAmp = startAmp
+                    self.endAmp   = endAmp
+                else:
+                    sys.stdout.write("Starting and ending amplitudes must lists of equal size, with values lying between 0 and 1.")
+                    flag =1
+                    
+                if type(freq_phase) == list:
+                    self.freq_phase = freq_phase
+                else:
+                    self.freq_phase = [0]*len(f1)
+                    sys.stdout.write("Phase must be list of lenght 2, i.e. [1,1]")
+                    flag = 1
+                
+                ############################
+                # Check that frequency and amplitude adjustment is boolean.
+                #############################################################
+                if type(fAdjust) == bool:
+                    self.fAdjust = fAdjust
+                else:
+                    self.fAdjust = True
+                    sys.stdout.write("Frequency Adjustment receives a boolean True/False")
+                    flag = 1
+              
+                if type(aAdjust) == bool:
+                    self.aAdjust = fAdjust
+                else:
+                    self.aAdjust = True
+                    sys.stdout.write("Amplitude Adjustment receives a boolean True/False")
+                    flag = 1  
+                    
+                
+                self.exp_freqs = getFrequencies(action,self.f1,numOfTraps,distance,self.duration,self.fAdjust,self.sample_rate.value,AWG.umPerMHz)
+                
+                
+                
+                if flag==0:
+                    #ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =0.329)
+                    rampData = ramp(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.startAmp,self.endAmp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)
+                    dataj(AWG.filedata,self.segment,action,self.duration, str(f1),numOfTraps,distance,self.tot_amp,str(self.startAmp),str(self.endAmp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples)
                     
                     
-                    for i in range (0, self.numOfSamples, 1):
+                    for i in range (self.numOfSamples):
                         pnBuffer[i] = int16(int(rampData[i]))
                         
                 
-                elif f1 > 225 or f1 <135 or f2 > 225 or f2 <135:
-                    sys.stdout.write("Requested frequency is outside of AOD diffraction bounds")
-                    flag =1
-                    
-                elif startAmp >100 or startAmp < 0:
-                    sys.stdout.write("Initial amplitude must be between 0 and 100")
-                    flag =1
-                    
-                elif endAmp >100 or endAmp < 0:
-                    sys.stdout.write("Final amplitude must be between 0 and 100")
-                    flag =1
+                
             else:
                 sys.stdout.write("Ramp trap ancilla variables:\n")
                 for x in rampOptions:
@@ -875,37 +1083,64 @@ class AWG:
             spcm_dwSetParam_i64(AWG.hCard,SPC_SEQMODE_STEPMEM0 + self.lStep,llvals)
 
     
-    def setDirectory(self,dirPath='Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin'):
+    def setDirectory(self,dirPath='S:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin'):
         self.ddate =time.strftime('%Y%m%d')
         
         if type(dirPath)==str:
-            self.path =  dirPath+'\\'+ddate
+            self.path =  dirPath+'\\'+self.ddate
             if not os.path.isdir(self.path):
                 os.makedirs(self.path)
         else:
             sys.stdout.write("Input must be a string.")
             
-    def saveData(self):
+    # def saveData(self):
+    #     """
+    #     First the card outputs the metadata file
+    #     Second, we set the name of the file based on the day and time.
+    #     Create a directory if needed and output the file before initialising
+    #     """
+    #     paramj(AWG.filedata,self.sample_rate.value,self.num_segment,self.start_step,self.lSetChannels.value,self.lBytesPerSample.value,int(self.maxSamples),\
+    #     self.max_output,self.trig_val,self.trig_level0,self.trig_level1,self.statDur)
+    #     
+    #     self.ddate =time.strftime('%Y%m%d')     # Date in YYMMDD format
+    #     self.ttime =time.strftime('%H%M%S')     # Time in HHMMSS format
+    #     self.fname = self.ddate+"_"+self.ttime  # File name in YYMMDD_HHMMSS format
+    #     
+    #     
+    #     self.path =  self.dirPath+'\\'+self.ddate
+    #     if not os.path.isdir(self.path):
+    #         os.makedirs(self.path)
+    #     
+    #     with open(self.path+'\\'+self.fname+'.txt','w') as outfile:
+    #         json.dump(AWG.filedata,outfile,sort_keys = True,indent =4)
+            
+    
+    def saveData(self, fpath=''):
         """
         First the card outputs the metadata file
         Second, we set the name of the file based on the day and time.
         Create a directory if needed and output the file before initialising
         """
         paramj(AWG.filedata,self.sample_rate.value,self.num_segment,self.start_step,self.lSetChannels.value,self.lBytesPerSample.value,int(self.maxSamples),\
-        self.max_output,self.trig_val,self.trig_level0,self.trig_level1,self.statDur)
+        self.max_output,self.trig_val,self.trig_level0,self.trig_level1,self.statDur)        
         
-        self.ddate =time.strftime('%Y%m%d')     # Date in YYMMDD format
-        self.ttime =time.strftime('%H%M%S')     # Time in HHMMSS format
-        self.fname = self.ddate+"_"+self.ttime  # File name in YYMMDD_HHMMSS format
-        
-        
-        self.path =  self.dirPath+'\\'+self.ddate
-        if not os.path.isdir(self.path):
-            os.makedirs(self.path)
-        
-        with open(self.path+'\\'+self.fname+'.txt','w') as outfile:
-            json.dump(AWG.filedata,outfile,sort_keys = True,indent =4)
-            
+        if not fpath:
+            self.ddate =time.strftime('%Y%m%d')     # Date in YYMMDD format
+            self.ttime =time.strftime('%H%M%S')     # Time in HHMMSS format
+            self.path = os.path.join(self.dirPath, self.ddate)
+            os.makedirs(self.path, exist_ok=True)
+            fpath = os.path.join(self.path, self.ddate+"_"+self.ttime+'.txt')
+        try:
+            with open(fpath,'w') as outfile:
+                json.dump(AWG.filedata,outfile,sort_keys = True,indent =4)
+        except (FileNotFoundError, PermissionError) as e:
+            print(e)
+    
+    
+    
+    
+    
+    
     def load(self,file_dir='S:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin\\20200706\\20200706_170438.txt'):
         
         """
@@ -933,11 +1168,11 @@ class AWG:
         self.setTrigger(lprop['trig_mode'],lprop['trig_level0_main'],lprop['trig_level1_aux'])      # Sets the trigger based on mode
         
         
-        
+       
         
         for i in range(segNumber):
             if lsegments['segment_'+str(i)]['action_val'] == 1:
-                order = ('segment','action_val','duration','start_freq','num_of_traps','distance','total_amp','freq_amp','freq_phase')
+                order = ('segment','action_val','duration','freqs_input','num_of_traps','distance','total_amp','freq_amp','freq_phase','freq_adjust','amp_adjust')
                 arguments = [lsegments['segment_'+str(i)][x] for x in order]
             
             elif lsegments['segment_'+str(i)]['action_val'] == 2:
@@ -958,11 +1193,13 @@ class AWG:
             self.setStep(*stepArguments)
         
    
-    def start(self,saveFile=False,timeOut = 10000):
+    def start(self,saveFile=False,save_path ="",timeOut = 10000):
         if sum(self.flag)==0 and sum(self.stepFlag)==0:
             
-            if saveFile ==True:
-                self.saveData()   
+            if saveFile ==True and save_path=="":
+                self.saveData()
+            else:
+                self.saveData(save_path)   
             spcm_dwSetParam_i32 (AWG.hCard, SPC_TIMEOUT, int(timeOut))
             sys.stdout.write("\nStarting the card and waiting for ready interrupt\n(continuous and single restart will have timeout)\n")
             dwError = spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITPREFULL)
@@ -997,57 +1234,167 @@ def rep(freq,srate):
     t.setSegment(0,1,0.12,freq,1,0.329*4,20,[1],[0])
     t.start()
    
-t = AWG()
+if __name__ == "__main__":
+    t = AWG()
+    
+    # setSegment(segment, action, duration, *args):
+    t.setNumSegments(8)
+    print(t.num_segment)
+    print(t.maxDuration)
+    # 0.329um/MHz
+    # setup trigger and segment duration
+    t.setTrigger(1) # 0 software, 1 ext0
+    t.setSegDur(0.002)
+    
+    """
+    rampOptions = {
+    1:  "Frequency(ies) to be ramped [MHz].",
+    2:  "Number of traps",
+    3:  "Distance between traps",
+    4:  "Global amplitude control [mV] up to a value 282" ,                     
+    5:  "Individual amplitude(s) at start of ramp [fraction of total amplitude] (0 to 1).",                  
+    6:  "Individual amplitude(s) at end of ramp   [fraction of total amplitude] (0 to 1)." ,
+    7:  "Individual phase(s) for each frequency used [deg]",
+    8:  "Frequency Adjustment  [True/False]",
+    9:  "Amplitude adjustment [True/False]"                                                           
+    }
+    """
+    
+    """
+    # segment data parameters
+    staticfreq = 179 # frequency of static trap in MHz
+    static_sep=-9 # seperaation of second trap (static) in um
+    sep = 20 # merged separation in MHz
+    tramp = 1 # duration shuttle trap ramps up, ms
+    thold = 40 # time traps held together, ms
+    tmove = 1 # duration shuttle moves away, ms
+    Amp = 0.96 # amplitude shuttle trap is ramped up to
+    # segment/action_type/duration/number of traps/trap_distance/AWG_output[mV]/freq_amps/freq_phases
+    t.setSegment(0,1,0.02,staticfreq,2,static_sep,220,[1,Amp],[0,0],False,False) # 2 static
+    # segment, action, duration, start freq, end freq, static freq, hybridicity
+    t.setSegment(1,2,tmove,[staticfreq+static_sep/0.329,staticfreq],[staticfreq-sep,staticfreq],1,220,[Amp,1],[0,0],False) # merge together
+    # segment, action, duration, shuttle frq, static freq, amp0, amp1
+    t.setSegment(2,3,tramp,[staticfreq-sep,staticfreq],2,-sep,220,[Amp,1],[0,1],[0,0],False,False) # ramp down shuttle
+    t.setSegment(3,1,thold,staticfreq,2,-0.329*sep,220,[1,Amp],[0,0],False,False) # hold close - both on
+    # t.setSegment(3,1,thold,static,2,-0.329*sep,220,[1,0],[0,0],False) # hold close - merged into 1 trap
+    t.setSegment(4,3,tramp,[staticfreq-sep,staticfreq],2,0.329*2,220,[0,1],[Amp,1],[0,0],False,False) # ramp up shuttle
+    t.setSegment(5,2,tmove,[staticfreq-sep,staticfreq],[staticfreq+static_sep/0.329,staticfreq],1,220,[Amp,1],[0,0],False) # pull apart
+    t.setSegment(6,1,100,staticfreq,2,static_sep,220,[1,Amp],[0,0],False,False) # hold separate
+    
+    # t.setStep(stepNum,segNum,loopNum, nextStep, stepCondition)
+    # t.setStep(0,0,1,1,1)
+    # t.setStep(1,1,1,2,2)
+    # t.setStep(2,2,1,3,2)
+    # t.setStep(3,3,1,4,2)
+    # t.setStep(4,4,1,5,2)
+    # t.setStep(5,5,1,6,2)
+    # t.setStep(6,6,1,0,2)
+    
+    # static, move, static, move
+    t.setStep(0,0,1,1,1)
+    t.setStep(1,1,1,2,2)
+    t.setStep(2,3,1,3,2)
+    t.setStep(3,5,1,0,2)
+    
+    t.start(True)
+    """
+    # t.stop()
+    # t.setSegment(0,1,0.02,170,2,-9,220,[1,Amp],[0,0],False)
+    # t.setStep(0,0,1,0,1)
+    # t.start()
+    # case 2
+    # t.setStep(0,0,1,1,1)
+    # t.setStep(1,1,1,2,2)
+    # t.setStep(2,0,1,3,2)
+    # t.setStep(3,1,1,4,2)
+    # t.setStep(4,0,1,5,2)
+    # t.setStep(5,1,1,6,2)
+    # t.setStep(6,0,1,7,2)
+    # t.setStep(7,1,1,8,2)
+    # t.setStep(8,0,1,9,2)
+    # t.setStep(9,1,1,0,2)
+    # 
+    # # case 0
+    # t.setStep(0,0,1,1,1)
+    # t.setStep(1,2,100,0,2)
+    # 
+    # # case 1
+    # t.setStep(0,0,1,1,1)
+    # t.setStep(1,2,1,0,2)
+    
+    # # trying to pull atom out of shuttlet rap Measure 7 17.7.20
+    # t.setSegment(0,1,0.02,170,2,-8.5,220,[1,0],[0,0],True) # one static
+    # # segment, action, duration, freqs, numtrap, separation, totamp, startamps, endamps, phase, freqadjust, ampadjust
+    # t.setSegment(1,3,2,170-sep,170,0,Amp*100) # ramp up shuttle
+    # t.setSegment(2,1,5,170,2,-0.329*sep,220,[1,Amp],[0,0],True) # hold close
+    # # segment, action, duration, start freq, end freq, static freq, hybridicity
+    # t.setSegment(3,2,5,170-sep,144.16413373860183,170,1,220,[Amp,1],[0,0],True) # move shuttle away
+    # t.setSegment(4,1,100,170,2,-8.5,220,[1,Amp],[0,0],True) # hold separate
+    # t.setStep(0,0,1,1,1)
+    # t.setStep(1,1,1,2,2)
+    # t.setStep(2,2,1,3,2)
+    # t.setStep(3,3,1,4,2)
+    # t.setStep(4,4,1,0,2)
+    
+    # ls= np.array([145,190])
+    # t.setSegment(0,1,0.02,ls,2,-15,220,[1,1],[0,0],True) 
+    # t.setStep(0,0,1,0,1)
+    
+    
+    # t.setSegment(0,1,0.02,170,2,10,220,[1,1],[0,0],True,False)
+    # t.setSegment(1,2,0.12,[138,166],[138,166],1,220,[1,1],[0,0],True)
+    # t.setSegment(2,3,0.12,[166,166],2,12,220,[1,1],[0,1],[0,0],True,False)
+    # 
+    # t.setStep(0,0,1,0,2)
+    # t.setStep(1,1,1,2,2)
+    # t.setStep(2,2,1,0,2)
+    # 
+    # 
+    
+    
+    """
+    21/07/2020: Heating from moving traps: static, then sweep freq back and forth 10 times
+    1. static at 150MHz until triggered
+    2. sweep freq to 170MHz in 2ms
+    3. sweep back in 2ms
+    repeating 10x takes 40ms.
+    """
+    # t.setSegment(0,1,0.02,[160],1,9,    110,[1],[0],False,False) # 1 static
+    # t.setSegment(1,2,2,   [160],[180],1,110,[1],[1],[0],False,False) # sweep away
+    # t.setSegment(2,2,2,   [180],[160],1,110,[1],[1],[0],False,False) # sweep back
+    # t.setStep(0,0,1,1,1)
+    # t.setStep(1,1,1,2,2)
+    # t.setStep(2,2,1,3,2) # 1
+    # t.setStep(3,1,1,4,2)
+    # t.setStep(4,2,1,5,2) # 2
+    # t.setStep(5,1,1,6,2)
+    # t.setStep(6,2,1,7,2) # 3
+    # t.setStep(7,1,1,8,2)
+    # t.setStep(8,2,1,9,2) # 4
+    # t.setStep(9,1,1,10,2)
+    # t.setStep(10,2,1,11,2) # 5
+    # t.setStep(11,1,1,12,2)
+    # t.setStep(12,2,1,13,2) # 6
+    # t.setStep(13,1,1,14,2)
+    # t.setStep(14,2,1,15,2) # 7 
+    # t.setStep(15,1,1,16,2) 
+    # t.setStep(16,2,1,17,2) # 8
+    # t.setStep(17,1,1,18,2)
+    # t.setStep(18,2,1,19,2) # 9
+    # t.setStep(19,1,1,20,2)
+    # t.setStep(20,2,1,0,2) # 10 - back t.stop()to static
+    #  1.284  / 14.6 8700.825 50 0.33 20 0.0564 30 0.121 40 0.212 60 0.467 70 0.630 90 1.02
+    t.setTrigger(0)
+    t.setSegment(0,1,0.02,[160],1,9,    110,[1],[0],False,False)
+    t.setStep(0,0,1,0,1)
+    t.start(True)
+    # 
+    # ### STATIC/RAMP
+    # # action/freq/num of traps/distance/duration/freq Adjust/sample rate/umPerMhz
+    # getFrequencies(1,135e6,5,3,1,True,625e6,0.329)*10**-6 #static
+    # getFrequencies(1,[135e6,170e6,220e6],5,3,1,True,625e6,0.329)*10**-6
+    # 
+    # ## MOVING
+    # # action/freq/num of traps/distance/duration/freq Adjust/sample rate/umPerMhz
+    # getFrequencies(2,[135e6],[200e6],1,True,625e6)*10**-6 #moving
 
-# setSegment(segment, action, duration, *args):
-t.setNumSegments(8)
-print(t.num_segment)
-print(t.maxDuration)
-
-staticOptions = {
-            1:  "Starting Frequency [MHz].",                       
-            2:  "Number of traps [integer].",                  
-            3:  "Distance between traps [um].",
-            4:  "Total Frequency Amplitude [mV]",
-            5:  "Individual Freqency amplitudes [fractional]",
-            6:  "Individual Frequency phase   [deg]" ,
-            7:  "Frequency Adjustment  [True/False]"                                                          
-            }
-#
-moveOptions = {
-1:"List of Starting Frequencies [MHz].",                       
-2:  "List of Ending Frequencies [MHz].",
-3:  "List of Amplitudes",                 
-4:  "Hybridicity a [a=0: fully minimum jerk, a=1: fully linear].",
-5:  "Total amplitude [mV]",
-6:  "List of phases [deg]"       
-7:  "Whether to adjust frequencies [bool]"}
-
-# setup trigger and segment duration
-t.setTrigger(1) # 0 software, 1 ext0
-t.setSegDur(0.002)
-# segment data parameters
-sep =1 # final separation in MHz
-tramp = 0.01 # duration shuttle trap ramps up, ms
-thold = 1 # time traps held together, ms
-tmove = 1 # duration shuttle moves away, ms
-Amp = 0.969 # amplitude shuttle trap is ramped up to
-# segment/action_type/duration/number of traps/trap_distance/AWG_output[mV]/freq_amps/freq_phases
-t.setSegment(0,1,0.02,170,2,-8.5,220,[1,0],[0,0],True) # one static
-# segment, action, duration, shuttle frq, static freq, amp0, amp1
-t.setSegment(1,3,tramp,170-sep,170,0,Amp*100) # ramp up shuttle
-t.setSegment(2,1,thold,170,2,-0.329*sep,220,[1,Amp],[0,0],True) # hold close
-# segment, action, duration, start freq, end freq, static freq, hybridicity
-t.setSegment(3,2,tmove,170-sep,144.16413373860183,170,1,220*Amp,1/Amp) # move shuttle away
-t.setSegment(4,1,100,170,2,-8.5,220,[1,Amp],[0,0],True) # hold separate
-
-# t.setSegment(0,1,0.12,135,Ntraps,0.329*4,totAmp,freqAmp,freqPhase) 
-
-t.setStep(0,0,1,1,1)
-t.setStep(1,1,1,2,2)
-t.setStep(2,2,1,3,2)
-t.setStep(3,3,1,4,2)
-t.setStep(4,4,1,0,2)
-
-
-t.start(True)

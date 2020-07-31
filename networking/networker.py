@@ -124,6 +124,7 @@ class PyServer(QThread):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try: 
                 s.bind(self.server_address)
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # reuse addresses if they're in time_wait
                 # start the socket that waits for connections
                 s.listen(0) # only allow one connection at a time
             except OSError as e:

@@ -89,8 +89,9 @@ class daq_window(QMainWindow):
     dt      -- desired acquisition period in seconds
     config_file -- path to file storing default settings
     port    -- the port number to open for TCP connections
+    host    -- the host for TCP connections, default this computer
     """
-    def __init__(self, n=0, rate=250, dt=500, config_file='monitor\\daqconfig.dat', port=8622):
+    def __init__(self, n=0, rate=250, dt=500, config_file='monitor\\daqconfig.dat', port=8622, host='localhost'):
         super().__init__()
         self.types = OrderedDict([('n', int), ('config_file', str), ('trace_file', str), ('graph_file', str),
             ('save_dir', str), ('Sample Rate (kS/s)',float), 
@@ -116,7 +117,7 @@ class daq_window(QMainWindow):
 
         self.slave.acquired.connect(self.update_graph) # take average of slices
         self.slave.acquired.connect(self.update_trace) # plot new data when it arrives
-        self.tcp = PyClient(port=port)
+        self.tcp = PyClient(host=host, port=port)
         reset_slot(self.tcp.dxnum, self.set_n, True)
         reset_slot(self.tcp.textin, self.respond, True)
         self.tcp.start()
@@ -530,8 +531,16 @@ class daq_window(QMainWindow):
             self.save_trace(os.path.join(self.stats['save_dir'], self.stats['trace_file']))
         elif 'save graph' in msg:
             self.save_graph(os.path.join(self.stats['save_dir'], self.stats['graph_file']))
+        elif 'reset graph' in msg:
+            self.reset_graph()
         elif 'set fadelines' in msg:
             self.set_fadelines()
+        elif 'measure' in msg:
+            try:
+                x = self.dc.slices[0]
+                self.tcp.add_message(1, str(x.stats[list(x.stats.keys())[0]]['mean'][-1]))
+            except Exception as e:
+                logger.error("Couldn't send measurement.\n"+str(e))
     
     #### acquisition functions #### 
 
@@ -797,4 +806,11 @@ def run():
         sys.exit(app.exec_()) # when the window is closed, the python code also stops
             
 if __name__ == "__main__":
+    # app = QApplication.instance()
+    # standalone = app is None # false if there is already an app instance
+    # if standalone: # if there isn't an instance, make one
+    #     app = QApplication(sys.argv)
+    # 
+    # d = daq_window(config_file=r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\dqconfig 01.07.2020.dat', host='129.234.190.235')
+    # d.show()
     run()

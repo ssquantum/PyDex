@@ -156,7 +156,6 @@ class histo_handler(Analysis):
                 A1, mu1, sig1 = 0, 0, 0 
                 fix_thresh = True
                 ih.thresh = max(bins) # set the threshold above the counts
-
             try: list(map(int, [A0, A1, mu0, mu1, sig0, sig1])) # check for NaN or inf
             except (ValueError, OverflowError): return 0
             ih.peak_heights = [A0, A1]
@@ -200,10 +199,8 @@ class histo_handler(Analysis):
             self.temp_vals['Lower Error in Loading probability'] = np.around(lolperr, 4)
             self.temp_vals['Upper Error in Loading probability'] = np.around(uplperr, 4)
             try:
-                1//atom_count # raises ZeroDivisionError if size is 0
-                1//(atom_count-1) # for std dev need size > 1
-                1//empty_count
-                1//(empty_count-1)
+                1//empty_count # raises ZeroDivisionError if size is 0
+                1//(empty_count-1) # for std dev need size > 1
                 self.temp_vals['Background peak count'] = int(mu0)
                 # assume bias offset is self.bias, readout noise Nr
                 var = ih.roi_size*self.Nr**2 + self.dg*self.emg*mu0/self.pag
@@ -215,6 +212,13 @@ class histo_handler(Analysis):
                 self.temp_vals['Error in Background peak count'] = np.around(sig0 / empty_count**0.5, 2) 
                 self.temp_vals['Background mean'] = np.around(np.mean(below), 1) 
                 self.temp_vals['Background standard deviation'] = np.around(np.std(below, ddof=1), 1) 
+            except ZeroDivisionError:
+                for key in ['Background peak count', 'sqrt(Nr^2 + Nbg*fg/A)', 'Background peak width', 
+                    'Error in Background peak count']:
+                        self.temp_vals[key] = 0
+            try:
+                1//atom_count # raises ZeroDivisionError if size is 0
+                1//(atom_count-1) # for std dev need size > 1
                 self.temp_vals['Signal peak count'] = int(mu1)
                 # assume bias offset is self.bias, readout noise Nr
                 var = ih.roi_size*self.Nr**2+ self.dg*self.emg*mu1/self.pag
@@ -239,10 +243,9 @@ class histo_handler(Analysis):
                     + sig1**2/(2*atom_count - 2))/(sig0**2 + sig1**2)), 2) 
                 self.temp_vals['Include'] = include
             except ZeroDivisionError:
-                for key in ['Background peak count', 'sqrt(Nr^2 + Nbg*fg/A)', 'Background peak width', 
-                'Error in Background peak count', 'Signal peak count', 'sqrt(Nr^2 + Ns*fg/A)', 
-                'Signal peak width', 'Error in Signal peak count', 'Separation', 'Error in Separation', 
-                'Fidelity', 'Error in Fidelity', 'S/N', 'Error in S/N', 'Include']:
+                for key in ['Signal peak count', 'sqrt(Nr^2 + Ns*fg/A)', 
+                    'Signal peak width', 'Error in Signal peak count', 'Separation', 'Error in Separation', 
+                    'Fidelity', 'Error in Fidelity', 'S/N', 'Error in S/N', 'Include']:
                     self.temp_vals[key] = 0
             self.temp_vals['Threshold'] = int(ih.thresh)
         return 1 # fit successful

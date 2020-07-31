@@ -5,6 +5,7 @@ Stefan Spence 29/05/20
  - note that the server should be kept running separately
 """
 import socket
+import struct
 try:
     from PyQt4.QtCore import QThread, pyqtSignal
     from PyQt4.QtGui import QApplication
@@ -13,6 +14,9 @@ except ImportError:
     from PyQt5.QtWidgets import QApplication 
 import logging
 logger = logging.getLogger(__name__)
+import sys
+sys.path.append('..')
+from mythread import reset_slot
     
 class PyClient(QThread):
     """Create a client that opens a socket, sends and receives data.
@@ -28,9 +32,36 @@ class PyClient(QThread):
     def __init__(self, host='localhost', port=8089):
         super().__init__()
         self.server_address = (host, port)
-        self.socket = None # only use if you need to keep a socket open
+        self.__mq = [] # message queue
         self.app = QApplication.instance()
         self.finished.connect(self.reset_stop) # allow it to start again next time
+        
+    def add_message(self, enum, text, encoding="mbcs"):
+        """Append a message to the queue that will be sent by TCP connection.
+        enum - (int) corresponding to the enum for DExTer's producer-
+                consumer loop.
+        text - (str) the message to send.
+        enum and message length are sent as unsigned long int (4 bytes)."""
+        self.__mq.append([struct.pack("!L", int(enum)), # enum 
+                                struct.pack("!L", len(bytes(text, encoding))), # msg length 
+                                bytes(text, encoding)]) # message
+                            
+    def priority_messages(self, message_list, encoding="mbcs"):
+        """Add messages to the start of the message queue.
+        message_list - list of [enum (int), text(str)] pairs."""
+        self.__mq = [[struct.pack("!L", int(enum)), # enum 
+                            struct.pack("!L", len(bytes(text, encoding))), # msg length 
+                            bytes(text, encoding)] for enum, text in message_list] + self.__mq
+    
+    def get_queue(self):
+        """Return a list of the queued messages."""
+        return [(str(int.from_bytes(enum, 'big')), int.from_bytes(tlen, 'big'), 
+                str(text, 'mbcs')) for enum, tlen, text in self.__mq]
+                        
+    def clear_queue(self):
+        """Remove all of the messages from the queue."""
+        reset_slot(self.textin, self.clear_queue, False) # only trigger clear_queue once
+        self.__mq = []
     
     def echo(self, encoding='mbcs'):
         """Receive and echo back 3 messages:
@@ -47,14 +78,19 @@ class PyClient(QThread):
                 size = int.from_bytes(bytesize, 'big')
                 msg = sock.recv(size)
                 # send back
+                if len(self.__mq):
+                    try:
+                        dxn, bytesize, msg = self.__mq.pop(0)
+                    except IndexError as e: 
+                        logger.error('Server msg queue was emptied before msg could be sent.\n'+str(e))
                 sock.sendall(dxn)
                 sock.sendall(bytesize)
                 sock.sendall(msg)
                 self.dxnum.emit(str(int.from_bytes(dxn, 'big')))
                 self.textin.emit(str(msg, encoding))
-            except ConnectionRefusedError as e:
+            except (ConnectionRefusedError, TimeoutError) as e:
                 pass
-            except (TimeoutError, ConnectionResetError, ConnectionAbortedError) as e:
+            except (ConnectionResetError, ConnectionAbortedError) as e:
                 logger.error('Python client: server cancelled connection.\n'+str(e))
                 
     def check_stop(self):
@@ -70,3 +106,10 @@ class PyClient(QThread):
         while not self.check_stop():
             self.app.processEvents() # make sure it doesn't block GUI events
             self.echo() # TCP msg
+
+    def close(self, args=None):
+        """Stop the event loop safely, ensuring that the sockets are closed.
+        Once the thread has stopped, reset the stop toggle so that it 
+        doesn't block the thread starting again the next time."""
+        reset_slot(self.finished, self.reset_stop)
+        self.stop = True

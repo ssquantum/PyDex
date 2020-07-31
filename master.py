@@ -224,7 +224,7 @@ class Master(QMainWindow):
         menu_items = []
         for window_title in ['Image Analyser', 'Camera Status', 
             'Image Saver', 'TCP Server', 'Sequence Previewer',
-            'Atom Checker', 'Monitor']:
+            'Atom Checker', 'Monitor', 'Show all']:
             menu_items.append(QAction(window_title, self)) 
             menu_items[-1].triggered.connect(self.show_window)
             show_windows.addAction(menu_items[-1])
@@ -245,6 +245,10 @@ class Master(QMainWindow):
         reset_date = QAction('Reset date', sync_menu, checkable=False)
         reset_date.triggered.connect(self.reset_dates)
         sync_menu.addAction(reset_date)
+
+        check_sizes = QAction('Print stored data size', sync_menu, checkable=False)
+        check_sizes.triggered.connect(self.check_sizes)
+        sync_menu.addAction(check_sizes)
         
         #### status of the master program ####
         self.status_label = QLabel('Initiating...', self)
@@ -363,6 +367,10 @@ class Master(QMainWindow):
             self.rn.check.showMaximized()
         elif self.sender().text() == 'Monitor':
             self.mon_win.show()
+        elif self.sender().text() == 'Show all':
+            for obj in [self.mon_win, self.rn.sw, self.rn.seq] + self.rn.sw.mw + self.rn.sw.rw:
+                obj.close()
+                obj.show()
             
     def start_monitor(self, toggle=True):
         """Send a TCP command to the monitor to start its acquisition."""
@@ -573,7 +581,7 @@ class Master(QMainWindow):
             self.status_label.setText(msg)
             if self.date_reset: # reset dates at end of multirun
                 self.reset_dates()
-        elif 'AWG set_data' in msg: # send command to AWG to set new data
+        elif 'AWG ' in msg: # send command to AWG to set new data
             self.rn.awgtcp.priority_messages([(self.rn._n, msg.replace('AWG ', ''))])
         self.ts['msg end'] = time.time()
         self.ts['blocking'] = time.time() - self.ts['msg start']
@@ -608,6 +616,24 @@ class Master(QMainWindow):
     def print_times(self, keys=['waiting', 'blocking']):
         """Print the timings between messages."""
         print(*[key + ': %.4g,\t'%self.ts[key] for key in keys])
+
+    def check_sizes(self, reset=False):
+        """Print the length of lists and arrays to help find where memory is being used.
+        reset: whether to clear all of the arrays."""
+        print("Image analysis:")
+        for mw in self.rn.sw.mw + self.rn.sw.rw:
+            print(mw.name, '\t', 
+                "image_handler max length: ", max(map(np.size, mw.image_handler.stats.values())),
+                "\thisto_handler max length: ", max(map(np.size, mw.histo_handler.stats.values())))
+        print("TCP Network:")
+        for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG'],
+                [self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp]):
+            print(label, ': %s messages'%len(tcp.get_queue()))
+        print("Mutlirun queue length: ", len(self.rn.seq.mr.mr_queue))
+        if reset:
+            for mw in self.rn.sw.mw + self.rn.sw.rw:
+                mw.image_handler.reset_arrays()
+                mw.histo_handler.reset_arrays()
 
     def save_state(self, file_name='./state'):
         """Save the file number and date and config file paths so that they

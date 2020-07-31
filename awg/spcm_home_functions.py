@@ -1,17 +1,19 @@
 import numpy as np
 import math
-from math import sin
-from math import pi
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+from scipy import interpolate
 
-from pyspcm import *
-from spcm_tools import *
-from spcm_home_functions import *
+
 import sys
 import time
 import json
+import os
 
-
+###############################################
+## Currently this code does not do interpolation
+## for the moving trap. Just static and ramp.
+##################################################
 
 def adjuster (requested_freq,samplerate,memSamples):
     """
@@ -32,7 +34,8 @@ def minJerk(t,d,T):
     d: total distance/frequency spanned
     T: total duration/number of samples desired
     """
-    return d*(10*(t/T)**3 - 15*(t/T)**4 + 6*(t/T)**5)
+    return d*(10*(1.*t/T)**3 - 15*(1.*t/T)**4 + 6*(1.*t/T)**5)
+
 
 def hybridJerk(t,d,T,a):
     """
@@ -45,19 +48,26 @@ def hybridJerk(t,d,T,a):
     a: percentage of trajectory being minimum jerk (a=0 is 100% minimum jerk, a=1 is fully linear motion.
     
     """
+    t=1.*t
+    d=1.*d
+    T=1.*T
+    a=1.0*a
     if(a==1):
-        return d/T*t
+        return d/T*1.*t
     else:
-        if(0<=t<=0.5*T*(1.-a)):
-            return minJerk(t,2*d/(2+15./4.*a/(1-a)),T*(1-a))
+        a1 = int(0.5*T*(1.-a))  # Handles the first portion of the acceleration.
+        a2 = int(T-0.5*T*(1-a)) # Handles the linear part of the trajectory.
+        a3 = int(T)             # Handles the last part of the deceleration.
         
-        if(0.5*T*(1-a)< t <T-0.5*T*(1-a)):
-            return 15.*d/(8*T + 7*T*a)*t + 7*d*(a-1)/(2.*(8+7*a))
         
-        if(T-0.5*T*(1.-a)<=t<=T):
-            return minJerk(t-(T-T*(1-a)), 2.*d/(2+15./4*a/(1 - a)), T*(1 - a)) + a*T*15./8*8*d/(8*T + 7*T*a)
+        t[:a1]   = minJerk(t[:a1],2*d/(2+15./4.*a/(1-a)),T*(1-a))
+        t[a1:a2] = 15.*d/(8*T + 7*T*a)*t[a1:a2] + 7*d*(a-1)/(2.*(8+7*a))
+        t[a2:a3] = minJerk(t[a2:a3]-(T-T*(1-a)), 2.*d/(2+15./4*a/(1 - a)), T*(1 - a)) + a*T*15./8*8*d/(8*T + 7*T*a)
+        return t
+              
+            
 
-
+                
 def chirp(t,d,T,a):
     """
     Chirping is a frequency modulation method where the phase component of a sine wave is no longer
@@ -69,49 +79,164 @@ def chirp(t,d,T,a):
     T: total duration/number of samples desired
     a: percentage of trajectory being minimum jerk (a=0 is 100% minimum jerk, a=1 is fully linear motion.
     """
-    if(0<=t<=0.5*T*(1.-a)):
-        return (8.*d*(t**6 + 3*t**5.*T*(a-1.) +5./2*T**2 * t**4 * (a-1.)**2))/(1.*T**5 * (a-1.)**4 * (8.+7.*a))
-    if(0.5*T*(1.-a)< t <T-0.5*T*(1.-a)):
-        return 0.5*d*t/(8.+7.*a)*(-7.+7.*a +15./T * t)
-    if(T-0.5*T*(1.-a)<=t<=T):
-        return 1.*d/(T**5 * (a-1.)**4 * (8.+7.*a))*\
-        (8.*t**6 + 120.*t**2 * T**4 * a**2 - 24.* t**5 * T* (1.+a) - \
-        80.* t**3 * T**3 *a*(1.+a) +20.*t**4 * T**2 * (1.+4.*a+a**2) + \
-        1.*t * T**5 * a *(15.-60.*a +10.*a**2-20.*a**3 + 7.*a**4))
+    a1 = int(0.5*T*(1.-a))  # Handles the first portion of the acceleration.
+    a2 = int(T-0.5*T*(1-a)) # Handles the linear part of the trajectory.
+    a3 = int(T)                  # Handles the last part of the deceleration.
+    
+    t[:a1]   = (8.*d*(t[:a1]**6 + 3*t[:a1]**5.*T*(a-1.) +5./2*T**2 * t[:a1]**4 * (a-1.)**2))/(1.*T**5 * (a-1.)**4 * (8.+7.*a))
+    t[a1:a2] = 0.5*d*t[a1:a2]/(8.+7.*a)*(-7.+7.*a +15./T * t[a1:a2])
+    t[a2:a3] = 1.*d/(T**5 * (a-1.)**4 * (8.+7.*a))*\
+        (8.*t[a2:a3]**6 + 120.*t[a2:a3]**2 * T**4 * a**2 - 24.* t[a2:a3]**5 * T* (1.+a) - \
+        80.* t[a2:a3]**3 * T**3 *a*(1.+a) +20.*t[a2:a3]**4 * T**2 * (1.+4.*a+a**2) + \
+        1.*t[a2:a3] * T**5 * a *(15.-60.*a +10.*a**2-20.*a**3 + 7.*a**4))
+    return t
+    
         
-        
-def moving_old(startFreq, endFreq,sampleRate,duration,a):
-    """
-    This function applies a chirp on a standard sine function. 
-    If a=1, it will perform a linear sweep.
-    Otherwise it will perform a hybrid-trajectory (min-jerk + linear).
-    The distinction is important because the hybrid-jerk function cannot smoothly transition from hybrid to
-    fully linear. 
-    The chirp component is introduced as the chirp function shown earlier.
-    startFreq  : Initial frequency in Hz
-    endFreq    : Final frequency in Hz
-    sampleRate : sample rate in Samples per second
-    a          : percentage of trajectory being minimum jerk (a=0 is 100% minimum jerk, a=1 is fully linear motion.
-    """
-    memBytes = math.ceil(sampleRate * (duration*10**-3)/1024) #number of bytes as a multiple of kB
-    numOfSamples = memBytes*1024 # number of samples
-    t = np.arange(0.,numOfSamples)  
-    y = [] #Standard Sine function
-    if(a==1):
-        for i in range(len(t)):
-            y.append(0.25*2**16 *math.sin(2.*math.pi*(1.*startFreq/sampleRate*t[i]+\
-            0.5*(endFreq-startFreq)/sampleRate/numOfSamples*t[i]**2 )))
-        return y
+######################
+# Calibration data for interpolation
+# Values that normally go above 1, are limited to 1.
+# More info here: https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html
+########################################################
+
+
+importPath="Z:\\Tweezer\Experimental\\Setup and characterisation\\Settings and calibrations\\tweezer calibrations\\AWG calibrations\\"
+importFile = "calFile_25.07.2020.txt"
+
+with open(importPath+importFile) as json_file:
+    calFile = json.load(json_file) 
+
+cal166X = np.array(eval(calFile["rel_DEvsFreq_X"]))
+cal166Y = np.array(eval(calFile["rel_DEvsFreq_Y"]))
+int166  = interpolate.interp1d(cal166X,cal166Y, kind='cubic')
+      
+
+
+############################
+# Calibration of mV vs Diffraction Efficiency (%), as taken using 170 MHz
+######################### 
+mVs =  np.array(eval(calFile["DEvsPower_X"]))
+mVtoDE=np.array(eval(calFile["DEvsPower_Y"]))
+
+intmVtoDE = interpolate.interp1d(mVs,mVtoDE, kind='cubic')
+intDEtomV = interpolate.interp1d(mVtoDE,mVs, kind='cubic')
+
+
+
+#filedata = {}
+#filedata["rel_DEvsFreq_X"]       = str(list(cal166X)) #Note that this is a dictionary
+#filedata["rel_DEvsFreq_Y"]       = str(list(cal166Y)) #Note that this is a dictionary
+#filedata["DEvsPower_X"]          = str(list(mVs)) #Note that this is a dictionary   
+#filedata["DEvsPower_Y"]          = str(list(mVtoDE)) #Note that this is a dictionary
+#filedata["umPerMHz"]             = str(0.329)   
+#
+#mypath =  'Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\\'
+#if not os.path.isdir(mypath):
+#    os.makedirs(mypath)
+
+#with open(mypath+'\\calFile_07.07.2020.txt','w') as outfile:
+#    json.dump(filedata,outfile,sort_keys = True,indent =4)
+
+
+cal_umPerMHz = eval(calFile["umPerMHz"])
+
+
+def ampAdjuster(freq,AWGmV):
+    # ls = np.round(intDEtomV(intmVtoDE(AWGmV)*int166(freq))/AWGmV,4)
+    ls = intmVtoDE(AWGmV)*int166(freq)
+    ls[ls>1.05]=1      #The argument ls>1 creates a boolean array which is then evaluated on the list ls. On a True, the substitution is made. 
+    return np.array(ls)
+
+def getFrequencies(action,*args):
+    
+    if action ==1 or action==3:
+        if len(args)==7:
+            freqs          = args[0]
+            numberOfTraps  = args[1]
+            distance       = args[2]
+            duration       = args[3]
+            freqAdjust     = args[4]
+            sampleRate     = args[5]
+            umpermhz       = args[6]
+        else:
+            print("Expecting 7 arguments: [freq,number of traps, distance,duration, bool_freqAdjust,sample rate, umPerMHz]")
+    
+    elif action ==2:
+        if len(args)==5:
+            startFreq      = args[0]
+            endFreq        = args[1]
+            duration       = args[2]
+            freqAdjust     = args[3]
+            sampleRate     = args[4]
+        else:
+            print("Expecting 5 arguments: [start freqs,ending freqs,duration, bool_freqAdjust,sample rate]")
     else:
-        for i in range(len(t)):
-            y.append(0.25*2**16 *math.sin(2.*math.pi*(1.*startFreq/sampleRate*t[i]+\
-            chirp(1.*t[i],1.*(endFreq-startFreq)/sampleRate,1.*numOfSamples,1.*a) )))
-        return y
+        print("Action value not recognised.\n")
+        print("1: Static trap. \n")
+        print("2: Moving trap. \n")
+        print("3: Amplitude ramp.\n")
+    
+    Samplerounding = 1024 # Reference number of samples
+    memBytes = round(sampleRate * (duration*10**-3)/Samplerounding) #number of bytes as a multiple of kB
+        
+    if memBytes <1:
+        memBytes =1
+        
+    numOfSamples = int(memBytes*Samplerounding) # number of samples
+    
+    if action ==1 or action==3:
+    
+        ############################
+        # If the input is a list, then ignore numberOfTraps and separation.
+        # The traps are not by virtue equidistant so no need to calculate those values.
+        ######################################################################################
+        if type(freqs)==list or type(freqs)==np.ndarray:
+            freqs = np.array(freqs)
+            numberOfTraps = len(freqs)
+        else:
+            separation = distance/cal_umPerMHz *10**6
+            freqs = np.linspace(freqs,freqs+(numberOfTraps)*separation,numberOfTraps, endpoint=False)
+            
+        #########
+        # Adjust the frequencies to full number of cycles for the 
+        # given number of samples if requested.
+        ###############################################
+        if freqAdjust == True:
+            adjFreqs = adjuster(freqs,sampleRate,numOfSamples)
+            
+        else:
+            adjFreqs = freqs
+        
+        return adjFreqs
+    
+    elif action ==2:
         
         
+        ############################
+        # Standarise the input to ensure that we are dealing with a list.
+        ##############################################################################
+        if type(startFreq )== int or type(startFreq) == float:
+            startFreq =  np.array([startFreq])
+        if type(endFreq )== int or type(endFreq) == float:
+            endFreq =  np.array([endFreq])
         
+        #######################################
+        # Standarize the input in case of a list. No effect if already an np.array()
+        #################################################################################     
+        startFreq = np.array(startFreq)
+    
+        endFreq = np.array(endFreq)
         
-def moving(startFreq, endFreq,staticFreq,duration,a,tot_amp,freq_amp,freq_phase,freq_adjust,sampleRate):
+        if freqAdjust == True:
+            sfreq    = adjuster(startFreq,sampleRate,numOfSamples) 
+            ffreq    = adjuster(endFreq,sampleRate,numOfSamples)
+        else:
+            sfreq    = startFreq
+            ffreq    = endFreq
+    
+        return np.array([sfreq,ffreq])
+    
+
+def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq_adjust,amp_adjust,sampleRate):
     """
     Identical to the moving function above. The only difference is that it also applies the adjuster function
     to ensure that the starting and end frequencies are as close as possible to the frequencies needed
@@ -121,201 +246,416 @@ def moving(startFreq, endFreq,staticFreq,duration,a,tot_amp,freq_amp,freq_phase,
     duration   : duration of chirp in ms. It automatically calculates the adequate number of samples needed. 
     a          : percentage of trajectory being minimum jerk (a=0 is 100% minimum jerk, a=1 is fully linear motion.
     tot_amp    : global amplitude control over all frequencies
-    freq_amp   : list for individual amplitude control
+    startAmp   : list for individual starting amplitude control
+    endAmp     : list for individual ending amplitude control
     freq_phase : list for individual phase control
     freq_adjust: Boolean for frequency correction
-    
+    amp_adjust : Boolean for amplitude flattening
     sampleRate : sample rate in Samples per second
     """
     Samplerounding = 1024
     
-    memBytes = math.ceil(sampleRate * (duration*10**-3)/Samplerounding) #number of bytes as a multiple of kB
-    numOfSamples = memBytes*1024 # number of samples
+    memBytes = round(sampleRate * (duration*10**-3)/Samplerounding) #number of bytes as a multiple of kB
+    if memBytes <1:
+        memBytes =1
+    numOfSamples = int(memBytes*Samplerounding )# number of samples
+    t = np.arange(numOfSamples)
+    
+    ############################
+    # Standarise the input to ensure that we are dealing with a list.
+    ##############################################################################
+    if type(startFreq )== int or type(startFreq) == float:
+           startFreq =  np.array([startFreq])
+    if type(endFreq )== int or type(endFreq) == float:
+           endFreq =  np.array([endFreq])
+    
+    #######################################
+    # Standarize the input in case of a list. No effect if already an np.array()
+    #################################################################################     
+    startFreq = np.array(startFreq)
+
+    endFreq = np.array(endFreq)
+    
+    ##############################
+    # Ensure that the freq_amp/freq_phase all have the correct size.
+    ################################################################################
+    if len(startFreq) != len(endFreq):
+        print("Number of initial and final frequencies do not match.")
+        endFreq = np.array([170]*len(startFreq))
+    
+    l = len(startFreq)
+    
+    ######################
+    # Adjust the frequencies to full number of cycles for the 
+    # given number of samples if requested.
+    ###############################################
     
     if freq_adjust == True:
-        sfreq    = adjuster(startFreq,sampleRate,numOfSamples)
+        sfreq    = adjuster(startFreq,sampleRate,numOfSamples) 
         ffreq    = adjuster(endFreq,sampleRate,numOfSamples)
-        rfreq    = adjuster((ffreq-sfreq),sampleRate,numOfSamples)
-        statfreq = adjuster(staticFreq,sampleRate,numOfSamples)
+        rfreq    = np.asarray(ffreq-sfreq)
     else:
         sfreq    = startFreq
         ffreq    = endFreq
-        rfreq    = (ffreq-sfreq)
-        statfreq = staticFreq
-      
-    y = [] #Standard Sine function
-    if(a==1):
-        for i in range(numOfSamples):
-            y.append(tot_amp/282*0.25*2**16 *(freq_amp[0]*math.sin(2.*math.pi*(1.*sfreq/sampleRate*i+\
-            0.5*(rfreq)/sampleRate/numOfSamples*i**2)+freq_phase[0]) + freq_amp[1]*math.sin(2.*math.pi*(i)*statfreq/sampleRate+freq_phase[1]))) 
-        return y
-    else:
-        for i in range(numOfSamples):
-            y.append(0.25*2**16 *(math.sin(2.*math.pi*(1.*sfreq/sampleRate*i+\
-            chirp(1.*i,1.*(rfreq)/sampleRate,1.*numOfSamples,1.*a) ))+math.sin(2.*math.pi*(i)*statfreq/sampleRate)))
-        return y
+        rfreq    = np.asarray(ffreq-sfreq)
+    
+    if len(startAmp) != l:
+        startAmp = [1]*l
+        print("Number of set starting amplitudes do not match number of frequencies. All starting amplitudes have been set to max (1).")
+    
+    if len(endAmp) != l:
+        endAmp = [1]*l
+        print("Number of set ending amplitudes do not match number of frequencies. All ending amplitudes have been set to max (1).")
+    
+    amp_ramp = np.array([(1.*startAmp[Y] + (1.*endAmp[Y] - 1.*startAmp[Y])*t/numOfSamples) for Y in range(l)])
+    
+    if len(freq_phase) != l:
+        freq_phase = [0]*l
+        print("Number of set phases do no match the number of frequencies. All individual phases have been set to 0. ")
         
-def moving2(startFreqs, endFreqs, amps, a=1, duration=110, totAmp=220, phases=[], freqAdjust=True, sampleRate=625e6, rounding=1):
-    """
-    Sweep a list of frequencies from startFreqs to endFreqs. Can be linear or min jerk sweep.
-    startFreqs  : Initial frequencies in Hz
-    endFreqs    : Final frequency in Hz
-    amps        : fractional amplitude for each frequency
-    sampleRate  : sample rate in Samples per second
-    duration    : duration of chirp in ms. It automatically calculates the adequate number of samples needed. 
-    a           : percentage of trajectory being minimum jerk (a=0 is 100% minimum jerk, a=1 is fully linear motion.
-    totAmp      : total combined peak amplitude [mV]
-    freqAdjust  : whether to round the frequencies to try and make them complete a full number of cycles
-    rounding    : round the samples to a certain number of bytes 
-    """
-    memBytes = round(sampleRate * (duration*10**-3)/rounding) #number of bytes as a multiple of kB
-    numOfSamples = memBytes*rounding # number of samples
-    nTraps = len(startFreqs)
-    if len(phases) != nTraps:
-      phases = [0]*nTraps
-    if len(endFreqs) < nTraps:
-        endFreqs += startFreqs[len(endFreqs):]
-    if len(amps) < nTraps:
-        amps += [1]*(nTraps - len(amps))
-    if freqAdjust:
-        startFreqs = adjuster(np.array(startFreqs),sampleRate,numOfSamples) # start 
-        endFreqs = adjuster(np.array(endFreqs),sampleRate,numOfSamples)  # end
-    
-    stepFreqs = adjuster((startFreqs-endFreqs),sampleRate,numOfSamples) # step
-    phases = 2*math.pi*np.array(phases)/360 # convert to radians
-    
-    y = [] #Standard Sine function
-    if a == 1:
-        for i in range(numOfSamples):
-            y.append( totAmp/282 * 0.5*2**16 / nTraps * sum(
-                amps[Y] * math.sin(
-                    2.*math.pi*i*startFreqs[Y]/sampleRate + 0.5*stepFreqs[Y]/sampleRate/numOfSamples*i**2 + phases[Y]) 
-                        for Y in range(nTraps)))
+    if amp_adjust:
+        flat_amp = np.array([ampAdjuster(sfreq[Y]*1e-6 + hybridJerk(t,1.*rfreq[Y]*1e-6, 1.*numOfSamples,a),tot_amp) for Y in range(l)])
     else:
-        for i in range(numOfSamples):
-            y.append( totAmp/282 * 0.5*2**16 / nTraps * sum(
-                amps[Y] * math.sin(
-                    2.*math.pi*i*startFreqs[Y]/sampleRate + chirp(1.*i, 1.*stepFreqs[Y]/sampleRate, 1.*numOfSamples, 1.*a) + phases[Y])
-                        for Y in range(nTraps)))
-    return y
-        
-def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1,tot_amp=10,
-    freq_amp = [1],freq_phase=[0],freqAdjust=True,sampleRate = 625*10**6,umPerMHz =0.329, rounding=1):
-    """
-    centralFreq     : Defined in [MHz]. Subsequent frequencies will appear in increasing order.
-    numberOfTraps   : Defines the total number of traps including the central frequency.
-    distance        : Defines the relative distance between each of the trap in [MICROmeters].
-    duration        : Defines the duration of the static trap in [MILLIseconds]. The actual duration is handled by the number of loops.
-    tot_amp         : combined peak amplitude [mV]
-    freq_amp        : Creates a list of fractional amplitudes for each frequency/trap generated. 
-    freq_phase      : List of phases constants for each frequency
-    freqAdjust      : whether to adjust the frequencies to try and make them complete full cycles
-    sampleRate      : number of samples processed per second
-    umPerMHz        : conversion between distance atoms move in the cell and frequencies sent to AOD [microns / MHz]
-    rounding        : round the number of samples to a certain number of bytes
-    """
-    adjFreqs, numOfSamples, numberOfTraps, separation = staticFreqs(centralFreq, numberOfTraps, distance, duration, freqAdjust, sampleRate, umPerMHz, rounding)
+        flat_amp =np.array([1]*l)
     
-    # freq_amp, freq_phase, adjFreqs = map(np.array, [freq_amp, freq_phase, adjFreqs])
-    # t = np.arange(numOfSamples)
-    # return list(tot_amp/282/numberOfTraps*0.5*2**16 * np.sum(
-    #       [freq_amp[Y]*math.sin(2.*math.pi*(i)*adjFreqs[Y]/sampleRate + 2*math.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)], axis=0))
-    y = [] #Standard Sine function
-    for i in range(numOfSamples):
-        y.append(tot_amp/282/numberOfTraps*0.5*2**16*sum(freq_amp[Y]*math.sin(2.*math.pi*(i)*adjFreqs[Y]/sampleRate + 2*math.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)))
-    return y
+    #########
+    # Generate the data 
+    ##########################   
+   # t is now defined further up, after numberOfSamples
+    
+    if(a==1): # Linear sweep
+            
+            y = 1.*tot_amp/282/len(startFreq)*0.5*2**16 *np.sum([\
+            flat_amp[Y]*\
+            amp_ramp[Y]*\
+            np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t+0.5*(rfreq[Y])/sampleRate/numOfSamples*t**2)+freq_phase[Y])\
+            for Y in range(l)],axis=0) 
+        
+    else: # Hybrid/Minimum jerk
+        
+            y  = 1.*tot_amp/282/len(startFreq)*0.5*2**16 *np.sum([\
+            flat_amp[Y]*\
+            amp_ramp[Y]*\
+            np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t +\
+            chirp(1.*t,1.*(rfreq[Y])/sampleRate,1.*numOfSamples,1.*a)) \
+            +freq_phase[Y]) for Y in range(l)],axis=0)
 
-def staticFreqs(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1,freqAdjust=True,sampleRate = 625*10**6,umPerMHz =0.329, rounding=1):
-    """Get the frequencies used for static traps
-    centralFreq     : Defined in [MHz]. Subsequent frequencies will appear in increasing order.
-    numberOfTraps   : Defines the total number of traps including the central frequency.
-    distance        : Defines the relative distance between each of the trap in [MICROmeters].
-    duration        : Defines the duration of the static trap in [MILLIseconds]. The actual duration is handled by the number of loops.
-    freqAdjust      : whether to adjust the frequencies to try and make them complete full cycles
-    sampleRate      : number of samples processed per second
-    umPerMHz        : conversion between distance atoms move in the cell and frequencies sent to AOD [microns / MHz]
-    rounding        : round the number of samples to a certain number of bytes
+    return y  
+
+
+
+
+def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1,tot_amp=10,freq_amp = [1],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz):
     """
-    if type(centralFreq)==list:
-        freqs = centralFreq
+    centralFreq   : Defined in [MHz]. Accepts int/float/list/numpy.arrays()
+    numberOfTraps : Defines the total number of traps including the central frequency.
+    distance      : Defines the relative distance between each of the trap in [MICROmeters]. Can accept negative values.
+    duration      : Defines the duration of the static trap in [MILLIseconds]. The actual duration is handled by the number of loops.
+    tot_amp       : Defines the global amplitude of the sine waves [mV]
+    freq_amp      : Defines the individual frequency amplitude as a fraction of the global (ranging from 0 to 1).
+    freq_phase    : Defines the individual frequency phase in degrees [deg].
+    freqAdjust    : On/Off switch for whether the frequency should be adjusted to full number of cycles [Bool].
+    sampleRate    : Defines the sample rate by which the data will read [in Hz].
+    umPerMHz      : Conversion rate for the AWG card.
+    """
+    Samplerounding = 1024 # Reference number of samples
+    
+    ############################
+    # If the input is a list, then ignore numberOfTraps and separation.
+    # The traps are not by virtue equidistant so no need to calculate those values.
+    ######################################################################################
+    if type(centralFreq)==list or type(centralFreq)==np.ndarray:
+        freqs = np.array(centralFreq)
         numberOfTraps = len(freqs)
     else:
         separation = distance/umPerMHz *10**6
-        freqs = np.linspace(centralFreq,centralFreq+numberOfTraps*separation,numberOfTraps, endpoint=False)
+        freqs = np.linspace(centralFreq,centralFreq+(numberOfTraps)*separation,numberOfTraps, endpoint=False)
     
-    numOfSamples = rounding * round(sampleRate * (duration*10**-3) / rounding) #number of bytes as a multiple of kB
-    if numOfSamples <1:
-        numOfSamples = 1
+    ##############################
+    # Ensure that the freq_amp/freq_phase all have the correct size.
+    ################################################################################
+    
+    if ampAdjust ==True:
+        flat_amp = ampAdjuster(freqs*10**-6,tot_amp)
+    else:
+        flat_amp = [1]*numberOfTraps
+    
+    if numberOfTraps != len(freq_amp):
+        freq_amp = [1]*numberOfTraps
+        print("ERROR: Number of amplitudes do not match number of traps. All traps set to 100%\n")
+             
+    
+    if numberOfTraps != len(freq_phase):
+        freq_phase = [0]*numberOfTraps
+        print("ERROR: Number of phases do not match number of traps. All trap phases set to 0.\n")
+    
+    ################
+    # Calculate the number of samples
+    ######################################### 
+    memBytes = round(sampleRate * (duration*10**-3)/Samplerounding) #number of bytes as a multiple of kB
+    
+    if memBytes <1:
+        memBytes =1
         
+    numOfSamples = int(memBytes*Samplerounding) # number of samples
+    
+    #########
+    # Adjust the frequencies to full number of cycles for the 
+    # given number of samples if requested.
+    ###############################################
     if freqAdjust == True:
-        adjFreqs = np.zeros(numberOfTraps)
-        for i, freq in enumerate(freqs):
-            adjFreqs[i] = adjuster(freq,sampleRate,numOfSamples)
+        adjFreqs = adjuster(freqs,sampleRate,numOfSamples)
+        
     else:
         adjFreqs = freqs
     
-    return adjFreqs, numOfSamples, numberOfTraps, separation
+    #########
+    # Generate the data 
+    ########################## 
+    t = np.arange(numOfSamples)
+    y = 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([flat_amp[Y]*freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     
-def static2(centralFreq=170*10**6,numberOfTraps=4,distance=1.645,numOfSamples = 64*1024,sampleRate = 625*10**6,umPerMHz =0.329):
+    return y
+    
+
+
+def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz):
     """
-    centralFreq   : Defined in [MHz]. Subsequent frequencies will appear in increasing order.
+    freqs         : Defined in [MHz]. Accepts int, list and np.arrays()
     numberOfTraps : Defines the total number of traps including the central frequency.
-    distance      : Defines the relative distance between each of the trap in [MICROmeters].
-    
+    distance      : Defines the relative distance between each of the trap in [MICROmeters]. Can accept negative values.
+    duration      : Defines the duration of the static trap in [MILLIseconds]. The actual duration is handled by the number of loops.
+    tot_amp       : Defines the global amplitude of the sine waves [mV]
+    startAmp      : Defines the individual frequency starting amplitude as a fraction of the global (ranging from 0 to 1).
+    endAmp        : Defines the individual frequency ending amplitude as a fraction of the global (ranging from 0 to 1).
+    freq_phase    : Defines the individual frequency phase in degrees [deg].
+    freqAdjust    : On/Off switch for whether the frequency should be adjusted to full number of cycles [Bool].
+    ampAdjust     : On/Off switch for whether the amplitude should be adjusted to create a diffraction flattened profile.
+    sampleRate    : Defines the sample rate by which the data will read [in Hz].
+    umPerMHz      : Conversion rate for the AWG card.
     """
-    separation = distance/umPerMHz *10**6
-    freqs = np.arange(centralFreq,centralFreq+numberOfTraps*separation,separation)
-    adjFreqs = []
-    for freq in freqs:
-         adjFreqs.append(adjuster(freq,sampleRate,numOfSamples))
-    #print(adjFreqs) 
-    y = [] #Standard Sine function
-    for i in range(numOfSamples):
-        y.append(1/len(freqs)*0.5*2**16*sum(math.sin(2.*math.pi*(i)*freq/sampleRate) for freq in adjFreqs))
+    Samplerounding = 1024 # Reference number of samples
+    
+    
+    ############################
+    # If the input is a list, then ignore numberOfTraps and separation.
+    # The traps are not by virtue equidistant so no need to calculate those values.
+    ######################################################################################
+    if type(freqs)==list or type(freqs)==np.ndarray:
+        
+        freqs = np.array(freqs)
+        numberOfTraps = len(freqs)
+    else:
+        separation = distance/umPerMHz *10**6
+        freqs = np.linspace(freqs,freqs+numberOfTraps*separation,numberOfTraps, endpoint=False)
+    
+
+    ##############################
+    # Ensure that the startAmp/endAmp/freq_phase all have the correct size.
+    ################################################################################
+    
+    if numberOfTraps != len(startAmp):
+        startAmp = [1]*numberOfTraps
+        print("ERROR: Number of start amplitudes do not match number of traps. All traps set to 100%\n")
+            
+    if numberOfTraps != len(endAmp):
+        endAmp = [0]*numberOfTraps
+        print("ERROR: Number of end amplitudes do not match number of traps. All end traps set to 0.\n")
+    
+    if numberOfTraps != len(freq_phase):
+        freq_phase = [0]*numberOfTraps
+        print("ERROR: Number of phases do not match number of traps. All trap phases set to 0.\n")
+        
+
+    ################
+    # Calculate the number of samples
+    ######################################### 
+    memBytes = round(sampleRate * (duration*10**-3)/Samplerounding) #number of bytes as a multiple of kB
+    
+    if memBytes <1:
+        memBytes =1
+        
+    numOfSamples = int(memBytes*Samplerounding) # number of samples
+    
+    #########
+    # Adjust the frequencies to full number of cycles for the 
+    # given number of samples if requested.
+    ###############################################
+    if freqAdjust == True:
+        adjFreqs = adjuster(freqs,sampleRate,numOfSamples)
+        
+    else:
+        adjFreqs = freqs
+        
+    ########
+    # Adjust the amplitude of the starting and finish
+    # to be relative to the diffraction flattened profile
+    ###############################
+    if ampAdjust == True:
+        flat_amp = ampAdjuster(freqs*10**-6,tot_amp)
+    else:
+        flat_amp = [1]*numberOfTraps
+        
+        #endAmp   = startAmp*endAmp # You must still give the full array of amplitudes of the end of the amp ramp.
+   
+    #########
+    # Generate the data 
+    ##########################   
+    t =np.arange(numOfSamples)
+    
+    y = 1.*tot_amp/282/len(freqs)*0.5*2**16*\
+    np.sum([flat_amp[Y]*(1.*startAmp[Y] + (1.*endAmp[Y] - 1.*startAmp[Y])*t/numOfSamples)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+    
     return y
 
-def ramp(freq=170*10**6,freq2 =180*10**6,startAmp=1,endAmp=0,duration =0.1,sampleRate= 625*10**6):
-    """
-    freq     : Defined in [MHz]. Subsequent frequencies will appear in increasing order
-    startAmp : 
-    """
-    memBytes = math.ceil(sampleRate * (duration*10**-3)/1024) #number of bytes as a multiple of kB
-    numOfSamples = memBytes*1024 # number of samples
-    
-    adj  = adjuster(freq,sampleRate,numOfSamples)
-    adj2 = adjuster(freq2,sampleRate,numOfSamples)
-    y=[]
-    for i in range(numOfSamples):
-        #y.append(0.5*2**16*((startAmp + (endAmp - startAmp)/numOfSamples*i)*math.sin(2.*math.pi*(i)*adj/sampleRate)))
-        y.append(220/282*0.25*2**16*((startAmp + (endAmp - startAmp)*i/numOfSamples)*math.sin(2.*math.pi*(i)*adj/sampleRate)+math.sin(2.*math.pi*(i)*adj2/sampleRate)))
-    return y
-    
 
 
 
-# (centralFreq,numberOfTraps,distance.329*5,duration ,tot_amp,freq_amp = [1],freq_phase=[0],sampleRate = 625*10**6,umPerMHz =0.329)
 
 if __name__ == "__main__":
+    ls = np.array([120e6,150e6,180e6])
+    ls2 = np.array([200e6,170e6,180e6])
+    l2=len(ls)
+    set1 =[ls,ls2,0.12,625e6]
+    set2 =[[1,2,3],[10,8,1],1024,100]
+    var = set1
    
-    template = static(170e6,2,-8.5,0.02,220,[1,0],[0,0],True,625*10**6)
-    # template   = moving(1, 10,10,1000,1,200,[1,0.1],[0,0],False,100)
-    # template = moving2(170e6, 175e6,190e6,625e6,0.12,1)
-    # template = ramp(200e6,freq2 =100*10**6,startAmp=1,endAmp=0,duration =0.2,sampleRate= 625*10**6)
+    #template = static(170e6,3,-0.329*5,0.02,220,[1,1,1],[0,0,0],False,True,625*10**6)
+    template   = moving(var[0], var[1],var[2],1,220,[1,0,0],[0,0,0],[0]*l2,False,False,var[3])
+    #template2   = moving(var[0], var[1],var[2],0,220,[1,0,0],[0,0,0],[0]*l2,False,True,var[3])
+    #template = ramp(np.array([138e6,180e6]),2,-0.329*50,0.2,220,[1,0],[0.5,0],[0,0],False,False,625e6)
     
-    r = template 
-    length = 1000 # len(r)
+    r = template
+    #r2=template2
+    length = 70000 # len(r)
     
+    """
+    Basic data plots for static/move/ramp functions
+    """
     fig1,axs = plt.subplots(2,1)
+    #axs[0].plot(np.arange(0,length),r2[:length])
     axs[0].plot(np.arange(0,length),r[:length])
-    #axs[0].set_ylim([-0.1,1.1])
+    #axs[0].set_ylim([-0.5*2**16,0.5*2**16])
     axs[0].set_xlabel("Number of Samples (First " +str(length)+ ")")
     axs[0].set_ylabel("Amplitude , arb")
     
+    
+    #axs[1].plot(np.arange(0,length),r2[-length:])
     axs[1].plot(np.arange(0,length),r[-length:])
+    #axs[1].set_ylim([-0.5*2**16,0.5*2**16])
     axs[1].set_xlabel("Number of Samples (Last " +str(length)+ ")")
     axs[1].set_ylabel("Amplitude, arb")
     fig1.tight_layout(pad=3.0)
+    fig1.show()
+    
+    
+    
+    
+    
+    """
+    FFT plot of the selected action function.
+    """
     
     ##fft
-    plt.figure()
-    plt.plot(np.fft.fftfreq(len(r), 1/625e6), np.fft.fft(r))
+    #plt.figure()
+    #plt.plot(np.fft.fftfreq(len(r), 1/625e6), np.fft.fft(r))
+    
+    
+    """
+    Plots of the amplitude flattening for the static and ramp functions
+    as well as useful interpolation curves.
+    """
+    
+    gs=GridSpec(3,2) # 2 rows, 2 columns
+    fig=plt.figure(figsize=(8,8))
+    
+    xint =np.arange(120,220,0.1)
+    yint = int166(xint) 
+    
+    intmVtoDEX =  np.arange(100,280,0.1)      
+    intmVtoDEY = intmVtoDE(intmVtoDEX)
+
+    ax1=fig.add_subplot(gs[0,:]) # First row, span columns  
+    ax2=fig.add_subplot(gs[1,0]) # Second row, first column
+    ax3=fig.add_subplot(gs[1,1]) # Second row, second column
+    ax4=fig.add_subplot(gs[2,:]) # Third row, span columns 
+    
+    ax1.plot(cal166X,cal166Y, linestyle='--', marker='o')
+    ax1.plot(xint,yint)
+    ax1.set_xlabel("Frequency, MHz")
+    ax1.set_ylabel("Relative DE (@166 MHz)")
+    
+    ax2.plot(mVs,mVtoDE, linestyle='--', marker='o')
+    ax2.plot(intmVtoDEX,intmVtoDEY)
+    ax2.set_xlabel("AWG output ,  mV")
+    ax2.set_ylabel("DE % (@170 MHz)")
+    
+    ax3.plot(mVtoDE,mVs, linestyle='--', marker='o')
+    ax3.plot(intmVtoDEY,intmVtoDEX)
+    ax3.set_xlabel("DE % (@170 MHz)")
+    ax3.set_ylabel("AWG output ,  mV")
+    
+    
+    x2=np.linspace(120,220,1000)
+    ax4.plot(x2,ampAdjuster(x2,220))
+    ax4.plot(x2,ampAdjuster(x2,200))
+    ax4.plot(x2,ampAdjuster(x2,180))
+    ax4.plot(x2,ampAdjuster(x2,160))
+    ax4.set_xlabel("Frequency, MHz")
+    ax4.set_ylabel("Fractional Amplitude (rel. to 166 MHz)")
+
+    fig.tight_layout()
+    fig.show()
+
+    """
+    Testing the amplitude flattening during a move action.
+    Frequencies spanned are reproduced according to the hybridicity value a.
+    These frquencies are then fed into the amplitude conversion (for a given total amplitude)
+    """
+    #samples = 1000
+    #tvals= np.arange(samples)
+    #startFreq = 120
+    #endFreq =200
+    #d = (endFreq-startFreq)
+    #
+    #
+    #freqChange0 = startFreq+hybridJerk(tvals,d, samples,0) #calculates the frequencies used for a given hybridicity trajectory a=0
+    #freqChange1 = startFreq+hybridJerk(tvals,d, samples,1) #calculates the frequencies used for a given hybridicity trajectory a=1
+    #
+    #ampMove0 = ampAdjuster(freqChange0,220)
+    #ampMove1 = ampAdjuster(freqChange1,220)
+    #
+    #gs=GridSpec(2,1) # 2 rows, 2 columns
+    #fig2=plt.figure(figsize=(6,6))
+    #ax1=fig2.add_subplot(gs[0,:]) # First row, span columns
+    #ax1.plot(tvals,freqChange0, linestyle='--', marker='o')
+    #ax1.plot(tvals,freqChange1, linestyle='--', marker='o')
+    #ax1.set_xlabel("Samples")
+    #ax1.set_ylabel("Frequency, arb")
+    #
+    #
+    #
+    #
+    #ax2 =fig2.add_subplot(gs[1,:]) # First row, span columns
+    #ax2.plot(tvals,ampMove0, linestyle='--', marker='o')
+    #ax2.plot(tvals,ampMove1, linestyle='--', marker='o')
+    #ax2.set_xlabel("Samples")
+    #ax2.set_ylabel("Fractional Amplitude correction")
+    #fig2.tight_layout()
+    #fig2.show()
+
+    """
+    For timing purposes
+    """
+    from timeit import default_timer as timer
+    
+    #start = timer()
+    #template   = moving(var[0], var[1],var[2],1,220,[1,1,1],[0]*l2,False,True,var[3])
+    #end = timer()
+    #print(end - start) # Time in seconds, e.g. 5.38091952400282
+    #
+    #start = timer()
+    #template2   = moving(var[0], var[1],1,1,220,[1,1,1],[1,1,1],[0]*l2,False,True,var[3])
+    #end = timer()
+    #print(end - start) # Time in seconds, e.g. 5.38091952400282
+    #print(len(template2))

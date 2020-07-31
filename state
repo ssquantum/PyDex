@@ -1,7 +1,7 @@
-File#=192
-Date=13,July,2020
-CameraConfig=Z:/Tweezer/Code/Python 3.5/PyDex/andorcamera/4x4_18.06.20.dat
+File#=3605
+Date=28,July,2020
+CameraConfig=Z:/Tweezer/Code/Python 3.5/PyDex/andorcamera/4x4_30.07.2020 1ROI.dat
 SaveConfig=.\\config\\config.dat
-MasterGeometry=[103, 100, 607, 100]
-AnalysisGeometry=[267, 401, 808, 619]
-SequencesGeometry=[964, 158, 936, 884]
+MasterGeometry=[139, 135, 644, 100]
+AnalysisGeometry=[954, 381, 808, 619]
+SequencesGeometry=[890, 110, 960, 884]

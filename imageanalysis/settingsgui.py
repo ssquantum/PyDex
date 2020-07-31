@@ -450,9 +450,8 @@ class settings_window(QMainWindow):
                     self.rois[j].roi.setZValue(10)   # make sure the ROI is drawn above the image
                     viewbox.addItem(self.rois[j].roi)
                     viewbox.addItem(self.rois[j].label)
-            mw.roi_x_edit.setText(str(x)) # triggers roi_text_edit()
-            mw.roi_y_edit.setText(str(y))
-            mw.roi_l_edit.setText(str(w))
+            mw.roi.setSize((w, w)) #  triggers user_roi. Must set width first.
+            mw.roi.setPos(x - w//2, y - w//2) # triggers user_roi
             mw.bias_offset_edit.setText(str(self.stats['bias']))
         for j in range(len(self.mw[:self._a+1])//self._m, len(self.rois)):
             self.rois[j].roi.hide() # remove extra ROIs
@@ -465,6 +464,7 @@ class settings_window(QMainWindow):
         for i, mw in enumerate(self.mw):
             j = i // self._m   # apply the ROI to _m windows
             try: # update the ROI in the image analysis windows
+                mw.roi.setSize((self.stats['ROIs'][j][2], self.stats['ROIs'][j][3]))
                 mw.roi.setPos(*self.stats['ROIs'][j][:2]) # triggers user_roi()
                 if masks: mw.image_handler.mask = masks[j] # allows non-square mask
             except IndexError as e:
@@ -872,8 +872,10 @@ class settings_window(QMainWindow):
                 if len(self.stats['ROIs']) < (i // self._m)+1: # starting a new ROI
                     self.stats['ROIs'].append([1,1,1,1,1])
         self._a = a
-        for mw in self.mw:
+        for mw in self.mw[:self._a]:
             mw.swap_signals() # reconnect signals
+        for mw in self.mw[self._a:]:
+            mw.event_im.disconnect() # don't send data to unused windows
         self.create_rois() # display ROIs on image
         self.reset_table() # display (xc, yc, size) of ROIs in table
 
