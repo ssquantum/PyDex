@@ -149,6 +149,10 @@ class daq_window(QMainWindow):
             action.triggered.connect(function)
             file_menu.addAction(action)
 
+        sync_menu = menubar.addMenu('Synchronisation')
+        self.unsync_toggle = QAction('Unsync', checkable=True, checked=False)
+        sync_menu.addAction(self.unsync_toggle)
+
         #### tab for settings  ####
         settings_tab = QWidget()
         settings_grid = QGridLayout()
@@ -636,6 +640,8 @@ class daq_window(QMainWindow):
         Replot the stored data accumulated from averages in slices
         of the measurements."""
         if np.size(data):
+            if self.unsync_toggle.isChecked():
+                self.stats['n'] += 1
             self.dc.process(data, self.stats['n'])
         for s in self.dc.slices:
             for chan, val in s.stats.items():

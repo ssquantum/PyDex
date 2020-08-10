@@ -875,7 +875,8 @@ class settings_window(QMainWindow):
         for mw in self.mw[:self._a]:
             mw.swap_signals() # reconnect signals
         for mw in self.mw[self._a:]:
-            mw.event_im.disconnect() # don't send data to unused windows
+            mw.deleteLater() # remove unused windows
+        self.mw = self.mw[:self._a]
         self.create_rois() # display ROIs on image
         self.reset_table() # display (xc, yc, size) of ROIs in table
 
@@ -924,6 +925,9 @@ class settings_window(QMainWindow):
                     [self.mw[j].histo_handler, self.mw[k].histo_handler],
                     self.results_path, self.image_storage_path, 'ROI'+str(i)+'_Re_'))
             self.rw[i].setWindowTitle(self.rw[i].name + ' - Re-Image Analaysing hists %s, %s'%(j,k))
+        for rw in self.rw[len(self.rw_inds):]:
+            rw.deleteLater() # remove unused windows
+        self.rw = self.rw[:len(self.rw_inds)]
             
         self.pic_size_text_edit()
         self.set_thresh()

@@ -105,44 +105,20 @@ importFile = "calFile_25.07.2020.txt"
 with open(importPath+importFile) as json_file:
     calFile = json.load(json_file) 
 
-cal166X = np.array(eval(calFile["rel_DEvsFreq_X"]))
-cal166Y = np.array(eval(calFile["rel_DEvsFreq_Y"]))
-int166  = interpolate.interp1d(cal166X,cal166Y, kind='cubic')
-      
-
-
 ############################
-# Calibration of mV vs Diffraction Efficiency (%), as taken using 170 MHz
+# Calibration of mV vs Freq vs Diffraction Efficiency (%)
 ######################### 
-mVs =  np.array(eval(calFile["DEvsPower_X"]))
-mVtoDE=np.array(eval(calFile["DEvsPower_Y"]))
+DE_mVs = np.array(eval(calFile["DEvsPower_Amp"]))
+DE_MHz = np.array(eval(calFile["DEvsPower_Freq"]))
+correction = np.array([eval(calFile[key]) for key in calFile.keys() if 'DEvsPower_A=' in key])
 
-intmVtoDE = interpolate.interp1d(mVs,mVtoDE, kind='cubic')
-intDEtomV = interpolate.interp1d(mVtoDE,mVs, kind='cubic')
-
-
-
-#filedata = {}
-#filedata["rel_DEvsFreq_X"]       = str(list(cal166X)) #Note that this is a dictionary
-#filedata["rel_DEvsFreq_Y"]       = str(list(cal166Y)) #Note that this is a dictionary
-#filedata["DEvsPower_X"]          = str(list(mVs)) #Note that this is a dictionary   
-#filedata["DEvsPower_Y"]          = str(list(mVtoDE)) #Note that this is a dictionary
-#filedata["umPerMHz"]             = str(0.329)   
-#
-#mypath =  'Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\\'
-#if not os.path.isdir(mypath):
-#    os.makedirs(mypath)
-
-#with open(mypath+'\\calFile_07.07.2020.txt','w') as outfile:
-#    json.dump(filedata,outfile,sort_keys = True,indent =4)
-
+intDE = interpolate.RectBivariateSpline(DE_MHz, DE_mVs, correction)
 
 cal_umPerMHz = eval(calFile["umPerMHz"])
 
 
 def ampAdjuster(freq,AWGmV):
-    # ls = np.round(intDEtomV(intmVtoDE(AWGmV)*int166(freq))/AWGmV,4)
-    ls = intmVtoDE(AWGmV)*int166(freq)
+    ls = intDE(freq, AWGmV)
     ls[ls>1.05]=1      #The argument ls>1 creates a boolean array which is then evaluated on the list ls. On a True, the substitution is made. 
     return np.array(ls)
 
