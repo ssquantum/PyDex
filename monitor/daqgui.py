@@ -37,6 +37,8 @@ sys.path.append('.')
 sys.path.append('..')
 import warnings
 warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
+import logerrs
+logerrs.setup_log()
 import logging
 logger = logging.getLogger(__name__)
 from strtypes import strlist, BOOL
@@ -148,10 +150,6 @@ class daq_window(QMainWindow):
             action = QAction(label, self) 
             action.triggered.connect(function)
             file_menu.addAction(action)
-
-        sync_menu = menubar.addMenu('Synchronisation')
-        self.unsync_toggle = QAction('Unsync', checkable=True, checked=False)
-        sync_menu.addAction(self.unsync_toggle)
 
         #### tab for settings  ####
         settings_tab = QWidget()
@@ -327,6 +325,10 @@ class daq_window(QMainWindow):
         reset = QPushButton('Reset TCP client', self)
         reset.clicked.connect(self.reset_client)
         tcp_grid.addWidget(reset, 4,0, 1,1)
+        
+        self.unsync_toggle = QPushButton('Unsync run number', checkable=True, checked=False)
+        tcp_grid.addWidget(self.unsync_toggle, 4,1,1,1)
+
 
         #### Title and icon ####
         self.setWindowTitle('- NI DAQ Controller -')
@@ -641,7 +643,7 @@ class daq_window(QMainWindow):
         of the measurements."""
         if np.size(data):
             if self.unsync_toggle.isChecked():
-                self.stats['n'] += 1
+                self.set_n(self.stats['n'] + 1)
             self.dc.process(data, self.stats['n'])
         for s in self.dc.slices:
             for chan, val in s.stats.items():
