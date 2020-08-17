@@ -8,137 +8,148 @@ import os
 import time
 import json
 
-def statusChecker(N):
-   for i in range(N):
-       test = int64(0)
-       spcm_dwGetParam_i64(AWG.hCard,SPC_SEQMODE_STATUS,byref(test))
-       print(test.value)
-       time.sleep(0.1) 
+# def statusChecker(N):
+#    for i in range(N):
+#        test = int64(0)
+#        spcm_dwGetParam_i64(self.hCard,SPC_SEQMODE_STATUS,byref(test))
+#        print(test.value)
+#        time.sleep(0.1) 
     
 
     
     
 
 class AWG:
-    
     """
-    Static initialisation of the card
-    These should be common for the class AWG.
-    Changing these would affect all instances. 
-    """
-    hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
-    #hCard = spcm_hOpen (create_string_buffer (b'TCPIP::192.168.1.10::inst0::INSTR'))
-    if hCard == None:
-        sys.stdout.write("no card found...\n")
-        exit ()
-    
-    #Initialisation of reading parameters and definition of memory type.
-    lCardType     = int32 (0) 
-    lSerialNumber = int32 (0)
-    lFncType      = int32 (0)
-    spcm_dwGetParam_i32 (hCard, SPC_PCITYP, byref (lCardType))                  # Enquiry of the pointer (lCardType.value) should return 484898. In manual p.56, this number should correspond to our device M4i.6622
-    spcm_dwGetParam_i32 (hCard, SPC_PCISERIALNO, byref (lSerialNumber))         # Enquiry of the pointer should return 14926. This can be cross-checked with the Spectrum documentation (check the Certificate)
-    spcm_dwGetParam_i32 (hCard, SPC_FNCTYPE, byref (lFncType))                  # Enquiry of the pointer should return 2. In manual p.59, this value corresponds to the arb. function generator. 
-    spcm_dwSetParam_i32 (hCard, SPC_CLOCKOUT,   0)                              # Disables the clock output (tristate). A value of 1 enables on external connector. Check p.83 on manual for more details.
-    
-    
-    """
-    This is for the trigger method.
-    Consult the manual p.91 for more details.
-    These are exclusively for EXT0 (main trigger).
-    EXT1 supports triggers with only one level. 
-    
-    As a rule of thumb, Level 0 is the universal level (denoted as Level X)
-    and Level 1 is the ancilla level for gating/window trigger modes (denoted as Level Y)
-    """
-    
-    trig_mode = {
-    0:  SPC_TMASK_SOFTWARE,
-    1:  SPC_TM_POS,                    # Triggers on positive slope
-    2:  SPC_TM_NEG,                    # Triggers on negatice slope
-    3:  SPC_TM_POS | SPC_TM_REARM,     # Triggers on pos (Level X), rearms on Level Y to avoid noise triggering.
-    4:  SPC_TM_NEG | SPC_TM_REARM,     # Triggers on neg (Level X), rearms on Level Y to avoid noise triggering.
-    5:  SPC_TM_BOTH,                   # Triggers on pos or neg slope
-    6:  SPC_TM_HIGH,                   # Triggers when above Level X (GATE)
-    7:  SPC_TM_LOW,                    # Triggers when below Level X (GATE)
-    8:  SPC_TM_WINENTER,               # Triggers when entering a window (pos or neg) defined by Level X and Level Y 
-    9:  SPC_TM_WINLEAVE,               # Triggers when leaving a window (pos or neg) defined by Level X and Level Y 
-    10: SPC_TM_INWIN,                  # Triggers while within a window defined by Level X and Level Y (GATE)
-    11: SPC_TM_OUTSIDEWIN              # Triggers while outside a window defined by Level X and Level Y (GATE)
-    }
-    
-    
-    registers = {
-    1:  SPC_SAMPLERATE,                # Samplerate of the card
-    2:  SPC_SEQMODE_MAXSEGMENTS,       # Number of segments set on the card
-    3:  SPC_SEQMODE_STARTSTEP,         # Initialisation step of the card
-    4:  SPC_CHENABLE,                  # Checks the activated number
-    5:  SPC_CHCOUNT,                   # Checks how many channels are active
-    6:  SPC_TRIG_EXT0_LEVEL0,          # Checks what is the trigger level for Ext0
-    7:  SPC_TRIG_EXT0_LEVEL1,          # Checks what is the trigger level for Ext1
-    8:  SPC_TRIG_EXT0_MODE,            # Gives back what trigger mode is being used
-    9:  SPC_SEQMODE_WRITESEGMENT,      # Checks which segment is chosen to be modified
-    10: SPC_SEQMODE_SEGMENTSIZE        # Checks how many samples are registered in this segment. 
-    }
-    
-    
-    stepOptions = {
-    1:  SPCSEQ_ENDLOOPONTRIG,          # Sequence Step will advance after receiving a flag command from a trigger
-    2:  SPCSEQ_ENDLOOPALWAYS,          # Sequence Step will advance immediately after defined loops end. 
-    3:  SPCSEQ_END                     # Sequence Step will be the terminating step for the replay. 
-    }
-    
-    ###################################################################
-    # This is where the card metadata will be stored
-    ###################################################################
-    filedata = {}
-    filedata["steps"]       = {}
-    filedata["segments"]    = {} #Note that this is a dictionary
-    filedata["properties"]  = {}
-    filedata["calibration"] = []
-    
-    
-    """
-    The damage threshold of the AOD amplifier is 0 dBm. We add a precautionary
-    upper limit to -1 dBm on the card.  
-    """
-    maxdBm= -1                                                                  # Max card output in dBm
-    max_output =  round(math.sqrt(2*10**-3 * 50 *10 **(maxdBm/10))*1000)        # The conversion is from dBm to MILLIvolts (amplitude Vp, not Vpp). This assumes a 50 Ohm termination. 
-     
-    ###############################################################################################
-    ########################## Defined in the spcm_home_functions.py ##############################
-    ###############################################################################################
-    umPerMHz =cal_umPerMHz        # Defines the conversion between micrometers and MHz for the AOD
-    ###############################################################################################
-
-
-    """
-    Dynamic initialisation of the card.
-    These are instance specific parameters.
-    Changing these would affect the particular instance. 
-    """
-    
-    def __init__ (self,sample_rate = MEGA(625), channel_enable = uint64(1), num_segment = int(16) , start_step=int(0)):
+        This is for the trigger method.
+        Consult the manual p.91 for more details.
+        These are exclusively for EXT0 (main trigger).
+        EXT1 supports triggers with only one level. 
         
+        As a rule of thumb, Level 0 is the universal level (denoted as Level X)
+        and Level 1 is the ancilla level for gating/window trigger modes (denoted as Level Y)
+        """
+        
+        trig_mode = {
+        0:  SPC_TMASK_SOFTWARE,
+        1:  SPC_TM_POS,                    # Triggers on positive slope
+        2:  SPC_TM_NEG,                    # Triggers on negatice slope
+        3:  SPC_TM_POS | SPC_TM_REARM,     # Triggers on pos (Level X), rearms on Level Y to avoid noise triggering.
+        4:  SPC_TM_NEG | SPC_TM_REARM,     # Triggers on neg (Level X), rearms on Level Y to avoid noise triggering.
+        5:  SPC_TM_BOTH,                   # Triggers on pos or neg slope
+        6:  SPC_TM_HIGH,                   # Triggers when above Level X (GATE)
+        7:  SPC_TM_LOW,                    # Triggers when below Level X (GATE)
+        8:  SPC_TM_WINENTER,               # Triggers when entering a window (pos or neg) defined by Level X and Level Y 
+        9:  SPC_TM_WINLEAVE,               # Triggers when leaving a window (pos or neg) defined by Level X and Level Y 
+        10: SPC_TM_INWIN,                  # Triggers while within a window defined by Level X and Level Y (GATE)
+        11: SPC_TM_OUTSIDEWIN              # Triggers while outside a window defined by Level X and Level Y (GATE)
+        }
+        
+        
+        registers = {
+        1:  SPC_SAMPLERATE,                # Samplerate of the card
+        2:  SPC_SEQMODE_MAXSEGMENTS,       # Number of segments set on the card
+        3:  SPC_SEQMODE_STARTSTEP,         # Initialisation step of the card
+        4:  SPC_CHENABLE,                  # Checks the activated number
+        5:  SPC_CHCOUNT,                   # Checks how many channels are active
+        6:  SPC_TRIG_EXT0_LEVEL0,          # Checks what is the trigger level for Ext0
+        7:  SPC_TRIG_EXT0_LEVEL1,          # Checks what is the trigger level for Ext1
+        8:  SPC_TRIG_EXT0_MODE,            # Gives back what trigger mode is being used
+        9:  SPC_SEQMODE_WRITESEGMENT,      # Checks which segment is chosen to be modified
+        10: SPC_SEQMODE_SEGMENTSIZE        # Checks how many samples are registered in this segment. 
+        }
+        
+        
+        stepOptions = {
+        1:  SPCSEQ_ENDLOOPONTRIG,          # Sequence Step will advance after receiving a flag command from a trigger
+        2:  SPCSEQ_ENDLOOPALWAYS,          # Sequence Step will advance immediately after defined loops end. 
+        3:  SPCSEQ_END                     # Sequence Step will be the terminating step for the replay. 
+        }
+
+        """
+        The damage threshold of the AOD amplifier is 0 dBm. We add a precautionary
+        upper limit to -1 dBm on the card.  
+        """
+        maxdBm= -1                                                                  # Max card output in dBm
+        max_output =  round(math.sqrt(2*10**-3 * 50 *10 **(maxdBm/10))*1000)        # The conversion is from dBm to MILLIvolts (amplitude Vp, not Vpp). This assumes a 50 Ohm termination. 
+        
+        ###############################################################################################
+        ########################## Defined in the spcm_home_functions.py ##############################
+        ###############################################################################################
+        umPerMHz =cal_umPerMHz        # Defines the conversion between micrometers and MHz for the AOD
+        ###############################################################################################
+
+
+
+    def __init__ (self, channel_enable = [0,1],sample_rate = MEGA(625), num_segment = int(16) , start_step=int(0)):
+        """
+        Static initialisation of the card
+        These should be common for the class AWG.
+        Changing these would affect all instances. 
+        """
+        self.hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
+        #self.hCard = spcm_hOpen (create_string_buffer (b'TCPIP::192.168.1.10::inst0::INSTR'))
+        if self.hCard == None:
+            sys.stdout.write("no card found...\n")
+            exit ()
+        
+        #Initialisation of reading parameters and definition of memory type.
+        self.lCardType     = int32 (0) 
+        self.lSerialNumber = int32 (0)
+        lFncType      = int32 (0)
+        spcm_dwGetParam_i32 (self.hCard, SPC_PCITYP, byref (self.lCardType))                  # Enquiry of the pointer (lCardType.value) should return 484898. In manual p.56, this number should correspond to our device M4i.6622
+        spcm_dwGetParam_i32 (self.hCard, SPC_PCISERIALNO, byref (self.lSerialNumber))         # Enquiry of the pointer should return 14926. This can be cross-checked with the Spectrum documentation (check the Certificate)
+        spcm_dwGetParam_i32 (self.hCard, SPC_FNCTYPE, byref (lFncType))                  # Enquiry of the pointer should return 2. In manual p.59, this value corresponds to the arb. function generator. 
+        spcm_dwSetParam_i32 (self.hCard, SPC_CLOCKOUT,   0)                              # Disables the clock output (tristate). A value of 1 enables on external connector. Check p.83 on manual for more details.
+        
+        
+        ###################################################################
+        # This is where the card metadata will be stored
+        ###################################################################
+        self.filedata = {}
+        self.filedata["steps"]       = {}
+        self.filedata["segments"]    = {} #Note that this is a dictionary
+        self.filedata["properties"]  = {}
+        self.filedata["calibration"] = []
+        
+        
+        
+        """
+        Dynamic initialisation of the card.
+        These are instance specific parameters.
+        Changing these would affect the particular instance. 
+        """
         # Setting the sample rate of the card.
         if sample_rate> MEGA(625):
             sys.stdout.write("Requested sample rate larger than maximum. Sample rate set at 625 MS/s")
             sample_rate = MEGA(625)
         self.sample_rate = sample_rate
-        spcm_dwSetParam_i64 (AWG.hCard, SPC_SAMPLERATE, int32(self.sample_rate))    # Setting the sample rate for the card
+        spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, int32(self.sample_rate))    # Setting the sample rate for the card
         
         
         #Read out actual samplerate and store that in memory
         self.regSrate = int64 (0)                                        # Although we request a certain value, it does not mean that this is what the machine is capable of. 
-        spcm_dwGetParam_i64 (AWG.hCard, SPC_SAMPLERATE, byref (self.regSrate))    # We instead store the one the machine will use in the end.  
+        spcm_dwGetParam_i64 (self.hCard, SPC_SAMPLERATE, byref (self.regSrate))    # We instead store the one the machine will use in the end.  
         self.sample_rate = self.regSrate
         
         
         # Setting the card channel
-        if channel_enable.value>3 or channel_enable.value<0:
-            sys.stdout.write("Available channels span from 0 to 3. Channel set to 0.")
-            channel_enable = uint64(1)
-        self.channel_enable =  channel_enable                                   # Sets the value for the channel to open.
+        allowed_num_channels = (1,2,4)
+        
+        if type(channel_enable)==int and 0<=channel_enable <=3:
+            self.channel_enable =  uint64(2**channel_enable)
+        
+        elif len(channel_enable) in allowed_num_channels:
+            channel_enable = np.array(channel_enable)
+    
+            if max(channel_enable)>3 or min(channel_enable)<0:
+                sys.stdout.write("Available channels span from 0 to 3. Channel set to [0,1].")
+                channel_enable = np.array([0,1])
+            self.channel_enable =  uint64(np.sum(2**channel_enable))                                   # Sets the value for the channel to open.
+        else:
+            channel_enable = np.array([0,1])
+            self.channel_enable = uint64(3)
+            sys.stdout.write("Card can register 1, 2 or 4 active channels at any given time. Channels set to [0,1].\n")
        
         # Setting the card into sequence replay
         if num_segment > int(65536):
@@ -162,18 +173,22 @@ class AWG:
         
         
         
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_CARDMODE,        SPC_REP_STD_SEQUENCE)  # Sets to Sequence Replay. Check p.66 of manual for list of available modes. 
-        spcm_dwSetParam_i64 (AWG.hCard, SPC_CHENABLE,         self.channel_enable)  # Selects the 1st Channel to open.
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_SEQMODE_MAXSEGMENTS, self.num_segment)  # The entire memory will be divided in this many segments. I don't think you can easily partition it. 
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_SEQMODE_STARTSTEP,    self.start_step)  # This is the initialising step for the run.
-        spcm_dwSetParam_i64 (AWG.hCard, SPC_ENABLEOUT0,                         1)  # Selects Channel 0 (ENABLEOUT0) and enables it (1).
+        spcm_dwSetParam_i32 (self.hCard, SPC_CARDMODE,        SPC_REP_STD_SEQUENCE)  # Sets to Sequence Replay. Check p.66 of manual for list of available modes. 
+        spcm_dwSetParam_i64 (self.hCard, SPC_CHENABLE,         self.channel_enable)  # Selects the 1st Channel to open.
+        spcm_dwSetParam_i32 (self.hCard, SPC_SEQMODE_MAXSEGMENTS, self.num_segment)  # The entire memory will be divided in this many segments. I don't think you can easily partition it. 
+        spcm_dwSetParam_i32 (self.hCard, SPC_SEQMODE_STARTSTEP,    self.start_step)  # This is the initialising step for the run.
         
         
         # Store active channel and verify memory size per sample.
         lSetChannels = int32 (0)
         lBytesPerSample = int32 (0)
-        spcm_dwGetParam_i32 (AWG.hCard, SPC_CHCOUNT,     byref (lSetChannels))      # Checks the number of currently activated channels.
-        spcm_dwGetParam_i32 (AWG.hCard, SPC_MIINST_BYTESPERSAMPLE,  byref (lBytesPerSample)) # Checks the number of bytes used in memory by one sample. p.59 of manual for more info
+        spcm_dwGetParam_i32 (self.hCard, SPC_CHCOUNT,     byref (lSetChannels))      # Checks the number of currently activated channels.
+        spcm_dwGetParam_i32 (self.hCard, SPC_MIINST_BYTESPERSAMPLE,  byref (lBytesPerSample)) # Checks the number of bytes used in memory by one sample. p.59 of manual for more info
+        
+        
+        for i in channel_enable:
+            spcm_dwSetParam_i32 (self.hCard, SPC_ENABLEOUT0 + int(i) * (SPC_ENABLEOUT1 - SPC_ENABLEOUT0),  int32(1)) # Selects Channel 0+X (ENABLEOUT0+X) and enables it (1). - The X stands for the addition of a fixed constant. SPC_ENABLEOUT0 == 30091. SPC_ENABLEOUT1 == 30191 etc
+        
         
         self.lSetChannels = lSetChannels                                        # Creating an instance parameter
         self.lBytesPerSample = lBytesPerSample                                  # Creating an instance parameter
@@ -189,19 +204,20 @@ class AWG:
         if AWG.max_output>282:
             sys.stdout.write("Maximum output exceeds damage threshold of amplifier. Value set to -1dBm (~282 mV)")
             AWG.max_output = round(math.sqrt(2*10**-3 * 50 *10 **(-1/10))*1000)
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_AMP0, int32 (AWG.max_output))               # Sets the maximum output of the card for Channel 0. 
+        for i in channel_enable:
+            spcm_dwSetParam_i32 (self.hCard, SPC_AMP0 + int(i) * (SPC_AMP1 - SPC_AMP0), int32 (AWG.max_output))  # Selects Amplifier 0+X (SPC_AMP0+X) and enables it (1). - The X stands for the addition of a fixed constant. SPC_AMP0 == 30010. SPC_APM1 == 30110, etc..
         
         self.trig_val    = 1
         self.trig_level0 = 2000
         self.trig_level1 = 0
         
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,      SPC_TMASK_SOFTWARE) # SPC_TMASK_SOFTWARE: this is the default value of the ORMASK trigger. If not cleared it will override other modes. 
-        # spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,               SPC_TMASK_NONE)  #You must remove the software trigger otherwise it overwrites
-        # spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,               SPC_TMASK_EXT0)  # Sets trigger to EXT0 (main trigger)
-        # spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_LEVEL0,        self.trig_level0)  # Sets the trigger level for Level0 (principle level)
-        # spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_LEVEL1,        self.trig_level1)  # Sets the trigger level for Level1 (ancilla level)
-        # spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_MODE,  AWG.trig_mode[self.trig_val])  # Sets the trigger mode
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIGGEROUT,                             0)
+        spcm_dwSetParam_i32 (self.hCard, SPC_TRIG_ORMASK,      SPC_TMASK_SOFTWARE) # SPC_TMASK_SOFTWARE: this is the default value of the ORMASK trigger. If not cleared it will override other modes. 
+        # spcm_dwSetParam_i32 (self.hCard, SPC_TRIG_ORMASK,               SPC_TMASK_NONE)  #You must remove the software trigger otherwise it overwrites
+        # spcm_dwSetParam_i32 (self.hCard, SPC_TRIG_ORMASK,               SPC_TMASK_EXT0)  # Sets trigger to EXT0 (main trigger)
+        # spcm_dwSetParam_i32 (self.hCard, SPC_TRIG_EXT0_LEVEL0,        self.trig_level0)  # Sets the trigger level for Level0 (principle level)
+        # spcm_dwSetParam_i32 (self.hCard, SPC_TRIG_EXT0_LEVEL1,        self.trig_level1)  # Sets the trigger level for Level1 (ancilla level)
+        # spcm_dwSetParam_i32 (self.hCard, SPC_TRIG_EXT0_MODE,  AWG.trig_mode[self.trig_val])  # Sets the trigger mode
+        spcm_dwSetParam_i32 (self.hCard, SPC_TRIGGEROUT,                             0)
         
         ##################################################################
         ### Creating the flag condition to ensure that the card will initialise only if there are no issues.
@@ -226,7 +242,7 @@ class AWG:
         ### Setting up the folder for the card metadata storage
         ############################################################
         self.ddate =time.strftime('%Y%m%d')
-        self.dirPath = 'S:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin'
+        self.dirPath = 'Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin'
         
         self.path =  self.dirPath+'\\'+self.ddate
         if not os.path.isdir(self.path):
@@ -239,8 +255,8 @@ class AWG:
         
     def __str__(self):
         ### Note: The functionL szTypeToName shown below is defined in the spcm_tools.py
-        sCardName = szTypeToName (lCardType.value) # M4i.6622-x8. It just reads out the value from earlier. 
-        sys.stdout.write("Found: {0} sn {1:05d}\n".format(sCardName,lSerialNumber.value))
+        sCardName = szTypeToName (self.lCardType.value) # M4i.6622-x8. It just reads out the value from earlier. 
+        sys.stdout.write("Found: {0} sn {1:05d}\n".format(sCardName,self.lSerialNumber.value))
         
     def setSampleRate(self,new_sampleRate):
         
@@ -254,12 +270,12 @@ class AWG:
             sys.stdout.write("Requested sample rate larger than maximum. Sample rate set at 625 MS/s")
             new_sampleRate = MEGA(625)
         self.sample_rate = new_sampleRate
-        spcm_dwSetParam_i64 (AWG.hCard, SPC_SAMPLERATE, int32(self.sample_rate))    # Setting the sample rate for the card
+        spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, int32(self.sample_rate))    # Setting the sample rate for the card
                
         
         #Read out actual samplerate and store that in memory
         self.regSrate = int64 (0)                                                 # Registered sample rate: Although we request a certain value, it does not mean that this is what the machine is capable of. 
-        spcm_dwGetParam_i64 (AWG.hCard, SPC_SAMPLERATE, byref (self.regSrate))    # We instead store the one the machine will use in the end.  
+        spcm_dwGetParam_i64 (self.hCard, SPC_SAMPLERATE, byref (self.regSrate))    # We instead store the one the machine will use in the end.  
         self.sample_rate = self.regSrate
         
         self.maxDuration = math.floor(self.maxSamples/self.sample_rate.value*1000) 
@@ -277,7 +293,7 @@ class AWG:
         if self.num_segment != num_segment:
              sys.stdout.write("...number of segments must be power of two.\n Segments have been set to nearest power of two:{0:d}\n".format(self.num_segment))
         
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_SEQMODE_MAXSEGMENTS, self.num_segment)  # The entire memory will be divided in this many segments. 
+        spcm_dwSetParam_i32 (self.hCard, SPC_SEQMODE_MAXSEGMENTS, self.num_segment)  # The entire memory will be divided in this many segments. 
         
         """
         The maximum number of samples needs to be recalculated now.
@@ -299,7 +315,7 @@ class AWG:
             start_step = int(0)
         self.start_step = start_step
         
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_SEQMODE_STARTSTEP,    self.start_step)  # This is the initialising step for the run.
+        spcm_dwSetParam_i32 (self.hCard, SPC_SEQMODE_STARTSTEP,    self.start_step)  # This is the initialising step for the run.
     
     
     def setTrigger(self,trig_val = 1,trig_level0=2500,trig_level1=0):
@@ -337,18 +353,38 @@ class AWG:
         
         if flag==0:
             if self.trig_val==0:
-                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,      SPC_TMASK_SOFTWARE) 
-                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIGGEROUT,                                  0)
+                spcm_dwSetParam_i32 (self.hCard, SPC_TRIG_ORMASK,      SPC_TMASK_SOFTWARE) 
+                spcm_dwSetParam_i32 (self.hCard, SPC_TRIGGEROUT,                                  0)
             else:    
-                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,                    SPC_TMASK_NONE)  # IMPORTANT that you remove the software trigger explicitely otherwise it overwrites subsequent commands
-                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_ORMASK,                    SPC_TMASK_EXT0)  # Sets trigger to EXT0 (main trigger)
-                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_LEVEL0,        int(self.trig_level0))  # Sets the trigger level for Level0 (principle level)
-                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_LEVEL1,        int(self.trig_level1))  # Sets the trigger level for Level1 (ancilla level)
-                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIG_EXT0_MODE,   AWG.trig_mode[self.trig_val])  # Sets the trigger mode
-                spcm_dwSetParam_i32 (AWG.hCard, SPC_TRIGGEROUT,                                  0)
+                spcm_dwSetParam_i32 (self.hCard, SPC_TRIG_ORMASK,                    SPC_TMASK_NONE)  # IMPORTANT that you remove the software trigger explicitely otherwise it overwrites subsequent commands
+                spcm_dwSetParam_i32 (self.hCard, SPC_TRIG_ORMASK,                    SPC_TMASK_EXT0)  # Sets trigger to EXT0 (main trigger)
+                spcm_dwSetParam_i32 (self.hCard, SPC_TRIG_EXT0_LEVEL0,        int(self.trig_level0))  # Sets the trigger level for Level0 (principle level)
+                spcm_dwSetParam_i32 (self.hCard, SPC_TRIG_EXT0_LEVEL1,        int(self.trig_level1))  # Sets the trigger level for Level1 (ancilla level)
+                spcm_dwSetParam_i32 (self.hCard, SPC_TRIG_EXT0_MODE,   AWG.trig_mode[self.trig_val])  # Sets the trigger mode
+                spcm_dwSetParam_i32 (self.hCard, SPC_TRIGGEROUT,                                  0)
         else:
             sys.stdout.write("New trigger has not been set due to unresolved issues.")
         
+    def channelConfig(self,channel,state):
+        """
+        Selects a channel and either enables or disables it.
+        """
+        flag=0
+        
+        if 0<= channel <= 3:
+            self.channel = channel
+        else:
+            sys.stdout.write("There are 4 channels, ranging from 0 to 3")
+            flag =1
+            
+        if state ==1 or state ==0:
+            self.state = state
+        else:
+            sys.stdout.write("The state of the channel can either be ON (1) or OFF (0).")
+            flag =1
+        
+        if flag==0:
+            spcm_dwSetParam_i64 (self.hCard, SPC_ENABLEOUT0+int(self.channel)*100, self.state)
     
     def setMaxOutput(self,new_maxOutput):
         """
@@ -359,7 +395,9 @@ class AWG:
         if new_output>282:
             sys.stdout.write("Maximum output exceeds damage threshold of amplifier. Value set to -1dBm (~282 mV)")
             new_output = round(math.sqrt(2*10**-3 * 50 *10 **(-1/10))*1000)
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_AMP0, int32 (new_output))               # Sets the maximum output of the card for Channel 0.          
+        
+        for i in channel_enable:
+            spcm_dwSetParam_i32 (self.hCard, SPC_AMP0+i*100, int32 (new_output))               # Sets the maximum output of the card for Channel 0.          
             
     def setSegDur(self,new_segDur):
         """
@@ -379,7 +417,7 @@ class AWG:
         #     self.statDur = round(self.effDur,7)
         
     def selectSegment(self,selSeg):
-        spcm_dwSetParam_i32(AWG.hCard, SPC_SEQMODE_WRITESEGMENT,selSeg)    
+        spcm_dwSetParam_i32(self.hCard, SPC_SEQMODE_WRITESEGMENT,selSeg)    
     
     def getParam(self,param =1):
         
@@ -417,12 +455,12 @@ class AWG:
         
         if 1 < param <= len(switcher):    
             dummy = int32(0)
-            spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[param], byref(dummy))
-            if spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[param], byref(dummy)) ==0:
+            spcm_dwGetParam_i32 (self.hCard, AWG.registers[param], byref(dummy))
+            if spcm_dwGetParam_i32 (self.hCard, AWG.registers[param], byref(dummy)) ==0:
                 self.dummy =dummy.value
                 sys.stdout.write(switcher[param].format(self.dummy))
             else: 
-                self.errVal = spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[param], byref(dummy))
+                self.errVal = spcm_dwGetParam_i32 (self.hCard, AWG.registers[param], byref(dummy))
                 sys.stdout.write("Parameter could not be retrieved. Error Code: {0:d}".format(self.errVal))
         
         else:
@@ -430,17 +468,118 @@ class AWG:
             for x in options:
                 sys.stdout.write("{}: {}\n".format(x,options[x]))
         
-    
-    
-    def setSegment(self, segment, action, duration, *args):
+    def setSegment(self,segment,*args):
         """
-        segment : segment to modify. Limited by number of segments on the card.
+        This method is responsible for sending the data to the card to be played.
+        If the method receives multiple datasets it will multiplex them as necessary.
+        """
+        flag =0
+               
+        if segment > self.num_segment -1:
+            sys.stdout.write("The card has been segmented into {0:d} parts.\n".format(self.num_segment))
+            flag =1
+        else:
+            self.segment = segment
+            
+        
+        if len(args) == self.lSetChannels.value:
+            """
+            Check that the number of datasets 
+            is equal to the number of activated channels
+            """
+            
+            if len(args) != 1:
+                """
+                If there is more than one dataset, 
+                check that data are of equal size
+                """
+                if lenCheck(args):
+                    self.numOfSamples = int(len(args[0])) # number of samples
+                else:
+                    sys.stdout.write("Data are of unequal length. Check the data durations.")
+                    flag =1
+            else:
+                """
+                Single channel case
+                """
+                self.numOfSamples = len(args)
+        else:
+            sys.stdout.write("Number of datasets does not match number of activated channels.")
+            flag =1
+               
+            
+            
+        if flag==0:
+            
+            spcm_dwSetParam_i32(self.hCard, SPC_SEQMODE_WRITESEGMENT,self.segment)
+            spcm_dwSetParam_i32(self.hCard, SPC_SEQMODE_SEGMENTSIZE, self.numOfSamples)
+
+            # setup software buffer
+            
+            qwBufferSize = uint64 (self.numOfSamples * self.lBytesPerSample.value * self.lSetChannels.value) # Since we have only once active channel, and we want 64k samples, and each sample is 2bytes, then we need qwBufferSize worth of space.
+            # we try to use continuous memory if available and big enough
+            pvBuffer = c_void_p () ## creates a void pointer -to be changed later.
+            qwContBufLen = uint64 (0)
+            spcm_dwGetContBuf_i64 (self.hCard, SPCM_BUF_DATA, byref(pvBuffer), byref(qwContBufLen)) #assigns the pvBuffer the address of the memory block and qwContBufLen the size of the memory.
+            #######################
+            ### Diagnostic comments
+            #######################
+            #sys.stdout.write ("ContBuf length: {0:d}\n".format(qwContBufLen.value))
+            if qwContBufLen.value >= qwBufferSize.value:
+                sys.stdout.write("Using continuous buffer\n")
+            else:
+                pvBuffer = pvAllocMemPageAligned (qwBufferSize.value) ## This now makes pvBuffer a pointer to the memory block. (void types have no attributes, so it is better to think that it points to the block and not individual sample)
+                #######################
+                ### Diagnostic comments
+                #######################
+                #sys.stdout.write("Using buffer allocated by user program\n")
+            
+            # calculate the data
+            pnBuffer = cast  (pvBuffer, ptr16) #this now discretises the block into individual 'memory boxes', one for each sample.
+            
+            
+            #########
+            # Setting up the data memory for segment X
+            #######################################################
+            
+            if len(args) != 1:
+                multi = multiplex(args)
+            else:
+                multi = args
+            
+             
+        
+            #############
+            # Set the buffer memory
+            ################################# 
+            for i in range (0, int(self.lSetChannels.value*self.numOfSamples), 1):
+                
+                pnBuffer[i] = int16(int(multi[i]))
+        
+        self.flag[self.segment] = flag
+        if flag==0:
+            # we define the buffer for transfer and start the DMA transfer
+            ###
+            ####sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
+            ###
+            spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), pvBuffer, uint64 (0), qwBufferSize)
+            spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
+            sys.stdout.write("... segment number {0:d} has been transferred to board memory\n".format(segment))
+            sys.stdout.write(".................................................................\n")
+        
+        else:
+            sys.stdout.write("Card segment number {0:d} was not loaded due to unresolved errors\n".format(self.segment))
+        
+        
+    
+    def dataGen(self, segment, action, duration, *args):
+        """
+        segment : This is a redundant variable to the program, will be used for the metadata file. 
+                  Limited by number of segments on the card.
+        action  : type of action taken (static, moving, ramp, amplitude modulation )
         duration: duration (MILLIseconds) of the data placed in the card. Limited by number of segments on the card.
-        f1      : frequency (MHz)
-        
-        This is a bare-bone function that outputs 2 static frequencies.
-        
-         
+        args    : these are action specific both in number and meaning. They are detailed further below for each action individually.      
+                
         """
         
         flag =0
@@ -469,9 +608,33 @@ class AWG:
         occurs here, as this will also determine the size of the buffer memory.
         """
         
-        if action==1:                                            # If the action taken is a static trap, then register the desired value, and ascribe self.statDur to the segment.
-            self.staticDuration[self.segment] = duration         # Writes down the requested duration for a static trap in a dictionary (__init__)
+        if action == 1:                                            # If the action taken is a static trap, then register the desired value, and ascribe self.statDur to the segment.
+            self.staticDuration[self.segment] = duration           # Writes down the requested duration for a static trap in a dictionary (__init__)
             self.duration = self.statDur
+        
+        elif action == 4:
+            
+            expectedbytes = round(self.sample_rate.value * (duration*10**-3)/self.rounding)
+            if expectedbytes <1:
+                expectedbytes =1
+            expectedSamples = int(expectedbytes*self.rounding)
+            
+            """
+            if you want to loop
+            NOTE: This will change the total duration. The following function ensures the same number of cyles. 
+    
+            """
+            #self.staticDuration[self.segment] = duration           # Adds requested duration in the register for the setLoop function to see
+            #if 0< 1./KILO(args[5]) <= self.maxDuration:
+            #    self.duration = 1./KILO(args[5]) *1e3             # The duration is converted into [MILLIseconds]
+            
+            """
+            if you don't want to loop the amplitude modulation.
+            """
+            if 0< duration <= self.maxDuration:
+                self.duration = duration
+            
+
             
         elif 0< duration <= self.maxDuration:
             self.duration = duration
@@ -481,10 +644,9 @@ class AWG:
             sys.stdout.write("Segment size has been set to maximum.")
             self.duration = self.maxDuration
         
-        if action ==1:
-            memBytes =round(self.sample_rate.value * (self.duration*10**-3)/self.rounding) #number of bytes as a multiple of kB - FLOOR function for static traps
-        else:
-            memBytes = round(self.sample_rate.value * (self.duration*10**-3)/self.rounding) #number of bytes as a multiple of kB  - CEIL function for any other
+        
+        memBytes =round(self.sample_rate.value * (self.duration*10**-3)/self.rounding) #number of bytes as a multiple of kB - FLOOR function for static traps
+        
         
         if memBytes <1:
             """
@@ -493,51 +655,16 @@ class AWG:
             This is to ensure that python numerics do not interfere. 
             """
             memBytes=1
-        
+            
         self.numOfSamples = int(memBytes*self.rounding) # number of samples
         
-        
-        
-        
-        
-        # setup software buffer
-        
-        qwBufferSize = uint64 (self.numOfSamples * self.lBytesPerSample.value * self.lSetChannels.value) # Since we have only once active channel, and we want 64k samples, and each sample is 2bytes, then we need qwBufferSize worth of space.
-        # we try to use continuous memory if available and big enough
-        pvBuffer = c_void_p () ## creates a void pointer -to be changed later.
-        qwContBufLen = uint64 (0)
-        spcm_dwGetContBuf_i64 (AWG.hCard, SPCM_BUF_DATA, byref(pvBuffer), byref(qwContBufLen)) #assigns the pvBuffer the address of the memory block and qwContBufLen the size of the memory.
-        #######################
-        ### Diagnostic comments
-        #######################
-        #sys.stdout.write ("ContBuf length: {0:d}\n".format(qwContBufLen.value))
-        if qwContBufLen.value >= qwBufferSize.value:
-            sys.stdout.write("Using continuous buffer\n")
-        else:
-            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value) ## This now makes pvBuffer a pointer to the memory block. (void types have no attributes, so it is better to think that it points to the block and not individual sample)
-            #######################
-            ### Diagnostic comments
-            #######################
-            #sys.stdout.write("Using buffer allocated by user program\n")
-        
-        # calculate the data
-        pnBuffer = cast  (pvBuffer, ptr16) #this now discretises the block into individual 'memory boxes', one for each sample.
-        
-        
-        
-        #########
-        # Setting up the data memory for segment X
-        #######################################################
-        
-        spcm_dwSetParam_i32(AWG.hCard, SPC_SEQMODE_WRITESEGMENT,self.segment)
-        spcm_dwSetParam_i32(AWG.hCard, SPC_SEQMODE_SEGMENTSIZE, self.numOfSamples)
-        
-        
+
         
         actionOptions = {
             1:  "Creates a series of static traps.",                       
             2:  "Performs a move operation from freq1 to freq2.",                  
-            3:  "Ramps freq1 from X% to Y% amplitude (increasing or decreasing)"                                                            
+            3:  "Ramps freq1 from X% to Y% amplitude (increasing or decreasing)",
+            4:  "Creates a static trap with a given amplitude modulation frequency and depth."                                                            
             }
         
         freqBounds=[120,225]
@@ -675,18 +802,13 @@ class AWG:
                 ##############
                 #  Generate the Data
                 #########################
-                staticData =  static(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)            # Generates the requested data
+                outData =  static(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)            # Generates the requested data
                 
                 if type(f1)==np.ndarray or type(f1)==list :
                     f1 = str(list(f1))
-                dataj(AWG.filedata,self.segment,action,duration,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples)                # Stores information in the filedata variable, to be written when card initialises. 
+                dataj(self.filedata,self.segment,action,duration,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples)                # Stores information in the filedata variable, to be written when card initialises. 
             
-                #############
-                # Set the buffer memory
-                ################################# 
-                for i in range (0, self.numOfSamples, 1):
-                    
-                    pnBuffer[i] = int16(int(staticData[i]))
+            
                          
                 
             else: 
@@ -826,14 +948,11 @@ class AWG:
                     
                 
                 if flag ==0:
-                    moveData =  moving(self.f1,self.f2,self.duration,self.a,self.tot_amp,self.start_amp,self.end_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value)
-                    dataj(AWG.filedata,self.segment,action,self.duration,str(f1),str(f2),self.a,self.tot_amp,str(self.start_amp),str(self.end_amp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),\
+                    outData =  moving(self.f1,self.f2,self.duration,self.a,self.tot_amp,self.start_amp,self.end_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value)
+                    dataj(self.filedata,self.segment,action,self.duration,str(f1),str(f2),self.a,self.tot_amp,str(self.start_amp),str(self.end_amp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),\
                     str(list(self.exp_start)),str(list(self.exp_end)),self.numOfSamples)
              
-                  
-                
-                    for i in range (0, self.numOfSamples, 1):
-                        pnBuffer[i] = int16(int(moveData[i])) 
+
                 
                 
                 
@@ -845,7 +964,7 @@ class AWG:
                 flag =1
         
         #####################################################################
-        # RAMPED TRAPS
+        # RAMPED TRAPS - ACTION 3
         #####################################################################
         
         
@@ -955,12 +1074,10 @@ class AWG:
                 
                 if flag==0:
                     #ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =0.329)
-                    rampData = ramp(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.startAmp,self.endAmp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)
-                    dataj(AWG.filedata,self.segment,action,self.duration, str(f1),numOfTraps,distance,self.tot_amp,str(self.startAmp),str(self.endAmp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples)
+                    outData = ramp(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.startAmp,self.endAmp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)
+                    dataj(self.filedata,self.segment,action,self.duration, str(f1),numOfTraps,distance,self.tot_amp,str(self.startAmp),str(self.endAmp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples)
                     
-                    
-                    for i in range (self.numOfSamples):
-                        pnBuffer[i] = int16(int(rampData[i]))
+                
                         
                 
                 
@@ -971,31 +1088,214 @@ class AWG:
                 sys.stdout.write("\n")
                 flag =1
         
-        #####################################################################
-        # ERROR WITH NUMBER OF VARIABLES
-        #####################################################################             
-        else:
-            sys.stdout.write("Ramp trap ancilla variables:\n")
-            for x in actionOptions:
-                sys.stdout.write("{}: {}\n".format(x,rampOptions[x]))
-            sys.stdout.write("\n")
-            flag =1
+        ############################################################################
+        # AMPLITUDE MODULATION - ACTION 4
+        #############################################################################
+        
+        
+        if action == 4:
+            """
+            Amplitude modulation of a static trap
+            """
+            ampModOptions = {
+            1:  "Starting Frequency [MHz].",                       
+            2:  "Number of traps [integer].",                  
+            3:  "Distance between traps [um].",
+            4:  "Total Frequency Amplitude [mV]",
+            5:  "Individual Freqency amplitudes [fraction of total amplitude]",
+            6:  "Amplitude modulation frequency [kHz]",
+            7:  "Modulation depth [fraction (0 to 1)]",
+            8:  "Individual Frequency phase   [deg]" ,
+            9:  "Frequency Adjustment  [True/False]",
+            10:  "Amplitude Adjustment [True/False]"                                                          
+            }
+            
+            
+            
+            if len(args)==len(ampModOptions):
+            
+                f1         = args[0]
+                numOfTraps = args[1] 
+                distance   = args[2]
+                tot_amp    = args[3]
+                freq_amp   = args[4]
+                mod_freq   = args[5]
+                mod_depth  = args[6]
+                freq_phase = args[7]
+                fAdjust    = args[8]
+                aAdjust    = args[9] 
+                
+                self.numOfModCycles = round(1.*expectedSamples/self.numOfSamples,2)  # Number of amplitude modulation cycles within the given duration.
+                
+                if type(f1) == str:
+                    """
+                    This is only to allow a cosmetic data storage in the JSON file.
+                    """
+                    f1 = eval(f1)
+                
+                ##############
+                # In case argument is a list
+                ######################################   
+                if type(f1) == list or type(f1)==np.ndarray:
+                    """
+                    In case the user wants to place its own arbitrary frequencies, this will test
+                    whether the frequencies are within the AOD bounds. 
+                    """
+                    minFreq = min(f1)
+                    maxFreq = max(f1)
+                    if minFreq >= freqBounds[0] and maxFreq <= freqBounds[1]:
+                        if type(f1) == list:
+                            self.f1 = MEGA(np.array(f1))
+                        else:
+                            self.f1 = MEGA(f1)
+                        numOfTraps = len(self.f1)
+                        
+                    else:
+                        sys.stdout.write("One of the requested frequencies is out the AOD bounds ({} - {} MHz).".format(minFreq,maxFreq))
+                        self.f1 = MEGA(170)
+                        flag =1
+
+                else:   
+                    if  freqBounds[0] <= f1+(numOfTraps-1)*distance/AWG.umPerMHz <= freqBounds[1]:
+                        self.f1 = MEGA(f1)
+                    else:
+                        sys.stdout.write("Chosen starting frequency is out of the AOD frequency range. Value defaulted at 170 MHz")
+                        self.f1 = MEGA(170)
+                        flag =1
+                    
+                if 2 <= tot_amp <= 282:
+                    self.tot_amp = tot_amp
+                else:
+                    sys.stdout.write("Chosen amplitude will damage the spectrum analyser.")
+                    self.tot_amp = 50
+                
+                
+                if 0 <= mod_freq <= 2000:
+                    """
+                    Ensures that the amplitude modulation frequency 
+                    does not start approaching the trap frequency.
+                    """
+                    self.mod_freq = KILO(mod_freq)
+                else:
+                    sys.stdout.write("Amplitude modulation frequency must lie between 0 and 2000 kHz")
+                    flag =1
+                
+                
+                
+                """
+                The following two lines that convert the input into an expression 
+                were created with a cosmetic idea in mind.
+                The values stored as a list will be converted in a large column in JSON (when/if exported)
+                whereas a string file will remain more compact.
+                This just enables the flexibility of typing an actual list or loading a string from a file. 
+                """
+                if type(freq_amp)==str:
+                    freq_amp = eval(freq_amp)
+                if type(freq_phase)==str:
+                    freq_phase = eval(freq_phase)
+                    
+                if abs(max(freq_amp)) <= 1 and len(freq_amp)==numOfTraps:
+                    self.freq_amp = freq_amp
+                elif abs(max(freq_amp))> 1:
+                    sys.stdout.write("Amplitudes must only contain values between 0 and 1.\n")
+                    self.freq_amp = [1]*numOfTraps
+                    flag =1
+                elif len(freq_amp) != numOfTraps:
+                    sys.stdout.write("Number of amplitudes does not match number of traps.\n")
+                    self.freq_amp = [1]*numOfTraps
+                    flag = 1
+                
+                ###############################################################
+                # Amplitude modulation
+                ##################################################################
+                AODlimiter = 220 #limiting AWG output for the AOD (after amplifier).
+                maxAmp = max(self.freq_amp)  # finds the maximum of the individual amplitudes
+                maxpos = self.freq_amp.index(maxAmp)
+                if self.tot_amp *maxAmp* (1+mod_depth) <= 220:
+                    self.mod_depth = mod_depth
+                else:
+                    sugDepth = round(AODlimiter/self.tot_amp/maxAmp -1,2)
+                    sugTotAmp = round(AODlimiter/(1+mod_depth)/maxAmp,2)
+                    sugfreqAmp = round(AODlimiter/(1+mod_depth)/self.tot_amp,2)
+                    sys.stdout.write("For these values of tot_amp and mod_depth, the output of the card will exceed 220 mV.\n")
+                    sys.stdout.write("Either change tot_amp to {} mV, mod_depth to {}, or freqAmp position {} to {}.\n".format(sugTotAmp,sugDepth,maxpos,sugfreqAmp))
+                    flag =1    
+                        
+                    
+            
+                if len(freq_phase)==numOfTraps:
+                    self.freq_phase = freq_phase
+                
+                elif len(freq_phase) != numOfTraps:
+                    sys.stdout.write("Number of phases does not match number of traps.\n")
+                    self.freq_phase = [0]*numOfTraps
+                    flag = 1
+                
+                if type(fAdjust) != bool:
+                    sys.stdout.write("Frequency Adjustment is not a boolean.\n")
+                    self.fAdjust = True
+                    flag = 1
+                else:
+                    self.fAdjust = fAdjust
+                    self.exp_freqs = self.f1
+                    
+                if type(aAdjust) != bool:
+                    sys.stdout.write("Amplitude Adjustment is not a boolean.\n")
+                    self.aAdjust = True
+                    flag = 1
+                else:
+                    self.aAdjust = aAdjust
+                
+               
+                self.exp_freqs = getFrequencies(action,self.f1,numOfTraps,distance,self.duration,self.fAdjust,self.sample_rate.value,AWG.umPerMHz)
+                
+                
+                
+                
+                ##############
+                #  Generate the Data
+                #########################
+                
+                if flag ==0:
+                    outData =  ampModulation(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.mod_freq,self.mod_depth,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)            # Generates the requested data
+                    
+                    if type(f1)==np.ndarray or type(f1)==list :
+                        f1 = str(list(f1))
+                    dataj(self.filedata,self.segment,action,duration,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),int(self.mod_freq/1000),self.mod_depth,str(self.freq_phase),\
+                    str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples,self.duration,self.numOfModCycles)                # Stores information in the filedata variable, to be written when card initialises. 
+                
+  
+                         
+                
+            else: 
+                sys.stdout.write("Static trap ancilla variables:\n")
+                for x in staticOptions:
+                    sys.stdout.write("{}: {}\n".format(x,ampModOptions[x]))
+                sys.stdout.write("\n")
+                flag =1
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
               
-                              
+        ######################################################################
+        # TRANSFER OF DATA
+        ######################################################################                      
                 
         self.flag[self.segment] = flag
         if flag==0:
-            # we define the buffer for transfer and start the DMA transfer
-            ###
-            ####sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
-            ###
-            spcm_dwDefTransfer_i64 (AWG.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), pvBuffer, uint64 (0), qwBufferSize)
-            spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
-            sys.stdout.write("... segment number {0:d} has been transferred to board memory\n".format(segment))
-            sys.stdout.write(".................................................................\n")
-        
+            sys.stdout.write("... data for segment {0:d} has been generated.\n".format(segment))
         else:
-            sys.stdout.write("Card segment number {0:d} was not loaded due to unresolved errors\n".format(self.segment))
+            sys.stdout.write("Data for segment {} were not generated due to unresolved errors\n".format(self.segment))
+        
+        return outData
         
         
         
@@ -1078,12 +1378,12 @@ class AWG:
                 2. convert the information to card-readable values
                 3. transfer the information to the card.  
             """
-            stepj(AWG.filedata,self.lStep,self.llSegment,self.llLoop,self.llNext,stepCondition)
+            stepj(self.filedata,self.lStep,self.llSegment,self.llLoop,self.llNext,stepCondition)
             llvals=int64((self.llCondition<<32) | (self.llLoop<<32) | (self.llNext<<16) | self.llSegment)
-            spcm_dwSetParam_i64(AWG.hCard,SPC_SEQMODE_STEPMEM0 + self.lStep,llvals)
+            spcm_dwSetParam_i64(self.hCard,SPC_SEQMODE_STEPMEM0 + self.lStep,llvals)
 
     
-    def setDirectory(self,dirPath='S:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin'):
+    def setDirectory(self,dirPath='Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin'):
         self.ddate =time.strftime('%Y%m%d')
         
         if type(dirPath)==str:
@@ -1099,7 +1399,7 @@ class AWG:
     #     Second, we set the name of the file based on the day and time.
     #     Create a directory if needed and output the file before initialising
     #     """
-    #     paramj(AWG.filedata,self.sample_rate.value,self.num_segment,self.start_step,self.lSetChannels.value,self.lBytesPerSample.value,int(self.maxSamples),\
+    #     paramj(self.filedata,self.sample_rate.value,self.num_segment,self.start_step,self.lSetChannels.value,self.lBytesPerSample.value,int(self.maxSamples),\
     #     self.max_output,self.trig_val,self.trig_level0,self.trig_level1,self.statDur)
     #     
     #     self.ddate =time.strftime('%Y%m%d')     # Date in YYMMDD format
@@ -1112,7 +1412,7 @@ class AWG:
     #         os.makedirs(self.path)
     #     
     #     with open(self.path+'\\'+self.fname+'.txt','w') as outfile:
-    #         json.dump(AWG.filedata,outfile,sort_keys = True,indent =4)
+    #         json.dump(self.filedata,outfile,sort_keys = True,indent =4)
             
     
     def saveData(self, fpath=''):
@@ -1121,7 +1421,7 @@ class AWG:
         Second, we set the name of the file based on the day and time.
         Create a directory if needed and output the file before initialising
         """
-        paramj(AWG.filedata,self.sample_rate.value,self.num_segment,self.start_step,self.lSetChannels.value,self.lBytesPerSample.value,int(self.maxSamples),\
+        paramj(self.filedata,self.sample_rate.value,self.num_segment,self.start_step,self.lSetChannels.value,self.lBytesPerSample.value,int(self.maxSamples),\
         self.max_output,self.trig_val,self.trig_level0,self.trig_level1,self.statDur)        
         
         if not fpath:
@@ -1132,7 +1432,7 @@ class AWG:
             fpath = os.path.join(self.path, self.ddate+"_"+self.ttime+'.txt')
         try:
             with open(fpath,'w') as outfile:
-                json.dump(AWG.filedata,outfile,sort_keys = True,indent =4)
+                json.dump(self.filedata,outfile,sort_keys = True,indent =4)
         except (FileNotFoundError, PermissionError) as e:
             print(e)
     
@@ -1141,7 +1441,7 @@ class AWG:
     
     
     
-    def load(self,file_dir='S:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin\\20200706\\20200706_170438.txt'):
+    def load(self,file_dir='Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin\\20200706\\20200706_170438.txt'):
         
         """
         You need to stop the card if you want to load a new file.
@@ -1183,7 +1483,8 @@ class AWG:
                 order = ('segment','action_val','duration','ramped_freq','static_freq',"initial_amp",'final_amp')
                 arguments = [lsegments['segment_'+str(i)][x] for x in order]
             
-            self.setSegment(*arguments)
+            data = self.dataGen(*arguments)
+            self.setSegment(arguments[0], data)
             
         for i in range(stepNumber):
             
@@ -1200,11 +1501,11 @@ class AWG:
                 self.saveData()
             else:
                 self.saveData(save_path)   
-            spcm_dwSetParam_i32 (AWG.hCard, SPC_TIMEOUT, int(timeOut))
+            spcm_dwSetParam_i32 (self.hCard, SPC_TIMEOUT, int(timeOut))
             sys.stdout.write("\nStarting the card and waiting for ready interrupt\n(continuous and single restart will have timeout)\n")
-            dwError = spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITPREFULL)
+            dwError = spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITPREFULL)
             if dwError == ERR_TIMEOUT:
-                spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
+                spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
         else:
             y=[]
             yStep=[]
@@ -1220,13 +1521,103 @@ class AWG:
             
     
     def stop(self):
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
+        spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
     
     def restart(self):
-        spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
-        spcm_vClose (AWG.hCard)
+        spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
+        spcm_vClose (self.hCard)
         
+    def __del__(self):
+        """close the reference to the card when the instance is closed"""
+        self.restart() 
     
+    def multiChannel(self,f1,f2,duration):
+        
+        if 20 <= f1 <= 220:
+            self.f1 = MEGA(f1)
+        else:
+            sys.stdout.write("Frequency not within bounds (20-220 MHz)")
+        
+        if 20 <= f2 <= 220:
+            self.f2 = MEGA(f2)
+        else:
+            sys.stdout.write("Frequency not within bounds (20-220 MHz)")
+         
+        if 0 in self.staticDuration.keys():
+            del self.staticDuration[0] 
+        if 1 in self.staticDuration.keys():
+            del self.staticDuration[1] 
+        #self.staticDuration[0] = duration         # Writes down the requested duration for a static trap in a dictionary (__init__)
+        #self.duration = self.statDur
+        self.duration = duration
+        
+        
+        memBytes =round(self.sample_rate.value * (self.duration*10**-3)/self.rounding) #number of bytes as a multiple of kB - FLOOR function for static traps
+        
+        if memBytes <1:
+            memBytes=1
+        self.numOfSamples = int(memBytes*self.rounding) # number of samples
+            
+           
+        qwChEnable = uint64 (CHANNEL1 | CHANNEL2)                                   # Opens channels 0 and 1
+        spcm_dwSetParam_i32 (self.hCard, SPC_CARDMODE,        SPC_REP_STD_SEQUENCE)  # Sets to Sequence Replay. Check p.66 of manual for list of available modes. 
+        spcm_dwSetParam_i64 (self.hCard, SPC_CHENABLE,                  qwChEnable)  # Selects the 1st Channel to open.
+        spcm_dwSetParam_i32 (self.hCard, SPC_SEQMODE_MAXSEGMENTS, self.num_segment)  # The entire memory will be divided in this many segments. I don't think you can easily partition it. 
+        spcm_dwSetParam_i32 (self.hCard, SPC_SEQMODE_STARTSTEP,   0)  # This is the initialising step for the run.
+        
+        
+        # Store active channel and verify memory size per sample.
+        lSetChannels = int32 (0)
+        lBytesPerSample = int32 (0)
+        spcm_dwGetParam_i32 (self.hCard, SPC_CHCOUNT,     byref (lSetChannels))      # Checks the number of currently activated channels.
+        spcm_dwGetParam_i32 (self.hCard, SPC_MIINST_BYTESPERSAMPLE,  byref (lBytesPerSample)) # Checks the number of bytes used in memory by one sample. p.59 of manual for more info
+        
+        self.lSetChannels    = lSetChannels                                         # Creating an instance parameter
+        self.lBytesPerSample = lBytesPerSample                                      # Creating an instance parameter
+        
+        for i in range (0, lSetChannels.value):
+            spcm_dwSetParam_i32 (self.hCard, SPC_AMP1 + i * (SPC_AMP1 - SPC_AMP0), int32 (AWG.max_output))
+            spcm_dwSetParam_i32 (self.hCard, SPC_ENABLEOUT1 + i * (SPC_ENABLEOUT1 - SPC_ENABLEOUT0),  int32(1))
+        
+        
+        spcm_dwSetParam_i32(self.hCard, SPC_SEQMODE_WRITESEGMENT,0)
+        spcm_dwSetParam_i32(self.hCard, SPC_SEQMODE_SEGMENTSIZE, self.numOfSamples)
+        
+        
+        qwBufferSize = uint64 (self.numOfSamples * self.lBytesPerSample.value * self.lSetChannels.value) # We have TWO actived channels, and we want 64k samples, and each sample is 2bytes, then we need qwBufferSize worth of space.
+        pvBuffer = c_void_p () ## creates a void pointer -to be changed later.
+        qwContBufLen = uint64 (0)
+        spcm_dwGetContBuf_i64 (self.hCard, SPCM_BUF_DATA, byref(pvBuffer), byref(qwContBufLen)) #assigns the pvBuffer the address of the memory block and qwContBufLen the size of the memory.
+       
+       
+        if qwContBufLen.value >= qwBufferSize.value:
+            sys.stdout.write("Using continuous buffer\n")
+        else:
+            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value) ## This now makes pvBuffer a pointer to the memory block. (void types have no attributes, so it is better to think that it points to the block and not individual sample)
+        
+        # calculate the data
+        pnBuffer = cast  (pvBuffer, ptr16) #this now discretises the block into individual 'memory boxes', one for each sample.
+        
+        staticData1 =  moving([self.f1], [self.f1],self.duration,1,220,[1],[1],[0],False,False,self.sample_rate.value)#static([self.f1],1,1,self.duration,220,[1],[0],False,False,self.sample_rate.value,AWG.umPerMHz)            # Generates the requested data
+        staticData2 =  moving([self.f1], [self.f1],self.duration,1,220,[1],[0],[0],False,False,self.sample_rate.value) # static([self.f2],1,1,self.duration,220,[1],[0],False,False,self.sample_rate.value,AWG.umPerMHz)           # Generates the requested data
+        
+        
+        multi = multiplex(staticData1,staticData2) 
+        
+        #############
+        # Set the buffer memory
+        ################################# 
+        for i in range (0, int(self.lSetChannels.value*self.numOfSamples), 1):
+            
+            pnBuffer[i] = int16(int(multi[i]))
+        
+        
+        spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), pvBuffer, uint64 (0), qwBufferSize)
+        spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
+        sys.stdout.write("... segment number {0:d} has been transferred to board memory\n".format(0))
+        sys.stdout.write(".................................................................\n")
+        
+        
         
 
 def rep(freq,srate):
@@ -1235,159 +1626,38 @@ def rep(freq,srate):
     t.start()
    
 if __name__ == "__main__":
-    t = AWG()
     
-    # setSegment(segment, action, duration, *args):
+    t = AWG([1,2])
     t.setNumSegments(8)
     print(t.num_segment)
     print(t.maxDuration)
     # 0.329um/MHz
     # setup trigger and segment duration
-    t.setTrigger(1) # 0 software, 1 ext0
+    t.setTrigger(0) # 0 software, 1 ext0
     t.setSegDur(0.002)
+   
+    """11/08/2020 vincent 
+    test parametric heating using AOD
+        1. 1 Static trap @ 166MHz, 110mV until trigger
+        2. Then modulate at x kHz for 100ms, then automatically return to 1 static trap"""
+         
     
-    """
-    rampOptions = {
-    1:  "Frequency(ies) to be ramped [MHz].",
-    2:  "Number of traps",
-    3:  "Distance between traps",
-    4:  "Global amplitude control [mV] up to a value 282" ,                     
-    5:  "Individual amplitude(s) at start of ramp [fraction of total amplitude] (0 to 1).",                  
-    6:  "Individual amplitude(s) at end of ramp   [fraction of total amplitude] (0 to 1)." ,
-    7:  "Individual phase(s) for each frequency used [deg]",
-    8:  "Frequency Adjustment  [True/False]",
-    9:  "Amplitude adjustment [True/False]"                                                           
-    }
-    """
+    #t.setSegment(0,1,0.02,[158,174],1,9, 220,[1,1],[0,0],False,False)
+    #t.setSegment(1,4,50, [1158,174],1,9, 110,[1,1],137,0.05,[0,0],False,False)  
+    # t.setStep(0,0,1,1,1)  
+    # t.setStep(1,1,1,0,2)
     
-    """
-    # segment data parameters
-    staticfreq = 179 # frequency of static trap in MHz
-    static_sep=-9 # seperaation of second trap (static) in um
-    sep = 20 # merged separation in MHz
-    tramp = 1 # duration shuttle trap ramps up, ms
-    thold = 40 # time traps held together, ms
-    tmove = 1 # duration shuttle moves away, ms
-    Amp = 0.96 # amplitude shuttle trap is ramped up to
-    # segment/action_type/duration/number of traps/trap_distance/AWG_output[mV]/freq_amps/freq_phases
-    t.setSegment(0,1,0.02,staticfreq,2,static_sep,220,[1,Amp],[0,0],False,False) # 2 static
-    # segment, action, duration, start freq, end freq, static freq, hybridicity
-    t.setSegment(1,2,tmove,[staticfreq+static_sep/0.329,staticfreq],[staticfreq-sep,staticfreq],1,220,[Amp,1],[0,0],False) # merge together
-    # segment, action, duration, shuttle frq, static freq, amp0, amp1
-    t.setSegment(2,3,tramp,[staticfreq-sep,staticfreq],2,-sep,220,[Amp,1],[0,1],[0,0],False,False) # ramp down shuttle
-    t.setSegment(3,1,thold,staticfreq,2,-0.329*sep,220,[1,Amp],[0,0],False,False) # hold close - both on
-    # t.setSegment(3,1,thold,static,2,-0.329*sep,220,[1,0],[0,0],False) # hold close - merged into 1 trap
-    t.setSegment(4,3,tramp,[staticfreq-sep,staticfreq],2,0.329*2,220,[0,1],[Amp,1],[0,0],False,False) # ramp up shuttle
-    t.setSegment(5,2,tmove,[staticfreq-sep,staticfreq],[staticfreq+static_sep/0.329,staticfreq],1,220,[Amp,1],[0,0],False) # pull apart
-    t.setSegment(6,1,100,staticfreq,2,static_sep,220,[1,Amp],[0,0],False,False) # hold separate
-    
-    # t.setStep(stepNum,segNum,loopNum, nextStep, stepCondition)
-    # t.setStep(0,0,1,1,1)
-    # t.setStep(1,1,1,2,2)
-    # t.setStep(2,2,1,3,2)
-    # t.setStep(3,3,1,4,2)
-    # t.setStep(4,4,1,5,2)
-    # t.setStep(5,5,1,6,2)
-    # t.setStep(6,6,1,0,2)
-    
-    # static, move, static, move
-    t.setStep(0,0,1,1,1)
-    t.setStep(1,1,1,2,2)
-    t.setStep(2,3,1,3,2)
-    t.setStep(3,5,1,0,2)
-    
-    t.start(True)
-    """
-    # t.stop()
-    # t.setSegment(0,1,0.02,170,2,-9,220,[1,Amp],[0,0],False)
-    # t.setStep(0,0,1,0,1)
-    # t.start()
-    # case 2
-    # t.setStep(0,0,1,1,1)
-    # t.setStep(1,1,1,2,2)
-    # t.setStep(2,0,1,3,2)
-    # t.setStep(3,1,1,4,2)
-    # t.setStep(4,0,1,5,2)
-    # t.setStep(5,1,1,6,2)
-    # t.setStep(6,0,1,7,2)
-    # t.setStep(7,1,1,8,2)
-    # t.setStep(8,0,1,9,2)
-    # t.setStep(9,1,1,0,2)
-    # 
-    # # case 0
-    # t.setStep(0,0,1,1,1)
-    # t.setStep(1,2,100,0,2)
-    # 
-    # # case 1
-    # t.setStep(0,0,1,1,1)
-    # t.setStep(1,2,1,0,2)
-    
-    # # trying to pull atom out of shuttlet rap Measure 7 17.7.20
-    # t.setSegment(0,1,0.02,170,2,-8.5,220,[1,0],[0,0],True) # one static
-    # # segment, action, duration, freqs, numtrap, separation, totamp, startamps, endamps, phase, freqadjust, ampadjust
-    # t.setSegment(1,3,2,170-sep,170,0,Amp*100) # ramp up shuttle
-    # t.setSegment(2,1,5,170,2,-0.329*sep,220,[1,Amp],[0,0],True) # hold close
-    # # segment, action, duration, start freq, end freq, static freq, hybridicity
-    # t.setSegment(3,2,5,170-sep,144.16413373860183,170,1,220,[Amp,1],[0,0],True) # move shuttle away
-    # t.setSegment(4,1,100,170,2,-8.5,220,[1,Amp],[0,0],True) # hold separate
-    # t.setStep(0,0,1,1,1)
-    # t.setStep(1,1,1,2,2)
-    # t.setStep(2,2,1,3,2)
-    # t.setStep(3,3,1,4,2)
-    # t.setStep(4,4,1,0,2)
-    
-    # ls= np.array([145,190])
-    # t.setSegment(0,1,0.02,ls,2,-15,220,[1,1],[0,0],True) 
-    # t.setStep(0,0,1,0,1)
+    data01 = t.dataGen(0,1,0.02,[166],1,9, 220,[1],[0],False,False)
+    data02 = t.dataGen(0,1,0.02,[180],1,9, 220,[1],[0],False,False)
+    t.setSegment(0,data01,data02)
     
     
-    # t.setSegment(0,1,0.02,170,2,10,220,[1,1],[0,0],True,False)
-    # t.setSegment(1,2,0.12,[138,166],[138,166],1,220,[1,1],[0,0],True)
-    # t.setSegment(2,3,0.12,[166,166],2,12,220,[1,1],[0,1],[0,0],True,False)
-    # 
-    # t.setStep(0,0,1,0,2)
-    # t.setStep(1,1,1,2,2)
-    # t.setStep(2,2,1,0,2)
-    # 
-    # 
+        
+          
+    # t.start(True)
     
     
-    """
-    21/07/2020: Heating from moving traps: static, then sweep freq back and forth 10 times
-    1. static at 150MHz until triggered
-    2. sweep freq to 170MHz in 2ms
-    3. sweep back in 2ms
-    repeating 10x takes 40ms.
-    """
-    # t.setSegment(0,1,0.02,[160],1,9,    110,[1],[0],False,False) # 1 static
-    # t.setSegment(1,2,2,   [160],[180],1,110,[1],[1],[0],False,False) # sweep away
-    # t.setSegment(2,2,2,   [180],[160],1,110,[1],[1],[0],False,False) # sweep back
-    # t.setStep(0,0,1,1,1)
-    # t.setStep(1,1,1,2,2)
-    # t.setStep(2,2,1,3,2) # 1
-    # t.setStep(3,1,1,4,2)
-    # t.setStep(4,2,1,5,2) # 2
-    # t.setStep(5,1,1,6,2)
-    # t.setStep(6,2,1,7,2) # 3
-    # t.setStep(7,1,1,8,2)
-    # t.setStep(8,2,1,9,2) # 4
-    # t.setStep(9,1,1,10,2)
-    # t.setStep(10,2,1,11,2) # 5
-    # t.setStep(11,1,1,12,2)
-    # t.setStep(12,2,1,13,2) # 6
-    # t.setStep(13,1,1,14,2)
-    # t.setStep(14,2,1,15,2) # 7 
-    # t.setStep(15,1,1,16,2) 
-    # t.setStep(16,2,1,17,2) # 8
-    # t.setStep(17,1,1,18,2)
-    # t.setStep(18,2,1,19,2) # 9
-    # t.setStep(19,1,1,20,2)
-    # t.setStep(20,2,1,0,2) # 10 - back t.stop()to static
-    #  1.284  / 14.6 8700.825 50 0.33 20 0.0564 30 0.121 40 0.212 60 0.467 70 0.630 90 1.02
-    t.setTrigger(0)
-    t.setSegment(0,1,0.02,[160],1,9,    110,[1],[0],False,False)
-    t.setStep(0,0,1,0,1)
-    t.start(True)
+    
     # 
     # ### STATIC/RAMP
     # # action/freq/num of traps/distance/duration/freq Adjust/sample rate/umPerMhz

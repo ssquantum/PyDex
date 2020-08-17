@@ -212,7 +212,7 @@ class runnum(QThread):
             mr_queue = [[TCPENUM['TCP read'], 'AWG start_awg\n'+'0'*2000]] # list of TCP messages for the whole multirun
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
                 if 'AWG' in self.seq.mr.mr_param['Type']: # send AWG parameters by TCP
-                    awgmsg = 'AWG set_data:{'
+                    awgmsg = 'AWG set_data={'
                     col = -1  # in case the for loop doesn't execute
                     for col in range(len(self.seq.mr.mr_param['Type'])):
                         if self.seq.mr.mr_param['Type'][col] == 'AWG':
@@ -224,7 +224,7 @@ class runnum(QThread):
                 else: awgmsg = ''
                 mr_queue += [[TCPENUM['TCP read'], awgmsg+'0'*2000], # set AWG parameters
                     [TCPENUM['TCP read'], awgmsg+'\n'+'0'*2000],
-                    [TCPENUM['TCP read'], 'AWG save:'+os.path.join(results_path,'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')+'\n'+'0'*2000 if awgmsg else '\n'+'0'*2000],
+                    [TCPENUM['TCP read'], 'AWG save='+os.path.join(results_path,'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')+'\n'+'0'*2000 if awgmsg else '\n'+'0'*2000],
                     [TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step run']+'0'*2000],
                     [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]] + [
                     [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*v)+'\n'+'0'*2000] for r in range(repeats)
@@ -274,7 +274,7 @@ class runnum(QThread):
                 ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]
             for var in range(v+1, nrows): # add the rest of the multirun
                 if 'AWG' in self.seq.mr.mr_param['Type']: # send AWG parameters by TCP
-                    awgmsg = 'AWG set_data:{'
+                    awgmsg = 'AWG set_data={'
                     col = -1  # in case the for loop doesn't execute
                     for col in range(len(self.seq.mr.mr_param['Type'])):
                         if self.seq.mr.mr_param['Type'][col] == 'AWG':
@@ -286,7 +286,7 @@ class runnum(QThread):
                 else: awgmsg = ''
                 mr_queue += [
                     [TCPENUM['TCP read'], awgmsg+'\n'+'0'*2000],
-                    [TCPENUM['TCP read'], 'AWG save:'+os.path.join(
+                    [TCPENUM['TCP read'], 'AWG save='+os.path.join(
                         self.sv.results_path, self.seq.mr.mr_param['measure_prefix'],'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'
                         ) + '\n'+'0'*2000 if awgmsg else '\n'+'0'*2000],
                     [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[var]]] + [

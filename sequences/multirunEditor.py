@@ -120,7 +120,7 @@ class multirun_widget(QWidget):
             ('# omitted', 0), ('# in hist', 100)])
         self.awg_args = ['segment', 'action_type', 'duration', 'start_freq', 
                 'num_of_traps', 'distance', 'end_freq', 'hybridicity', 'total_amp', 'start_amp', 'end_amp', 
-                'freq_amp', 'freq_phase', 'freq_adjust', 'amp_adjust']
+                'freq_amp', 'freq_phase', 'freq_adjust', 'amp_adjust', 'args_dict']
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
         self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
@@ -200,7 +200,7 @@ class multirun_widget(QWidget):
         self.chan_choices = OrderedDict()
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
         sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
-        options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG'], 
+        options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG', 'Other'], 
             list(map(str.__add__, [str(i) for i in range(len(sht))],
                 [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht])), 
             ['Fast analogue', 'Slow analogue'],
@@ -458,6 +458,10 @@ class multirun_widget(QWidget):
             self.chan_choices['Analogue channel'].setEnabled(False)
             self.chan_choices['Time step name'].clear()
             self.chan_choices['Time step name'].addItems(self.awg_args)
+        if newtype == 'Other':
+            self.chan_choices['Analogue channel'].setEnabled(False)
+            self.chan_choices['Time step name'].clear()
+            self.chan_choices['Time step name'].addItems(['Variable'])
         elif newtype == 'Time step length':
             self.chan_choices['Analogue channel'].setEnabled(False)
             self.chan_choices['Time step name'].clear()

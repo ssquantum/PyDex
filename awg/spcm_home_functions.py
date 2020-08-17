@@ -105,26 +105,50 @@ importFile = "calFile_25.07.2020.txt"
 with open(importPath+importFile) as json_file:
     calFile = json.load(json_file) 
 
-############################
-# Calibration of mV vs Freq vs Diffraction Efficiency (%)
-######################### 
-DE_mVs = np.array(eval(calFile["DEvsPower_Amp"]))
-DE_MHz = np.array(eval(calFile["DEvsPower_Freq"]))
-correction = np.array([eval(calFile[key]) for key in calFile.keys() if 'DEvsPower_A=' in key])
+cal166X = np.array(eval(calFile["rel_DEvsFreq_X"]))
+cal166Y = np.array(eval(calFile["rel_DEvsFreq_Y"]))
+int166  = interpolate.interp1d(cal166X,cal166Y, kind='cubic')
+      
 
-intDE = interpolate.RectBivariateSpline(DE_MHz, DE_mVs, correction)
+
+############################
+# Calibration of mV vs Diffraction Efficiency (%), as taken using 170 MHz
+######################### 
+mVs =  np.array(eval(calFile["DEvsPower_X"]))
+mVtoDE=np.array(eval(calFile["DEvsPower_Y"]))
+
+intmVtoDE = interpolate.interp1d(mVs,mVtoDE, kind='cubic')
+intDEtomV = interpolate.interp1d(mVtoDE,mVs, kind='cubic')
+
+
+
+#filedata = {}
+#filedata["rel_DEvsFreq_X"]       = str(list(cal166X)) #Note that this is a dictionary
+#filedata["rel_DEvsFreq_Y"]       = str(list(cal166Y)) #Note that this is a dictionary
+#filedata["DEvsPower_X"]          = str(list(mVs)) #Note that this is a dictionary   
+#filedata["DEvsPower_Y"]          = str(list(mVtoDE)) #Note that this is a dictionary
+#filedata["umPerMHz"]             = str(0.329)   
+#
+#mypath =  'Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\\'
+#if not os.path.isdir(mypath):
+#    os.makedirs(mypath)
+
+#with open(mypath+'\\calFile_07.07.2020.txt','w') as outfile:
+#    json.dump(filedata,outfile,sort_keys = True,indent =4)
+
 
 cal_umPerMHz = eval(calFile["umPerMHz"])
 
 
 def ampAdjuster(freq,AWGmV):
-    ls = intDE(freq, AWGmV)
-    ls[ls>1.05]=1      #The argument ls>1 creates a boolean array which is then evaluated on the list ls. On a True, the substitution is made. 
+    # ls = np.round(intDEtomV(intmVtoDE(AWGmV)*int166(freq))/AWGmV,4)
+    ls = intmVtoDE(AWGmV)*int166(freq)
+    ls[ls>1.001]=1      #The argument ls>1 creates a boolean array which is then evaluated on the list ls. On a True, the substitution is made. 
     return np.array(ls)
 
 def getFrequencies(action,*args):
     
-    if action ==1 or action==3:
+    if action ==1 or action==3 or action ==4:
         if len(args)==7:
             freqs          = args[0]
             numberOfTraps  = args[1]
@@ -485,39 +509,141 @@ def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=22
     return y
 
 
+def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1,tot_amp=10,freq_amp = [1],mod_freq=100e3,mod_depth=0.2,freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz):
+    """
+    centralFreq   : Defined in [MHz]. Accepts int/float/list/numpy.arrays()
+    numberOfTraps : Defines the total number of traps including the central frequency.
+    distance      : Defines the relative distance between each of the trap in [MICROmeters]. Can accept negative values.
+    duration      : Defines the duration of the static trap in [MILLIseconds]. The actual duration is handled by the number of loops.
+    tot_amp       : Defines the global amplitude of the sine waves [mV]
+    freq_amp      : Defines the individual frequency amplitude as a fraction of the global (ranging from 0 to 1).
+    mod_freq      : Defines the amplitude modulation frequency for all trap frequencies [Hz]
+    mod_depth     : Defines the modulation depth of the amplitude modualtion (fraction, ranging from 0 to 1)
+    freq_phase    : Defines the individual frequency phase in degrees [deg].
+    freqAdjust    : On/Off switch for whether the frequency should be adjusted to full number of cycles [Bool].
+    sampleRate    : Defines the sample rate by which the data will read [in Hz].
+    umPerMHz      : Conversion rate for the AWG card.
+    """
+    Samplerounding = 1024 # Reference number of samples
+    
+    ############################
+    # If the input is a list, then ignore numberOfTraps and separation.
+    # The traps are not by virtue equidistant so no need to calculate those values.
+    ######################################################################################
+    if type(centralFreq)==list or type(centralFreq)==np.ndarray:
+        freqs = np.array(centralFreq)
+        numberOfTraps = len(freqs)
+    else:
+        separation = distance/umPerMHz *10**6
+        freqs = np.linspace(centralFreq,centralFreq+(numberOfTraps)*separation,numberOfTraps, endpoint=False)
+    
+    ##############################
+    # Ensure that the freq_amp/freq_phase all have the correct size.
+    ################################################################################
+    
+    if ampAdjust ==True:
+        flat_amp = ampAdjuster(freqs*10**-6,tot_amp)
+    else:
+        flat_amp = [1]*numberOfTraps
+    
+    if numberOfTraps != len(freq_amp):
+        freq_amp = [1]*numberOfTraps
+        print("ERROR: Number of amplitudes do not match number of traps. All traps set to 100%\n")
+             
+    
+    if numberOfTraps != len(freq_phase):
+        freq_phase = [0]*numberOfTraps
+        print("ERROR: Number of phases do not match number of traps. All trap phases set to 0.\n")
+    
+    ################
+    # Calculate the number of samples
+    ######################################### 
+    memBytes = round(sampleRate * (duration*10**-3)/Samplerounding) #number of bytes as a multiple of kB
+    
+    if memBytes <1:
+        memBytes =1
+        
+    numOfSamples = int(memBytes*Samplerounding) # number of samples
+    
+    #########
+    # Adjust the frequencies to full number of cycles for the 
+    # given number of samples if requested.
+    ###############################################
+    if freqAdjust == True:
+        adjFreqs = adjuster(freqs,sampleRate,numOfSamples)
+        
+    else:
+        adjFreqs = freqs
+    
+    #########
+    # Generate the data 
+    ########################## 
+    
+    t = np.arange(numOfSamples)
+    mod_amp = mod_depth*np.sin(2.*np.pi*t*mod_freq/sampleRate)
+    y = 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([flat_amp[Y]*freq_amp[Y]*(1+mod_amp)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+    
+    return y
 
+#https://towardsdatascience.com/reshaping-numpy-arrays-in-python-a-step-by-step-pictorial-tutorial-aed5f471cf0b
+def multiplex(*array):
+    """
+    converts a list of arguments in the form of [a,a,a,...], [b,b,b,...],[c,c,c,...]
+    into a multiplexed sequence: [a,b,c,a,b,c,a,b,c,...]
+    """
+    l=len(array)
+    a_stack = np.stack((array[x] for x in range(l)),axis=0)
+    return a_stack.ravel(order="F")
 
+def lenCheck(*args):
+    """
+    Accepts a set of lists or arrays and test that all arguments have the same length.
+    """
+    return all(len(args[0])==len(args[x]) for x in range(1,len(args)))
 
 if __name__ == "__main__":
-    ls = np.array([120e6,150e6,180e6])
+    ls = np.array([100e6,150e6,180e6])
     ls2 = np.array([200e6,170e6,180e6])
     l2=len(ls)
     set1 =[ls,ls2,0.12,625e6]
     set2 =[[1,2,3],[10,8,1],1024,100]
     var = set1
    
-    #template = static(170e6,3,-0.329*5,0.02,220,[1,1,1],[0,0,0],False,True,625*10**6)
+    """
+    Standard templates for each of the 'actions'
+    """
+    #template = static(170e6,3,-0.329*5,0.02,220,[1,0,0],[0,0,0],False,False,625*10**6)
     template   = moving(var[0], var[1],var[2],1,220,[1,0,0],[0,0,0],[0]*l2,False,False,var[3])
-    #template2   = moving(var[0], var[1],var[2],0,220,[1,0,0],[0,0,0],[0]*l2,False,True,var[3])
     #template = ramp(np.array([138e6,180e6]),2,-0.329*50,0.2,220,[1,0],[0.5,0],[0,0],False,False,625e6)
+    template2 = ampModulation(170e6,3,-0.329*5,0.02,220,[1,0,0],100e3,0.5,[0,0,0],False,False,625*10**6)
+    
+    """
+    The following lines are for multiplexing data
+    """
+    # a1 = static(var[0][0],1,-0.329*5,var[2],220,[1],[0],False,False,var[3])
+    # a2 = static(var[1][0],1,-0.329*5,var[2],220,[1],[0],False,False,var[3])
+    # am = multiplex(a1,a2)
+    # template  = am[ : :2]
+    # template2 = am[1: :2]
     
     r = template
-    #r2=template2
-    length = 70000 # len(r)
+    r2=template2
+    length = 10000 # len(r)
     
     """
     Basic data plots for static/move/ramp functions
     """
     fig1,axs = plt.subplots(2,1)
-    #axs[0].plot(np.arange(0,length),r2[:length])
     axs[0].plot(np.arange(0,length),r[:length])
+    axs[0].plot(np.arange(0,length),r2[:length])
     #axs[0].set_ylim([-0.5*2**16,0.5*2**16])
     axs[0].set_xlabel("Number of Samples (First " +str(length)+ ")")
     axs[0].set_ylabel("Amplitude , arb")
     
     
-    #axs[1].plot(np.arange(0,length),r2[-length:])
+    
     axs[1].plot(np.arange(0,length),r[-length:])
+    axs[1].plot(np.arange(0,length),r2[-length:])
     #axs[1].set_ylim([-0.5*2**16,0.5*2**16])
     axs[1].set_xlabel("Number of Samples (Last " +str(length)+ ")")
     axs[1].set_ylabel("Amplitude, arb")
@@ -542,46 +668,46 @@ if __name__ == "__main__":
     as well as useful interpolation curves.
     """
     
-    gs=GridSpec(3,2) # 2 rows, 2 columns
-    fig=plt.figure(figsize=(8,8))
-    
-    xint =np.arange(120,220,0.1)
-    yint = int166(xint) 
-    
-    intmVtoDEX =  np.arange(100,280,0.1)      
-    intmVtoDEY = intmVtoDE(intmVtoDEX)
-
-    ax1=fig.add_subplot(gs[0,:]) # First row, span columns  
-    ax2=fig.add_subplot(gs[1,0]) # Second row, first column
-    ax3=fig.add_subplot(gs[1,1]) # Second row, second column
-    ax4=fig.add_subplot(gs[2,:]) # Third row, span columns 
-    
-    ax1.plot(cal166X,cal166Y, linestyle='--', marker='o')
-    ax1.plot(xint,yint)
-    ax1.set_xlabel("Frequency, MHz")
-    ax1.set_ylabel("Relative DE (@166 MHz)")
-    
-    ax2.plot(mVs,mVtoDE, linestyle='--', marker='o')
-    ax2.plot(intmVtoDEX,intmVtoDEY)
-    ax2.set_xlabel("AWG output ,  mV")
-    ax2.set_ylabel("DE % (@170 MHz)")
-    
-    ax3.plot(mVtoDE,mVs, linestyle='--', marker='o')
-    ax3.plot(intmVtoDEY,intmVtoDEX)
-    ax3.set_xlabel("DE % (@170 MHz)")
-    ax3.set_ylabel("AWG output ,  mV")
-    
-    
-    x2=np.linspace(120,220,1000)
-    ax4.plot(x2,ampAdjuster(x2,220))
-    ax4.plot(x2,ampAdjuster(x2,200))
-    ax4.plot(x2,ampAdjuster(x2,180))
-    ax4.plot(x2,ampAdjuster(x2,160))
-    ax4.set_xlabel("Frequency, MHz")
-    ax4.set_ylabel("Fractional Amplitude (rel. to 166 MHz)")
-
-    fig.tight_layout()
-    fig.show()
+#     gs=GridSpec(3,2) # 2 rows, 2 columns
+#     fig=plt.figure(figsize=(8,8))
+#     
+#     xint =np.arange(120,220,0.1)
+#     yint = int166(xint) 
+#     
+#     intmVtoDEX =  np.arange(100,280,0.1)      
+#     intmVtoDEY = intmVtoDE(intmVtoDEX)
+# 
+#     ax1=fig.add_subplot(gs[0,:]) # First row, span columns  
+#     ax2=fig.add_subplot(gs[1,0]) # Second row, first column
+#     ax3=fig.add_subplot(gs[1,1]) # Second row, second column
+#     ax4=fig.add_subplot(gs[2,:]) # Third row, span columns 
+#     
+#     ax1.plot(cal166X,cal166Y, linestyle='--', marker='o')
+#     ax1.plot(xint,yint)
+#     ax1.set_xlabel("Frequency, MHz")
+#     ax1.set_ylabel("Relative DE (@166 MHz)")
+#     
+#     ax2.plot(mVs,mVtoDE, linestyle='--', marker='o')
+#     ax2.plot(intmVtoDEX,intmVtoDEY)
+#     ax2.set_xlabel("AWG output ,  mV")
+#     ax2.set_ylabel("DE % (@170 MHz)")
+#     
+#     ax3.plot(mVtoDE,mVs, linestyle='--', marker='o')
+#     ax3.plot(intmVtoDEY,intmVtoDEX)
+#     ax3.set_xlabel("DE % (@170 MHz)")
+#     ax3.set_ylabel("AWG output ,  mV")
+#     
+#     
+#     x2=np.linspace(120,220,1000)
+#     ax4.plot(x2,ampAdjuster(x2,220))
+#     ax4.plot(x2,ampAdjuster(x2,200))
+#     ax4.plot(x2,ampAdjuster(x2,180))
+#     ax4.plot(x2,ampAdjuster(x2,160))
+#     ax4.set_xlabel("Frequency, MHz")
+#     ax4.set_ylabel("Fractional Amplitude (rel. to 166 MHz)")
+# 
+#     fig.tight_layout()
+#     fig.show()
 
     """
     Testing the amplitude flattening during a move action.
@@ -625,10 +751,10 @@ if __name__ == "__main__":
     """
     from timeit import default_timer as timer
     
-    #start = timer()
-    #template   = moving(var[0], var[1],var[2],1,220,[1,1,1],[0]*l2,False,True,var[3])
-    #end = timer()
-    #print(end - start) # Time in seconds, e.g. 5.38091952400282
+    # start = timer()
+    # template = ampModulation(170e6,2,-0.329*5,100,220,[1,1],100e3,[0,0],False,True,625*10**6)
+    # end = timer()
+    # print(end - start) # Time in seconds, e.g. 5.38091952400282
     #
     #start = timer()
     #template2   = moving(var[0], var[1],1,1,220,[1,1,1],[1,1,1],[0]*l2,False,True,var[3])

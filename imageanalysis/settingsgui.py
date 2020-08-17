@@ -890,8 +890,9 @@ class settings_window(QMainWindow):
             except IndexError as e: 
                 logger.warning('Cannot set image index for image analyser %s.\n'%i+str(e))
 
+        self.mw_inds = self.mw_inds[:self._a]
         self.im_inds_validator('')
-        self.a_ind_edit.setText(','.join(map(str, self.mw_inds[:self._a])))
+        self.a_ind_edit.setText(','.join(map(str, self.mw_inds)))
 
         # rinds = self.reim_edit.text().split(';') # indices of SAIA instances used for re-imaging
         # for i in range(len(rinds)): # check the list input from the user has the right syntax

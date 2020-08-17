@@ -58,7 +58,7 @@ def dataj(data,segVal,action,duration,*args):
     #  moving(startFreq, endFreq,staticFreq,duration,a,tot_amp,freq_amp,freq_phase,freq_adjust,sampleRate):
     ###########    
     elif action ==2:
-        if  len(args)==12:
+        if  len(args)==10:
             data["segments"][seg].append({
             'segment'           :segVal,
             'action_type'       :'moving trap',
@@ -68,14 +68,12 @@ def dataj(data,segVal,action,duration,*args):
             'end_freq_[MHz]'    :args[1],
             'hybridicity'       :args[2],
             "tot_amp_[mV]"      :args[3],
-            'start_amp'         :args[4],
-            'final_amp'         :args[5],
-            "freq_phase_[deg]"  :args[6],
-            "freq_adjust"       :args[7],
-            "amp_adjust"        :args[8],
-            'start_output_[Hz]' :args[9],
-            'end_output_[Hz]'   :args[10],
-            'num_of_samples'    :args[11],
+            "freq_amp"          :args[4],
+            "freq_phase_[deg]"  :args[5],
+            "freq_adjust"       :args[6],
+            'start_output_[Hz]' :args[7],
+            'end_output_[Hz]'   :args[8],
+            'num_of_samples'    :args[9],
             
             
             })
@@ -110,6 +108,31 @@ def dataj(data,segVal,action,duration,*args):
             })
         else:
             print("wrong number of arguments")
+            
+    if action ==4: 
+        if  len(args)==14:
+            data["segments"][seg].append({
+            'segment'             :segVal,
+            'action_type'         :'modulated trap',
+            'action_val'          :action,
+            'duration_[ms]'       :duration,
+            'freqs_input_[MHz]'   :args[0],
+            'num_of_traps'        :args[1],
+            'distance_[um]'       :args[2],
+            'total_amp_[mV]'      :args[3],
+            'freq_amp'            :args[4],
+            'mod_freq_[kHz]'      :args[5],
+            'mod_depth'           :args[6],
+            'freq_phase_[deg]'    :args[7],
+            'freq_adjust'         :args[8],
+            'amp_adjust'          :args[9],
+            'freqs_output_[Hz]'   :args[10],
+            'num_of_samples'      :args[11],
+            'duration_loop_[ms]'  :args[12],
+            'number_of_cycles'    :args[13]
+            })
+        else:
+            print('wrong number of arguments')
             
     data['segments'][seg]=data['segments'][seg][0]
             
