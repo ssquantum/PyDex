@@ -68,11 +68,11 @@ def setup_log():
 
     #set up logging to file for ALL messages
     #fh = logging.FileHandler('log.txt')
-    fh = logging.handlers.TimedRotatingFileHandler('log.txt', when='midnight', interval=1, backupCount=7)
-    fh.setLevel(logging.DEBUG)
-    fh_formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d - %(threadName)s - %(filename)s.%(funcName)s.%(lineno)s - %(levelname)s\n%(message)s\n\n', datefmt='%Y/%m/%d %H:%M:%S')
-    fh.setFormatter(fh_formatter)
+    # fh = logging.handlers.TimedRotatingFileHandler('log.txt', when='midnight', interval=1, backupCount=7)
+    # fh.setLevel(logging.DEBUG)
+    # fh_formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d - %(threadName)s - %(filename)s.%(funcName)s.%(lineno)s - %(levelname)s\n%(message)s\n\n', datefmt='%Y/%m/%d %H:%M:%S')
+    # fh.setFormatter(fh_formatter)
 
     #put the handlers to use
     logger.addHandler(sh)
-    logger.addHandler(fh)
+    # logger.addHandler(fh)

@@ -645,19 +645,26 @@ class Master(QMainWindow):
 
     def closeEvent(self, event):
         """Proper shut down procedure"""
-        try:
-            self.rn.cam.SafeShutdown()
-        except Exception as e: logger.warning('camera safe shutdown failed.\n'+str(e))
-        self.rn.check.send_rois() # give ROIs from atom checker to image analysis
-        self.rn.sw.save_settings('.\\imageanalysis\\default.config')
-        for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
-            ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:
-            self.stats[key] = [g.x(), g.y(), g.width(), g.height()]
-        for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, 
-                self.rn.server, self.rn.trigger, self.rn.check, self.mon_win]:
-            obj.close()
-        self.save_state()
-        event.accept()
+        reply = QMessageBox.question(self, 'Confirm Action',
+                "Sure you want to quit?", QMessageBox.Yes |
+                QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.No:
+            event.ignore()
+        elif reply == QMessageBox.Yes:
+            try:
+                self.rn.cam.SafeShutdown()
+            except Exception as e: logger.warning('camera safe shutdown failed.\n'+str(e))
+            self.rn.check.send_rois() # give ROIs from atom checker to image analysis
+            self.rn.sw.save_settings('.\\imageanalysis\\default.config')
+            for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
+                ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:
+                self.stats[key] = [g.x(), g.y(), g.width(), g.height()]
+            for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, 
+                    self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp, 
+                    self.rn.check, self.mon_win]:
+                obj.close()
+            self.save_state()
+            event.accept()
         
 ####    ####    ####    #### 
 
