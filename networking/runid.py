@@ -169,6 +169,20 @@ class runnum(QThread):
                 self.check.timer.singleShot(int(self.check.timer.t0*1e3), self.check.send_trigger)
 
     #### multirun ####
+
+    def get_awg_params(self, v):
+        """Reformat the AWG multirun paramaters into a string to be sent to the AWG"""
+        awgmsg = 'AWG set_data={'
+        col = -1  # in case the for loop doesn't execute
+        for col in range(len(self.seq.mr.mr_param['Type'])):
+            if self.seq.mr.mr_param['Type'][col] == 'AWG':
+                try: # argument: value
+                    awgmsg += 'seg: %s :: %s: %s, '%(self.seq.mr.mr_param['Time step name'][col][v], 
+                        self.seq.mr.awg_args[self.seq.mr.mr_param['Analogue channel'][col][v]], self.seq.mr.mr_vals[v][col])
+                except Exception as e: logger.error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
+        if col > -1: awgmsg = awgmsg[:-2] + '}'
+        else: awgmsg += '}'
+        return awgmsg
     
     def multirun_go(self, toggle, stillrunning=False):
         """Initiate the multi-run: omit N files, save a histogram of M files, and
@@ -212,15 +226,7 @@ class runnum(QThread):
             mr_queue = [[TCPENUM['TCP read'], 'AWG start_awg\n'+'0'*2000]] # list of TCP messages for the whole multirun
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
                 if 'AWG' in self.seq.mr.mr_param['Type']: # send AWG parameters by TCP
-                    awgmsg = 'AWG set_data={'
-                    col = -1  # in case the for loop doesn't execute
-                    for col in range(len(self.seq.mr.mr_param['Type'])):
-                        if self.seq.mr.mr_param['Type'][col] == 'AWG':
-                            try: # argument: value
-                                awgmsg += '%s: %s, '%(self.seq.mr.awg_args[self.seq.mr.mr_param['Time step name'][col][0]], self.seq.mr.mr_vals[v][col])
-                            except Exception as e: logger.error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
-                    if col > -1: awgmsg = awgmsg[:-2] + '}'
-                    else: awgmsg += '}'
+                    awgmsg = self.get_awg_params(v)
                 else: awgmsg = ''
                 mr_queue += [[TCPENUM['TCP read'], awgmsg+'0'*2000], # set AWG parameters
                     [TCPENUM['TCP read'], awgmsg+'\n'+'0'*2000],
@@ -274,15 +280,7 @@ class runnum(QThread):
                 ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]
             for var in range(v+1, nrows): # add the rest of the multirun
                 if 'AWG' in self.seq.mr.mr_param['Type']: # send AWG parameters by TCP
-                    awgmsg = 'AWG set_data={'
-                    col = -1  # in case the for loop doesn't execute
-                    for col in range(len(self.seq.mr.mr_param['Type'])):
-                        if self.seq.mr.mr_param['Type'][col] == 'AWG':
-                            try: # argument: value
-                                awgmsg += '%s: %s, '%(self.seq.mr.awg_args[self.seq.mr.mr_param['Time step name'][col][0]], self.seq.mr.mr_vals[var][col])
-                            except Exception as e: logger.error('Invalid AWG parameter at (%s, %s)\n'%(var,col)+str(e))
-                    if col > -1: awgmsg = awgmsg[:-2] + '}\n'
-                    else: awgmsg += '}\n'
+                    awgmsg = self.get_awg_params(var)
                 else: awgmsg = ''
                 mr_queue += [
                     [TCPENUM['TCP read'], awgmsg+'\n'+'0'*2000],

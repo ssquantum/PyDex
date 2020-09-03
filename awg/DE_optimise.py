@@ -143,24 +143,13 @@ if __name__ == "__main__":
     
     # fdir = r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\AWG_power_calibration'
     # o.s.add_message(o.n, fdir+'=save_dir')
-    # for f in np.linspace(130, 220, 30):
-    #     for a in np.linspace(10,280,28):
+    # for f in np.linspace(130, 210, 80):
+    #     for a in np.linspace(5,250,100):
     #         o.t.setSegment(0, 1, 0.02, [f], 1, 9, a, [1], [0], False, False)
     #         o.n = int(a)
     #         o.measure()
-    #     o.s.add_message(o.n, '%.1gMHz.csv=graph_file'%f)
+    #     o.s.add_message(o.n, '%.1fMHz.csv=graph_file'%f)
     #     time.sleep(0.01)
     #     o.s.add_message(o.n, 'save graph')
     #     time.sleep(0.01)
     #     o.s.add_message(o.n, 'reset graph')
-    
-    # import os
-    # from matplotlib import cm
-    # plt.figure()
-    # for i, fn in enumerate(os.listdir(fdir)):
-    #     if not i%3:
-    #         data = np.loadtxt(os.path.join(fdir, fn), delimiter=',')[:,1]
-    #         plt.plot(np.linspace(10,280,28)[:len(data)], data/data[21], label=fn[:-4], color=cm.inferno((float(fn[:3])-120)/150))
-    # plt.legend()
-    # plt.xlabel('Amplitude (mV)')
-    # plt.ylabel('Optical power (relative to 220mV)')

@@ -141,7 +141,7 @@ def wrap_hf(seq_dict, nsteps, nd, na, up=1):
                 ('Boolean', [nm_val(head, key, [int, str]) for key in
                     ['Hide event steps', 'Populate multirun', 'Skip Step']]),
                 ('EW', OrderedDict([('Name', 'Time unit'),
-                    ('Choice', ['µs', 'ms', 's']),
+                    ('Choice', ['ï¿½s', 'ms', 's']),
                     ('Val', head['Time unit'])
                 ])),
                 ('I32', nm_val(head, 'Event ID'))
@@ -401,6 +401,17 @@ class translate:
                 self.write_to_str()
         except (FileNotFoundError, xml.parsers.expat.ExpatError) as e: 
             logger.error('Translator could not load sequence:\n'+str(e))
+
+    def load_xml_str(self, text=""):
+        """Load a sequence as a dictionary from an xml string."""
+        try:
+            whole_dict = xmltodict.parse(text)
+            self.seq_dic = strip_sequence(whole_dict)
+            self.setup_multirun()
+            self.write_to_str()
+        except (xml.parsers.expat.ExpatError) as e: 
+            logger.error('Translator could not load sequence:\n'+str(e))
+
 
     def add_event(self, idx=None, event_name=event_list(), 
             header_top=header_cluster(), fd=[False]*56,

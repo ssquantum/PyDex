@@ -1530,6 +1530,7 @@ class AWG:
     def __del__(self):
         """close the reference to the card when the instance is closed"""
         self.restart() 
+        sys.stdout.write("\n Card instance was closed. \n")
     
     def multiChannel(self,f1,f2,duration):
         

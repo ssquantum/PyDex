@@ -264,6 +264,7 @@ class Master(QMainWindow):
         self.actions.addItems(['Run sequence', 'Multirun run',
             'Pause multirun', 'Resume multirun', 'Cancel multirun',
             'TCP load sequence from string',
+            'Get sequence from DExTer',
             'Save DExTer sequence', 'Cancel Python Mode', 
             'Resync DExTer', 'Start acquisition'])
         self.actions.resize(self.actions.sizeHint())
@@ -477,6 +478,9 @@ class Master(QMainWindow):
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
             elif action_text == 'TCP load sequence from string':
                 self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.seq_txt)
+            elif action_text == 'Get sequence from DExTer':
+                self.rn.server.add_message(TCPENUM['TCP read'], 'send sequence xml\n'+'0'*2000)
+                self.rn.server.add_message(TCPENUM['TCP read'], 'replaced with sequence in xml\n'+'0'*2000)
             elif action_text == 'Save DExTer sequence':
                 self.rn.server.add_message(TCPENUM['Save sequence'], 'save log file automatic name\n'+'0'*2000)
             elif action_text == 'Cancel Python Mode':
@@ -583,6 +587,12 @@ class Master(QMainWindow):
                 self.reset_dates()
         elif 'AWG ' in msg: # send command to AWG to set new data
             self.rn.awgtcp.priority_messages([(self.rn._n, msg.replace('AWG ', ''))])
+        elif 'LVData' in msg:
+            try:
+                self.rn.seq.tr.load_xml_str(msg)
+                self.rn.seq.reset_UI()
+                self.rn.seq.set_sequence()
+            except TypeError as e: logger.error("Tried to load invalid sequence.\n"+str(e))
         self.ts['msg end'] = time.time()
         self.ts['blocking'] = time.time() - self.ts['msg start']
         # self.print_times()

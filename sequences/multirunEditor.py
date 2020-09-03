@@ -118,7 +118,7 @@ class multirun_widget(QWidget):
             ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'), 
             ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'),
             ('# omitted', 0), ('# in hist', 100)])
-        self.awg_args = ['segment', 'action_type', 'duration', 'start_freq', 
+        self.awg_args = ['action_type', 'duration', 'start_freq', 
                 'num_of_traps', 'distance', 'end_freq', 'hybridicity', 'total_amp', 'start_amp', 'end_amp', 
                 'freq_amp', 'freq_phase', 'freq_adjust', 'amp_adjust', 'args_dict']
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
@@ -200,7 +200,7 @@ class multirun_widget(QWidget):
         self.chan_choices = OrderedDict()
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
         sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
-        options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG', 'Other'], 
+        options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG segment', 'Other'], 
             list(map(str.__add__, [str(i) for i in range(len(sht))],
                 [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht])), 
             ['Fast analogue', 'Slow analogue'],
@@ -454,10 +454,18 @@ class multirun_widget(QWidget):
                      -- Analogue voltage: also needs channels
                      -- AWG: needs to take non-float arguments; set listbox editable."""
         sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
-        if newtype == 'AWG':
-            self.chan_choices['Analogue channel'].setEnabled(False)
+        if newtype == 'AWG segment':
             self.chan_choices['Time step name'].clear()
-            self.chan_choices['Time step name'].addItems(self.awg_args)
+            self.chan_choices['Time step name'].addItems(list(map(str, [i for i in range(20)])))
+            self.chan_choices['Analogue type'].clear()
+            self.chan_choices['Analogue type'].addItems(['AWG Parameter'])
+            self.chan_choices['Analogue channel'].setEnabled(True)
+            self.chan_choices['Analogue channel'].clear()
+            self.chan_choices['Analogue channel'].addItems(self.awg_args)
+        else:
+            if self.chan_choices['Analogue type'].currentText() == 'AWG Parameter':
+                self.chan_choices['Analogue type'].clear()
+                self.chan_choices['Analogue type'].addItems(['Fast analogue', 'Slow analogue'])
         if newtype == 'Other':
             self.chan_choices['Analogue channel'].setEnabled(False)
             self.chan_choices['Time step name'].clear()
