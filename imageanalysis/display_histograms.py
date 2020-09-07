@@ -15,9 +15,9 @@ from imageanalysis.histoHandler import histo_handler
 from scipy.optimize import curve_fit
 
 # choose all of the options to plot
-fdir = r'Z:\Tweezer\Experimental Results\2020\September\02\Measure3' # directory files are stored in 
+fdir = r'Z:\Tweezer\Experimental Results\2020\September\04\Measure0' # directory files are stored in 
 hh = histo_handler()
-hh.load(fdir+r'\ROI0.Im0.Measure3.dat') # load the log/measure file containing histogram statistics to plot
+hh.load(fdir+r'\ROI0_Re_Measure0.dat') # load the log/measure file containing histogram statistics to plot
 # hh.sort_dict() # sort the histograms in ascending order of user_var measured
 prestring = r'\ROI0.Im0.' # prestring at the start of the histogram csv files
 num_bins = 25   # number of bins to make the histograms with

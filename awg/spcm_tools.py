@@ -37,6 +37,10 @@ def szTypeToName (lCardType):
 # **************************************************************************
 #
 def pvAllocMemPageAligned (qwBytes):
+    #########
+    ## This is just a requirement to have the memory be a multiple of 4kB.
+    ## It is not important that you fill that memory.
+    ####################
     dwAlignment = 4096
     dwMask = dwAlignment - 1
 
@@ -50,5 +54,8 @@ def pvAllocMemPageAligned (qwBytes):
         dwOffset = dwAlignment - misalignment
     else:
         dwOffset = 0
+        
+    # THe reason you use a c_char is because characters are guaranteed to be 1byte long.
+    #
     return (c_char * qwBytes).from_buffer (pvNonAlignedBuf, dwOffset)
 

@@ -1,12 +1,12 @@
-from pyspcm import *
-from spcm_tools import *
-from spcm_home_functions import *
+#from pyspcm import *
+#from spcm_tools import *
+#from spcm_home_functions import *
 import sys
 import time
 import json
 
 
-def dataj(data,segVal,action,duration,*args):
+def dataj(data,segVal,chVal,action,duration,*args):
     """
     This function stores the card segment metadata
     depending on the type of 'action' the segment is requested to perform.
@@ -28,15 +28,23 @@ def dataj(data,segVal,action,duration,*args):
     
     """
     seg = 'segment_'+str(segVal)
-    data['segments'][seg]=[]
+    ch  = 'channel_'+str(chVal)
+    
+    if  seg not in list(data['segments'].keys()):
+        data['segments'][seg]={}
+    
+    data['segments'][seg][ch]=[]
+    
     ###########
     # Static
     ###########
     if action ==1: 
         if  len(args)==10:
-            data["segments"][seg].append({
+            data["segments"][seg][ch].append({
             'segment'             :segVal,
+            'channel_out'         :chVal,
             'action_type'         :'static trap',
+            'action_code'         :'static',
             'action_val'          :action,
             'duration_[ms]'       :duration,
             'freqs_input_[MHz]'   :args[0],
@@ -55,25 +63,28 @@ def dataj(data,segVal,action,duration,*args):
     
     ###########
     # Moving
-    #  moving(startFreq, endFreq,staticFreq,duration,a,tot_amp,freq_amp,freq_phase,freq_adjust,sampleRate):
-    ###########    
+    ###############################################    
     elif action ==2:
-        if  len(args)==10:
-            data["segments"][seg].append({
+        if  len(args)==12:
+            data["segments"][seg][ch].append({
             'segment'           :segVal,
+            'channel_out'       :chVal,
             'action_type'       :'moving trap',
+            'action_code'       :'moving',
             'action_val'        :action,
             'duration_[ms]'     :duration,
             'start_freq_[MHz]'  :args[0],
             'end_freq_[MHz]'    :args[1],
             'hybridicity'       :args[2],
-            "tot_amp_[mV]"      :args[3],
-            "freq_amp"          :args[4],
-            "freq_phase_[deg]"  :args[5],
-            "freq_adjust"       :args[6],
-            'start_output_[Hz]' :args[7],
-            'end_output_[Hz]'   :args[8],
-            'num_of_samples'    :args[9],
+            'tot_amp_[mV]'      :args[3],
+            'start_amp'         :args[4],
+            'end_amp'         :args[5],
+            'freq_phase_[deg]'  :args[6],
+            'freq_adjust'       :args[7],
+            'amp_adjust'        :args[8],
+            'start_output_[Hz]' :args[9],
+            'end_output_[Hz]'   :args[10],
+            'num_of_samples'    :args[11],
             
             
             })
@@ -89,9 +100,11 @@ def dataj(data,segVal,action,duration,*args):
     elif action == 3:
 
         if len(args)==11:
-            data["segments"][seg].append({
+            data["segments"][seg][ch].append({
             'segment'             :segVal,
-            'action_type'         :'ramping trap',
+            'channel_out'         :chVal,
+            'action_type'         :'amp ramping trap',
+            'action_code'         :'ramp',
             'action_val'          :action,
             'duration_[ms]'       :duration,
             'freqs_input_[MHz]'   :args[0],
@@ -99,7 +112,7 @@ def dataj(data,segVal,action,duration,*args):
             'distance_[um]'       :args[2],
             'tot_amp_[mV]'        :args[3],
             'start_amp'           :args[4],
-            'final_amp'           :args[5],
+            'end_amp'           :args[5],
             'freq_phase_[deg]'    :args[6],
             'freq_adjust'         :args[7],
             'amp_adjust'          :args[8],
@@ -111,9 +124,11 @@ def dataj(data,segVal,action,duration,*args):
             
     if action ==4: 
         if  len(args)==14:
-            data["segments"][seg].append({
+            data["segments"][seg][ch].append({
             'segment'             :segVal,
-            'action_type'         :'modulated trap',
+            'channel_out'         :chVal,
+            'action_type'         :'amp modulated trap',
+            'action_code'         :'ampMod',
             'action_val'          :action,
             'duration_[ms]'       :duration,
             'freqs_input_[MHz]'   :args[0],
@@ -134,7 +149,7 @@ def dataj(data,segVal,action,duration,*args):
         else:
             print('wrong number of arguments')
             
-    data['segments'][seg]=data['segments'][seg][0]
+    data['segments'][seg][ch]=data['segments'][seg][ch][0]
             
             
            
@@ -157,7 +172,7 @@ def stepj(data,stepVal,segVal,loopNum,nextStep,condition):
     
 def paramj(data, *args):
     
-    paramLen = 11
+    paramLen = 12
     if len(args)==paramLen:
         args=args
     else:
@@ -167,30 +182,43 @@ def paramj(data, *args):
     
     data["properties"]["card_settings"].append({
     'sample_rate_Hz'        :args[0],
-    'num_of_segments'    :args[1],
-    'start_step'         :args[2],
-    'active_channels'    :args[3],
-    'bytes_per_channel'  :args[4],
-    'maximum_samples'    :args[5],
-    'max_output_mV'     :args[6],
-    'trig_mode'          :args[7],
-    'trig_level0_main' :args[8],
-    'trig_level1_aux'  :args[9],
-    'static_duration_ms'    :args[10]
+    'num_of_segments'       :args[1],
+    'start_step'            :args[2],
+    'numOfChannels'         :args[3],
+    'active_channels'       :args[4],
+    'bytes_per_channel'     :args[5],
+    'maximum_samples'       :args[6],
+    'max_output_mV'         :args[7],
+    'trig_mode'             :args[8],
+    'trig_level0_main'      :args[9],
+    'trig_level1_aux'       :args[10],
+    'static_duration_ms'    :args[11]
     })   
     
     data["properties"]["card_settings"] = data["properties"]["card_settings"][0]                         
-            
 
-# filedata = {}
-# filedata["steps"]       = {} #Note that this is a dictionary
-# filedata["segments"]    = {} #Note that this is a dictionary
-# filedata["properties"]  = {}
-# filedata["calibration"] = []
-# 
-# 
-#               
-# dataj(filedata,0,1,0.02,170,2,1.645*1)
+def calj(data,*args):
+    calLen = 2
+    if len(args) ==calLen:
+        args = args
+    else:
+        args = ["Error"]*calLen
+    
+    data["calibration"]={
+    "calibration_file"   : args[0],
+    "saved_in"           : args[1]
+    }
+                      
+if __name__ == "__main__":
+    
+    filedata = {}
+    filedata["steps"]       = {} 
+    filedata["segments"]    = {} 
+    filedata["properties"]  = {} 
+    filedata["calibration"] = {}
+            
+    dataj(filedata,0,0,1,0.02,[170,182],2,1.645*1,220,[1,0],[0,0],"False","False",[170000000,182000000],1024)
+    dataj(filedata,0,1,1,0.02,[170,182],2,1.645*1,110,[1,1],[0,0],"False","False",[170000000,182000000],1024)
 # dataj(filedata,1,2,0.1,170,175,175,0)
 # dataj(filedata,2,3,0.1,175,175,100,0)
 # dataj(filedata,3,3,0.1,175,175,0,100)

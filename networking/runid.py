@@ -172,16 +172,16 @@ class runnum(QThread):
 
     def get_awg_params(self, v):
         """Reformat the AWG multirun paramaters into a string to be sent to the AWG"""
-        awgmsg = 'AWG set_data={'
+        awgmsg = 'AWG set_data=['
         col = -1  # in case the for loop doesn't execute
         for col in range(len(self.seq.mr.mr_param['Type'])):
-            if self.seq.mr.mr_param['Type'][col] == 'AWG':
+            if 'AWG' in self.seq.mr.mr_param['Type'][col]:
                 try: # argument: value
-                    awgmsg += 'seg: %s :: %s: %s, '%(self.seq.mr.mr_param['Time step name'][col][v], 
+                    awgmsg += '[%s, %s, %s]'%(self.seq.mr.mr_param['Time step name'][col][v], 
                         self.seq.mr.awg_args[self.seq.mr.mr_param['Analogue channel'][col][v]], self.seq.mr.mr_vals[v][col])
                 except Exception as e: logger.error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
-        if col > -1: awgmsg = awgmsg[:-2] + '}'
-        else: awgmsg += '}'
+        if col > -1: awgmsg = awgmsg[:-2] + ']'
+        else: awgmsg += ']'
         return awgmsg
     
     def multirun_go(self, toggle, stillrunning=False):

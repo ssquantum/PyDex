@@ -52,14 +52,18 @@ class Optimiser():
         self.s = PyServer(host='', port=8622)
         self.s.textin.connect(self.respond)
         self.s.start()
-        self.t = AWG()
+        self.t = AWG([0])
         self.t.setNumSegments(8)
         self.t.setTrigger(0) # software trigger
+        self.t.setSegDur(0.002)
         
         # segment, action, duration, freqs, numTraps, separation, freqAdjust, ampAdjust
-        self.t.setSegment(0, 1, 0.02, [fset], 1, 9, amp, [1], [0], False, False) # single trap
-        # step, segment, numLoops, nextStep, triggerCondition
-        self.t.setStep(0,0,1,0,1) # infinite loop
+        # self.t.setSegment(0, 1, 0.02, [fset], 1, 9, amp, [1], [0], False, False) # single trap
+        # # step, segment, numLoops, nextStep, triggerCondition
+        # self.t.setStep(0,0,1,0,1) # infinite loop
+        # self.t.start()
+        self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[fset],1,9, amp,[1],[0],False,False))
+        self.t.setStep(0,0,1,0,1)
         self.t.start()
 
     def respond(self, msg=''):
@@ -78,7 +82,7 @@ class Optimiser():
                 return 0
                 
             print('f:%.4g, v:%.4g'%(f,v), val, self.setpoint)
-            self.t.setSegment(0, 1, 0.02, [f], 1, 9, self.amp, [v], [0], False, False)
+            self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[f],1,9, self.amp,[v],[0],False,False))
             self.measure()
         
             self.n += 1
@@ -116,10 +120,10 @@ class Optimiser():
     def check(self, i=0):
         try:
             self.status = 'finished'
-            self.t.setSegment(0, 1, 0.02, [self.fset], 1, 9, self.amp, [1], [0], False, False)
+            self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[self.fset],1,9, self.amp,[1],[0],False,False))
             self.measure()
             time.sleep(self.sleep)
-            self.t.setSegment(0, 1, 0.02, [self.fs[i]], 1, 9, self.amp, [self.vs[i]], [0], False, False)
+            self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[self.fs[i]],1,9, self.amp,[self.vs[i]],[0],False,False))
             self.measure()
         except IndexError as e:
             print(e)
@@ -137,19 +141,28 @@ if __name__ == "__main__":
     if standalone: # if there isn't an instance, make one
         app = QApplication(sys.argv) 
         
-    o = Optimiser(f0=135, f1=185, nfreqs=50, fset=166, amp=110, tol=1e-3, sleep=0.5)
+    o = Optimiser(f0=120, f1=220, nfreqs=80, fset=166, amp=220, tol=1e-3, sleep=0.5)
     o.t.getParam(3)
     # o.restart()
     
-    # fdir = r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\AWG_power_calibration'
+    from numpy.random import shuffle
+    fs = np.arange(120, 220)
+    # fs = np.delete(fs, np.array([154, 174, 152, 169, 155, 208, 140, 199, 173, 121, 189, 120])-120)
+    shuffle(fs)
+    amps = np.linspace(5,250,120)
+    shuffle(amps)
+    fdir = r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\AWG_power_calibration'
+    o.s.textin.disconnect()
     # o.s.add_message(o.n, fdir+'=save_dir')
-    # for f in np.linspace(130, 210, 80):
-    #     for a in np.linspace(5,250,100):
-    #         o.t.setSegment(0, 1, 0.02, [f], 1, 9, a, [1], [0], False, False)
+    # for f in fs:
+    #     for a in amps:
+    #         o.t.setSegment(0, o.t.dataGen(0,0,'static',1,[f],1,9, a,[1],[0],False,False))
     #         o.n = int(a)
     #         o.measure()
-    #     o.s.add_message(o.n, '%.1fMHz.csv=graph_file'%f)
+    #     o.s.add_message(o.n, '%.3gMHz.csv=graph_file'%f)
     #     time.sleep(0.01)
     #     o.s.add_message(o.n, 'save graph')
     #     time.sleep(0.01)
     #     o.s.add_message(o.n, 'reset graph')
+    #     
+    # o.t.stop()

@@ -3,7 +3,7 @@ import math
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from scipy import interpolate
-
+import ctypes
 
 import sys
 import time
@@ -100,51 +100,30 @@ def chirp(t,d,T,a):
 
 
 importPath="Z:\\Tweezer\Experimental\\Setup and characterisation\\Settings and calibrations\\tweezer calibrations\\AWG calibrations\\"
-importFile = "calFile_25.07.2020.txt"
+importFile = "calFile_05.09.2020.txt"
+
 
 with open(importPath+importFile) as json_file:
     calFile = json.load(json_file) 
 
-cal166X = np.array(eval(calFile["rel_DEvsFreq_X"]))
-cal166Y = np.array(eval(calFile["rel_DEvsFreq_Y"]))
-int166  = interpolate.interp1d(cal166X,cal166Y, kind='cubic')
-      
 
-
-############################
-# Calibration of mV vs Diffraction Efficiency (%), as taken using 170 MHz
-######################### 
-mVs =  np.array(eval(calFile["DEvsPower_X"]))
-mVtoDE=np.array(eval(calFile["DEvsPower_Y"]))
-
-intmVtoDE = interpolate.interp1d(mVs,mVtoDE, kind='cubic')
-intDEtomV = interpolate.interp1d(mVtoDE,mVs, kind='cubic')
-
-
-
-#filedata = {}
-#filedata["rel_DEvsFreq_X"]       = str(list(cal166X)) #Note that this is a dictionary
-#filedata["rel_DEvsFreq_Y"]       = str(list(cal166Y)) #Note that this is a dictionary
-#filedata["DEvsPower_X"]          = str(list(mVs)) #Note that this is a dictionary   
-#filedata["DEvsPower_Y"]          = str(list(mVtoDE)) #Note that this is a dictionary
-#filedata["umPerMHz"]             = str(0.329)   
-#
-#mypath =  'Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\\'
-#if not os.path.isdir(mypath):
-#    os.makedirs(mypath)
-
-#with open(mypath+'\\calFile_07.07.2020.txt','w') as outfile:
-#    json.dump(filedata,outfile,sort_keys = True,indent =4)
+contour_dict = calFile["Power_calibration"]
+for key in contour_dict.keys():
+    try:
+        contour_dict[key]['Calibration'] = interpolate.interp1d(contour_dict[key]['Frequency (MHz)'], contour_dict[key]['RF Amplitude (mV)'])
+    except Exception as e: print(e)
 
 
 cal_umPerMHz = eval(calFile["umPerMHz"])
 
 
-def ampAdjuster(freq,AWGmV):
-    # ls = np.round(intDEtomV(intmVtoDE(AWGmV)*int166(freq))/AWGmV,4)
-    ls = intmVtoDE(AWGmV)*int166(freq)
-    ls[ls>1.001]=1      #The argument ls>1 creates a boolean array which is then evaluated on the list ls. On a True, the substitution is made. 
-    return np.array(ls)
+def ampAdjuster(freq, optical_power):
+    i = np.argmin([abs(float(p) - optical_power) for p in contour_dict.keys()]) # find closest power in dictionary of contours
+    key = list(contour_dict.keys())[i]
+    y = np.array(contour_dict[key]['Calibration'](freq)) # return amplitude in mV to keep constant optical power
+    y[y>220] = 220
+    # if >220 print warning
+    return y
 
 def getFrequencies(action,*args):
     
@@ -312,29 +291,27 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
     if len(freq_phase) != l:
         freq_phase = [0]*l
         print("Number of set phases do no match the number of frequencies. All individual phases have been set to 0. ")
-        
-    if amp_adjust:
-        flat_amp = np.array([ampAdjuster(sfreq[Y]*1e-6 + hybridJerk(t,1.*rfreq[Y]*1e-6, 1.*numOfSamples,a),tot_amp) for Y in range(l)])
-    else:
-        flat_amp =np.array([1]*l)
-    
+            
     #########
     # Generate the data 
     ##########################   
    # t is now defined further up, after numberOfSamples
     
-    if(a==1): # Linear sweep
-            
+    if(a==1) and not amp_adjust: # Linear sweep
             y = 1.*tot_amp/282/len(startFreq)*0.5*2**16 *np.sum([\
-            flat_amp[Y]*\
             amp_ramp[Y]*\
             np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t+0.5*(rfreq[Y])/sampleRate/numOfSamples*t**2)+freq_phase[Y])\
             for Y in range(l)],axis=0) 
-        
+            
+    elif a==1 and amp_adjust:
+            y = 1./282/len(startFreq)*0.5*2**16 *np.sum([
+            np.array([ampAdjuster(sfreq[Y]*1e-6 + hybridJerk(t,1.*rfreq[Y]*1e-6, 1.*numOfSamples,a),amp_ramp[Y]) for Y in range(l)])*\
+            np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t+0.5*(rfreq[Y])/sampleRate/numOfSamples*t**2)+freq_phase[Y])\
+            for Y in range(l)],axis=0) 
+            
     else: # Hybrid/Minimum jerk
         
             y  = 1.*tot_amp/282/len(startFreq)*0.5*2**16 *np.sum([\
-            flat_amp[Y]*\
             amp_ramp[Y]*\
             np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t +\
             chirp(1.*t,1.*(rfreq[Y])/sampleRate,1.*numOfSamples,1.*a)) \
@@ -375,11 +352,6 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1
     # Ensure that the freq_amp/freq_phase all have the correct size.
     ################################################################################
     
-    if ampAdjust ==True:
-        flat_amp = ampAdjuster(freqs*10**-6,tot_amp)
-    else:
-        flat_amp = [1]*numberOfTraps
-    
     if numberOfTraps != len(freq_amp):
         freq_amp = [1]*numberOfTraps
         print("ERROR: Number of amplitudes do not match number of traps. All traps set to 100%\n")
@@ -413,9 +385,10 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1
     # Generate the data 
     ########################## 
     t = np.arange(numOfSamples)
-    y = 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([flat_amp[Y]*freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
-    
-    return y
+    if ampAdjust ==True:
+        return 1./282/len(freqs)*0.5*2**16*np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y])*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+    else:
+        return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     
 
 
@@ -491,20 +464,14 @@ def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=22
     # Adjust the amplitude of the starting and finish
     # to be relative to the diffraction flattened profile
     ###############################
-    if ampAdjust == True:
-        flat_amp = ampAdjuster(freqs*10**-6,tot_amp)
-    else:
-        flat_amp = [1]*numberOfTraps
-        
-        #endAmp   = startAmp*endAmp # You must still give the full array of amplitudes of the end of the amp ramp.
-   
+    
     #########
     # Generate the data 
     ##########################   
     t =np.arange(numOfSamples)
     
     y = 1.*tot_amp/282/len(freqs)*0.5*2**16*\
-    np.sum([flat_amp[Y]*(1.*startAmp[Y] + (1.*endAmp[Y] - 1.*startAmp[Y])*t/numOfSamples)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+    np.sum([(1.*startAmp[Y] + (1.*endAmp[Y] - 1.*startAmp[Y])*t/numOfSamples)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     
     return y
 
@@ -541,11 +508,6 @@ def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duratio
     # Ensure that the freq_amp/freq_phase all have the correct size.
     ################################################################################
     
-    if ampAdjust ==True:
-        flat_amp = ampAdjuster(freqs*10**-6,tot_amp)
-    else:
-        flat_amp = [1]*numberOfTraps
-    
     if numberOfTraps != len(freq_amp):
         freq_amp = [1]*numberOfTraps
         print("ERROR: Number of amplitudes do not match number of traps. All traps set to 100%\n")
@@ -581,12 +543,14 @@ def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duratio
     
     t = np.arange(numOfSamples)
     mod_amp = mod_depth*np.sin(2.*np.pi*t*mod_freq/sampleRate)
-    y = 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([flat_amp[Y]*freq_amp[Y]*(1+mod_amp)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+    if ampAdjust:
+        return 1./282/len(freqs)*0.5*2**16*np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y] * (1+mod_depth*np.sin(2.*np.pi*t*mod_freq/sampleRate)))*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+    else:
+       return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*(1+mod_amp)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     
-    return y
-
+#Using ideas from the following:
 #https://towardsdatascience.com/reshaping-numpy-arrays-in-python-a-step-by-step-pictorial-tutorial-aed5f471cf0b
-def multiplex(*array):
+def multiplex_old(*array):
     """
     converts a list of arguments in the form of [a,a,a,...], [b,b,b,...],[c,c,c,...]
     into a multiplexed sequence: [a,b,c,a,b,c,a,b,c,...]
@@ -595,11 +559,44 @@ def multiplex(*array):
     a_stack = np.stack((array[x] for x in range(l)),axis=0)
     return a_stack.ravel(order="F")
 
+# Based on the following        
+# https://stackoverflow.com/questions/3195660/how-to-use-numpy-array-with-ctypes    
+def multiplex(*array):
+    """
+    converts a list of arguments in the form of [a,a,a,...], [b,b,b,...],[c,c,c,...]
+    into a multiplexed sequence: [a,b,c,a,b,c,a,b,c,...]
+    """
+    l = len(array)
+    c = np.empty((len(array[0]) * l,), dtype=array[0].dtype)
+    for x in range(l):
+        c[x::l] = array[x]
+    return c
+# a1 = np.array([1,3,5])
+# a2 = np.array([2,4,6])
+# a3 = np.array([12,14,16])
+# print(multiplex(a1,a2))
+
 def lenCheck(*args):
     """
     Accepts a set of lists or arrays and test that all arguments have the same length.
     """
-    return all(len(args[0])==len(args[x]) for x in range(1,len(args)))
+
+    return all(len(args[0])==len(args[x]) for x in range(0,len(args)))
+
+# a1 = np.array([1,3,5])
+# a2 = np.array([2,4,6])
+# a3 = np.array([12,14,16])
+# print(lenCheck(a1,a2))
+    
+def typeChecker(x):
+    """
+    Checks if the input is in string, and returns
+    the eval version of it if it is. 
+    """
+    if type(x) == str:
+        return eval(x)
+    else:
+        return x
 
 if __name__ == "__main__":
     ls = np.array([100e6,150e6,180e6])
@@ -633,22 +630,22 @@ if __name__ == "__main__":
     """
     Basic data plots for static/move/ramp functions
     """
-    fig1,axs = plt.subplots(2,1)
-    axs[0].plot(np.arange(0,length),r[:length])
-    axs[0].plot(np.arange(0,length),r2[:length])
-    #axs[0].set_ylim([-0.5*2**16,0.5*2**16])
-    axs[0].set_xlabel("Number of Samples (First " +str(length)+ ")")
-    axs[0].set_ylabel("Amplitude , arb")
-    
-    
-    
-    axs[1].plot(np.arange(0,length),r[-length:])
-    axs[1].plot(np.arange(0,length),r2[-length:])
-    #axs[1].set_ylim([-0.5*2**16,0.5*2**16])
-    axs[1].set_xlabel("Number of Samples (Last " +str(length)+ ")")
-    axs[1].set_ylabel("Amplitude, arb")
-    fig1.tight_layout(pad=3.0)
-    fig1.show()
+    # fig1,axs = plt.subplots(2,1)
+    # axs[0].plot(np.arange(0,length),r[:length])
+    # axs[0].plot(np.arange(0,length),r2[:length])
+    # #axs[0].set_ylim([-0.5*2**16,0.5*2**16])
+    # axs[0].set_xlabel("Number of Samples (First " +str(length)+ ")")
+    # axs[0].set_ylabel("Amplitude , arb")
+    # 
+    # 
+    # 
+    # axs[1].plot(np.arange(0,length),r[-length:])
+    # axs[1].plot(np.arange(0,length),r2[-length:])
+    # #axs[1].set_ylim([-0.5*2**16,0.5*2**16])
+    # axs[1].set_xlabel("Number of Samples (Last " +str(length)+ ")")
+    # axs[1].set_ylabel("Amplitude, arb")
+    # fig1.tight_layout(pad=3.0)
+    # fig1.show()
     
     
     
