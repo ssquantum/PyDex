@@ -35,7 +35,7 @@ class awg_window(QMainWindow):
     Keyword arguments:
     config_file -- path to the file that saved the previous settings.
     """
-    def __init__(self, config_file='.\\state', AWG_channels=[1,2]):
+    def __init__(self, config_file='.\\state', AWG_channels=[0,1]):
         super().__init__()
         # self.types = OrderedDict([('FileName',str), ('segment',int)])
         self.stats = OrderedDict([('FileName', 0), ('segment', 0)])
@@ -44,13 +44,12 @@ class awg_window(QMainWindow):
         self.server = PyServer(host='', port=8621) # TCP server to message DExTer
         self.server.textin[str].connect(self.recv_msg) # display the returned msg
         self.server.start()
-        self.client = PyClient(host='129.234.190.164', port=8623) # TCP client to message PyDex
+        self.client = PyClient(host='129.234.190.164', port=8623) # TCP client to mess#age PyDex
         self.client.textin[str].connect(self.respond) # carry out the command in the msg
         self.client.start()
         self.awg = AWG(AWG_channels) # opens AWG card and initiates
         self.awg.setNumSegments(8)
         self.awg.setTrigger(0) # 0 software, 1 ext0
-        self.awg.setSegDur(0.002)
         self.idle_state()
 
     def init_UI(self):
@@ -132,13 +131,14 @@ class awg_window(QMainWindow):
         elif 'set_data' in cmd:
             try:
                 t = time.time()
-                self.getParams(eval(cmd.split('=')[1]))
-                for segment in self.awg.filedata['segments'].values(): # resets all data
-                    tempData = [] # iterate over each segment and each channel
-                    for i in eval(self.awg.filedata['properties']['card_settings']['active_channels']):
-                        arguments = [segment['channel_'+str(i)][x] for x in AWG.loadOrder[segment['channel_'+str(i)]['action_val']]]
-                        tempData.append(self.awg.dataGen(*arguments))
-                    self.awg.setSegment(self.stats['segment'], *tempData)
+                # self.getParams(eval(cmd.split('=')[1]))
+                # for segment in self.awg.filedata['segments'].values(): # resets all data
+                #     tempData = [] # iterate over each segment and each channel
+                #     for i in eval(self.awg.filedata['properties']['card_settings']['active_channels']):
+                #         arguments = [segment['channel_'+str(i)][x] for x in AWG.loadOrder[segment['channel_'+str(i)]['action_val']]]
+                #         tempData.append(self.awg.dataGen(*arguments))
+                #     self.awg.setSegment(self.stats['segment'], *tempData)
+                self.awg.loadSeg(eval(cmd.split('=')[1]))
                 self.t_load = time.time() - t
             except Exception as e:
                 logger.error('Failed to set AWG data: '+cmd.split('=')[1]+'\n'+str(e))
@@ -148,8 +148,7 @@ class awg_window(QMainWindow):
             except Exception as e:
                 logger.error('Failed to set AWG step: '+cmd.split('=')[1]+'\n'+str(e))
         elif 'reset_awg' in cmd:
-            self.awg.restart()
-            self.awg = AWG(eval(cmd.split('=')[1]))
+            self.renewAWG(cmd)
         elif 'get_times' in cmd:
             logger.info("Data transfer time: %.4g s"%self.t_load)
         self.edit.setText('') # reset cmd edit
@@ -161,6 +160,15 @@ class awg_window(QMainWindow):
             try:
                 self.awg.filedata['segments']['segment_'+str(seg)]['channel_'+str(chan)][key] = val
             except KeyError: pass
+            
+    def renewAWG(self, cmd="chans=[0,1]"):
+        self.awg.restart()
+        self.awg.newCard()
+        self.awg = None
+        self.awg = AWG(eval(cmd.split('=')[1]))#
+        self.awg.setNumSegments(8)
+        # self.awg.setTrigger(0) # 0 software, 1 ext0
+        self.awg.setSegDur(0.002)
         
     def closeEvent(self, event):
         """Safely shut down when the user closes the window."""

@@ -324,7 +324,8 @@ class multirun_widget(QWidget):
         for key, default in zip(['Type', 'Analogue type', 'Time step name', 'Analogue channel'],
             ['Time step length', 'Fast analogue', [], []]):
             if len(self.ui_param[key]) < self.ncols: # these lists must be reshaped
-                self.ui_param[key].append(default)
+                for i in range(len(self.ui_param[key]), self.ncols):
+                    self.ui_param[key].append(default)
             elif len(self.ui_param[key]) > self.ncols:
                 self.ui_param[key] = self.ui_param[key][:self.ncols]
                 
@@ -419,13 +420,14 @@ class multirun_widget(QWidget):
             mrtype = self.ui_param['Type'][col]
             antype = self.ui_param['Analogue type'][col]
             sel = {'Time step name':self.ui_param['Time step name'][col],
-                'Analogue channel':self.ui_param['Analogue channel'][col] if mrtype=='Analogue voltage' else []}
+                'Analogue channel':self.ui_param['Analogue channel'][col] 
+                    if mrtype=='Analogue voltage' or mrtype=='AWG chan : seg' else []}
         except (IndexError, ValueError):
             mrtype, antype = 'Time step length', 'Fast analogue'
             sel = {'Time step name':[], 'Analogue channel':[]}
         self.chan_choices['Type'].setCurrentText(mrtype)
         self.chan_choices['Analogue type'].setCurrentText(antype)
-        self.chan_choices['Analogue channel'].setEnabled(True if mrtype=='Analogue voltage' else False)
+        self.chan_choices['Analogue channel'].setEnabled(mrtype=='Analogue voltage' or mrtype=='AWG chan : seg')
         for key in ['Time step name', 'Analogue channel']:
             self.chan_choices[key].setCurrentRow(0, QItemSelectionModel.Clear) # clear previous selection
             try:
@@ -456,7 +458,7 @@ class multirun_widget(QWidget):
         if newtype == 'AWG chan : seg':
             self.chan_choices['Time step name'].clear()
             self.chan_choices['Time step name'].addItems([str(i)+', '+str(j) for j in range(10) for i in range(4)])
-            self.chan_choices['Analogue type'].disconnect()
+            reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)
             self.chan_choices['Analogue type'].clear()
             self.chan_choices['Analogue type'].addItems(['AWG Parameter'])
             self.chan_choices['Analogue channel'].setEnabled(True)

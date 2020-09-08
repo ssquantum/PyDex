@@ -141,7 +141,7 @@ def wrap_hf(seq_dict, nsteps, nd, na, up=1):
                 ('Boolean', [nm_val(head, key, [int, str]) for key in
                     ['Hide event steps', 'Populate multirun', 'Skip Step']]),
                 ('EW', OrderedDict([('Name', 'Time unit'),
-                    ('Choice', ['ï¿½s', 'ms', 's']),
+                    ('Choice', ['µs', 'ms', 's']),
                     ('Val', head['Time unit'])
                 ])),
                 ('I32', nm_val(head, 'Event ID'))

@@ -177,10 +177,11 @@ class runnum(QThread):
         for col in range(len(self.seq.mr.mr_param['Type'])):
             if 'AWG' in self.seq.mr.mr_param['Type'][col]:
                 try: # argument: value
-                    awgmsg += '[%s, %s, %s]'%(self.seq.mr.mr_param['Time step name'][col][v], 
-                        self.seq.mr.awg_args[self.seq.mr.mr_param['Analogue channel'][col][v]], self.seq.mr.mr_vals[v][col])
+                    n = self.seq.mr.mr_param['Time step name'][col][0] # index of chosen AWG channel, segment 
+                    awgmsg += '[%s, %s, "%s", %s],'%(n%4, n//4, 
+                        self.seq.mr.awg_args[self.seq.mr.mr_param['Analogue channel'][col][0]], self.seq.mr.mr_vals[v][col])
                 except Exception as e: logger.error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
-        if col > -1: awgmsg = awgmsg[:-2] + ']'
+        if col > -1: awgmsg = awgmsg[:-1] + ']'
         else: awgmsg += ']'
         return awgmsg
     
@@ -223,14 +224,13 @@ class runnum(QThread):
             self.monitor.add_message(self._n, 'start')
             # insert TCP messages at the front of the queue: once the multirun starts don't interrupt it.
             repeats = self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']
-            mr_queue = [[TCPENUM['TCP read'], 'AWG start_awg\n'+'0'*2000]] # list of TCP messages for the whole multirun
+            mr_queue = [[TCPENUM['TCP read'], 'AWG save='+os.path.join(results_path,'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')+'||||||||'+'0'*2000 
+                if any('AWG' in x for x in self.seq.mr.mr_param['Type']) else '||||||||'+'0'*2000]] # list of TCP messages for the whole multirun
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
-                if 'AWG' in self.seq.mr.mr_param['Type']: # send AWG parameters by TCP
+                if any('AWG' in x for x in self.seq.mr.mr_param['Type']): # send AWG parameters by TCP
                     awgmsg = self.get_awg_params(v)
                 else: awgmsg = ''
-                mr_queue += [[TCPENUM['TCP read'], awgmsg+'0'*2000], # set AWG parameters
-                    [TCPENUM['TCP read'], awgmsg+'\n'+'0'*2000],
-                    [TCPENUM['TCP read'], 'AWG save='+os.path.join(results_path,'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')+'\n'+'0'*2000 if awgmsg else '\n'+'0'*2000],
+                mr_queue += [[TCPENUM['TCP read'], awgmsg+'||||||||'+'0'*2000], # set AWG parameters
                     [TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step run']+'0'*2000],
                     [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]] + [
                     [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*v)+'\n'+'0'*2000] for r in range(repeats)
@@ -257,7 +257,7 @@ class runnum(QThread):
             text = 'STOPPED. Multirun measure %s: %s is'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label'])
             self.seq.mr.progress.emit(text+status)
             self.server.add_message(TCPENUM['TCP read'], text+status)
-            self.server.add_message(TCPENUM['TCP read'], 'AWG stop_awg\n'+'0'*2000)
+            self.server.add_message(TCPENUM['TCP read'], 'AWG stop_awg||||||||'+'0'*2000)
 
     def multirun_resume(self, status):
         """Resume the multi-run where it was left off.
@@ -272,21 +272,19 @@ class runnum(QThread):
             nrows = len(self.seq.mr.mr_vals)
             if v > nrows - 1: v = nrows - 1
             # finish this histogram
-            mr_queue = [[TCPENUM['TCP read'], 'AWG start_awg\n'+'0'*2000],
+            mr_queue = [[TCPENUM['TCP read'], 'AWG save='+os.path.join(
+                        self.sv.results_path, self.seq.mr.mr_param['measure_prefix'],'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'
+                        ) + '||||||||'+'0'*2000 if any('AWG' in x for x in self.seq.mr.mr_param['Type']) else '||||||||'+'0'*2000],
                 [TCPENUM['TCP read'], 'restart measure %s'%(self.seq.mr.mr_param['measure'])+'\n'+'0'*2000],
                 [TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step run']+'0'*2000],
                 [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]]
             mr_queue += [[TCPENUM['Run sequence'], 'multirun run '+str(self._n + i)+'\n'+'0'*2000] for i in range(repeats - r + 1)
                 ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]
             for var in range(v+1, nrows): # add the rest of the multirun
-                if 'AWG' in self.seq.mr.mr_param['Type']: # send AWG parameters by TCP
+                if any('AWG' in x for x in self.seq.mr.mr_param['Type']): # send AWG parameters by TCP
                     awgmsg = self.get_awg_params(var)
                 else: awgmsg = ''
-                mr_queue += [
-                    [TCPENUM['TCP read'], awgmsg+'\n'+'0'*2000],
-                    [TCPENUM['TCP read'], 'AWG save='+os.path.join(
-                        self.sv.results_path, self.seq.mr.mr_param['measure_prefix'],'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'
-                        ) + '\n'+'0'*2000 if awgmsg else '\n'+'0'*2000],
+                mr_queue += [[TCPENUM['TCP read'], awgmsg+'||||||||'+'0'*2000], # set AWG parameters
                     [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[var]]] + [
                     [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*var)+'\n'+'0'*2000] for r in range(repeats)
                     ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]

@@ -585,8 +585,8 @@ class Master(QMainWindow):
             self.status_label.setText(msg)
             if self.date_reset: # reset dates at end of multirun
                 self.reset_dates()
-        elif 'AWG ' in msg: # send command to AWG to set new data
-            self.rn.awgtcp.priority_messages([(self.rn._n, msg.replace('AWG ', ''))])
+        elif 'AWG ' in msg[:10]: # send command to AWG to set new data
+            self.rn.awgtcp.priority_messages([(self.rn._n, msg.replace('AWG ', '').split('||||||||')[0])])
         elif 'LVData' in msg:
             try:
                 self.rn.seq.tr.load_xml_str(msg)
