@@ -225,7 +225,7 @@ class runnum(QThread):
             # insert TCP messages at the front of the queue: once the multirun starts don't interrupt it.
             repeats = self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']
             mr_queue = [[TCPENUM['TCP read'], 'AWG save='+os.path.join(results_path,'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')+'||||||||'+'0'*2000 
-                if any('AWG' in x for x in self.seq.mr.mr_param['Type']) else '||||||||'+'0'*2000]] # list of TCP messages for the whole multirun
+                if any('AWG' in x for x in self.seq.mr.mr_param['Type']) else 'blank||||||||'+'0'*2000]] # list of TCP messages for the whole multirun
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
                 if any('AWG' in x for x in self.seq.mr.mr_param['Type']): # send AWG parameters by TCP
                     awgmsg = self.get_awg_params(v)
@@ -246,6 +246,9 @@ class runnum(QThread):
             reset_slot(self.cam.AcquireEnd, self.mr_receive, False)
             reset_slot(self.cam.AcquireEnd, self.receive, True) # process every image
             self.server.clear_queue()
+            if any('AWG' in x for x in self.seq.mr.mr_param['Type']):
+                self.awgtcp.add_message(self._n, 'AWG load='+os.path.join(self.sv.results_path, # reset AWG parameters
+                    self.seq.mr.mr_param['measure_prefix'],'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
             self.cam.AF.AbortAcquisition()
             self.multirun = stillrunning
             if not stillrunning: 
@@ -257,7 +260,6 @@ class runnum(QThread):
             text = 'STOPPED. Multirun measure %s: %s is'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label'])
             self.seq.mr.progress.emit(text+status)
             self.server.add_message(TCPENUM['TCP read'], text+status)
-            self.server.add_message(TCPENUM['TCP read'], 'AWG stop_awg||||||||'+'0'*2000)
 
     def multirun_resume(self, status):
         """Resume the multi-run where it was left off.

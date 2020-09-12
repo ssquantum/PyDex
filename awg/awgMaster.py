@@ -22,6 +22,7 @@ import logerrs
 logerrs.setup_log()
 logger = logging.getLogger(__name__)
 from awgHandler import AWG
+from pyspcm import spcm_dwGetParam_i32, byref, int32
 import fileWriter as fw
 from networking.networker import PyServer, reset_slot
 from networking.client import PyClient
@@ -107,12 +108,14 @@ class awg_window(QMainWindow):
             try: 
                 path = cmd.split('=')[1]
                 self.awg.load(path)
+                self.status_label.setText('File loaded from '+path)
             except Exception as e:
                 logger.error('Failed to load AWG data from '+cmd.split('=')[1]+'\n'+str(e))
         if 'save' in cmd:
             try: 
                 path = cmd.split('=')[1]
                 self.awg.saveData(path)
+                self.status_label.setText('File saved to '+path)
             except Exception as e:
                 logger.error('Failed to save AWG data to '+cmd.split('=')[1]+'\n'+str(e))
         elif 'reset_server' in cmd:
@@ -126,8 +129,13 @@ class awg_window(QMainWindow):
             self.server.add_message(0, 'Trigger sent to DExTer.\n'+'0'*1600)
         elif 'start_awg' in cmd:
             self.awg.start()
+            if spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[3], byref(int32(0))) == 0:
+                self.status_label.setText('AWG started.')
+            else:
+                self.status_label.setText('AWG crashed. Use the reset_awg coommand.')
         elif 'stop_awg' in cmd:
             self.awg.stop()
+            self.status_label.setText('AWG stopped.')
         elif 'set_data' in cmd:
             try:
                 t = time.time()
@@ -139,6 +147,7 @@ class awg_window(QMainWindow):
                 #         tempData.append(self.awg.dataGen(*arguments))
                 #     self.awg.setSegment(self.stats['segment'], *tempData)
                 self.awg.loadSeg(eval(cmd.split('=')[1]))
+                
                 self.t_load = time.time() - t
             except Exception as e:
                 logger.error('Failed to set AWG data: '+cmd.split('=')[1]+'\n'+str(e))
@@ -151,6 +160,8 @@ class awg_window(QMainWindow):
             self.renewAWG(cmd)
         elif 'get_times' in cmd:
             logger.info("Data transfer time: %.4g s"%self.t_load)
+        else:
+            self.status_label.setText('Command not recognised.')
         self.edit.setText('') # reset cmd edit
             
 
@@ -169,6 +180,7 @@ class awg_window(QMainWindow):
         self.awg.setNumSegments(8)
         # self.awg.setTrigger(0) # 0 software, 1 ext0
         self.awg.setSegDur(0.002)
+        self.status_label.setText('New instance of AWG created.')
         
     def closeEvent(self, event):
         """Safely shut down when the user closes the window."""

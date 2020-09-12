@@ -1,0 +1,8 @@
+# depslib dependency file v1.0
+1598050966 source:z:\tweezer\experimental\aod\m4i.6622 - python codes\sequence replay\awg_v.2.0.x\memcopier\main.cpp
+	"main.h"
+	"string.h"
+
+1598304478 z:\tweezer\experimental\aod\m4i.6622 - python codes\sequence replay\awg_v.2.0.x\memcopier\main.h
+	<windows.h>
+

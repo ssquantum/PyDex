@@ -1,0 +1,71 @@
+{
+    "calibration": {
+        "calibration_file": "calFile_05.09.2020.txt",
+        "saved_in": "Z:\\Tweezer\\Experimental\\Setup and characterisation\\Settings and calibrations\\tweezer calibrations\\AWG calibrations\\"
+    },
+    "properties": {
+        "card_settings": {
+            "active_channels": "[0, 1]",
+            "bytes_per_channel": 2,
+            "max_output_mV": 282,
+            "maximum_samples": 268435456,
+            "numOfChannels": 2,
+            "num_of_segments": 8,
+            "sample_rate_Hz": 625000000,
+            "start_step": 0,
+            "static_duration_ms": 0.0016384,
+            "trig_level0_main": 2500,
+            "trig_level1_aux": 0,
+            "trig_mode": 1
+        }
+    },
+    "segments": {
+        "segment_0": {
+            "channel_0": {
+                "action_code": "static",
+                "action_type": "static trap",
+                "action_val": 1,
+                "amp_adjust": "False",
+                "channel_out": 0,
+                "distance_[um]": 9,
+                "duration_[ms]": 1,
+                "freq_adjust": "False",
+                "freq_amp": "[1]",
+                "freq_phase_[deg]": "[0]",
+                "freqs_input_[MHz]": "[166]",
+                "freqs_output_[Hz]": "[166000000]",
+                "num_of_samples": 1024,
+                "num_of_traps": 1,
+                "segment": 0,
+                "tot_amp_[mV]": 200
+            },
+            "channel_1": {
+                "action_code": "static",
+                "action_type": "static trap",
+                "action_val": 1,
+                "amp_adjust": "False",
+                "channel_out": 1,
+                "distance_[um]": 9,
+                "duration_[ms]": 1,
+                "freq_adjust": "False",
+                "freq_amp": "[1]",
+                "freq_phase_[deg]": "[0]",
+                "freqs_input_[MHz]": "[166]",
+                "freqs_output_[Hz]": "[166000000]",
+                "num_of_samples": 1024,
+                "num_of_traps": 1,
+                "segment": 0,
+                "tot_amp_[mV]": 200
+            }
+        }
+    },
+    "steps": {
+        "step_0": {
+            "condition": 1,
+            "next_step": 0,
+            "num_of_loops": 610,
+            "segment_value": 0,
+            "step_value": 0
+        }
+    }
+}

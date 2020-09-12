@@ -1,0 +1,6 @@
+EXPORTS
+    DllMain @1
+    SomeFunction @2
+    memCopier @3
+    memCopier2 @4
+    memMover @5

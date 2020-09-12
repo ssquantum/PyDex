@@ -696,10 +696,10 @@ if __name__ == "__main__":
 #     
 #     
 #     x2=np.linspace(120,220,1000)
-#     ax4.plot(x2,ampAdjuster(x2,220))
-#     ax4.plot(x2,ampAdjuster(x2,200))
-#     ax4.plot(x2,ampAdjuster(x2,180))
-#     ax4.plot(x2,ampAdjuster(x2,160))
+#     ax4.plot(x2,ampAdjuster(x2,1))
+#     ax4.plot(x2,ampAdjuster(x2,0.9))
+#     ax4.plot(x2,ampAdjuster(x2,0.8))
+#     ax4.plot(x2,ampAdjuster(x2,0.6))
 #     ax4.set_xlabel("Frequency, MHz")
 #     ax4.set_ylabel("Fractional Amplitude (rel. to 166 MHz)")
 # 
@@ -721,8 +721,8 @@ if __name__ == "__main__":
     #freqChange0 = startFreq+hybridJerk(tvals,d, samples,0) #calculates the frequencies used for a given hybridicity trajectory a=0
     #freqChange1 = startFreq+hybridJerk(tvals,d, samples,1) #calculates the frequencies used for a given hybridicity trajectory a=1
     #
-    #ampMove0 = ampAdjuster(freqChange0,220)
-    #ampMove1 = ampAdjuster(freqChange1,220)
+    #ampMove0 = ampAdjuster(freqChange0,1)
+    #ampMove1 = ampAdjuster(freqChange1,1)
     #
     #gs=GridSpec(2,1) # 2 rows, 2 columns
     #fig2=plt.figure(figsize=(6,6))

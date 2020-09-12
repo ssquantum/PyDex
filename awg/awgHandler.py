@@ -607,7 +607,7 @@ class AWG:
             ################################# 
             
             
-            lib = ctypes.cdll.LoadLibrary("Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence replay\AWG_v.2.0.x\memCopier\\bin\Debug\\memCopier.dll")
+            lib = ctypes.cdll.LoadLibrary(r"Z:\Tweezer\Code\Python 3.5\PyDex\awg\memCopier\bin\Debug\memCopier.dll")
             
             start = timer()
             #Using the C library:

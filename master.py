@@ -121,12 +121,13 @@ class Master(QMainWindow):
         super().__init__()
         self.types = OrderedDict([('File#',int), ('Date',str), ('CameraConfig',str), 
             ('SaveConfig',str), ('MasterGeometry',intstrlist), ('AnalysisGeometry',intstrlist), 
-            ('SequencesGeometry',intstrlist)])
+            ('SequencesGeometry',intstrlist), ('TempXMLPath', str)])
         self.stats = OrderedDict([('File#', 0), ('Date', time.strftime("%d,%B,%Y")), 
             ('CameraConfig', '.\\andorcamera\\Standard modes\\ExExposure_config.dat'), 
             ('SaveConfig', '.\\config\\config.dat'), ('MasterGeometry', [10, 10, 500, 150]), 
             ('AnalysisGeometry', [1400, 400, 600, 500]), 
-            ('SequencesGeometry', [20, 100, 1000, 800])])
+            ('SequencesGeometry', [20, 100, 1000, 800]), 
+            ('TempXMLPath', r'X:\\Sequence Log\\temp.xml')])
         self.camera_pause = 0 # time in seconds to wait for camera to start acquisition.
         self.ts = {label:time.time() for label in ['init', 'waiting', 'blocking',
             'msg start', 'msg end']}
@@ -479,8 +480,9 @@ class Master(QMainWindow):
             elif action_text == 'TCP load sequence from string':
                 self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.seq_txt)
             elif action_text == 'Get sequence from DExTer':
-                self.rn.server.add_message(TCPENUM['TCP read'], 'send sequence xml\n'+'0'*2000)
-                self.rn.server.add_message(TCPENUM['TCP read'], 'replaced with sequence in xml\n'+'0'*2000)
+                self.rn.server.add_message(TCPENUM['TCP read'], 'send sequence xml\n'+'0'*2000) # Dx adds sequence to msg queue
+                for i in range(5):
+                    self.rn.server.add_message(TCPENUM['TCP read'], 'replaced with sequence\n') # needs some time to get msg
             elif action_text == 'Save DExTer sequence':
                 self.rn.server.add_message(TCPENUM['Save sequence'], 'save log file automatic name\n'+'0'*2000)
             elif action_text == 'Cancel Python Mode':
@@ -587,11 +589,13 @@ class Master(QMainWindow):
                 self.reset_dates()
         elif 'AWG ' in msg[:10]: # send command to AWG to set new data
             self.rn.awgtcp.priority_messages([(self.rn._n, msg.replace('AWG ', '').split('||||||||')[0])])
-        elif 'LVData' in msg:
+        elif 'LVData' in msg: 
             try:
-                self.rn.seq.tr.load_xml_str(msg)
+                # self.rn.seq.tr.load_xml_str(msg) # for some reason LV can't sent strings longer than 2453 ...
+                self.rn.seq.tr.load_xml(self.stats['TempXMLPath'])
                 self.rn.seq.reset_UI()
                 self.rn.seq.set_sequence()
+                self.status_label.setText('Sequence has been set from DExTer.')
             except TypeError as e: logger.error("Tried to load invalid sequence.\n"+str(e))
         self.ts['msg end'] = time.time()
         self.ts['blocking'] = time.time() - self.ts['msg start']
