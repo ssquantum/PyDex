@@ -464,7 +464,7 @@ class Master(QMainWindow):
                     self.check_mr_queue() # prevent multiple multiruns occurring simultaneously
                 else: 
                     QMessageBox.warning(self, 'Invalid multirun', 
-                        'All cells in the multirun table must be populated.')
+                        'All cells in the multirun table must be populated with float values.')
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':

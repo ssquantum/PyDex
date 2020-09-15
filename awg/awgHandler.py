@@ -1394,7 +1394,7 @@ class AWG:
                 
         self.flag[self.segment] = flag
         if flag==0:
-            sys.stdout.write("... data for segment {0:d}, channel {0:d} has been generated.\n".format(self.segment,channel))
+            sys.stdout.write("... data for segment {0:d}, channel {0:d} has been generated.\n".format(self.segment, self.channel))
             return outData
         else:
             sys.stdout.write("Data for segment {} were not generated due to unresolved errors\n".format(self.segment))
@@ -1744,16 +1744,18 @@ class AWG:
                     """
                     
                     # Finds what action_val was used for this segment and channel
-                    actionUsed = lsegment['channel_'+str(j)]['action_val']
+                    actionUsed = self.filedata['segments']['segment_'+str(seg)]['channel_'+str(j)]['action_val']
                     # Load the relevant parameters in the given order                       
-                    arguments = [lsegment['channel_'+str(j)][x] for x in AWG.loadOrder[actionUsed]]
+                    arguments = [self.filedata['segments']['segment_'+str(seg)]['channel_'+str(j)][x] for x in AWG.loadOrder[actionUsed]]
                     # Generate the data and append them to the tempData variable.
                     tempData.append(self.dataGen(*arguments))
                 
                 self.setSegment(seg,*tempData)
-                    
+                
+            for i in range(len(self.filedata['steps'])):
                 stepArguments = [self.filedata['steps']['step_'+str(seg)][x] for x in AWG.stepOrder]
                 self.setStep(*stepArguments)   
+                
             self.start()     
     
     def stop(self):
@@ -1888,30 +1890,30 @@ if __name__ == "__main__":
     Vincent 14/9/2020 
     """
     
-    data01 = t.dataGen(0,ch1,'static',1,[166, 167],2,9, 220,[1,0],[0,0],False,False)
-    data02 = t.dataGen(0,ch2,'static',1,[166, 167],2,9, 220,[1,0],[0,0],False,False)
+    data01 = t.dataGen(0,ch1,'static',1,[166],1,9, 220,[1],[0],False,False)
+    data02 = t.dataGen(0,ch2,'static',1,[166],1,9, 220,[1],[0],False,False)
     t.setSegment(0,data01, data02)
-    t.setStep(0,0,1,1,1)   
+    t.setStep(0,0,1,0,2)   
     
     
-    data11 = t.dataGen(1,ch1,'ramp',5,[166, 167],2, 9, 220,[1,0],[1,1],[0,0],False,False)
-    data12 = t.dataGen(1,ch2,'ramp',5,[166, 167],2, 9, 220,[1,0],[1,1],[0,0],False,False)
-    t.setSegment(1,data11, data12)
-    t.setStep(1,1,1,2,2)
-    
-    
-    data21 = t.dataGen(2,ch1,'moving',5,[166, 167],[166, 190],1, 220,[1,1],[1,1],[0,0],False,False)
-    data22 = t.dataGen(2,ch2,'moving',5,[166, 167],[166, 190],1, 220,[1,1],[1,1],[0,0],False,False)
-    t.setSegment(2,data21, data22)
-    t.setStep(2,2,1,3,2)
-    
-    
-    data31 = t.dataGen(3,ch1,'static',100,[166, 190],2,9, 220,[1,1],[0,0],False,False)
-    data32 = t.dataGen(3,ch2,'static',100,[166, 190],2,9, 220,[1,1],[0,0],False,False)
-    t.setSegment(3,data31, data32)
-    t.setStep(3,3,1,0,2) 
-    
-    t.setStep(3,3,1,0,2)
+    # data11 = t.dataGen(1,ch1,'ramp',5,[166, 167],2, 9, 220,[1,0],[1,1],[0,0],False,False)
+    # data12 = t.dataGen(1,ch2,'ramp',5,[166, 167],2, 9, 220,[1,0],[1,1],[0,0],False,False)
+    # t.setSegment(1,data11, data12)
+    # t.setStep(1,1,1,2,2)
+    # 
+    # 
+    # data21 = t.dataGen(2,ch1,'moving',5,[166, 167],[166, 190],1, 220,[1,1],[1,1],[0,0],False,False)
+    # data22 = t.dataGen(2,ch2,'moving',5,[166, 167],[166, 190],1, 220,[1,1],[1,1],[0,0],False,False)
+    # t.setSegment(2,data21, data22)
+    # t.setStep(2,2,1,3,2)
+    # 
+    # 
+    # data31 = t.dataGen(3,ch1,'static',100,[166, 190],2,9, 220,[1,1],[0,0],False,False)
+    # data32 = t.dataGen(3,ch2,'static',100,[166, 190],2,9, 220,[1,1],[0,0],False,False)
+    # t.setSegment(3,data31, data32)
+    # t.setStep(3,3,1,0,2) 
+    # 
+    # t.setStep(3,3,1,0,2)
 
 
     t.start(True)

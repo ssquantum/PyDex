@@ -3,6 +3,7 @@ import math
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from scipy import interpolate
+from collections import OrderedDict
 import ctypes
 
 import sys
@@ -100,28 +101,47 @@ def chirp(t,d,T,a):
 
 
 importPath="Z:\\Tweezer\Experimental\\Setup and characterisation\\Settings and calibrations\\tweezer calibrations\\AWG calibrations\\"
-importFile = "calFile_05.09.2020.txt"
+importFile = "calFile_15.09.2020.txt"
 
 
 with open(importPath+importFile) as json_file:
     calFile = json.load(json_file) 
 
 
-contour_dict = calFile["Power_calibration"]
+contour_dict = OrderedDict(calFile["Power_calibration"]) # for flattening the diffraction efficiency curve: keep constant power as freq is changed
 for key in contour_dict.keys():
     try:
         contour_dict[key]['Calibration'] = interpolate.interp1d(contour_dict[key]['Frequency (MHz)'], contour_dict[key]['RF Amplitude (mV)'])
     except Exception as e: print(e)
 
+DE_RF_dict = OrderedDict(calFile["DE_RF_calibration"]) # for ramping the amplitude in a linear fashion at a constant freq
+for key in DE_RF_dict.keys():
+    try:
+        DE_RF_dict[key]['Calibration'] = interpolate.interp1d(DE_RF_dict[key]['Diffraction Efficiency'], DE_RF_dict[key]['RF Amplitude (mV)'], fill_value='extrapolate')
+    except Exception as e: print(e)
 
-cal_umPerMHz = eval(calFile["umPerMHz"])
+
+cal_umPerMHz = calFile["umPerMHz"]
 
 
 def ampAdjuster(freq, optical_power):
-    i = np.argmin([abs(float(p) - optical_power) for p in contour_dict.keys()]) # find closest power in dictionary of contours
+    """Find closest optical power in the presaved dictionary of contours, then use interpolation to get the 
+    RF amplitude at the given frequency"""
+    i = np.argmin([abs(float(p) - optical_power) for p in contour_dict.keys()]) 
     key = list(contour_dict.keys())[i]
     y = np.array(contour_dict[key]['Calibration'](freq)) # return amplitude in mV to keep constant optical power
     y[y>220] = 220
+    # if >220 print warning
+    return y
+    
+def ampRampAdjust(freq, optical_power):
+    """For the set frequency, interpolate the RF power VS diffraction efficiency curve to return the RF amplitude
+    in mV that outputs the requested diffraction efficiency"""
+    i = np.argmin([abs(float(f) - freq) for f in DE_RF_dict.keys()]) 
+    key = list(DE_RF_dict.keys())[i]
+    y = np.array(DE_RF_dict[key]['Calibration'](optical_power)) # return amplitude in mV
+    y[y>220] = 220
+    y[y<0] = 0
     # if >220 print warning
     return y
 
@@ -475,9 +495,14 @@ def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=22
     # Generate the data 
     ##########################   
     t =np.arange(numOfSamples)
-    
-    y = 1.*tot_amp/282/len(freqs)*0.5*2**16*\
-    np.sum([(1.*startAmp[Y] + (1.*endAmp[Y] - 1.*startAmp[Y])*t/numOfSamples)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+    if ampAdjust:
+        y = 1./282/len(freqs)*0.5*2**16*\
+            np.sum([ampRampAdjust(adjFreqs[Y]*1e-6, np.linspace(startAmp[Y], endAmp[Y], numOfSamples)) * 
+                np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+    else:
+        y = 1.*tot_amp/282/len(freqs)*0.5*2**16*\
+            np.sum([(1.*startAmp[Y] + (1.*endAmp[Y] - 1.*startAmp[Y])*t/numOfSamples) * 
+                np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     
     return y
 

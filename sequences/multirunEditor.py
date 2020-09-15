@@ -222,9 +222,9 @@ class multirun_widget(QWidget):
         
         # AWG takes a list for some arguments, so needs an index
         label = QLabel('List index:', self)
-        self.grid.addWidget(label, 2,7,3,1)
+        self.grid.addWidget(label, 3,7,3,1)
         self.list_index = QLineEdit('0', self)
-        self.grid.addWidget(self.list_index, 3,7,3,1)
+        self.grid.addWidget(self.list_index, 4,7,3,1)
         self.list_index.setValidator(int_validator)
         self.list_index.textEdited[str].connect(self.save_chan_selection)
         
@@ -307,10 +307,13 @@ class multirun_widget(QWidget):
         
     def check_table(self):
         """Check that there are values in each of the cells of the array."""
-        return all(self.table.item(i, j).text() 
-                    for i in range(self.table.rowCount()) 
-                    for j in range(self.table.columnCount()))
-
+        try:
+            for i in range(self.table.rowCount()):
+                for j in range(self.table.columnCount()):
+                    _ = float(self.table.item(i, j).text())
+            return 1
+        except ValueError: return 0
+                    
     def get_table(self):
         """Return a list of all the values in the multirun array table"""
         return [[self.table.item(i, j).text() for j in range(self.table.columnCount())]
