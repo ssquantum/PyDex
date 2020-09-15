@@ -155,7 +155,7 @@ def dataj(data,segVal,chVal,action,duration,*args):
            
 def stepj(data,stepVal,segVal,loopNum,nextStep,condition):
     
-    step = 'step_'+str(segVal)
+    step = 'step_'+str(stepVal)
     data["steps"][step]=[]
 
     

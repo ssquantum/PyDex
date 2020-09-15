@@ -37,7 +37,7 @@
                 "num_of_samples": 1024,
                 "num_of_traps": 1,
                 "segment": 0,
-                "tot_amp_[mV]": 200
+                "tot_amp_[mV]": 220
             },
             "channel_1": {
                 "action_code": "static",

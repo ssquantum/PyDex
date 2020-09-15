@@ -178,8 +178,9 @@ class runnum(QThread):
             if 'AWG' in self.seq.mr.mr_param['Type'][col]:
                 try: # argument: value
                     n = self.seq.mr.mr_param['Time step name'][col][0] # index of chosen AWG channel, segment 
-                    awgmsg += '[%s, %s, "%s", %s],'%(n%4, n//4, 
-                        self.seq.mr.awg_args[self.seq.mr.mr_param['Analogue channel'][col][0]], self.seq.mr.mr_vals[v][col])
+                    awgmsg += '[%s, %s, "%s", %s, %s],'%(n%4, n//4, 
+                        self.seq.mr.awg_args[self.seq.mr.mr_param['Analogue channel'][col][0]], 
+                        self.seq.mr.mr_vals[v][col], self.seq.mr.mr_param['list index'][col])
                 except Exception as e: logger.error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
         if col > -1: awgmsg = awgmsg[:-1] + ']'
         else: awgmsg += ']'
@@ -249,6 +250,7 @@ class runnum(QThread):
             if any('AWG' in x for x in self.seq.mr.mr_param['Type']):
                 self.awgtcp.add_message(self._n, 'AWG load='+os.path.join(self.sv.results_path, # reset AWG parameters
                     self.seq.mr.mr_param['measure_prefix'],'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
+                self.awgtcp.add_message(self._n, 'AWG start_awg') # keep AWG on even after multirun
             self.cam.AF.AbortAcquisition()
             self.multirun = stillrunning
             if not stillrunning: 
@@ -259,7 +261,7 @@ class runnum(QThread):
             status = ' paused.' if stillrunning else ' ended.'
             text = 'STOPPED. Multirun measure %s: %s is'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label'])
             self.seq.mr.progress.emit(text+status)
-            self.server.add_message(TCPENUM['TCP read'], text+status)
+            self.server.add_message(TCPENUM['Run sequence'], text+status) # a final run, needed to trigger the AWG to start.
 
     def multirun_resume(self, status):
         """Resume the multi-run where it was left off.

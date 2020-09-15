@@ -58,15 +58,17 @@ class sequenceSaver(QThread):
                 esc = self.mrtr.seq_dic['Experimental sequence cluster in'] # shorthand
                 try:
                     for col in range(len(self.mr_vals[i])): # edit the sequence
-                        val = float(self.mr_vals[i][col])
-                        if self.mr_param['Type'][col] == 'Time step length':
-                            for head in ['Sequence header top', 'Sequence header middle']:
+                        try:
+                            val = float(self.mr_vals[i][col])
+                            if self.mr_param['Type'][col] == 'Time step length':
+                                for head in ['Sequence header top', 'Sequence header middle']:
+                                    for t in self.mr_param['Time step name'][col]:
+                                        esc[head][t]['Time step length'] = val
+                            elif self.mr_param['Type'][col] == 'Analogue voltage':
                                 for t in self.mr_param['Time step name'][col]:
-                                    esc[head][t]['Time step length'] = val
-                        elif self.mr_param['Type'][col] == 'Analogue voltage':
-                            for t in self.mr_param['Time step name'][col]:
-                                for c in self.mr_param['Analogue channel'][col]:
-                                    esc[self.mr_param['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
+                                    for c in self.mr_param['Analogue channel'][col]:
+                                        esc[self.mr_param['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
+                        except ValueError: pass
                     self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
                             ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
                     self.mrtr.write_to_file(os.path.join(self.savedir, self.mr_param['measure_prefix'] + '_' + 
@@ -109,7 +111,7 @@ class multirun_widget(QWidget):
             ('Analogue type', strlist), ('Time step name', listlist), 
             ('Analogue channel', listlist), ('runs included', listlist),
             ('Last time step run', str), ('Last time step end', str),
-            ('# omitted', int), ('# in hist', int)])
+            ('# omitted', int), ('# in hist', int), ('list index', strlist)])
         self.ui_param = OrderedDict([('measure',0), ('measure_prefix','Measure0'),
             ('1st hist ID', -1), ('Variable label', ''), 
             ('Order', order), ('Type', ['Time step length']*ncols), 
@@ -117,7 +119,7 @@ class multirun_widget(QWidget):
             ('Analogue channel', [[]]*ncols), ('runs included', [[] for i in range(nrows)]),
             ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'), 
             ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'),
-            ('# omitted', 0), ('# in hist', 100)])
+            ('# omitted', 0), ('# in hist', 100), ('list index', ['0']*ncols)])
         self.awg_args = ['duration_[ms]','freqs_input_[MHz]','start_freq_[MHz]','end_freq_[MHz]','hybridicity',
         'num_of_traps','distance_[um]','tot_amp_[mV]','start_amp','end_amp','start_output_[Hz]','end_output_[Hz]',
         'freq_amp','mod_freq_[kHz]','mod_depth','freq_phase_[deg]','freq_adjust','amp_adjust','freqs_output_[Hz]',
@@ -218,7 +220,15 @@ class multirun_widget(QWidget):
         self.chan_choices['Analogue type'].currentTextChanged[str].connect(self.change_mr_anlg_type)
         self.chan_choices['Analogue channel'].setEnabled(False)
         
-
+        # AWG takes a list for some arguments, so needs an index
+        label = QLabel('List index:', self)
+        self.grid.addWidget(label, 2,7,3,1)
+        self.list_index = QLineEdit('0', self)
+        self.grid.addWidget(self.list_index, 3,7,3,1)
+        self.list_index.setValidator(int_validator)
+        self.list_index.textEdited[str].connect(self.save_chan_selection)
+        
+        
         # add a new list of multirun values to the array
         self.col_index = self.make_label_edit('column index:', self.grid, 
                 position=[5,0, 1,1], default_text='0', 
@@ -292,6 +302,7 @@ class multirun_widget(QWidget):
         self.ui_param['Analogue type'] = ['Fast analogue']*self.ncols
         self.ui_param['Time step name'] = [[]]*self.ncols
         self.ui_param['Analogue channel'] = [[]]*self.ncols
+        self.ui_param['list index'] = ['0']*self.ncols
         self.set_chan_listbox(0)
         
     def check_table(self):
@@ -319,14 +330,13 @@ class multirun_widget(QWidget):
         self.col_index.setValidator(QIntValidator(1,self.ncols-1))
         if self.col_index.text() and int(self.col_index.text()) > self.ncols-1:
             self.col_index.setText(str(self.ncols-1))
-        self.reset_array()
+        self.reset_array() 
         self.ui_param['runs included'] = [[] for i in range(self.nrows)]
-        for key, default in zip(['Type', 'Analogue type', 'Time step name', 'Analogue channel'],
-            ['Time step length', 'Fast analogue', [], []]):
-            if len(self.ui_param[key]) < self.ncols: # these lists must be reshaped
-                for i in range(len(self.ui_param[key]), self.ncols):
-                    self.ui_param[key].append(default)
-            elif len(self.ui_param[key]) > self.ncols:
+        for key, default in zip(['Type', 'Analogue type', 'Time step name', 'Analogue channel', 'list index'],
+            ['Time step length', 'Fast analogue', [], [], '0']):
+            for i in range(len(self.ui_param[key]), self.ncols):
+                self.ui_param[key].append(default)
+            if len(self.ui_param[key]) > self.ncols:
                 self.ui_param[key] = self.ui_param[key][:self.ncols]
                 
     def update_all_stats(self, toggle=False):
@@ -350,7 +360,7 @@ class multirun_widget(QWidget):
         """Save the current values of the last time step file paths."""
         self.ui_param['Last time step run'] = self.last_step_run_edit.text()
         self.ui_param['Last time step end'] = self.last_step_end_edit.text()
-           
+        
     def add_column_to_array(self):
         """Make a list of values and add it to the given column 
         in the multirun values array. The function is chosen by the user.
@@ -402,11 +412,13 @@ class multirun_widget(QWidget):
         given column, save it. The selection will be reloaded if the user
         changes the column and then comes back."""
         try:
-            col = int(self.col_index.text()) if self.col_index.text() else 0
-            for key in ['Type', 'Analogue type']:
-                self.ui_param[key][col] = self.chan_choices[key].currentText()
-            for key in ['Time step name', 'Analogue channel']:
-                self.ui_param[key][col] = list(map(self.chan_choices[key].row, self.chan_choices[key].selectedItems()))
+            if self.col_index.text():
+                col = int(self.col_index.text()) 
+                for key in ['Type', 'Analogue type']:
+                    self.ui_param[key][col] = self.chan_choices[key].currentText()
+                for key in ['Time step name', 'Analogue channel']:
+                    self.ui_param[key][col] = list(map(self.chan_choices[key].row, self.chan_choices[key].selectedItems()))
+                self.ui_param['list index'][col] = int(self.list_index.text()) if self.list_index.text() else 0
         except IndexError as e:
             logger.error("Multirun couldn't save channel choices for column "+self.col_index.text()+'.\n'+str(e))
         
@@ -422,9 +434,12 @@ class multirun_widget(QWidget):
             sel = {'Time step name':self.ui_param['Time step name'][col],
                 'Analogue channel':self.ui_param['Analogue channel'][col] 
                     if mrtype=='Analogue voltage' or mrtype=='AWG chan : seg' else []}
+            list_ind = self.ui_param['list index'][col]
         except (IndexError, ValueError):
             mrtype, antype = 'Time step length', 'Fast analogue'
             sel = {'Time step name':[], 'Analogue channel':[]}
+            list_ind = 0
+        self.list_index.setText(str(list_ind))
         self.chan_choices['Type'].setCurrentText(mrtype)
         self.chan_choices['Analogue type'].setCurrentText(antype)
         self.chan_choices['Analogue channel'].setEnabled(mrtype=='Analogue voltage' or mrtype=='AWG chan : seg')

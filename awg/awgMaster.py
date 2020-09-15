@@ -111,7 +111,7 @@ class awg_window(QMainWindow):
                 self.status_label.setText('File loaded from '+path)
             except Exception as e:
                 logger.error('Failed to load AWG data from '+cmd.split('=')[1]+'\n'+str(e))
-        if 'save' in cmd:
+        elif 'save' in cmd:
             try: 
                 path = cmd.split('=')[1]
                 self.awg.saveData(path)
@@ -147,13 +147,14 @@ class awg_window(QMainWindow):
                 #         tempData.append(self.awg.dataGen(*arguments))
                 #     self.awg.setSegment(self.stats['segment'], *tempData)
                 self.awg.loadSeg(eval(cmd.split('=')[1]))
-                
+                self.status_label.setText('Set data: '+cmd.split('=')[1])
                 self.t_load = time.time() - t
             except Exception as e:
                 logger.error('Failed to set AWG data: '+cmd.split('=')[1]+'\n'+str(e))
         elif 'set_step' in cmd:
             try:
                 self.awg.setStep(*eval(cmd.split('=')[1]))
+                self.status_label.setText('Set step: '+cmd.split('=')[1])
             except Exception as e:
                 logger.error('Failed to set AWG step: '+cmd.split('=')[1]+'\n'+str(e))
         elif 'reset_awg' in cmd:

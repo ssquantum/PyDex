@@ -191,7 +191,7 @@ class histo_handler(Analysis):
             self.temp_vals['Start file #'] = min(map(int, file_list))
             self.temp_vals['End file #'] = max(map(int, file_list))
             self.temp_vals['ROI xc ; yc ; size'] = ' ; '.join(list(map(str, [ih.xc, ih.yc, ih.roi_size])))
-            self.temp_vals['User variable'] = float(user_var) if user_var else 0.0
+            self.temp_vals['User variable'] = self.types['User variable'](user_var) if user_var else 0.0
             self.temp_vals['Number of images processed'] = ih.ind
             self.temp_vals['Counts above : below threshold'] = str(atom_count) + ' : ' + str(empty_count)
             self.temp_vals['Loading probability'] = np.around(loading_prob, 4)

@@ -1038,7 +1038,7 @@ class AWG:
                 
                 if flag ==0:
                     outData =  moving(self.f1,self.f2,self.duration,self.a,self.tot_amp,self.start_amp,self.end_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value)
-                    dataj(AWG.filedata,self.segment,channel,action,self.duration,str(f1),str(f2),self.a,self.tot_amp,str(self.start_amp)\
+                    dataj(AWG.filedata,self.segment,channel,action,self.duration,str(list(f1)),str(list(f2)),self.a,self.tot_amp,str(self.start_amp)\
                     ,str(self.end_amp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),\
                     str(list(self.exp_start)),str(list(self.exp_end)),self.numOfSamples)
              
@@ -1394,7 +1394,7 @@ class AWG:
                 
         self.flag[self.segment] = flag
         if flag==0:
-            sys.stdout.write("... data for segment {0:d}, channel {0:d} has been generated.\n".format(segment,channel))
+            sys.stdout.write("... data for segment {0:d}, channel {0:d} has been generated.\n".format(self.segment,channel))
             return outData
         else:
             sys.stdout.write("Data for segment {} were not generated due to unresolved errors\n".format(self.segment))
@@ -1482,6 +1482,7 @@ class AWG:
                 2. convert the information to card-readable values
                 3. transfer the information to the card.  
             """
+            
             stepj(AWG.filedata,self.lStep,self.llSegment,self.llLoop,self.llNext,stepCondition)
             llvals=int64((self.llCondition<<32) | (self.llLoop<<32) | (self.llNext<<16) | self.llSegment)
             spcm_dwSetParam_i64(AWG.hCard,SPC_SEQMODE_STEPMEM0 + self.lStep,llvals)
@@ -1575,6 +1576,8 @@ class AWG:
     stepOrder = ("step_value","segment_value","num_of_loops","next_step","condition")
     
     noLoad = ['segment','channel_out','action_val'] # key_words that are not allowed to be changed in a multirun (using loadSeg)
+    
+    listType = ['freqs_input_[MHz]','freq_amp','freq_phase_[deg]','start_freq_[MHz]','end_freq_[MHz]',"start_amp","end_amp"]
     
     
     def load(self,file_dir='Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin\\20200819\\20200819_165335.txt'):
@@ -1677,39 +1680,40 @@ class AWG:
             we want for the multirun.
             """
             
-            if len(listChanges[i]) == 4:
+            lchannel = lsegment['channel_'+str(listChanges[i][0])]   # Enters the channel_X of the loaded segment.
+            if listChanges[i][2] in list(lchannel.keys()):
                 """
-                Checks that every desired change has the correct size.
+                Check that the key exists in this segment's channel.
                 """
-                lchannel = lsegment['channel_'+str(listChanges[i][0])]   # Enters the channel_X of the loaded segment.
                 
-                if listChanges[i][2] in list(lchannel.keys()):
+                if listChanges[i][2] in AWG.listType:
                     """
-                    Check that the key exists in this segment's channel.
+                    Change an element in the list. We should probably not store the lists as strings....
                     """
+                    try:
+                        lchannel[listChanges[i][2]] = eval(lchannel[listChanges[i][2]])
+                        lchannel[listChanges[i][2]][listChanges[i][4]] = listChanges[i][3]
+                        lchannel[listChanges[i][2]] = str(lchannel[listChanges[i][2]])
+                    except IndexError:
+                        sys.stdout.write("Could not stage change: ", listChanges[i]) 
                     
-                    if  listChanges[i][2] not in AWG.noLoad:
-                        """
-                        Checks that the proposed changes are not too dramatic.
-                        """
-                        lchannel[listChanges[i][2]] = listChanges[i][3]
-                        
-                        if listChanges[i][2] == "duration_[ms]":
+                elif listChanges[i][2] not in AWG.noLoad:
+                    """
+                    Checks that the proposed changes are not too dramatic.
+                    """
+                    lchannel[listChanges[i][2]] = listChanges[i][3]
+                    
+                    if listChanges[i][2] == "duration_[ms]":
 
-                            durCounter +=1
-                    else:
-                        sys.stdout.write("Key entry '{}' is not allowed to be changed in a multirun.\n\
-                        Please create a new multirun template.".format(listChanges[i][2]))
-                        flag = 1
+                        durCounter +=1
                 else:
-                    sys.stdout.write("'{}' is not a valid key for this segment's channel.\n".format(listChanges[i][2]))
+                    sys.stdout.write("Key entry '{}' is not allowed to be changed in a multirun.\n\
+                    Please create a new multirun template.".format(listChanges[i][2]))
                     flag = 1
-                 
             else:
-                sys.stdout.write("New input must be a list of lists in the following format:\n\
-                [[channel,key_word1,new_value1],[channel,key_word2,new_value2], ...]")
+                sys.stdout.write("'{}' is not a valid key for this segment's channel.\n".format(listChanges[i][2]))
                 flag = 1
-        
+             
         if durCounter > 0 and durCounter != len(lchannels) :
             """
             If you set the flag to zero you might notice that the code does not prevent you from setting
@@ -1731,26 +1735,25 @@ class AWG:
             flag = 1
                     
                                 
-        tempData =[]   
-            
         if flag == 0:
-            for j in lchannels:
-                """
-                Generates the new data based on the changes for the multirun.
-                """
+            for seg in range(len(self.filedata['segments'])):
+                tempData =[]   
+                for j in lchannels:
+                    """
+                    Generates the new data based on the changes for the multirun.
+                    """
+                    
+                    # Finds what action_val was used for this segment and channel
+                    actionUsed = lsegment['channel_'+str(j)]['action_val']
+                    # Load the relevant parameters in the given order                       
+                    arguments = [lsegment['channel_'+str(j)][x] for x in AWG.loadOrder[actionUsed]]
+                    # Generate the data and append them to the tempData variable.
+                    tempData.append(self.dataGen(*arguments))
                 
-                # Finds what action_val was used for this segment and channel
-                actionUsed = lsegment['channel_'+str(j)]['action_val']
-                # Load the relevant parameters in the given order                       
-                arguments = [lsegment['channel_'+str(j)][x] for x in AWG.loadOrder[actionUsed]]
-                # Generate the data and append them to the tempData variable.
-                tempData.append(self.dataGen(*arguments))
-            
-            self.setSegment(seg,*tempData)
-            
-                
-            stepArguments = [lstep[x] for x in AWG.stepOrder]
-            self.setStep(*stepArguments)   
+                self.setSegment(seg,*tempData)
+                    
+                stepArguments = [self.filedata['steps']['step_'+str(seg)][x] for x in AWG.stepOrder]
+                self.setStep(*stepArguments)   
             self.start()     
     
     def stop(self):
@@ -1813,25 +1816,25 @@ if __name__ == "__main__":
     #t.setSegment(seg,data11)
     #t.setStep(seg,seg,1,0,2)
     
-    """
-    What follows is a standard 6-step experiment for merging and separating (for 1 or 2 channels)
-    """
-    data01 = t.dataGen(0,ch1,'static',1,[166],1,9, 200,[1],[0],False,False) #seg0, channel 1 - Cs
-    data02 = t.dataGen(0,ch2,'static',1,[166],1,9, 200,[1],[0],False,False) #seg0, channel 2 - Rb
-    t.setSegment(0,data01,data02)
-    t.setStep(0,0,1,1,1)
-    
-    
-    
-    """
-    move the trap along one axis.
-    The other AOD has a static trap, emulated by a ramp function
-    """
-    dur = 50
-    data11 = t.dataGen(1,ch1,'ampMod',dur,[166],1,9, 200,[1],20,0.05,[0],False,False)      #seg1, channel 1
-    data12 = t.dataGen(1,ch2,'ampMod',dur,[166],1,9, 200,[1],20,0.05,[0],False,False)      #seg1, channel 2
-    t.setSegment(1,data11,data12)
-    t.setStep(1,1,1,0,2)
+#    """
+#    What follows is a standard 6-step experiment for merging and separating (for 1 or 2 channels)
+#    """
+#    data01 = t.dataGen(0,ch1,'static',1,[166],1,9, 200,[1],[0],False,False) #seg0, channel 1 - Cs
+#    data02 = t.dataGen(0,ch2,'static',1,[166],1,9, 200,[1],[0],False,False) #seg0, channel 2 - Rb
+#    t.setSegment(0,data01,data02)
+#    t.setStep(0,0,1,1,1)
+#    
+#    
+#    
+#    """
+#    move the trap along one axis.
+#    The other AOD has a static trap, emulated by a ramp function
+#    """
+#    dur = 50
+#    data11 = t.dataGen(1,ch1,'ampMod',dur,[166],1,9, 200,[1],20,0.05,[0],False,False)      #seg1, channel 1
+#    data12 = t.dataGen(1,ch2,'ampMod',dur,[166],1,9, 200,[1],20,0.05,[0],False,False)      #seg1, channel 2
+#    t.setSegment(1,data11,data12)
+#    t.setStep(1,1,1,0,2)
 #     
 #     
 #     
@@ -1881,12 +1884,49 @@ if __name__ == "__main__":
 #     t.setSegment(5,data51,data52)
 #     t.setStep(5,5,1,5,3)
     
+    """
+    Vincent 14/9/2020 
+    """
+    
+    data01 = t.dataGen(0,ch1,'static',1,[166, 167],2,9, 220,[1,0],[0,0],False,False)
+    data02 = t.dataGen(0,ch2,'static',1,[166, 167],2,9, 220,[1,0],[0,0],False,False)
+    t.setSegment(0,data01, data02)
+    t.setStep(0,0,1,1,1)   
     
     
-#     
+    data11 = t.dataGen(1,ch1,'ramp',5,[166, 167],2, 9, 220,[1,0],[1,1],[0,0],False,False)
+    data12 = t.dataGen(1,ch2,'ramp',5,[166, 167],2, 9, 220,[1,0],[1,1],[0,0],False,False)
+    t.setSegment(1,data11, data12)
+    t.setStep(1,1,1,2,2)
+    
+    
+    data21 = t.dataGen(2,ch1,'moving',5,[166, 167],[166, 190],1, 220,[1,1],[1,1],[0,0],False,False)
+    data22 = t.dataGen(2,ch2,'moving',5,[166, 167],[166, 190],1, 220,[1,1],[1,1],[0,0],False,False)
+    t.setSegment(2,data21, data22)
+    t.setStep(2,2,1,3,2)
+    
+    
+    data31 = t.dataGen(3,ch1,'static',100,[166, 190],2,9, 220,[1,1],[0,0],False,False)
+    data32 = t.dataGen(3,ch2,'static',100,[166, 190],2,9, 220,[1,1],[0,0],False,False)
+    t.setSegment(3,data31, data32)
+    t.setStep(3,3,1,0,2) 
+    
+    t.setStep(3,3,1,0,2)
+
+
     t.start(True)
-    
-    
+    # 
+    # data11A = t.dataGen(1,ch1,'moving',5,[166],[135],1, 220,[1],[1],[0],False,False)
+    # data12A = t.dataGen(1,ch2,'moving',5,[166],[135],1, 220,[1],[1],[0],False,False)
+    # 
+    # 
+    # data21B = t.dataGen(2,ch1,'moving',5,[135],[166],1, 220,[1],[1],[0],False,False)
+    # data22B = t.dataGen(2,ch2,'moving',5,[135],[166],1, 220,[1],[1],[0],False,False)
+    # 
+    # data11 = np.append(data11A,data21B)
+    # data12 = np.append(data12A,data22B)
+    # t.setSegment(1,data11, data12)
+    # t.setStep(1,1,5,0,2)
     
     # 
     # ### STATIC/RAMP

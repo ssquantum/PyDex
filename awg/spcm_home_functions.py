@@ -287,7 +287,6 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
         print("Number of set ending amplitudes do not match number of frequencies. All ending amplitudes have been set to max (1).")
     
     amp_ramp = np.array([(1.*startAmp[Y] + (1.*endAmp[Y] - 1.*startAmp[Y])*t/numOfSamples) for Y in range(l)])
-    
     if len(freq_phase) != l:
         freq_phase = [0]*l
         print("Number of set phases do no match the number of frequencies. All individual phases have been set to 0. ")
@@ -298,24 +297,31 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
    # t is now defined further up, after numberOfSamples
     
     if(a==1) and not amp_adjust: # Linear sweep
-            y = 1.*tot_amp/282/len(startFreq)*0.5*2**16 *np.sum([\
-            amp_ramp[Y]*\
-            np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t+0.5*(rfreq[Y])/sampleRate/numOfSamples*t**2)+freq_phase[Y])\
-            for Y in range(l)],axis=0) 
+        y = 1.*tot_amp/282/len(startFreq)*0.5*2**16 *np.sum([\
+        amp_ramp[Y]*\
+        np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t+0.5*(rfreq[Y])/sampleRate/numOfSamples*t**2)+freq_phase[Y])\
+        for Y in range(l)],axis=0) 
             
-    elif a==1 and amp_adjust:
-            y = 1./282/len(startFreq)*0.5*2**16 *np.sum([
-            np.array([ampAdjuster(sfreq[Y]*1e-6 + hybridJerk(t,1.*rfreq[Y]*1e-6, 1.*numOfSamples,a),amp_ramp[Y]) for Y in range(l)])*\
-            np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t+0.5*(rfreq[Y])/sampleRate/numOfSamples*t**2)+freq_phase[Y])\
-            for Y in range(l)],axis=0) 
+    elif amp_adjust:
+        # take samples across the diffraction efficiency curve and then interpolate
+        idxs = np.linspace(0, len(t)-1, 100).astype(int)
+        amp_ramp_adjusted = [interpolate.interp1d(t[idxs], 
+                [ampAdjuster(sfreq[Y]*1e-6 + hybridJerk(t[i], rfreq[Y]*1e-6, numOfSamples, a), amp_ramp[Y][i])
+                    for i in idxs], kind='linear')
+            for Y in range(l)]
+
+        y = 1./282/len(startFreq)*0.5*2**16 *np.sum([
+            amp_ramp_adjusted[Y](t) * 
+            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + chirp(t, rfreq[Y]/sampleRate, numOfSamples, a)) 
+            + freq_phase[Y]) for Y in range(l)], axis=0) 
             
     else: # Hybrid/Minimum jerk
         
-            y  = 1.*tot_amp/282/len(startFreq)*0.5*2**16 *np.sum([\
-            amp_ramp[Y]*\
-            np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t +\
-            chirp(1.*t,1.*(rfreq[Y])/sampleRate,1.*numOfSamples,1.*a)) \
-            +freq_phase[Y]) for Y in range(l)],axis=0)
+        y  = 1.*tot_amp/282/len(startFreq)*0.5*2**16 *np.sum([\
+        amp_ramp[Y]*\
+        np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t +\
+        chirp(1.*t,1.*(rfreq[Y])/sampleRate,1.*numOfSamples,1.*a)) \
+        +freq_phase[Y]) for Y in range(l)],axis=0)
 
     return y  
 
@@ -544,7 +550,7 @@ def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duratio
     t = np.arange(numOfSamples)
     mod_amp = mod_depth*np.sin(2.*np.pi*t*mod_freq/sampleRate)
     if ampAdjust:
-        return 1./282/len(freqs)*0.5*2**16*np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y] * (1+mod_depth*np.sin(2.*np.pi*t*mod_freq/sampleRate)))*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+        return 1./282/len(freqs)*0.5*2**16*np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y])* (1+mod_depth*np.sin(2.*np.pi*t*mod_freq/sampleRate))*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     else:
        return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*(1+mod_amp)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     
