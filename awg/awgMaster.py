@@ -36,7 +36,8 @@ class awg_window(QMainWindow):
     Keyword arguments:
     config_file -- path to the file that saved the previous settings.
     """
-    def __init__(self, config_file='.\\state', AWG_channels=[0,1]):
+    def __init__(self, config_file='.\\state', AWG_channels=[0,1], 
+            default_seq=r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\single_static.txt'):
         super().__init__()
         # self.types = OrderedDict([('FileName',str), ('segment',int)])
         self.stats = OrderedDict([('FileName', 0), ('segment', 0)])
@@ -49,8 +50,7 @@ class awg_window(QMainWindow):
         self.client.textin[str].connect(self.respond) # carry out the command in the msg
         self.client.start()
         self.awg = AWG(AWG_channels) # opens AWG card and initiates
-        self.awg.setNumSegments(8)
-        self.awg.setTrigger(0) # 0 software, 1 ext0
+        self.awg.load(default_seq) # load basic data
         self.idle_state()
 
     def init_UI(self):
@@ -105,11 +105,13 @@ class awg_window(QMainWindow):
         if cmd == None: 
             cmd = self.edit.text()
         if 'load' in cmd:
+            self.status_label.setText('Loading AWG data...')
             try: 
                 path = cmd.split('=')[1]
                 self.awg.load(path)
                 self.status_label.setText('File loaded from '+path)
             except Exception as e:
+                self.status_label.setText('Failed to load AWG data from '+cmd.split('=')[1])
                 logger.error('Failed to load AWG data from '+cmd.split('=')[1]+'\n'+str(e))
         elif 'save' in cmd:
             try: 
@@ -174,6 +176,12 @@ class awg_window(QMainWindow):
             except KeyError: pass
             
     def renewAWG(self, cmd="chans=[0,1]"):
+        try: 
+            eval(cmd.split('=')[1])
+        except Exception as e:
+            self.status_label.setText('Invalid renew command: '+cmd)
+            logger.error('Could not renew AWG.\n'+str(e))
+            return 0
         self.awg.restart()
         self.awg.newCard()
         self.awg = None

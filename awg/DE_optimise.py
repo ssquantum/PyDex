@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import sys
 import time
 sys.path.append(r'Z:\Tweezer\Code\Python 3.5\PyDex\networking')
-from networker import PyServer
+from networker import PyServer, TCPENUM
 from awgHandler import AWG
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtWidgets import QApplication 
@@ -49,10 +49,14 @@ class Optimiser():
         self.n = 0 # counter for number of measurements
     
         # setup
-        self.s = PyServer(host='', port=8622)
+        self.s = PyServer(host='', port=8622) # server for DAQ
         self.s.textin.connect(self.respond)
         self.s.start()
-        self.t = AWG([0])
+        self.dxs = PyServer(host='', port=8620) # server for DExTer
+        # self.dxs.textin.connect(self.respond)
+        self.dxs.start()
+
+        self.t = AWG([0,1])
         self.t.setNumSegments(8)
         self.t.setTrigger(0) # software trigger
         self.t.setSegDur(0.002)
@@ -62,8 +66,9 @@ class Optimiser():
         # # step, segment, numLoops, nextStep, triggerCondition
         # self.t.setStep(0,0,1,0,1) # infinite loop
         # self.t.start()
-        self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[fset],1,9, amp,[1],[0],False,False))
-        self.t.setStep(0,0,1,0,1)
+        # self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[fset],1,9, amp,[1],[0],False,False))
+        # self.t.setStep(0,0,1,0,1)
+        self.t.load(r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\swap_static.txt')
         self.t.start()
 
     def respond(self, msg=''):
@@ -107,7 +112,7 @@ class Optimiser():
     def measure(self):
         """Request a measurement from the DAQ"""
         time.sleep(self.sleep)
-        self.s.add_message(self.n, 'start')
+        self.dxs.add_message(TCPENUM['Run sequence'], 'run the sequence\n'+'0'*1600)
         time.sleep(self.sleep)
         self.s.add_message(self.n, 'measure') # tells DAQ to add the measurement to the next message
         self.s.add_message(self.n, 'readout') # reads the measurement
@@ -141,7 +146,7 @@ if __name__ == "__main__":
     if standalone: # if there isn't an instance, make one
         app = QApplication(sys.argv) 
         
-    o = Optimiser(f0=120, f1=220, nfreqs=80, fset=166, amp=220, tol=1e-3, sleep=0.5)
+    o = Optimiser(f0=120, f1=220, nfreqs=80, fset=166, amp=220, tol=1e-3, sleep=0.3)
     o.t.getParam(3)
     # o.restart()
     
@@ -149,15 +154,19 @@ if __name__ == "__main__":
     fs = np.arange(120, 220)
     # fs = np.delete(fs, np.array([154, 174, 152, 169, 155, 208, 140, 199, 173, 121, 189, 120])-120)
     shuffle(fs)
-    amps = np.linspace(5,250,120)
+    amps = np.linspace(1,230,120)
     shuffle(amps)
-    fdir = r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\AWG_power_calibration'
+    fdir = r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG_power_calibration'
     o.s.textin.disconnect()
-    # o.s.add_message(o.n, fdir+'=save_dir')
+    o.s.add_message(o.n, fdir+'=save_dir')
+    o.s.add_message(o.n, 'reset graph')
     # for f in fs:
     #     for a in amps:
-    #         o.t.setSegment(0, o.t.dataGen(0,0,'static',1,[f],1,9, a,[1],[0],False,False))
     #         o.n = int(a)
+    #         o.s.add_message(o.n, 'sets n') # sets the amplitude for reference
+    #         o.t.setSegment(1, o.t.dataGen(1,0,'static',1,[f],1,9, a,[1],[0],False,False), 
+    #                         o.t.dataGen(1,1,'static',1,[f],1,9, a,[1],[0],False,False))
+    #         # o.t.loadSeg([[0,0,'freqs_input_[MHz]',f,0],[0,0,'tot_amp_[mV]',a,0]])
     #         o.measure()
     #     o.s.add_message(o.n, '%.3gMHz.csv=graph_file'%f)
     #     time.sleep(0.01)

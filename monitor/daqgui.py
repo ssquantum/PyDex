@@ -544,7 +544,7 @@ class daq_window(QMainWindow):
         elif 'measure' in msg:
             try:
                 x = self.dc.slices[0]
-                self.tcp.add_message(1, str(x.stats[list(x.stats.keys())[0]]['mean'][-1]))
+                self.tcp.add_message(self.stats['n'], str(x.stats[list(x.stats.keys())[0]]['mean'][-1]))
             except Exception as e:
                 logger.error("Couldn't send measurement.\n"+str(e))
     
@@ -819,6 +819,6 @@ if __name__ == "__main__":
     # if standalone: # if there isn't an instance, make one
     #     app = QApplication(sys.argv)
     # 
-    # d = daq_window(config_file=r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\dqconfig 01.07.2020.dat', host='129.234.190.235')
+    # d = daq_window(config_file=r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\DEoptimiseConfig.dat', host='129.234.190.235')
     # d.show()
     run()

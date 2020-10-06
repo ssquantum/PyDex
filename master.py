@@ -342,6 +342,8 @@ class Master(QMainWindow):
             self.rn.seq.show()
         elif self.sender().text() == 'TCP Server':
             info = 'Trigger server is running.\n' if self.rn.trigger.isRunning() else 'Trigger server stopped.\n'
+            info += 'Monitor server is running.\n' if self.rn.monitor.isRunning() else 'Monitor server stopped.\n'
+            info += 'AWG server is running.\n' if self.rn.awgtcp.isRunning() else 'AWG server stopped.\n'
             if self.rn.server.isRunning():
                 msgs = self.rn.server.get_queue()
                 info += "TCP server is running. %s queued message(s)."%len(msgs)

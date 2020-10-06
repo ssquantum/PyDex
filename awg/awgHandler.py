@@ -91,15 +91,6 @@ class AWG:
     3:  SPCSEQ_END                     # Sequence Step will be the terminating step for the replay. 
     }
     
-    ###################################################################
-    # This is where the card metadata will be stored
-    ###################################################################
-    filedata = {}
-    filedata["steps"]       = {} #Note that this is a dictionary
-    filedata["segments"]    = {} 
-    filedata["properties"]  = {}
-    filedata["calibration"] = {}
-    
     
     
     """
@@ -123,6 +114,14 @@ class AWG:
     """
     
     def __init__ (self, channel_enable = [0,1],sample_rate = MEGA(625), num_segment = int(16) , start_step=int(0)):
+        ###################################################################
+        # This is where the card metadata will be stored
+        ###################################################################
+        self.filedata = {}
+        self.filedata["steps"]       = {} #Note that this is a dictionary
+        self.filedata["segments"]    = {} 
+        self.filedata["properties"]  = {}
+        self.filedata["calibration"] = {}
         
         # Setting the sample rate of the card.
         if sample_rate> MEGA(625):
@@ -887,7 +886,7 @@ class AWG:
                 
                 if type(f1)==np.ndarray or type(f1)==list :
                     f1 = str(list(f1))
-                dataj(AWG.filedata,self.segment,channel,action,duration,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),\
+                dataj(self.filedata,self.segment,channel,action,duration,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),\
                 str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples)                # Stores information in the filedata variable, to be written when card initialises. 
             
             
@@ -1038,7 +1037,7 @@ class AWG:
                 
                 if flag ==0:
                     outData =  moving(self.f1,self.f2,self.duration,self.a,self.tot_amp,self.start_amp,self.end_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value)
-                    dataj(AWG.filedata,self.segment,channel,action,self.duration,str(list(f1)),str(list(f2)),self.a,self.tot_amp,str(self.start_amp)\
+                    dataj(self.filedata,self.segment,channel,action,self.duration,str(list(f1)),str(list(f2)),self.a,self.tot_amp,str(self.start_amp)\
                     ,str(self.end_amp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),\
                     str(list(self.exp_start)),str(list(self.exp_end)),self.numOfSamples)
              
@@ -1172,7 +1171,7 @@ class AWG:
                 if flag==0:
                     #ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =0.329)
                     outData = ramp(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.startAmp,self.endAmp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)
-                    dataj(AWG.filedata,self.segment,channel,action,self.duration, str(f1),numOfTraps,distance,\
+                    dataj(self.filedata,self.segment,channel,action,self.duration, str(f1),numOfTraps,distance,\
                     self.tot_amp,str(self.startAmp),str(self.endAmp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),\
                     str(self.exp_freqs),self.numOfSamples)
                     
@@ -1364,7 +1363,7 @@ class AWG:
                     
                     if type(f1)==np.ndarray or type(f1)==list :
                         f1 = str(list(f1))
-                    dataj(AWG.filedata,self.segment,channel,action,duration,f1,numOfTraps,distance,self.tot_amp,\
+                    dataj(self.filedata,self.segment,channel,action,duration,f1,numOfTraps,distance,self.tot_amp,\
                     str(self.freq_amp),int(self.mod_freq/1000),self.mod_depth,str(self.freq_phase),\
                     str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples,self.duration,self.numOfModCycles)                # Stores information in the filedata variable, to be written when card initialises. 
                 
@@ -1394,7 +1393,7 @@ class AWG:
                 
         self.flag[self.segment] = flag
         if flag==0:
-            sys.stdout.write("... data for segment {0:d}, channel {0:d} has been generated.\n".format(self.segment, self.channel))
+            sys.stdout.write("... data for segment %s, channel %s has been generated.\n"%(self.segment, channel))
             return outData
         else:
             sys.stdout.write("Data for segment {} were not generated due to unresolved errors\n".format(self.segment))
@@ -1483,7 +1482,7 @@ class AWG:
                 3. transfer the information to the card.  
             """
             
-            stepj(AWG.filedata,self.lStep,self.llSegment,self.llLoop,self.llNext,stepCondition)
+            stepj(self.filedata,self.lStep,self.llSegment,self.llLoop,self.llNext,stepCondition)
             llvals=int64((self.llCondition<<32) | (self.llLoop<<32) | (self.llNext<<16) | self.llSegment)
             spcm_dwSetParam_i64(AWG.hCard,SPC_SEQMODE_STEPMEM0 + self.lStep,llvals)
 
@@ -1509,14 +1508,14 @@ class AWG:
         ################
         # Save the card parameters
         ######################################
-        paramj(AWG.filedata,self.sample_rate.value,self.num_segment,self.start_step,self.lSetChannels.value,\
+        paramj(self.filedata,self.sample_rate.value,self.num_segment,self.start_step,self.lSetChannels.value,\
         str(list(self.channel_enable)),self.lBytesPerSample.value,int(self.maxSamples),\
         self.max_output,self.trig_val,self.trig_level0,self.trig_level1,self.statDur)
         
         ###############
         # Save the calibration files. Variables are in spcm_home_functions.
         #########################################
-        calj(AWG.filedata,importFile,importPath) # Both importFile and importPath can be found in spcm_home_functions.py.     
+        calj(self.filedata,importFile,importPath) # Both importFile and importPath can be found in spcm_home_functions.py.     
         
         if not fpath:
             self.ddate =time.strftime('%Y%m%d')     # Date in YYMMDD format
@@ -1527,7 +1526,7 @@ class AWG:
             self.latestSave = fpath
         try:
             with open(fpath,'w') as outfile:
-                json.dump(AWG.filedata,outfile,sort_keys = True,indent =4)
+                json.dump(self.filedata,outfile,sort_keys = True,indent =4)
         except (FileNotFoundError, PermissionError) as e:
             print(e)
     
@@ -1645,7 +1644,7 @@ class AWG:
         The method will replace one segment but can have as many changes as desired within that one segment.
         
         listChanges expects a list of lists in the following format:
-            [[segment,channel,key_word1,new_value1],[segment,channel,key_word2,new_value2], ...]
+            [[channel,segment,key_word1,new_value1,index],[channel,segment,key_word2,new_value2,index], ...]
             
         Since the method takes a decent amount of user input, several checks are put in place to ensure
         that all the input is correctly used.
@@ -1714,25 +1713,25 @@ class AWG:
                 sys.stdout.write("'{}' is not a valid key for this segment's channel.\n".format(listChanges[i][2]))
                 flag = 1
              
-        if durCounter > 0 and durCounter != len(lchannels) :
-            """
-            If you set the flag to zero you might notice that the code does not prevent you from setting
-            two static traps (in different channels but same segment) because somehow the setStep does not update.
-            This is because when dealing with multiple channels and you change the duration of one channel (in static)
-            but no the other, they will both have the same number of samples (dictated by statDur) but will have different loop
-            times. Normally, the total duration is held in staticDuration, so when you have two channels that both
-            operate on staticDuration on the same segment, it overwrites the first one.
-            
-            i.e. Start a template where ch1 and ch2 have a duraiton of 1 ms. You want to use multirun to change
-            Ch1 (duration of 3 ms) using segLoad but do not remark anything for Ch2. Ch1 then sets the staticDuration 
-            register to {0:3} but then Ch2 (duration 1 ms) sets the same when it is its time to load, so then the same segment 
-            register to {0:1}. Had you chosen to change the duration of the second segment alone, it would have worked, but
-            in this case you overwrite and you have no effective difference. 
-            
-            Always change both channels ;)
-            """
-            sys.stdout.write("WARNING: When changing duration, it must be changed for all channels.")
-            flag = 1
+        # if durCounter > 0 and durCounter != len(lchannels) :
+        #     """
+        #     If you set the flag to zero you might notice that the code does not prevent you from setting
+        #     two static traps (in different channels but same segment) because somehow the setStep does not update.
+        #     This is because when dealing with multiple channels and you change the duration of one channel (in static)
+        #     but no the other, they will both have the same number of samples (dictated by statDur) but will have different loop
+        #     times. Normally, the total duration is held in staticDuration, so when you have two channels that both
+        #     operate on staticDuration on the same segment, it overwrites the first one.
+        #     
+        #     i.e. Start a template where ch1 and ch2 have a duraiton of 1 ms. You want to use multirun to change
+        #     Ch1 (duration of 3 ms) using segLoad but do not remark anything for Ch2. Ch1 then sets the staticDuration 
+        #     register to {0:3} but then Ch2 (duration 1 ms) sets the same when it is its time to load, so then the same segment 
+        #     register to {0:1}. Had you chosen to change the duration of the second segment alone, it would have worked, but
+        #     in this case you overwrite and you have no effective difference. 
+        #     
+        #     Always change both channels ;)
+        #     """
+        #     sys.stdout.write("WARNING: When changing duration, it must be changed for all channels.")
+        #     flag = 1  #### what if I want to change the duration in several segments?? then durCounter > len(lchannels)
                     
                                 
         if flag == 0:
@@ -1753,7 +1752,7 @@ class AWG:
                 self.setSegment(seg,*tempData)
                 
             for i in range(len(self.filedata['steps'])):
-                stepArguments = [self.filedata['steps']['step_'+str(seg)][x] for x in AWG.stepOrder]
+                stepArguments = [self.filedata['steps']['step_'+str(i)][x] for x in AWG.stepOrder]
                 self.setStep(*stepArguments)   
                 
             self.start()     
@@ -1781,7 +1780,7 @@ if __name__ == "__main__":
     ch2 = 1 #second channel to be used.
     t = AWG([ch1,ch2])
     
-    t.setNumSegments(8)
+    t.setNumSegments(12)
     print(t.num_segment)
     print(t.maxDuration)
     # 0.329um/MHz
@@ -1890,11 +1889,29 @@ if __name__ == "__main__":
     Vincent 14/9/2020 
     """
     
-    data01 = t.dataGen(0,ch1,'static',1,[166],1,9, 220,[1],[0],False,False)
-    data02 = t.dataGen(0,ch2,'static',1,[166],1,9, 220,[1],[0],False,False)
+    data01 = t.dataGen(0,ch1,'static',1,[140],1,9, 220,[1],[0],False,False)
+    data02 = t.dataGen(0,ch2,'static',1,[140],1,9, 220,[1],[0],False,False)
     t.setSegment(0,data01, data02)
-    t.setStep(0,0,1,0,2)   
+    t.setStep(0,0,1,0,1)   
     
+#      
+#     data11 = t.dataGen(1,ch1,'moving',10,[195],[163.6],1, 220,[1],[1],[0],False,False)
+#     data12 = t.dataGen(1,ch2,'moving',10,[195],[163.6],1, 220,[1],[1],[0],False,False)
+#     t.setSegment(1,data11, data12)
+#     t.setStep(1,1,1,2,2)
+# 
+#     data21 = t.dataGen(2,ch1,'static',35,[163.6],1,9, 220,[1],[0],False,False)
+#     data22 = t.dataGen(2,ch2,'static',35,[163.6],1,9, 220,[1],[0],False,False)
+#     t.setSegment(2,data21, data22)
+#     t.setStep(2,2,1,3,2) 
+#      
+#     data31 = t.dataGen(3,ch1,'moving',10,[163.6],[195],1, 220,[1],[1],[0],False,False)
+#     data32 = t.dataGen(3,ch2,'moving',10,[163.6],[195],1, 220,[1],[1],[0],False,False)
+#     t.setSegment(3,data31, data32)
+#     t.setStep(3,3,1,0,2)
+# 
+#     
+    t.start(True)
     
     # data11 = t.dataGen(1,ch1,'ramp',5,[166, 167],2, 9, 220,[1,0],[1,1],[0,0],False,False)
     # data12 = t.dataGen(1,ch2,'ramp',5,[166, 167],2, 9, 220,[1,0],[1,1],[0,0],False,False)
@@ -1916,7 +1933,7 @@ if __name__ == "__main__":
     # t.setStep(3,3,1,0,2)
 
 
-    t.start(True)
+  #  t.start(True)
     # 
     # data11A = t.dataGen(1,ch1,'moving',5,[166],[135],1, 220,[1],[1],[0],False,False)
     # data12A = t.dataGen(1,ch2,'moving',5,[166],[135],1, 220,[1],[1],[0],False,False)

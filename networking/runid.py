@@ -225,8 +225,7 @@ class runnum(QThread):
             self.monitor.add_message(self._n, 'start')
             # insert TCP messages at the front of the queue: once the multirun starts don't interrupt it.
             repeats = self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']
-            mr_queue = [[TCPENUM['TCP read'], 'AWG save='+os.path.join(results_path,'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')+'||||||||'+'0'*2000 
-                if any('AWG' in x for x in self.seq.mr.mr_param['Type']) else 'blank||||||||'+'0'*2000]] # list of TCP messages for the whole multirun
+            mr_queue = [[TCPENUM['TCP read'], 'AWG save='+os.path.join(results_path,'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')+'||||||||'+'0'*2000]] # list of TCP messages for the whole multirun
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
                 if any('AWG' in x for x in self.seq.mr.mr_param['Type']): # send AWG parameters by TCP
                     awgmsg = self.get_awg_params(v)

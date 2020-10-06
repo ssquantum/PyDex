@@ -127,14 +127,17 @@ cal_umPerMHz = calFile["umPerMHz"]
 def ampAdjuster(freq, optical_power):
     """Find closest optical power in the presaved dictionary of contours, then use interpolation to get the 
     RF amplitude at the given frequency"""
-    i = np.argmin([abs(float(p) - optical_power) for p in contour_dict.keys()]) 
-    key = list(contour_dict.keys())[i]
-    y = np.array(contour_dict[key]['Calibration'](freq)) # return amplitude in mV to keep constant optical power
-    y[y>220] = 220
-    # if >220 print warning
-    return y
+    if optical_power < 0.01:
+        return np.zeros(np.size(freq)) # there isn't a calibration for 0 power...
+    else:
+        i = np.argmin([abs(float(p) - optical_power) for p in contour_dict.keys()]) 
+        key = list(contour_dict.keys())[i]
+        y = np.array(contour_dict[key]['Calibration'](freq)) # return amplitude in mV to keep constant optical power
+        y[y>220] = 220
+        # if >220 print warning
+        return y
     
-def ampRampAdjust(freq, optical_power):
+def ampRampAdjuster(freq, optical_power):
     """For the set frequency, interpolate the RF power VS diffraction efficiency curve to return the RF amplitude
     in mV that outputs the requested diffraction efficiency"""
     i = np.argmin([abs(float(f) - freq) for f in DE_RF_dict.keys()]) 
@@ -322,6 +325,20 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
         np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t+0.5*(rfreq[Y])/sampleRate/numOfSamples*t**2)+freq_phase[Y])\
         for Y in range(l)],axis=0) 
             
+    elif amp_adjust and all(startAmp[i]-endAmp[i]<0.01 for i in range(l)) and a==1:
+        # not ramping amplitude, just sweeping frequency linearly
+        y = 1./282/len(startFreq) *0.5*2**16 *np.sum([
+            ampAdjuster(sfreq[Y]*1e-6 + 1e-6*rfreq[Y]/numOfSamples*t, startAmp[Y]) * 
+            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + 0.5*(rfreq[Y])/sampleRate/numOfSamples*t**2) 
+            + freq_phase[Y]) for Y in range(l)], axis=0)
+
+    elif amp_adjust and all(startAmp[i]-endAmp[i]<0.01 for i in range(l)):
+        # not ramping amplitude, just sweeping frequency
+        y = 1./282/len(startFreq)*0.5*2**16 *np.sum([
+            ampAdjuster(sfreq[Y]*1e-6 + hybridJerk(t, rfreq[Y]*1e-6, numOfSamples, a), startAmp[Y]) * 
+            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + chirp(1.*t, 1.*rfreq[Y]/sampleRate, 1.*numOfSamples, 1.*a)) 
+            + freq_phase[Y]) for Y in range(l)], axis=0)
+
     elif amp_adjust:
         # take samples across the diffraction efficiency curve and then interpolate
         idxs = np.linspace(0, len(t)-1, 100).astype(int)
@@ -332,7 +349,7 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
 
         y = 1./282/len(startFreq)*0.5*2**16 *np.sum([
             amp_ramp_adjusted[Y](t) * 
-            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + chirp(t, rfreq[Y]/sampleRate, numOfSamples, a)) 
+            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + chirp(1.*t, 1.*rfreq[Y]/sampleRate, 1.*numOfSamples, 1.*a)) 
             + freq_phase[Y]) for Y in range(l)], axis=0) 
             
     else: # Hybrid/Minimum jerk
@@ -497,7 +514,7 @@ def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=22
     t =np.arange(numOfSamples)
     if ampAdjust:
         y = 1./282/len(freqs)*0.5*2**16*\
-            np.sum([ampRampAdjust(adjFreqs[Y]*1e-6, np.linspace(startAmp[Y], endAmp[Y], numOfSamples)) * 
+            np.sum([ampRampAdjuster(adjFreqs[Y]*1e-6, np.linspace(startAmp[Y], endAmp[Y], numOfSamples)) * 
                 np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     else:
         y = 1.*tot_amp/282/len(freqs)*0.5*2**16*\
@@ -789,3 +806,11 @@ if __name__ == "__main__":
     #end = timer()
     #print(end - start) # Time in seconds, e.g. 5.38091952400282
     #print(len(template2))
+
+    # y = moving(135e6, 195e6, 0.1, 1, 220, [1],[1],[0],False,False,625e6)
+    # plt.plot(np.fft.fftfreq(np.size(y), 1/625), np.fft.fft(y), label='135 -> 195MHz')
+    # plt.xlabel('Frequency (MHz)')
+    # y = moving(195e6, 135e6, 0.1, 1, 220, [1],[1],[0],False,False,625e6)
+    # plt.plot(np.fft.fftfreq(np.size(y), 1/625), np.fft.fft(y), label='195 -> 135 MHz')
+    # plt.legend()
+    # plt.show()
