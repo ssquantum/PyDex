@@ -1,10 +1,10 @@
-n=25783
+n=91
 config_file=Z:/Tweezer/Code/Python 3.5/PyDex/monitor/DEoptimiseConfig.dat
 trace_file=DAQtrace.csv
-graph_file=20.csv
-save_dir=Z:\Tweezer\Experimental Results\2020\October\02\Measure6
-Sample Rate (kS/s)=200.0
-Duration (ms)=300.0
+graph_file=153MHz.csv
+save_dir=Z:\Tweezer\Code\Python 3.5\PyDex\awg\111020AWG_power_calibration
+Sample Rate (kS/s)=20.0
+Duration (ms)=250.0
 Trigger Channel=/Dev2/PFI0
 Trigger Level (V)=1.0
 Trigger Edge=rising

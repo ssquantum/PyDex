@@ -101,7 +101,7 @@ def chirp(t,d,T,a):
 
 
 importPath="Z:\\Tweezer\Experimental\\Setup and characterisation\\Settings and calibrations\\tweezer calibrations\\AWG calibrations\\"
-importFile = "calFile_15.09.2020.txt"
+importFile = "calFile_06.10.2020.txt"
 
 
 with open(importPath+importFile) as json_file:
@@ -336,7 +336,7 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
         # not ramping amplitude, just sweeping frequency
         y = 1./282/len(startFreq)*0.5*2**16 *np.sum([
             ampAdjuster(sfreq[Y]*1e-6 + hybridJerk(t, rfreq[Y]*1e-6, numOfSamples, a), startAmp[Y]) * 
-            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + chirp(1.*t, 1.*rfreq[Y]/sampleRate, 1.*numOfSamples, 1.*a)) 
+            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + chirp(t, rfreq[Y]/sampleRate, numOfSamples, a)) 
             + freq_phase[Y]) for Y in range(l)], axis=0)
 
     elif amp_adjust:
@@ -349,7 +349,7 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
 
         y = 1./282/len(startFreq)*0.5*2**16 *np.sum([
             amp_ramp_adjusted[Y](t) * 
-            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + chirp(1.*t, 1.*rfreq[Y]/sampleRate, 1.*numOfSamples, 1.*a)) 
+            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + chirp(t, rfreq[Y]/sampleRate, numOfSamples, a)) 
             + freq_phase[Y]) for Y in range(l)], axis=0) 
             
     else: # Hybrid/Minimum jerk

@@ -1,11 +1,11 @@
-n=4934
+n=11305
 config_file=Z:/Tweezer/Code/Python 3.5/PyDex/monitor/dqconfig 01.07.2020.dat
 trace_file=DAQtrace.csv
 graph_file=DAQgraph.csv
-save_dir=Z:\Tweezer\Experimental Results\2020\September\25\Measure2
+save_dir=Z:\Tweezer\Experimental Results\2020\October\09\Measure9
 Sample Rate (kS/s)=20.0
 Duration (ms)=500.0
 Trigger Channel=/Dev2/PFI0
 Trigger Level (V)=1.0
 Trigger Edge=rising
-channels=[[Dev2/ai0, nothing, 1.0, 0.0, 5.0, 0, 0], [Dev2/ai1, 940 tweezer, 1.0, 0.0, 5.0, 0, 0], [Dev2/ai2, 812 tweezer, 1.0, 0.0, 1.0, 0, 0], [Dev2/ai3, 1D, 1.0, 0.0, 0.2, 1, 1], [Dev2/ai4, 4, 1.0, 0.0, 5.0, 0, 0], [Dev2/ai5, Rb MOT, 1.0, 0.0, 0.2, 0, 0], [Dev2/ai6, nothing, 1.0, 0.0, 5.0, 0, 0], [Dev2/ai7, Cs MOT, 1.0, 0.0, 0.2, 0, 0]]
+channels=[[Dev2/ai0, nothing, 1.0, 0.0, 5.0, 0, 0], [Dev2/ai1, 940 tweezer, 1.0, 0.0, 5.0, 1, 1], [Dev2/ai2, 812 tweezer, 1.0, 0.0, 1.0, 0, 0], [Dev2/ai3, 1D, 1.0, 0.0, 0.2, 0, 0], [Dev2/ai4, 4, 1.0, 0.0, 5.0, 0, 0], [Dev2/ai5, Rb MOT, 1.0, 0.0, 1.0, 0, 0], [Dev2/ai6, nothing, 1.0, 0.0, 5.0, 0, 0], [Dev2/ai7, Cs MOT, 1.0, 0.0, 0.2, 0, 0]]

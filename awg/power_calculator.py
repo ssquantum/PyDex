@@ -28,7 +28,7 @@ print('Expected output power at %s MHz, %.4g mV: %.4g %%'%(f, rf, p*100))
 
 f = 166 # AWG frequency in MHz
 p = 0.5 # optical power as a fraction of that at 166 MHz, 220mV
-print('Required RF power to get %.3g%% output at %s MHz: %.4g mV'%(p, f, ampAdjuster(f, p)))
+print('Required RF power to get %.3g%% output at %s MHz: %.4g mV'%(p*100, f, ampAdjuster(f, p)))
 
 ## for multiple frequencies
 freqs = np.linspace(135, 195, 200) # frequency in MHz
@@ -49,17 +49,17 @@ plt.ylabel('RF power (mV) \nrequired at %s MHz'%(freq))
 
 
 ## test agreement:
-diff = np.zeros((len(freqs), len(powers)))
-for i, F in enumerate(freqs):
-    for j, P in enumerate(powers):
-        diff[i,j] = ampAdjuster(F, P) - ampRampAdjuster(F, P)
-
-plt.figure(2)
-# the amp adjuster uses discrete optical powers, whereas amp ramp uses discrete frequencies
-# as a result, stripes of disagreement up to 5mV can be seen.
-im = plt.imshow(diff, extent = (min(freqs), max(freqs), min(powers), max(powers)), origin = 'lower', cmap = 'RdYlBu', aspect = 'auto')
-plt.colorbar(im, orientation='vertical')
-plt.title('Difference in RF power between \ninterpolation functions (mV)')
-plt.xlabel('Frequency (MHz)')
-plt.ylabel('Requested Optical Power')
-plt.show()
+# diff = np.zeros((len(freqs), len(powers)))
+# for i, F in enumerate(freqs):
+#     for j, P in enumerate(powers):
+#         diff[i,j] = ampAdjuster(F, P) - ampRampAdjuster(F, P)
+# 
+# plt.figure(2)
+# # the amp adjuster uses discrete optical powers, whereas amp ramp uses discrete frequencies
+# # as a result, stripes of disagreement up to 5mV can be seen.
+# im = plt.imshow(diff, extent = (min(freqs), max(freqs), min(powers), max(powers)), origin = 'lower', cmap = 'RdYlBu', aspect = 'auto')
+# plt.colorbar(im, orientation='vertical')
+# plt.title('Difference in RF power between \ninterpolation functions (mV)')
+# plt.xlabel('Frequency (MHz)')
+# plt.ylabel('Requested Optical Power')
+# plt.show()

@@ -10,6 +10,7 @@ import re
 import sys
 sys.path.append('.')
 sys.path.append('..')
+import time
 import numpy as np
 try:
     from PyQt4.QtCore import pyqtSignal, QThread
@@ -79,10 +80,12 @@ class daqCollection(QThread):
         self.channels = channels
         self.ind = 0 # number of shots processed
         self.runs = [] # run number for identifying the trace
+        self.times = [] # time the run was taken
 
     def reset_arrays(self, *args):
         """Reset all of the data to empty"""
         self.runs = []
+        self.times = []
         for s in self.slices:
             for c in s.stats.keys():
                 s.stats[c] = OrderedDict([('mean',[]), ('stdv',[])])
@@ -100,6 +103,7 @@ class daqCollection(QThread):
     def process(self, data, n):
         """Send the data to all of the slices. It must have the right shape."""
         self.runs.append(n)
+        self.times.append(time.time())
         for s in self.slices:
             s.process(data)
         self.ind += 1
@@ -125,6 +129,7 @@ class daqCollection(QThread):
         data = np.genfromtxt(file_name, delimiter=',')
         if np.size(data) > 1: # load data into lists
             self.runs = list(map(int, data[:,0]))
+            self.times = list(map(float, data[:,-1]))
             nchans = (len(data[0]) - 1) // 2 # number of channels
             i = 1
             for s in self.slices:
@@ -149,11 +154,12 @@ class daqCollection(QThread):
         header += '; '.join([s.name+", %s, %s, ['"%(s.i0, s.i1)
             + "', '".join(self.channels) + "']" for s in self.slices]) +'\n'
         header += 'Run, ' + ', '.join([s.name + '//' + chan + val for val in [
-            ' mean', ' stdv'] for s in self.slices for chan in s.stats.keys()])
+            ' mean', ' stdv'] for s in self.slices for chan in s.stats.keys()]
+            ) + ', Time since epoch (s)'
         try:
             out_arr = np.array([self.runs] + [s.stats[chan][val] for val in 
                 ['mean', 'stdv'] for s in self.slices for chan in 
-                s.stats.keys()]).T
+                s.stats.keys()] + [self.times]).T
             np.savetxt(file_name, out_arr, delimiter=',', fmt='%s', header=header)
         except PermissionError as e:
             logger.error('DAQ Analysis denied permission to save file: \n'+str(e))

@@ -1,6 +1,6 @@
 {
     "calibration": {
-        "calibration_file": "calFile_05.09.2020.txt",
+        "calibration_file": "calFile_06.10.2020.txt",
         "saved_in": "Z:\\Tweezer\\Experimental\\Setup and characterisation\\Settings and calibrations\\tweezer calibrations\\AWG calibrations\\"
     },
     "properties": {
@@ -25,7 +25,7 @@
                 "action_code": "static",
                 "action_type": "static trap",
                 "action_val": 1,
-                "amp_adjust": "False",
+                "amp_adjust": "True",
                 "channel_out": 0,
                 "distance_[um]": 9,
                 "duration_[ms]": 1,
@@ -43,7 +43,7 @@
                 "action_code": "static",
                 "action_type": "static trap",
                 "action_val": 1,
-                "amp_adjust": "False",
+                "amp_adjust": "True",
                 "channel_out": 1,
                 "distance_[um]": 9,
                 "duration_[ms]": 1,
@@ -55,7 +55,7 @@
                 "num_of_samples": 1024,
                 "num_of_traps": 1,
                 "segment": 0,
-                "tot_amp_[mV]": 200
+                "tot_amp_[mV]": 220
             }
         }
     },
