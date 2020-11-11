@@ -51,17 +51,22 @@ class daqSlice:
         self.stats = OrderedDict([(chan, OrderedDict([
             ('mean',[]), ('stdv',[])])) for chan in channels.keys()])
         
-    def process(self, data):
+    def process(self, data, ind):
         """Apply the slice to the given data, extract the mean and std dev.
         Note that the data must have shape to match the expected # channels.
-        data -- measured voltages [[measurement] * # channels]"""
+        data -- measured voltages [[measurement] * # channels].
+        ind  -- index of the channel to assign the data to."""
         for chan, i in self.channels.items():
-            try:
-                row = data[i]
-                self.stats[chan]['mean'].append(np.mean(row[self.inds]))
-                self.stats[chan]['stdv'].append(np.std(row[self.inds], ddof=1))
-            except IndexError as e:
-                logger.error('Data wrong shape to take slice at %s.\n'%i + str(e))
+            if i == ind:
+                try:
+                    row = data[0] # i if multiple channels are being measured simultaneously
+                    self.stats[chan]['mean'].append(np.mean(row[self.inds]))
+                    self.stats[chan]['stdv'].append(np.std(row[self.inds], ddof=1))
+                except IndexError as e:
+                    logger.error('Data wrong shape to take slice at %s.\n'%i + str(e))
+            else: # just to keep them all the same length
+                self.stats[chan]['mean'].append(np.nan) 
+                self.stats[chan]['stdv'].append(np.nan)
 
         
 ####    ####    ####    ####
@@ -100,12 +105,12 @@ class daqCollection(QThread):
         self.slices.append(daqSlice(name, start, end, channels))
         self.reset_arrays() # make sure they're the same length
         
-    def process(self, data, n):
+    def process(self, data, n, ind):
         """Send the data to all of the slices. It must have the right shape."""
         self.runs.append(n)
         self.times.append(time.time())
         for s in self.slices:
-            s.process(data)
+            s.process(data, ind)
         self.ind += 1
             
     def load(self, file_name):

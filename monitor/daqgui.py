@@ -118,7 +118,7 @@ class daq_window(QMainWindow):
         self.x = [] # run numbers for graphing collections of acquired data
         self.y = [] # average voltages in slice of acquired trace 
 
-        for slave in slaves:
+        for slave in self.slaves:
             slave.acquired.connect(self.update_graph) # take average of slices
             slave.acquired.connect(self.update_trace) # plot new data when it arrives
         self.tcp = PyClient(host=host, port=port)
@@ -557,6 +557,10 @@ class daq_window(QMainWindow):
         Otherwise, stop the task running."""
         if self.toggle.isChecked():
             self.check_settings()
+            for slave in self.slaves: # stop any previous tasks from running.
+                slave.stop = True
+                slave.quit()
+            self.slaveind = 0
             self.slaves = [worker(self.stats['Sample Rate (kS/s)']*1e3, self.stats['Duration (ms)']/1e3, self.stats['Trigger Channel'], 
                 self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], [chankey], 
                 [chan['range']]) for chankey, chan in self.stats['channels'].items()]
@@ -590,27 +594,26 @@ class daq_window(QMainWindow):
             self.slaves[self.slaveind].start()
             self.slaveind = (self.slaveind+1)%len(self.slaves)
         except (IndexError, ZeroDivisionError) as e:
-            logger.error('Could not start slave %s:\n'%self.slaveind, str(e))
+            logger.error('Could not start slave %s:\n'%self.slaveind+str(e))
 
     #### plotting functions ####
 
     def update_trace(self, data):
         """Plot the supplied data with labels on the trace canvas."""
         t = np.linspace(0, self.stats['Duration (ms)']/1000, self.n_samples)
-        i = 0 # index to keep track of which channels have been plotted
         for j in range(8):
             ch = self.channels.cellWidget(j,0).text()
             l = self.lines[j] # shorthand
             if ch in self.stats['channels'] and self.stats['channels'][ch]['plot']:
                 try:
-                    l.setData(t, data[i])
+                    if ch in self.slaves[(self.slaveind-1)%len(self.slaves)].channels:
+                        l.setData(t, data[0])
                 except Exception as e:
                     logger.error('DAQ trace could not be plotted.\n'+str(e))
                 self.fadelines[j].show()
                 l.show()
                 self.trace_legend.items[j][0].show()
                 self.trace_legend.items[j][1].show()
-                i += 1
             else:
                 l.hide()
                 self.fadelines[j].hide()
@@ -663,7 +666,7 @@ class daq_window(QMainWindow):
         if np.size(data):
             if self.unsync_toggle.isChecked():
                 self.set_n(self.stats['n'] + 1)
-            self.dc.process(data, self.stats['n'])
+            self.dc.process(data, self.stats['n'], self.slaveind-1)
         for s in self.dc.slices:
             for chan, val in s.stats.items():
                 self.mean_graph.lines[s.name+'/'+chan].setData(self.dc.runs, val['mean'])
