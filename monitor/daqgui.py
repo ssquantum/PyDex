@@ -589,6 +589,8 @@ class daq_window(QMainWindow):
             self.slaves[self.slaveind].stop = False
             self.slaves[self.slaveind].start()
             self.slaveind = (self.slaveind+1)%len(self.slaves)
+        except (IndexError, ZeroDivisionError) as e:
+            logger.error('Could not start slave %s:\n'%self.slaveind, str(e))
 
     #### plotting functions ####
 
