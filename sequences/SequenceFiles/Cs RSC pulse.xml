@@ -1,18 +1,18 @@
 <?xml version='1.0' standalone='yes' ?>
 <LVData xmlns="http://www.ni.com/LVData">
-<Version>12.0.1f5</Version>
+<Version>18.0.1</Version>
 <Cluster>
 <Name></Name>
 <NumElts>4</NumElts>
 <Array>
 <Name>Event list array in</Name>
-<Dimsize>2</Dimsize>
+<Dimsize>3</Dimsize>
 <Cluster>
 <Name>Event list cluster in</Name>
 <NumElts>4</NumElts>
 <String>
 <Name>Event name</Name>
-<Val>Cs RSC</Val>
+<Val>Raman Pulse</Val>
 </String>
 <Array>
 <Name>Event indices</Name>
@@ -28,7 +28,39 @@
 </Array>
 <Path>
 <Name>Event path</Name>
-<Val>C:\Users\lab\Desktop\DExTer 1.4\Events\Cs RSC pulse.evt</Val>
+<Val>C:\Users\lab\Desktop\DExTer 1.4\Events\Cs opt 15.10.20\Cs Raman.evt</Val>
+</Path>
+<Boolean>
+<Name>Routine specific event?</Name>
+<Val>1</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>Event list cluster in</Name>
+<NumElts>4</NumElts>
+<String>
+<Name>Event name</Name>
+<Val>Cs OP</Val>
+</String>
+<Array>
+<Name>Event indices</Name>
+<Dimsize>3</Dimsize>
+<I32>
+<Name>Numeric Control</Name>
+<Val>2</Val>
+</I32>
+<I32>
+<Name>Numeric Control</Name>
+<Val>3</Val>
+</I32>
+<I32>
+<Name>Numeric Control</Name>
+<Val>4</Val>
+</I32>
+</Array>
+<Path>
+<Name>Event path</Name>
+<Val>C:\Users\qgtx64\DocumentsCDrive\QSUM\Dexter\LV2018_sandbox\Cs 4,4 OP.evt</Val>
 </Path>
 <Boolean>
 <Name>Routine specific event?</Name>
@@ -47,7 +79,7 @@
 <Dimsize>1</Dimsize>
 <I32>
 <Name>Numeric Control</Name>
-<Val>2</Val>
+<Val>5</Val>
 </I32>
 </Array>
 <Path>
@@ -65,17 +97,17 @@
 <NumElts>10</NumElts>
 <Array>
 <Name>Sequence header top</Name>
-<Dimsize>3</Dimsize>
+<Dimsize>6</Dimsize>
 <Cluster>
 <Name>Sequence header cluster</Name>
 <NumElts>10</NumElts>
 <String>
 <Name>Event name</Name>
-<Val>Cs RSC</Val>
+<Val>Raman Pulse</Val>
 </String>
 <DBL>
 <Name>Time step length</Name>
-<Val>40.00000000000000</Val>
+<Val>1.00000000000000</Val>
 </DBL>
 <Cluster>
 <Name>Trigger details</Name>
@@ -121,7 +153,7 @@
 </Cluster>
 <String>
 <Name>Time step name</Name>
-<Val>Raman</Val>
+<Val>wait</Val>
 </String>
 <Boolean>
 <Name>Hide event steps</Name>
@@ -129,7 +161,7 @@
 </Boolean>
 <Boolean>
 <Name>Populate multirun</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <EW>
 <Name>Time unit</Name>
@@ -152,11 +184,11 @@
 <NumElts>10</NumElts>
 <String>
 <Name>Event name</Name>
-<Val>Cs RSC</Val>
+<Val>Raman Pulse</Val>
 </String>
 <DBL>
 <Name>Time step length</Name>
-<Val>150.00000000000000</Val>
+<Val>65.00000000000000</Val>
 </DBL>
 <Cluster>
 <Name>Trigger details</Name>
@@ -202,7 +234,7 @@
 </Cluster>
 <String>
 <Name>Time step name</Name>
-<Val>OP</Val>
+<Val>Raman Pulse</Val>
 </String>
 <Boolean>
 <Name>Hide event steps</Name>
@@ -210,7 +242,7 @@
 </Boolean>
 <Boolean>
 <Name>Populate multirun</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <EW>
 <Name>Time unit</Name>
@@ -222,6 +254,249 @@
 <I32>
 <Name>Event ID</Name>
 <Val>0</Val>
+</I32>
+<Boolean>
+<Name>Skip Step</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>Sequence header cluster</Name>
+<NumElts>10</NumElts>
+<String>
+<Name>Event name</Name>
+<Val>Cs OP</Val>
+</String>
+<DBL>
+<Name>Time step length</Name>
+<Val>1.00000000000000</Val>
+</DBL>
+<Cluster>
+<Name>Trigger details</Name>
+<NumElts>4</NumElts>
+<DBL>
+<Name>Analogue voltage (V)</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+<EW>
+<Name>Digital or analogue trigger?</Name>
+<Choice>Digital trigger</Choice>
+<Choice>Analogue trigger</Choice>
+<Val>0</Val>
+</EW>
+<U8>
+<Name>Channel</Name>
+<Val>0</Val>
+</U8>
+<Boolean>
+<Name>Trigger this time step?</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>GPIB routine data</Name>
+<NumElts>2</NumElts>
+<EW>
+<Name>GPIB event name</Name>
+<Choice>Do nothing</Choice>
+<Choice>Initial setup</Choice>
+<Choice>RF ramp 1</Choice>
+<Choice>RF ramp 2</Choice>
+<Choice>RF ramp 3</Choice>
+<Choice>Spin flip</Choice>
+<Choice>RF off</Choice>
+<Choice>Remote</Choice>
+<Val>0</Val>
+</EW>
+<Boolean>
+<Name>GPIB on/off?</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<String>
+<Name>Time step name</Name>
+<Val>open shutter</Val>
+</String>
+<Boolean>
+<Name>Hide event steps</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Populate multirun</Name>
+<Val>1</Val>
+</Boolean>
+<EW>
+<Name>Time unit</Name>
+<Choice>탎</Choice>
+<Choice>ms</Choice>
+<Choice>s</Choice>
+<Val>0</Val>
+</EW>
+<I32>
+<Name>Event ID</Name>
+<Val>1</Val>
+</I32>
+<Boolean>
+<Name>Skip Step</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>Sequence header cluster</Name>
+<NumElts>10</NumElts>
+<String>
+<Name>Event name</Name>
+<Val>Cs OP</Val>
+</String>
+<DBL>
+<Name>Time step length</Name>
+<Val>250.00000000000000</Val>
+</DBL>
+<Cluster>
+<Name>Trigger details</Name>
+<NumElts>4</NumElts>
+<DBL>
+<Name>Analogue voltage (V)</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+<EW>
+<Name>Digital or analogue trigger?</Name>
+<Choice>Digital trigger</Choice>
+<Choice>Analogue trigger</Choice>
+<Val>0</Val>
+</EW>
+<U8>
+<Name>Channel</Name>
+<Val>0</Val>
+</U8>
+<Boolean>
+<Name>Trigger this time step?</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>GPIB routine data</Name>
+<NumElts>2</NumElts>
+<EW>
+<Name>GPIB event name</Name>
+<Choice>Do nothing</Choice>
+<Choice>Initial setup</Choice>
+<Choice>RF ramp 1</Choice>
+<Choice>RF ramp 2</Choice>
+<Choice>RF ramp 3</Choice>
+<Choice>Spin flip</Choice>
+<Choice>RF off</Choice>
+<Choice>Remote</Choice>
+<Val>0</Val>
+</EW>
+<Boolean>
+<Name>GPIB on/off?</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<String>
+<Name>Time step name</Name>
+<Val>stretched state</Val>
+</String>
+<Boolean>
+<Name>Hide event steps</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Populate multirun</Name>
+<Val>1</Val>
+</Boolean>
+<EW>
+<Name>Time unit</Name>
+<Choice>탎</Choice>
+<Choice>ms</Choice>
+<Choice>s</Choice>
+<Val>0</Val>
+</EW>
+<I32>
+<Name>Event ID</Name>
+<Val>1</Val>
+</I32>
+<Boolean>
+<Name>Skip Step</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>Sequence header cluster</Name>
+<NumElts>10</NumElts>
+<String>
+<Name>Event name</Name>
+<Val>Cs OP</Val>
+</String>
+<DBL>
+<Name>Time step length</Name>
+<Val>1.00000000000000</Val>
+</DBL>
+<Cluster>
+<Name>Trigger details</Name>
+<NumElts>4</NumElts>
+<DBL>
+<Name>Analogue voltage (V)</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+<EW>
+<Name>Digital or analogue trigger?</Name>
+<Choice>Digital trigger</Choice>
+<Choice>Analogue trigger</Choice>
+<Val>0</Val>
+</EW>
+<U8>
+<Name>Channel</Name>
+<Val>0</Val>
+</U8>
+<Boolean>
+<Name>Trigger this time step?</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>GPIB routine data</Name>
+<NumElts>2</NumElts>
+<EW>
+<Name>GPIB event name</Name>
+<Choice>Do nothing</Choice>
+<Choice>Initial setup</Choice>
+<Choice>RF ramp 1</Choice>
+<Choice>RF ramp 2</Choice>
+<Choice>RF ramp 3</Choice>
+<Choice>Spin flip</Choice>
+<Choice>RF off</Choice>
+<Choice>Remote</Choice>
+<Val>0</Val>
+</EW>
+<Boolean>
+<Name>GPIB on/off?</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<String>
+<Name>Time step name</Name>
+<Val>RP shutter close</Val>
+</String>
+<Boolean>
+<Name>Hide event steps</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Populate multirun</Name>
+<Val>1</Val>
+</Boolean>
+<EW>
+<Name>Time unit</Name>
+<Choice>탎</Choice>
+<Choice>ms</Choice>
+<Choice>s</Choice>
+<Val>0</Val>
+</EW>
+<I32>
+<Name>Event ID</Name>
+<Val>1</Val>
 </I32>
 <Boolean>
 <Name>Skip Step</Name>
@@ -237,7 +512,7 @@
 </String>
 <DBL>
 <Name>Time step length</Name>
-<Val>20.00000000000000</Val>
+<Val>10.00000000000000</Val>
 </DBL>
 <Cluster>
 <Name>Trigger details</Name>
@@ -291,7 +566,7 @@
 </Boolean>
 <Boolean>
 <Name>Populate multirun</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <EW>
 <Name>Time unit</Name>
@@ -302,7 +577,7 @@
 </EW>
 <I32>
 <Name>Event ID</Name>
-<Val>1</Val>
+<Val>2</Val>
 </I32>
 <Boolean>
 <Name>Skip Step</Name>
@@ -313,243 +588,7 @@
 <Array>
 <Name>Fast digital channels</Name>
 <Dimsize>56</Dimsize>
-<Dimsize>3</Dimsize>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>1</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>1</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>1</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>1</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>1</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
-<Boolean>
-<Name>Boolean</Name>
-<Val>0</Val>
-</Boolean>
+<Dimsize>6</Dimsize>
 <Boolean>
 <Name>Boolean</Name>
 <Val>0</Val>
@@ -676,6 +715,710 @@
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
 <Val>0</Val>
 </Boolean>
 <Boolean>
@@ -768,7 +1511,15 @@
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
-<Val>0</Val>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>1</Val>
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
@@ -804,11 +1555,207 @@
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
 <Val>0</Val>
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
 <Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
@@ -1287,7 +2234,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val>Rb 2-2 OP switch</Val>
+<Val></Val>
 </String>
 </Cluster>
 <Cluster>
@@ -1395,7 +2342,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val>AWG trigger</Val>
+<Val></Val>
 </String>
 </Cluster>
 <Cluster>
@@ -1479,7 +2426,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val>RB 1A</Val>
+<Val>RB1a</Val>
 </String>
 </Cluster>
 <Cluster>
@@ -1491,7 +2438,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val>RB 2</Val>
+<Val>RB2</Val>
 </String>
 </Cluster>
 <Cluster>
@@ -1747,7 +2694,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val>Cs 4-&gt;4 OP power</Val>
+<Val>Cs 4-&gt;4 OP Power</Val>
 </String>
 </Cluster>
 <Cluster>
@@ -1766,7 +2713,7 @@
 <Array>
 <Name>Fast analogue array</Name>
 <Dimsize>8</Dimsize>
-<Dimsize>3</Dimsize>
+<Dimsize>6</Dimsize>
 <Cluster>
 <Name>Analogue cluster</Name>
 <NumElts>2</NumElts>
@@ -1776,7 +2723,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>4.00000000000000</Val>
+<Val>3.70000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1788,7 +2735,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>4.00000000000000</Val>
+<Val>3.70000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1800,7 +2747,91 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>0.00000000000000</Val>
+<Val>3.70000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>3.70000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>3.70000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.78000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>2.15000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>2.15000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>2.15000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>2.15000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1848,6 +2879,198 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.80000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.05000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.05000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.05000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.05000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.05000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.05000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.26400000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.26400000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.26400000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.26400000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>1.26400000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
 <Val>1.30000000000000</Val>
 </DBL>
 </Cluster>
@@ -1860,7 +3083,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.30000000000000</Val>
+<Val>6.26000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1872,7 +3095,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>0.00000000000000</Val>
+<Val>6.26000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1884,7 +3107,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.19000000000000</Val>
+<Val>6.26000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1896,7 +3119,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.19000000000000</Val>
+<Val>6.26000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1908,7 +3131,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>0.00000000000000</Val>
+<Val>6.26000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1920,7 +3143,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.42000000000000</Val>
+<Val>6.26000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1932,7 +3155,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.42000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1944,7 +3167,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>0.00000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1956,7 +3179,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>6.30000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1968,7 +3191,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>6.30000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1980,7 +3203,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>0.00000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2004,7 +3227,19 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.40000000000000</Val>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2059,7 +3294,583 @@
 <Array>
 <Name>Slow digital channels</Name>
 <Dimsize>48</Dimsize>
-<Dimsize>3</Dimsize>
+<Dimsize>6</Dimsize>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
+<Boolean>
+<Name>Boolean</Name>
+<Val>0</Val>
+</Boolean>
 <Boolean>
 <Name>Boolean</Name>
 <Val>0</Val>
@@ -3219,17 +5030,17 @@
 </Array>
 <Array>
 <Name>Sequence header middle</Name>
-<Dimsize>3</Dimsize>
+<Dimsize>6</Dimsize>
 <Cluster>
 <Name>Sequence header cluster</Name>
 <NumElts>10</NumElts>
 <String>
 <Name>Event name</Name>
-<Val>Cs RSC</Val>
+<Val>Raman Pulse</Val>
 </String>
 <DBL>
 <Name>Time step length</Name>
-<Val>40.00000000000000</Val>
+<Val>1.00000000000000</Val>
 </DBL>
 <Cluster>
 <Name>Trigger details</Name>
@@ -3275,7 +5086,7 @@
 </Cluster>
 <String>
 <Name>Time step name</Name>
-<Val>Raman</Val>
+<Val>wait</Val>
 </String>
 <Boolean>
 <Name>Hide event steps</Name>
@@ -3283,7 +5094,7 @@
 </Boolean>
 <Boolean>
 <Name>Populate multirun</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <EW>
 <Name>Time unit</Name>
@@ -3306,11 +5117,11 @@
 <NumElts>10</NumElts>
 <String>
 <Name>Event name</Name>
-<Val>Cs RSC</Val>
+<Val>Raman Pulse</Val>
 </String>
 <DBL>
 <Name>Time step length</Name>
-<Val>150.00000000000000</Val>
+<Val>65.00000000000000</Val>
 </DBL>
 <Cluster>
 <Name>Trigger details</Name>
@@ -3356,7 +5167,7 @@
 </Cluster>
 <String>
 <Name>Time step name</Name>
-<Val>OP</Val>
+<Val>Raman Pulse</Val>
 </String>
 <Boolean>
 <Name>Hide event steps</Name>
@@ -3364,7 +5175,7 @@
 </Boolean>
 <Boolean>
 <Name>Populate multirun</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <EW>
 <Name>Time unit</Name>
@@ -3376,6 +5187,249 @@
 <I32>
 <Name>Event ID</Name>
 <Val>0</Val>
+</I32>
+<Boolean>
+<Name>Skip Step</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>Sequence header cluster</Name>
+<NumElts>10</NumElts>
+<String>
+<Name>Event name</Name>
+<Val>Cs OP</Val>
+</String>
+<DBL>
+<Name>Time step length</Name>
+<Val>1.00000000000000</Val>
+</DBL>
+<Cluster>
+<Name>Trigger details</Name>
+<NumElts>4</NumElts>
+<DBL>
+<Name>Analogue voltage (V)</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+<EW>
+<Name>Digital or analogue trigger?</Name>
+<Choice>Digital trigger</Choice>
+<Choice>Analogue trigger</Choice>
+<Val>0</Val>
+</EW>
+<U8>
+<Name>Channel</Name>
+<Val>0</Val>
+</U8>
+<Boolean>
+<Name>Trigger this time step?</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>GPIB routine data</Name>
+<NumElts>2</NumElts>
+<EW>
+<Name>GPIB event name</Name>
+<Choice>Do nothing</Choice>
+<Choice>Initial setup</Choice>
+<Choice>RF ramp 1</Choice>
+<Choice>RF ramp 2</Choice>
+<Choice>RF ramp 3</Choice>
+<Choice>Spin flip</Choice>
+<Choice>RF off</Choice>
+<Choice>Remote</Choice>
+<Val>0</Val>
+</EW>
+<Boolean>
+<Name>GPIB on/off?</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<String>
+<Name>Time step name</Name>
+<Val>open shutter</Val>
+</String>
+<Boolean>
+<Name>Hide event steps</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Populate multirun</Name>
+<Val>1</Val>
+</Boolean>
+<EW>
+<Name>Time unit</Name>
+<Choice>탎</Choice>
+<Choice>ms</Choice>
+<Choice>s</Choice>
+<Val>0</Val>
+</EW>
+<I32>
+<Name>Event ID</Name>
+<Val>1</Val>
+</I32>
+<Boolean>
+<Name>Skip Step</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>Sequence header cluster</Name>
+<NumElts>10</NumElts>
+<String>
+<Name>Event name</Name>
+<Val>Cs OP</Val>
+</String>
+<DBL>
+<Name>Time step length</Name>
+<Val>250.00000000000000</Val>
+</DBL>
+<Cluster>
+<Name>Trigger details</Name>
+<NumElts>4</NumElts>
+<DBL>
+<Name>Analogue voltage (V)</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+<EW>
+<Name>Digital or analogue trigger?</Name>
+<Choice>Digital trigger</Choice>
+<Choice>Analogue trigger</Choice>
+<Val>0</Val>
+</EW>
+<U8>
+<Name>Channel</Name>
+<Val>0</Val>
+</U8>
+<Boolean>
+<Name>Trigger this time step?</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>GPIB routine data</Name>
+<NumElts>2</NumElts>
+<EW>
+<Name>GPIB event name</Name>
+<Choice>Do nothing</Choice>
+<Choice>Initial setup</Choice>
+<Choice>RF ramp 1</Choice>
+<Choice>RF ramp 2</Choice>
+<Choice>RF ramp 3</Choice>
+<Choice>Spin flip</Choice>
+<Choice>RF off</Choice>
+<Choice>Remote</Choice>
+<Val>0</Val>
+</EW>
+<Boolean>
+<Name>GPIB on/off?</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<String>
+<Name>Time step name</Name>
+<Val>stretched state</Val>
+</String>
+<Boolean>
+<Name>Hide event steps</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Populate multirun</Name>
+<Val>1</Val>
+</Boolean>
+<EW>
+<Name>Time unit</Name>
+<Choice>탎</Choice>
+<Choice>ms</Choice>
+<Choice>s</Choice>
+<Val>0</Val>
+</EW>
+<I32>
+<Name>Event ID</Name>
+<Val>1</Val>
+</I32>
+<Boolean>
+<Name>Skip Step</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>Sequence header cluster</Name>
+<NumElts>10</NumElts>
+<String>
+<Name>Event name</Name>
+<Val>Cs OP</Val>
+</String>
+<DBL>
+<Name>Time step length</Name>
+<Val>1.00000000000000</Val>
+</DBL>
+<Cluster>
+<Name>Trigger details</Name>
+<NumElts>4</NumElts>
+<DBL>
+<Name>Analogue voltage (V)</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+<EW>
+<Name>Digital or analogue trigger?</Name>
+<Choice>Digital trigger</Choice>
+<Choice>Analogue trigger</Choice>
+<Val>0</Val>
+</EW>
+<U8>
+<Name>Channel</Name>
+<Val>0</Val>
+</U8>
+<Boolean>
+<Name>Trigger this time step?</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<Cluster>
+<Name>GPIB routine data</Name>
+<NumElts>2</NumElts>
+<EW>
+<Name>GPIB event name</Name>
+<Choice>Do nothing</Choice>
+<Choice>Initial setup</Choice>
+<Choice>RF ramp 1</Choice>
+<Choice>RF ramp 2</Choice>
+<Choice>RF ramp 3</Choice>
+<Choice>Spin flip</Choice>
+<Choice>RF off</Choice>
+<Choice>Remote</Choice>
+<Val>0</Val>
+</EW>
+<Boolean>
+<Name>GPIB on/off?</Name>
+<Val>0</Val>
+</Boolean>
+</Cluster>
+<String>
+<Name>Time step name</Name>
+<Val>RP shutter close</Val>
+</String>
+<Boolean>
+<Name>Hide event steps</Name>
+<Val>1</Val>
+</Boolean>
+<Boolean>
+<Name>Populate multirun</Name>
+<Val>1</Val>
+</Boolean>
+<EW>
+<Name>Time unit</Name>
+<Choice>탎</Choice>
+<Choice>ms</Choice>
+<Choice>s</Choice>
+<Val>0</Val>
+</EW>
+<I32>
+<Name>Event ID</Name>
+<Val>1</Val>
 </I32>
 <Boolean>
 <Name>Skip Step</Name>
@@ -3391,7 +5445,7 @@
 </String>
 <DBL>
 <Name>Time step length</Name>
-<Val>20.00000000000000</Val>
+<Val>10.00000000000000</Val>
 </DBL>
 <Cluster>
 <Name>Trigger details</Name>
@@ -3445,7 +5499,7 @@
 </Boolean>
 <Boolean>
 <Name>Populate multirun</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <EW>
 <Name>Time unit</Name>
@@ -3456,7 +5510,7 @@
 </EW>
 <I32>
 <Name>Event ID</Name>
-<Val>1</Val>
+<Val>2</Val>
 </I32>
 <Boolean>
 <Name>Skip Step</Name>
@@ -3548,7 +5602,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val>Rb 2-2 OP Power</Val>
+<Val>Rb Spec AOM Freq</Val>
 </String>
 </Cluster>
 <Cluster>
@@ -3560,7 +5614,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val>Rb 2-2 OP Freq</Val>
+<Val></Val>
 </String>
 </Cluster>
 <Cluster>
@@ -3855,7 +5909,7 @@
 <Array>
 <Name>Slow analogue array</Name>
 <Dimsize>32</Dimsize>
-<Dimsize>3</Dimsize>
+<Dimsize>6</Dimsize>
 <Cluster>
 <Name>Analogue cluster</Name>
 <NumElts>2</NumElts>
@@ -3961,115 +6015,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>0.89000000000000</Val>
-</DBL>
-</Cluster>
-<Cluster>
-<Name>Analogue cluster</Name>
-<NumElts>2</NumElts>
-<Boolean>
-<Name>Ramp?</Name>
-<Val>0</Val>
-</Boolean>
-<DBL>
-<Name>Voltage</Name>
 <Val>0.00000000000000</Val>
-</DBL>
-</Cluster>
-<Cluster>
-<Name>Analogue cluster</Name>
-<NumElts>2</NumElts>
-<Boolean>
-<Name>Ramp?</Name>
-<Val>0</Val>
-</Boolean>
-<DBL>
-<Name>Voltage</Name>
-<Val>0.00000000000000</Val>
-</DBL>
-</Cluster>
-<Cluster>
-<Name>Analogue cluster</Name>
-<NumElts>2</NumElts>
-<Boolean>
-<Name>Ramp?</Name>
-<Val>0</Val>
-</Boolean>
-<DBL>
-<Name>Voltage</Name>
-<Val>1.15000000000000</Val>
-</DBL>
-</Cluster>
-<Cluster>
-<Name>Analogue cluster</Name>
-<NumElts>2</NumElts>
-<Boolean>
-<Name>Ramp?</Name>
-<Val>0</Val>
-</Boolean>
-<DBL>
-<Name>Voltage</Name>
-<Val>0.00000000000000</Val>
-</DBL>
-</Cluster>
-<Cluster>
-<Name>Analogue cluster</Name>
-<NumElts>2</NumElts>
-<Boolean>
-<Name>Ramp?</Name>
-<Val>0</Val>
-</Boolean>
-<DBL>
-<Name>Voltage</Name>
-<Val>0.00000000000000</Val>
-</DBL>
-</Cluster>
-<Cluster>
-<Name>Analogue cluster</Name>
-<NumElts>2</NumElts>
-<Boolean>
-<Name>Ramp?</Name>
-<Val>0</Val>
-</Boolean>
-<DBL>
-<Name>Voltage</Name>
-<Val>1.25000000000000</Val>
-</DBL>
-</Cluster>
-<Cluster>
-<Name>Analogue cluster</Name>
-<NumElts>2</NumElts>
-<Boolean>
-<Name>Ramp?</Name>
-<Val>0</Val>
-</Boolean>
-<DBL>
-<Name>Voltage</Name>
-<Val>0.00000000000000</Val>
-</DBL>
-</Cluster>
-<Cluster>
-<Name>Analogue cluster</Name>
-<NumElts>2</NumElts>
-<Boolean>
-<Name>Ramp?</Name>
-<Val>0</Val>
-</Boolean>
-<DBL>
-<Name>Voltage</Name>
-<Val>0.00000000000000</Val>
-</DBL>
-</Cluster>
-<Cluster>
-<Name>Analogue cluster</Name>
-<NumElts>2</NumElts>
-<Boolean>
-<Name>Ramp?</Name>
-<Val>0</Val>
-</Boolean>
-<DBL>
-<Name>Voltage</Name>
-<Val>3.30000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -4297,7 +6243,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>-8.00000000000000E-2</Val>
+<Val>0.00000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -4309,7 +6255,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>-8.00000000000000E-2</Val>
+<Val>0.00000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -4321,7 +6267,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>5.00000000000000E-2</Val>
+<Val>0.00000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -4333,7 +6279,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>0.98000000000000</Val>
+<Val>0.00000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -4345,7 +6291,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>0.98000000000000</Val>
+<Val>0.00000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -4357,7 +6303,619 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.10000000000000</Val>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>-0.19000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>-0.19000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>-0.19000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>-0.19000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>-0.19000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.97000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.97000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.97000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.97000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.97000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -4393,7 +6951,655 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>0.40000000000000</Val>
+<Val>4.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>4.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>4.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
+</DBL>
+</Cluster>
+<Cluster>
+<Name>Analogue cluster</Name>
+<NumElts>2</NumElts>
+<Boolean>
+<Name>Ramp?</Name>
+<Val>0</Val>
+</Boolean>
+<DBL>
+<Name>Voltage</Name>
+<Val>0.00000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -5012,11 +8218,13 @@
 </Cluster>
 <String>
 <Name>Routine name in</Name>
-<Val>Cs RSC pulse</Val>
+<Val>Optimal Cs Sequence</Val>
 </String>
 <String>
 <Name>Routine description in</Name>
-<Val>pulse on Raman beams, then 3,3 OP light</Val>
+<Val>Load a Cs atom into a 940nm tweezer, image, then cool.
+Hyperfine OP to F=4 manifold, then OP to stretched state 4,4, then depump by applying OP light without repump. Then pushout atoms in F=4 manifold and reimage.
+This histogram uses our current optimal MOT, molasses, and imaging settings as of October 2020</Val>
 </String>
 </Cluster>
 </LVData>

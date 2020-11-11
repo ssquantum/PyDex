@@ -7,37 +7,16 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-measure_folder = r'Z:\Tweezer\Experimental Results\2020\October\01\Measure9'
+measure_folder = r'Z:\Tweezer\Experimental Results\2020\November\10\Measure11'
 
 data = np.loadtxt(os.path.join(measure_folder, 'DAQgraph.csv'), delimiter=',')
 
 plt.figure()
-plt.plot(data[:,0], data[:,1]*1e3, '.')
-plt.xlabel('Shot Number')
+plt.plot(data[:,0], data[:,2]*1e3, '.')
+l = len(data[:,0])
+plt.xticks(*np.array([[data[i,0], time.strftime('%H:%M:%S', time.gmtime(data[i,-1]))] for i in range(0,l,l//5)], dtype=object).T)
 plt.ylabel('RB1 Monitor Signal (mV)')
-
-# get times from files
-sys.path.append(r'Z:\Tweezer\Code\Python 3.5\PyDex')
-sys.path.append(r'Z:\Tweezer\Code\Python 3.5\PyDex\imageanalysis')
-from histoHandler import histo_handler
-from scipy.interpolate import interp1d
-
-hh = histo_handler()
-_ = hh.load(os.path.join(measure_folder, 'ROI0.Im0.' + os.path.split(measure_folder)[1]+ '.dat'))
-ax = plt.gca()
-ax1 = ax.twiny()
-ax1.set_xlim(ax.get_xlim())
-pts = slice(0, len(hh.stats['End file #']), len(hh.stats['End file #']) // 5)
-ax1.set_xticks(hh.stats['End file #'][pts])
-ax1.set_xticklabels([
-    time.ctime(
-        os.path.getmtime(
-            os.path.join(measure_folder, 'ROI0.Im0.' +str(i)+'.csv')
-            )
-        ).split(' ')[4]
-    for i in hh.stats['File ID'][pts]]
-)
-plt.show()
 # plt.gcf().autofmt_xdate()
 plt.xticks(rotation=45)
 plt.tight_layout()
+plt.show()

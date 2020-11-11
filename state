@@ -1,8 +1,8 @@
-File#=11306
-Date=09,October,2020
-CameraConfig=Z:/Tweezer/Code/Python 3.5/PyDex/andorcamera/4x4_30.09.2020 merging.dat
+File#=20957
+Date=06,November,2020
+CameraConfig=Z:/Tweezer/Code/Python 3.5/PyDex/andorcamera/4x4_23.10.2020.dat
 SaveConfig=.\\config\\config.dat
-MasterGeometry=[1177, 64, 644, 100]
-AnalysisGeometry=[251, 273, 552, 599]
-SequencesGeometry=[912, 186, 919, 884]
+MasterGeometry=[25, -146, 651, 101]
+AnalysisGeometry=[905, 214, 552, 599]
+SequencesGeometry=[906, -957, 920, 884]
 TempXMLPath=X:/Sequence Log/temp.xml

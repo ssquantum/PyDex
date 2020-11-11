@@ -264,9 +264,9 @@ class Master(QMainWindow):
         self.actions = QComboBox(self)
         self.actions.addItems(['Run sequence', 'Multirun run',
             'Pause multirun', 'Resume multirun', 'Cancel multirun',
-            'TCP load sequence from string',
+            'Send sequence to DExTer',
             'Get sequence from DExTer',
-            'Save DExTer sequence', 'Cancel Python Mode', 
+            'Save DExTer sequence', 'End Python Mode', 
             'Resync DExTer', 'Start acquisition'])
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
@@ -424,9 +424,9 @@ class Master(QMainWindow):
         Multirun run:   Start the camera acquisition, then make 
                         DExTer perform a multirun with the preloaded
                         multirun settings.
-        TCP load sequence from string: Tell DExTer to load in the sequence
+        Send sequence to DExTer: Tell DExTer to load in the sequence
                         from a string in XML format.
-        Cancel python mode: send the text 'python mode off' which triggers
+        End Python Mode: send the text 'python mode off' which triggers
                         DExTer to exit python mode.
         Resync DExTer:  send a null message just to resync the run number.
         Start acquisition:  start the camera acquiring without telling
@@ -479,15 +479,15 @@ class Master(QMainWindow):
                     self.rn.multirun_go(False)
                     self.rn.seq.mr.ind = 0
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
-            elif action_text == 'TCP load sequence from string':
-                self.rn.server.add_message(TCPENUM[action_text], self.rn.seq.tr.seq_txt)
+            elif action_text == 'Send sequence to DExTer':
+                self.rn.server.add_message(TCPENUM['TCP load sequence from string'], self.rn.seq.tr.seq_txt)
             elif action_text == 'Get sequence from DExTer':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'send sequence xml\n'+'0'*2000) # Dx adds sequence to msg queue
                 for i in range(5):
                     self.rn.server.add_message(TCPENUM['TCP read'], 'replaced with sequence\n') # needs some time to get msg
             elif action_text == 'Save DExTer sequence':
                 self.rn.server.add_message(TCPENUM['Save sequence'], 'save log file automatic name\n'+'0'*2000)
-            elif action_text == 'Cancel Python Mode':
+            elif action_text == 'End Python Mode':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off\n'+'0'*2000)
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Resync DExTer\n'+'0'*2000) # for when it reconnects
             elif action_text ==  'Resync DExTer':
@@ -670,8 +670,8 @@ class Master(QMainWindow):
             try:
                 self.rn.cam.SafeShutdown()
             except Exception as e: logger.warning('camera safe shutdown failed.\n'+str(e))
-            self.rn.check.send_rois() # give ROIs from atom checker to image analysis
-            self.rn.sw.save_settings('.\\imageanalysis\\default.config')
+            # self.rn.check.send_rois() # give ROIs from atom checker to image analysis
+            self.rn.sw.save_settings()
             for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
                 ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:
                 self.stats[key] = [g.x(), g.y(), g.width(), g.height()]

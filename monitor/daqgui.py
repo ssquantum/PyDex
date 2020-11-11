@@ -485,7 +485,7 @@ class daq_window(QMainWindow):
                 self.reset_graph()
             x.inds = slice(x.i0, x.i1+1)
             x.size = x.i1 - x.i0
-        except IndexError as e: pass # logger.error("Couldn't update slice.\n"+str(e))    
+        except (IndexError, ValueError) as e: pass # logger.error("Couldn't update slice.\n"+str(e))
 
     #### TCP functions ####
     

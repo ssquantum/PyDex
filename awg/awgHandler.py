@@ -755,7 +755,7 @@ class AWG:
             4:  "Creates a static trap with a given amplitude modulation frequency and depth."                                                            
             }
         
-        freqBounds=[120,225]
+        freqBounds=[50,300]
         
 
         
@@ -1364,7 +1364,7 @@ class AWG:
                     if type(f1)==np.ndarray or type(f1)==list :
                         f1 = str(list(f1))
                     dataj(self.filedata,self.segment,channel,action,duration,f1,numOfTraps,distance,self.tot_amp,\
-                    str(self.freq_amp),int(self.mod_freq/1000),self.mod_depth,str(self.freq_phase),\
+                    str(self.freq_amp),self.mod_freq/1000.,self.mod_depth,str(self.freq_phase),\
                     str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples,self.duration,self.numOfModCycles)                # Stores information in the filedata variable, to be written when card initialises. 
                 
   
@@ -1889,8 +1889,8 @@ if __name__ == "__main__":
     Vincent 14/9/2020 
     """
     
-    data01 = t.dataGen(0,ch1,'static',1,[140],1,9, 220,[1],[0],False,False)
-    data02 = t.dataGen(0,ch2,'static',1,[140],1,9, 220,[1],[0],False,False)
+    data01 = t.dataGen(0,ch1,'static',1,[140],1,9, 220,[1],[0],False,True)
+    data02 = t.dataGen(0,ch2,'static',1,[140],1,9, 220,[1],[0],False,True)
     t.setSegment(0,data01, data02)
     t.setStep(0,0,1,0,1)   
     
