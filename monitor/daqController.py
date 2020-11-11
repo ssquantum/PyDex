@@ -46,12 +46,12 @@ class worker(QThread):
     channels     -- which channels to acquire
     ranges       -- max voltage the channel can measure (0.2, 1, 5, 10)"""
     acquired = pyqtSignal(np.ndarray) # acquired data
+    vrs = [0.2, 1.0, 5.0, 10.0] # allowed voltage ranges
 
     def __init__(self, rate, duration, trigger_chan='Dev2/ai0', 
             trigger_lvl=1.0, trigger_edge='rising', 
             channels=['Dev2/ai0'], ranges=[5]):
         super().__init__()
-        self.vrs = [0.2, 1.0, 5.0, 10.0] # allowed voltage ranges
         self.stop = False # Used to ensure only 1 data aquisition per pulse
         self.sample_rate = rate 
         self.time = duration

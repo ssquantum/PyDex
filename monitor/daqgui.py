@@ -105,9 +105,10 @@ class daq_window(QMainWindow):
             ('Trigger Level (V)', 1.0), ('Trigger Edge', 'rising'), 
             ('channels', channel_stats("[['Dev2/ai0', '0', '1.0', '0.0', '5', '1', '1']]"))])
         self.trigger_toggle = True       # whether to trigger acquisition or just take a measurement
-        self.slave = worker(rate*1e3, dt/1e3, self.stats['Trigger Channel'], 
-                self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], list(self.stats['channels'].keys()), 
-                [ch['range'] for ch in self.stats['channels'].values()]) # this controls the DAQ
+        self.slaveind = 0 # index of the current slave in the list
+        self.slaves = [worker(self.stats['Sample Rate (kS/s)']*1e3, self.stats['Duration (ms)']/1e3, self.stats['Trigger Channel'], 
+                self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], [chankey], 
+                [chan['range']]) for chankey, chan in self.stats['channels'].items()] # this controls the DAQ
         self.dc = daqCollection(param=[], channels=list(self.stats['channels'].keys()))
         self.init_UI()
         self.load_config(config_file)    # load default settings          
@@ -117,8 +118,9 @@ class daq_window(QMainWindow):
         self.x = [] # run numbers for graphing collections of acquired data
         self.y = [] # average voltages in slice of acquired trace 
 
-        self.slave.acquired.connect(self.update_graph) # take average of slices
-        self.slave.acquired.connect(self.update_trace) # plot new data when it arrives
+        for slave in slaves:
+            slave.acquired.connect(self.update_graph) # take average of slices
+            slave.acquired.connect(self.update_trace) # plot new data when it arrives
         self.tcp = PyClient(host=host, port=port)
         reset_slot(self.tcp.dxnum, self.set_n, True)
         reset_slot(self.tcp.textin, self.respond, True)
@@ -205,8 +207,8 @@ class daq_window(QMainWindow):
                 self.channels.setCellWidget(i,j+1, table_item)
             vrange = QComboBox() # only allow certain values for voltage range
             vrange.text = vrange.currentText # overload function so it's same as QLabel
-            vrange.addItems(['%.1f'%x for x in self.slave.vrs])
-            try: vrange.setCurrentIndex(self.slave.vrs.index(defaults['range']))
+            vrange.addItems(['%.1f'%x for x in worker.vrs])
+            try: vrange.setCurrentIndex(worker.vrs.index(defaults['range']))
             except Exception as e: logger.error('Invalid channel voltage range\n'+str(e))
             self.channels.setCellWidget(i,4, vrange)
 
@@ -555,23 +557,38 @@ class daq_window(QMainWindow):
         Otherwise, stop the task running."""
         if self.toggle.isChecked():
             self.check_settings()
-            self.slave = worker(self.stats['Sample Rate (kS/s)']*1e3, self.stats['Duration (ms)']/1e3, self.stats['Trigger Channel'], 
-                self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], list(self.stats['channels'].keys()), 
-                [ch['range'] for ch in self.stats['channels'].values()])
-            reset_slot(self.slave.acquired, self.update_trace, True)
-            reset_slot(self.slave.acquired, self.update_graph, True)
+            self.slaves = [worker(self.stats['Sample Rate (kS/s)']*1e3, self.stats['Duration (ms)']/1e3, self.stats['Trigger Channel'], 
+                self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], [chankey], 
+                [chan['range']]) for chankey, chan in self.stats['channels'].items()]
+            for slave in self.slaves:
+                reset_slot(slave.acquired, self.update_trace, True)
+                reset_slot(slave.acquired, self.update_graph, True)
+                reset_slot(slave.acquired, self.next_slave, True)
             if self.trigger_toggle:
                 # reset_slot(self.slave.finished, self.activate, True)
-                self.slave.start()
+                self.next_slave() # starts a slave acquiring
                 self.toggle.setText('Stop')
             else: 
                 self.toggle.setChecked(False)
-                self.slave.analogue_acquisition()
+                for slave in self.slaves:
+                    slave.analogue_acquisition()
         else:
             # reset_slot(self.slave.finished, self.activate, False)
-            self.slave.stop = True
-            self.slave.quit()
+            for slave in self.slaves:
+                slave.stop = True
+                slave.quit()
             self.toggle.setText('Start')
+
+    def next_slave(self):
+        """Stop the previous slave running and start the next. This allows us
+        to cycle through channels and avoid ghosting."""
+        try: 
+            self.slaves[self.slaveind-1].stop = True
+            self.slaves[self.slaveind-1].quit()
+            time.sleep(0.1) # need to give enough time for the previous slave to stop
+            self.slaves[self.slaveind].stop = False
+            self.slaves[self.slaveind].start()
+            self.slaveind = (self.slaveind+1)%len(self.slaves)
 
     #### plotting functions ####
 
