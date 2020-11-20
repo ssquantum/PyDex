@@ -1,6 +1,6 @@
 <?xml version='1.0' standalone='yes' ?>
 <LVData xmlns="http://www.ni.com/LVData">
-<Version>18.0.1</Version>
+<Version>12.0.1f5</Version>
 <Cluster>
 <Name></Name>
 <NumElts>4</NumElts>
@@ -36,7 +36,7 @@
 </Array>
 <Path>
 <Name>Event path</Name>
-<Val>C:\Users\lab\Desktop\DExTer 1.4\Events\Cs opt 15.10.20\Cs F=4 pushout.evt</Val>
+<Val>C:\Users\lab\Desktop\DExTer 1.4\Events\13.11.20\Cs F=4 pushout.evt</Val>
 </Path>
 <Boolean>
 <Name>Routine specific event?</Name>
@@ -1238,7 +1238,7 @@
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
@@ -1258,7 +1258,7 @@
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
@@ -1322,7 +1322,7 @@
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
@@ -1905,7 +1905,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val></Val>
+<Val>Rb 2-2 OP switch</Val>
 </String>
 </Cluster>
 <Cluster>
@@ -2013,7 +2013,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val></Val>
+<Val>AWG trigger</Val>
 </String>
 </Cluster>
 <Cluster>
@@ -2097,7 +2097,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val>RB1a</Val>
+<Val>RB 1A</Val>
 </String>
 </Cluster>
 <Cluster>
@@ -2109,7 +2109,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val>RB2</Val>
+<Val>RB 2</Val>
 </String>
 </Cluster>
 <Cluster>
@@ -2365,7 +2365,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val>Cs 4-&gt;4 OP Power</Val>
+<Val>Cs 4-&gt;4 OP power</Val>
 </String>
 </Cluster>
 <Cluster>
@@ -2574,7 +2574,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.15000000000000</Val>
+<Val>1.05000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2586,7 +2586,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.15000000000000</Val>
+<Val>1.05000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2694,7 +2694,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>6.26000000000000</Val>
+<Val>6.42000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2706,7 +2706,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>6.26000000000000</Val>
+<Val>6.42000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2718,7 +2718,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>5.58000000000000</Val>
+<Val>5.67000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2730,7 +2730,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>5.58000000000000</Val>
+<Val>5.67000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2742,7 +2742,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>6.26000000000000</Val>
+<Val>6.42000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2754,7 +2754,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.40000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2766,7 +2766,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.40000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2778,7 +2778,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.40000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2790,7 +2790,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.40000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2802,7 +2802,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.40000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -4904,7 +4904,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val>Rb Spec AOM Freq</Val>
+<Val>Rb 2-2 OP Power</Val>
 </String>
 </Cluster>
 <Cluster>
@@ -4916,7 +4916,7 @@
 </String>
 <String>
 <Name>Name</Name>
-<Val></Val>
+<Val>Rb 2-2 OP Freq</Val>
 </String>
 </Cluster>
 <Cluster>
@@ -5949,7 +5949,7 @@
 <NumElts>2</NumElts>
 <Boolean>
 <Name>Ramp?</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
@@ -5973,7 +5973,7 @@
 <NumElts>2</NumElts>
 <Boolean>
 <Name>Ramp?</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
@@ -6009,7 +6009,7 @@
 <NumElts>2</NumElts>
 <Boolean>
 <Name>Ramp?</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
@@ -6033,7 +6033,7 @@
 <NumElts>2</NumElts>
 <Boolean>
 <Name>Ramp?</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
@@ -6069,7 +6069,7 @@
 <NumElts>2</NumElts>
 <Boolean>
 <Name>Ramp?</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
@@ -6093,7 +6093,7 @@
 <NumElts>2</NumElts>
 <Boolean>
 <Name>Ramp?</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
@@ -7136,13 +7136,11 @@
 </Cluster>
 <String>
 <Name>Routine name in</Name>
-<Val>Optimal Cs Sequence</Val>
+<Val>Cs 4,4 OP and Raman pulses</Val>
 </String>
 <String>
 <Name>Routine description in</Name>
-<Val>Load a Cs atom into a 940nm tweezer, image, then cool.
-Hyperfine OP to F=4 manifold, then OP to stretched state 4,4, then depump by applying OP light without repump. Then pushout atoms in F=4 manifold and reimage.
-This histogram uses our current optimal MOT, molasses, and imaging settings as of October 2020</Val>
+<Val>Load Cs in 938 tweezer, cool and image, OP to 4,4 then apply pulsed RSC cooling.</Val>
 </String>
 </Cluster>
 </LVData>

@@ -19,7 +19,7 @@ def estimate_optical_power(frequency, RF_power):
     i = np.argmin(abs(RF_power - np.array(DE_RF_dict[key]['RF Amplitude (mV)']))) 
     return key, DE_RF_dict[key]['RF Amplitude (mV)'][i], DE_RF_dict[key]['Diffraction Efficiency'][i]
 
-f, rf, p = estimate_optical_power(166, 146)
+f, rf, p = estimate_optical_power(140, 220)
 print('Expected output power at %s MHz, %.4g mV: %.4g %%'%(f, rf, p*100))
 
 

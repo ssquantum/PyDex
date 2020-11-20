@@ -24,11 +24,11 @@
 </Array>
 <Path>
 <Name>Event path</Name>
-<Val>C:\Users\lab\Desktop\DExTer 1.4\Events\temp\pulse.evt</Val>
+<Val>C:\Users\lab\Desktop\DExTer 1.4\Events\Cs 4,4 OP.evt</Val>
 </Path>
 <Boolean>
 <Name>Routine specific event?</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 </Cluster>
 <Cluster>
@@ -125,7 +125,7 @@
 </Boolean>
 <Boolean>
 <Name>Populate multirun</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <EW>
 <Name>Time unit</Name>
@@ -563,7 +563,7 @@
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
@@ -1539,7 +1539,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.05000000000000</Val>
+<Val>1.15000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1587,7 +1587,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>6.26000000000000</Val>
+<Val>6.42000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1599,7 +1599,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>6.26000000000000</Val>
+<Val>6.42000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1623,7 +1623,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.40000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2686,7 +2686,7 @@
 </Boolean>
 <Boolean>
 <Name>Populate multirun</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <EW>
 <Name>Time unit</Name>
@@ -3523,7 +3523,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>4.00000000000000</Val>
+<Val>4.00500000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -3950,13 +3950,11 @@
 </Cluster>
 <String>
 <Name>Routine name in</Name>
-<Val>Multirun carrier : 105.05 (1 / 1)</Val>
+<Val>Cs 4,4 OP and Raman pulses</Val>
 </String>
 <String>
 <Name>Routine description in</Name>
-<Val>Load a Cs atom into a 940nm tweezer, image, then cool.
-Hyperfine OP to F=4 manifold, then OP to stretched state 4,4, then depump by applying OP light without repump. Then pushout atoms in F=4 manifold and reimage.
-This histogram uses our current optimal MOT, molasses, and imaging settings as of October 2020</Val>
+<Val>Load Cs in 938 tweezer, cool and image, OP to 4,4 then apply pulsed RSC cooling.</Val>
 </String>
 </Cluster>
 </LVData>

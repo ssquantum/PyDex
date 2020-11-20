@@ -124,6 +124,8 @@ class multirun_widget(QWidget):
         'num_of_traps','distance_[um]','tot_amp_[mV]','start_amp','end_amp','start_output_[Hz]','end_output_[Hz]',
         'freq_amp','mod_freq_[kHz]','mod_depth','freq_phase_[deg]','freq_adjust','amp_adjust','freqs_output_[Hz]',
         'num_of_samples','duration_loop_[ms]','number_of_cycles']
+        self.dds_args = ['Freq', 'Phase', 'Amp', 'Start_add', 'End_add', 'Step_rate', 'Sweep_start', 
+        'Sweep_end', 'Pos_step', 'Neg_step' 'Pos_step_rate', 'Neg_step_rate']
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
         self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
@@ -471,7 +473,7 @@ class multirun_widget(QWidget):
         """Enable/Disable list boxes to reflect the multirun type:
         newtype[str] -- Time step length: only needs timesteps
                      -- Analogue voltage: also needs channels
-                     -- AWG: needs to take non-float arguments; set listbox editable."""
+                     -- AWG: takes float values but with a list index."""
         sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
         if newtype == 'AWG chan : seg':
             self.chan_choices['Time step name'].clear()

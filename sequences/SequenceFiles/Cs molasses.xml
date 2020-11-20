@@ -816,7 +816,7 @@
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
-<Val>0</Val>
+<Val>1</Val>
 </Boolean>
 <Boolean>
 <Name>Boolean</Name>
@@ -1956,7 +1956,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>6.26000000000000</Val>
+<Val>6.42000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1968,7 +1968,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>6.26000000000000</Val>
+<Val>6.42000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1980,7 +1980,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>6.26000000000000</Val>
+<Val>6.42000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -1992,7 +1992,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.40000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2004,7 +2004,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.40000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -2016,7 +2016,7 @@
 </Boolean>
 <DBL>
 <Name>Voltage</Name>
-<Val>1.40000000000000</Val>
+<Val>1.21000000000000</Val>
 </DBL>
 </Cluster>
 <Cluster>
@@ -5012,13 +5012,11 @@
 </Cluster>
 <String>
 <Name>Routine name in</Name>
-<Val>Cs opt seq</Val>
+<Val>Cs 4,4 OP and Raman pulses</Val>
 </String>
 <String>
 <Name>Routine description in</Name>
-<Val>Load a Cs atom into a 1mK 940nm tweezer, image, hold it for 60ms in the dark, then image it again.
-Hyperfine OP to F=4 manifold, then OP to stretched state 4,4, then depump by applying OP light without repump. Then pushout atoms in F=4 manifold and reimage.
-This histogram uses our current optimal MOT, molasses, and imaging settings as of October 2020</Val>
+<Val>Load Cs in 938 tweezer, cool and image, OP to 4,4 then apply pulsed RSC cooling.</Val>
 </String>
 </Cluster>
 </LVData>

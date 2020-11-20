@@ -560,7 +560,6 @@ class daq_window(QMainWindow):
             for slave in self.slaves: # stop any previous tasks from running.
                 slave.stop = True
                 slave.quit()
-            self.slaveind = 0
             self.slaves = [worker(self.stats['Sample Rate (kS/s)']*1e3, self.stats['Duration (ms)']/1e3, self.stats['Trigger Channel'], 
                 self.stats['Trigger Level (V)'], self.stats['Trigger Edge'], [chankey], 
                 [chan['range']]) for chankey, chan in self.stats['channels'].items()]
@@ -569,13 +568,16 @@ class daq_window(QMainWindow):
                 reset_slot(slave.acquired, self.update_graph, True)
                 reset_slot(slave.acquired, self.next_slave, True)
             if self.trigger_toggle:
-                # reset_slot(self.slave.finished, self.activate, True)
-                self.next_slave() # starts a slave acquiring
+                self.slaveind = 0
+                for slave in self.slaves: # one acquisition triggers the next
+                    reset_slot(slave.acquired, self.slave_acquire, True)
+                self.slave_acquire() # starts a slave acquiring
                 self.toggle.setText('Stop')
             else: 
+                for slave in self.slaves: # only take a single acquisition on one channel
+                    reset_slot(slave.acquired, self.slave_acquire, False)
                 self.toggle.setChecked(False)
-                for slave in self.slaves:
-                    slave.analogue_acquisition()
+                self.slaves[self.slaveind].analogue_acquisition()
         else:
             # reset_slot(self.slave.finished, self.activate, False)
             for slave in self.slaves:
@@ -583,7 +585,7 @@ class daq_window(QMainWindow):
                 slave.quit()
             self.toggle.setText('Start')
 
-    def next_slave(self):
+    def slave_acquire(self):
         """Stop the previous slave running and start the next. This allows us
         to cycle through channels and avoid ghosting."""
         try: 
@@ -592,9 +594,13 @@ class daq_window(QMainWindow):
             time.sleep(0.1) # need to give enough time for the previous slave to stop
             self.slaves[self.slaveind].stop = False
             self.slaves[self.slaveind].start()
-            self.slaveind = (self.slaveind+1)%len(self.slaves)
         except (IndexError, ZeroDivisionError) as e:
             logger.error('Could not start slave %s:\n'%self.slaveind+str(e))
+            
+    def next_slave(self):
+        """Advance the slave index to measure the next one once an acquisition
+        has been successful."""
+        self.slaveind = (self.slaveind+1)%len(self.slaves)
 
     #### plotting functions ####
 
@@ -606,7 +612,7 @@ class daq_window(QMainWindow):
             l = self.lines[j] # shorthand
             if ch in self.stats['channels'] and self.stats['channels'][ch]['plot']:
                 try:
-                    if ch in self.slaves[(self.slaveind-1)%len(self.slaves)].channels:
+                    if ch in self.slaves[self.slaveind].channels:
                         l.setData(t, data[0])
                 except Exception as e:
                     logger.error('DAQ trace could not be plotted.\n'+str(e))
@@ -666,7 +672,7 @@ class daq_window(QMainWindow):
         if np.size(data):
             if self.unsync_toggle.isChecked():
                 self.set_n(self.stats['n'] + 1)
-            self.dc.process(data, self.stats['n'], self.slaveind-1)
+            self.dc.process(data, self.stats['n'], self.slaveind)
         for s in self.dc.slices:
             for chan, val in s.stats.items():
                 self.mean_graph.lines[s.name+'/'+chan].setData(self.dc.runs, val['mean'])

@@ -31,7 +31,7 @@ temp = translate() # used just for loading sequences
 fdir = r'Z:\Tweezer\Code\Python 3.5\PyDex\sequences\SequenceFiles'
 savefilename = 'Cs 20 RSC Pulses Seq.xml'
 filelist = ['Cs MOT.xml', 'Cs molasses.xml', 'Cs cool step 1.xml', 'Cs image.xml', 'Cs cool step 2.xml', 'Cs 4,4 OP.xml']
-filelist += ['Cs Raman pulse.xml', 'Cs OP pulse.xml']*20
+filelist += ['Cs Raman pulse.xml', 'Cs 5us wait.xml', 'Cs OP pulse.xml', 'Cs 5us wait.xml']*20
 filelist += ['Cs F=4 pushout.xml', 'Cs image.xml']
 
 def extract(give, take, index, event=0):
@@ -65,16 +65,16 @@ for fn in filelist:
 extract(t, temp, ind, -1)
 
 #### adjust some values in some time steps
-channel_type = 'Fast analogue'
-channel_names = ['Cs 4->4 OP Power']
-channel_index = [temp.seq_dic['Experimental sequence cluster in'][channel_type+' names']['Name'].index(cn) for cn in channel_names]
-values = [1.21]
-for timestep in range(0, len(esc['Sequence header top'])):
-    for channel, val in zip(channel_index, values):
-        if 'analogue' in channel_type: # analogue array or digital channels
-            esc[channel_type+' array'][channel]['Voltage'][timestep] = val    
-        elif 'digital' in channel_type:
-            esc[channel_type+' channels'][timestep][channel] = val # store booleans as int 0 = False, 1 = True
+# channel_type = 'Fast analogue'
+# channel_names = ['Cs 4->4 OP Power']
+# channel_index = [temp.seq_dic['Experimental sequence cluster in'][channel_type+' names']['Name'].index(cn) for cn in channel_names]
+# values = [1.21]
+# for timestep in range(0, len(esc['Sequence header top'])):
+#     for channel, val in zip(channel_index, values):
+#         if 'analogue' in channel_type: # analogue array or digital channels
+#             esc[channel_type+' array'][channel]['Voltage'][timestep] = val    
+#         elif 'digital' in channel_type:
+#             esc[channel_type+' channels'][timestep][channel] = val # store booleans as int 0 = False, 1 = True
 
 #### save the edited sequence
 t.write_to_file(os.path.join(fdir, savefilename))

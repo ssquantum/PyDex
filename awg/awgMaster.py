@@ -16,7 +16,7 @@ from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator,
 from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, 
     QTabWidget, QAction, QMainWindow, QLabel, QInputDialog, QGridLayout,
     QMessageBox, QLineEdit, QFileDialog, QComboBox, QActionGroup, QMenu,
-    QVBoxLayout)
+    QVBoxLayout, QTextBrowser)
 import logging
 import logerrs
 logerrs.setup_log()
@@ -71,7 +71,7 @@ class awg_window(QMainWindow):
             'stop_awg          --- manually stop the AWG.\n'+
             'reset_awg=[...]   --- create a new AWG instance with channels [ch1, ch2, ...] activated.')
         self.centre_widget.layout.addWidget(cmd_info, 0,0, 1,1)
-        self.status_label = QLabel('Initiating...', self)
+        self.status_label = QTextBrowser() #QLabel('Initiating...', self)
         self.centre_widget.layout.addWidget(self.status_label, 1,0, 1,1)
         # The user types the command into the line edit, then presses enter:
         self.edit = QLineEdit('', self)
@@ -80,7 +80,7 @@ class awg_window(QMainWindow):
         
     def idle_state(self):
         """When the master thread is not responding user events."""
-        self.status_label.setText('Idle')
+        self.recv_msg('Idle.')
 
     def reset_tcp(self, force=False):
         """Check if the TCP threads are running. If not, reset them.""" 
@@ -95,9 +95,9 @@ class awg_window(QMainWindow):
                 tcp.start()
 
     def recv_msg(self, txt):
-        """Set the first 60 characters of a message returned to the
+        """Set the first 100 characters of a message returned to the
         TCP server."""
-        self.status_label.setText(txt[:60])
+        self.status_label.append(time.strftime("%d/%m/%Y %H:%M:%S") + '>> \t ' + txt[:100])
 
     def respond(self, cmd=None):
         """Respond the command requested by the user. Command can also be
@@ -105,19 +105,19 @@ class awg_window(QMainWindow):
         if cmd == None: 
             cmd = self.edit.text()
         if 'load' in cmd:
-            self.status_label.setText('Loading AWG data...')
+            self.recv_msg('Loading AWG data...')
             try: 
                 path = cmd.split('=')[1]
                 self.awg.load(path)
-                self.status_label.setText('File loaded from '+path)
+                self.recv_msg('File loaded from '+path)
             except Exception as e:
-                self.status_label.setText('Failed to load AWG data from '+cmd.split('=')[1])
+                self.recv_msg('Failed to load AWG data from '+cmd.split('=')[1])
                 logger.error('Failed to load AWG data from '+cmd.split('=')[1]+'\n'+str(e))
         elif 'save' in cmd:
             try: 
                 path = cmd.split('=')[1]
                 self.awg.saveData(path)
-                self.status_label.setText('File saved to '+path)
+                self.recv_msg('File saved to '+path)
             except Exception as e:
                 logger.error('Failed to save AWG data to '+cmd.split('=')[1]+'\n'+str(e))
         elif 'reset_server' in cmd:
@@ -126,37 +126,30 @@ class awg_window(QMainWindow):
             else: status = 'Server stopped.'
             if self.client.isRunning(): status += 'Client running.'
             else: status = 'Client stopped.'
-            self.status_label.setText(status)
+            self.recv_msg(status)
         elif 'send_trigger' in cmd:
             self.server.add_message(0, 'Trigger sent to DExTer.\n'+'0'*1600)
         elif 'start_awg' in cmd:
             self.awg.start()
             if spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[3], byref(int32(0))) == 0:
-                self.status_label.setText('AWG started.')
+                self.recv_msg('AWG started.')
             else:
-                self.status_label.setText('AWG crashed. Use the reset_awg coommand.')
+                self.recv_msg('AWG crashed. Use the reset_awg coommand.')
         elif 'stop_awg' in cmd:
             self.awg.stop()
-            self.status_label.setText('AWG stopped.')
+            self.recv_msg('AWG stopped.')
         elif 'set_data' in cmd:
             try:
                 t = time.time()
-                # self.getParams(eval(cmd.split('=')[1]))
-                # for segment in self.awg.filedata['segments'].values(): # resets all data
-                #     tempData = [] # iterate over each segment and each channel
-                #     for i in eval(self.awg.filedata['properties']['card_settings']['active_channels']):
-                #         arguments = [segment['channel_'+str(i)][x] for x in AWG.loadOrder[segment['channel_'+str(i)]['action_val']]]
-                #         tempData.append(self.awg.dataGen(*arguments))
-                #     self.awg.setSegment(self.stats['segment'], *tempData)
                 self.awg.loadSeg(eval(cmd.split('=')[1]))
-                self.status_label.setText('Set data: '+cmd.split('=')[1])
+                self.recv_msg('Set data: '+cmd.split('=')[1])
                 self.t_load = time.time() - t
             except Exception as e:
                 logger.error('Failed to set AWG data: '+cmd.split('=')[1]+'\n'+str(e))
         elif 'set_step' in cmd:
             try:
                 self.awg.setStep(*eval(cmd.split('=')[1]))
-                self.status_label.setText('Set step: '+cmd.split('=')[1])
+                self.recv_msg('Set step: '+cmd.split('=')[1])
             except Exception as e:
                 logger.error('Failed to set AWG step: '+cmd.split('=')[1]+'\n'+str(e))
         elif 'reset_awg' in cmd:
@@ -164,22 +157,14 @@ class awg_window(QMainWindow):
         elif 'get_times' in cmd:
             logger.info("Data transfer time: %.4g s"%self.t_load)
         else:
-            self.status_label.setText('Command not recognised.')
+            self.recv_msg('Command not recognised.')
         self.edit.setText('') # reset cmd edit
-            
-
-    def getParams(self, params):
-        """Reformat parameters into the arguments for the given function"""
-        for chan, seg, key, val in params:
-            try:
-                self.awg.filedata['segments']['segment_'+str(seg)]['channel_'+str(chan)][key] = val
-            except KeyError: pass
-            
+                        
     def renewAWG(self, cmd="chans=[0,1]"):
         try: 
             eval(cmd.split('=')[1])
         except Exception as e:
-            self.status_label.setText('Invalid renew command: '+cmd)
+            self.recv_msg('Invalid renew command: '+cmd)
             logger.error('Could not renew AWG.\n'+str(e))
             return 0
         self.awg.restart()
@@ -189,7 +174,7 @@ class awg_window(QMainWindow):
         self.awg.setNumSegments(8)
         # self.awg.setTrigger(0) # 0 software, 1 ext0
         self.awg.setSegDur(0.002)
-        self.status_label.setText('New instance of AWG created.')
+        self.recv_msg('New instance of AWG created.')
         
     def closeEvent(self, event):
         """Safely shut down when the user closes the window."""

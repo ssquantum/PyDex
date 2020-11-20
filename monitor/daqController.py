@@ -151,14 +151,14 @@ class worker(QThread):
     def analogue_acquisition(self):
         """Take a single acquisition on the specified channels."""
         try:
-            with nidaqmx.Task() as task:
+            with nidaqmx.Task() as self.task:
                 for v, chan in zip(self.vranges, self.channels):
-                    c = task.ai_channels.add_ai_voltage_chan(chan, terminal_config=const.TerminalConfiguration.DIFFERENTIAL) 
+                    c = self.task.ai_channels.add_ai_voltage_chan(chan, terminal_config=const.TerminalConfiguration.DIFFERENTIAL) 
                     c.ai_rng_high = v # set voltage range
                     c.ai_rng_low = -v
-                task.timing.cfg_samp_clk_timing(self.sample_rate, sample_mode=const.AcquisitionType.CONTINUOUS, 
+                self.task.timing.cfg_samp_clk_timing(self.sample_rate, sample_mode=const.AcquisitionType.CONTINUOUS, 
                     samps_per_chan=self.n_samples+1000)
-                data = task.read(number_of_samples_per_channel=self.n_samples)
+                data = self.task.read(number_of_samples_per_channel=self.n_samples)
                 # task.wait_until_done(-1)
                 if np.size(np.shape(data)) == 1:
                     data = [data] # if there's only one channel, still make it a 2D array
