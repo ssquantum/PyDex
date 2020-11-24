@@ -513,7 +513,7 @@ class daq_window(QMainWindow):
         
     def reset_client(self, toggle=True):
         """Stop the TCP client thread then restart it."""
-        self.tcp.stop = True
+        self.tcp.close()
         for i in range(100): # wait til it's stopped
             if not self.tcp.isRunning():
                 break

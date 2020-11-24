@@ -1894,6 +1894,12 @@ if __name__ == "__main__":
     t.setSegment(0,data01, data02)
     t.setStep(0,0,1,0,1)   
     
+    
+    data11 = t.dataGen(1,ch1,'ampMod',50,[166],1,9, 220,[1],20,0.05,[0],False,False)      #seg1, channel 1
+    data12 = t.dataGen(1,ch2,'ampMod',50,[166],1,9, 220,[1],20,0.05,[0],False,False)      #seg1, channel 2
+    t.setSegment(1,data11,data12)
+    t.setStep(1,1,1,0,2) 
+    
 #      
 #     data11 = t.dataGen(1,ch1,'moving',10,[195],[163.6],1, 220,[1],[1],[0],False,False)
 #     data12 = t.dataGen(1,ch2,'moving',10,[195],[163.6],1, 220,[1],[1],[0],False,False)

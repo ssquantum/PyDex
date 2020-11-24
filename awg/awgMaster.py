@@ -43,9 +43,9 @@ class awg_window(QMainWindow):
         self.stats = OrderedDict([('FileName', 0), ('segment', 0)])
         self.t_load = 0 # time taken to transfer data onto card
         self.init_UI()
-        self.server = PyServer(host='', port=8621) # TCP server to message DExTer
-        self.server.textin[str].connect(self.recv_msg) # display the returned msg
-        self.server.start()
+        # self.server = PyServer(host='', port=8621) # TCP server to message DExTer
+        # self.server.textin[str].connect(self.set_status) # display the returned msg
+        # self.server.start()
         self.client = PyClient(host='129.234.190.164', port=8623) # TCP client to mess#age PyDex
         self.client.textin[str].connect(self.respond) # carry out the command in the msg
         self.client.start()
@@ -80,11 +80,11 @@ class awg_window(QMainWindow):
         
     def idle_state(self):
         """When the master thread is not responding user events."""
-        self.recv_msg('Idle.')
+        self.set_status('Idle.')
 
     def reset_tcp(self, force=False):
         """Check if the TCP threads are running. If not, reset them.""" 
-        for tcp in [self.client, self.server]:
+        for tcp in [self.client]: # , self.server
             if tcp.isRunning():
                 if force:
                     tcp.close()
@@ -94,7 +94,7 @@ class awg_window(QMainWindow):
             else: 
                 tcp.start()
 
-    def recv_msg(self, txt):
+    def set_status(self, txt):
         """Set the first 100 characters of a message returned to the
         TCP server."""
         self.status_label.append(time.strftime("%d/%m/%Y %H:%M:%S") + '>> \t ' + txt[:100])
@@ -105,51 +105,52 @@ class awg_window(QMainWindow):
         if cmd == None: 
             cmd = self.edit.text()
         if 'load' in cmd:
-            self.recv_msg('Loading AWG data...')
+            self.set_status('Loading AWG data...')
             try: 
                 path = cmd.split('=')[1]
                 self.awg.load(path)
-                self.recv_msg('File loaded from '+path)
+                self.set_status('File loaded from '+path)
             except Exception as e:
-                self.recv_msg('Failed to load AWG data from '+cmd.split('=')[1])
+                self.set_status('Failed to load AWG data from '+cmd.split('=')[1])
                 logger.error('Failed to load AWG data from '+cmd.split('=')[1]+'\n'+str(e))
         elif 'save' in cmd:
             try: 
                 path = cmd.split('=')[1]
                 self.awg.saveData(path)
-                self.recv_msg('File saved to '+path)
+                self.set_status('File saved to '+path)
             except Exception as e:
                 logger.error('Failed to save AWG data to '+cmd.split('=')[1]+'\n'+str(e))
         elif 'reset_server' in cmd:
             self.reset_tcp()
-            if self.server.isRunning(): status = 'Server running.'
-            else: status = 'Server stopped.'
+            # if self.server.isRunning(): status = 'Server running.'
+            # else: status = 'Server stopped.'
             if self.client.isRunning(): status += 'Client running.'
             else: status = 'Client stopped.'
-            self.recv_msg(status)
+            self.set_status(status)
         elif 'send_trigger' in cmd:
-            self.server.add_message(0, 'Trigger sent to DExTer.\n'+'0'*1600)
+            # self.server.add_message(0, 'Trigger sent to DExTer.\n'+'0'*1600)
+            self.status('Triggering DExTer not yet supported.')
         elif 'start_awg' in cmd:
             self.awg.start()
             if spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[3], byref(int32(0))) == 0:
-                self.recv_msg('AWG started.')
+                self.set_status('AWG started.')
             else:
-                self.recv_msg('AWG crashed. Use the reset_awg coommand.')
+                self.set_status('AWG crashed. Use the reset_awg coommand.')
         elif 'stop_awg' in cmd:
             self.awg.stop()
-            self.recv_msg('AWG stopped.')
+            self.set_status('AWG stopped.')
         elif 'set_data' in cmd:
             try:
                 t = time.time()
                 self.awg.loadSeg(eval(cmd.split('=')[1]))
-                self.recv_msg('Set data: '+cmd.split('=')[1])
+                self.set_status('Set data: '+cmd.split('=')[1])
                 self.t_load = time.time() - t
             except Exception as e:
                 logger.error('Failed to set AWG data: '+cmd.split('=')[1]+'\n'+str(e))
         elif 'set_step' in cmd:
             try:
                 self.awg.setStep(*eval(cmd.split('=')[1]))
-                self.recv_msg('Set step: '+cmd.split('=')[1])
+                self.set_status('Set step: '+cmd.split('=')[1])
             except Exception as e:
                 logger.error('Failed to set AWG step: '+cmd.split('=')[1]+'\n'+str(e))
         elif 'reset_awg' in cmd:
@@ -157,14 +158,14 @@ class awg_window(QMainWindow):
         elif 'get_times' in cmd:
             logger.info("Data transfer time: %.4g s"%self.t_load)
         else:
-            self.recv_msg('Command not recognised.')
+            self.set_status('Command not recognised.')
         self.edit.setText('') # reset cmd edit
                         
     def renewAWG(self, cmd="chans=[0,1]"):
         try: 
             eval(cmd.split('=')[1])
         except Exception as e:
-            self.recv_msg('Invalid renew command: '+cmd)
+            self.set_status('Invalid renew command: '+cmd)
             logger.error('Could not renew AWG.\n'+str(e))
             return 0
         self.awg.restart()
@@ -174,13 +175,13 @@ class awg_window(QMainWindow):
         self.awg.setNumSegments(8)
         # self.awg.setTrigger(0) # 0 software, 1 ext0
         self.awg.setSegDur(0.002)
-        self.recv_msg('New instance of AWG created.')
+        self.set_status('New instance of AWG created.')
         
     def closeEvent(self, event):
         """Safely shut down when the user closes the window."""
         self.awg.restart()
         self.client.close()
-        self.server.close()
+        # self.server.close()
         event.accept()        
 
 if __name__ == "__main__":

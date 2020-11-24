@@ -76,12 +76,14 @@ class runnum(QThread):
         self.monitor.add_message(self._n, 'resync run number')
         self.awgtcp = PyServer(host='', port=8623) # AWG program runs separately
         self.awgtcp.start()
+        self.ddstcp = PyServer(host='', port=8624) # DDS program runs separately
+        self.ddstcp.start()
             
     def reset_server(self, force=False):
         """Check if the server is running. If it is, don't do anything, unless 
         force=True, then stop and restart the server. If the server isn't 
         running, then start it."""
-        for server in [self.server, self.trigger, self.monitor, self.awgtcp]:
+        for server in [self.server, self.trigger, self.monitor, self.awgtcp, self.ddstcp]:
             if server.isRunning():
                 if force:
                     server.close()
@@ -302,7 +304,7 @@ class runnum(QThread):
         next run is being sent, so the histogram is saved, fitted, and reset
         based on the run number +1."""
         self.monitor.add_message(self._n, 'update run number')
-        if self._k != self._m:
+        if self._k != self._m and self.seq.mr.ind > 1:
             logger.warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
         self._k = 0
         r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # repeat

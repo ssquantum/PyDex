@@ -42,9 +42,37 @@ XILINX = 2**16
 
 
 class Ui_MainWindow(object):
-    mode_options = ['single tone', 'RAM', 'ramp', 'FPGA'] # allowed modes of operation
+    mode_options = ['single tone', 'RAM', 'single tone + ramp', 'RAM + ramp' 'FPGA'] # allowed modes of operation
 
-    def __init__(self, port=8622, host='localhost'):
+    RAM_functions = ['Linear', 'Gaussian', 'Minimum Jerk', 'Exponential', 'Logarithmic']
+    RAM_data_type = {'Frequency' : np.array([0,0]),
+                        'Phase' : np.array([0,1]),
+                        'Amplitude' : np.array([1,0]),
+                        'Polar' : np.array([1,1])}
+
+    RAM_controls = {"Disable" : np.array([0,0,0,0]),
+                    "Burst. Profiles 0 - 1" : np.array([0,0,0,1]),
+                    "Burst. Profiles 0 - 2" : np.array([0,0,1,0]),
+                    "Burst. Profiles 0 - 3": np.array([0,0,1,1]),
+                    "Burst. Profiles 0 - 4": np.array([0,1,0,0]),
+                    "Burst. Profiles 0 - 5": np.array([0,1,0,1]),
+                    "Burst. Profiles 0 - 6": np.array([0,1,1,0]),
+                    "Burst. Profiles 0 - 7": np.array([0,1,1,1]),
+                    "Continuous. Profiles 0 - 1": np.array([1,0,0,0]),
+                    "Continuous. Profiles 0 - 2": np.array([1,0,0,1]),
+                    "Continuous. Profiles 0 - 3": np.array([1,0,1,0]),
+                    "Continuous. Profiles 0 - 4": np.array([1,0,1,1]),
+                    "Continuous. Profiles 0 - 5": np.array([1,1,0,0]),
+                    "Continuous. Profiles 0 - 6": np.array([1,1,0,1]),
+                    "Continuous. Profiles 0 - 7": np.array([1,1,1,1])}
+
+    RAM_profile_mode = {"Direct" : np.array([0,0,0]),
+                        "Ramp-up" : np.array([0,0,1]),
+                        "Bidirectional ramp" : np.array([0,1,0]),
+                        "Continuous bidirectional ramp" : np.array([0,1,1]),
+                        "Continuous recirculate" : np.array([1,0,0])}
+
+    def __init__(self, port=8624, host='localhost'):
         super(Ui_MainWindow, self).__init__()
 
         self.connected = False
@@ -93,34 +121,6 @@ class Ui_MainWindow(object):
         self.RAM_playback_dest = np.array([0,0])
         self.Int_profile_cntrl = np.array([0,0,0,0])
 
-        self.RAM_functions = ['Linear', 'Gaussian', 'Minimum Jerk', 'Exponential', 'Logarithmic']
-        self.RAM_data_type = {'Frequency' : np.array([0,0]),
-                                'Phase' : np.array([0,1]),
-                                'Amplitude' : np.array([1,0]),
-                                'Polar' : np.array([1,1])}
-
-        self.RAM_controls = {"Disable" : np.array([0,0,0,0]),
-                                "Burst. Profiles 0 - 1" : np.array([0,0,0,1]),
-                                "Burst. Profiles 0 - 2" : np.array([0,0,1,0]),
-                                "Burst. Profiles 0 - 3": np.array([0,0,1,1]),
-                                "Burst. Profiles 0 - 4": np.array([0,1,0,0]),
-                                "Burst. Profiles 0 - 5": np.array([0,1,0,1]),
-                                "Burst. Profiles 0 - 6": np.array([0,1,1,0]),
-                                "Burst. Profiles 0 - 7": np.array([0,1,1,1]),
-                                "Continuous. Profiles 0 - 1": np.array([1,0,0,0]),
-                                "Continuous. Profiles 0 - 2": np.array([1,0,0,1]),
-                                "Continuous. Profiles 0 - 3": np.array([1,0,1,0]),
-                                "Continuous. Profiles 0 - 4": np.array([1,0,1,1]),
-                                "Continuous. Profiles 0 - 5": np.array([1,1,0,0]),
-                                "Continuous. Profiles 0 - 6": np.array([1,1,0,1]),
-                                "Continuous. Profiles 0 - 7": np.array([1,1,1,1])}
-
-        self.RAM_profile_mode = {"Direct" : np.array([0,0,0]),
-                                    "Ramp-up" : np.array([0,0,1]),
-                                    "Bidirectional ramp" : np.array([0,1,0]),
-                                    "Continuous bidirectional ramp" : np.array([0,1,1]),
-                                    "Continuous recirculate" : np.array([1,0,0])}
-
         #Register arrays
         self.CFR1 = np.zeros(32, dtype = np.bool_())
         self.CFR2 = np.zeros(32, dtype = np.bool_())
@@ -135,25 +135,72 @@ class Ui_MainWindow(object):
 
     def respond(self, cmd=None):
         """Respond to the command sent by TCP message to the client.
-        The syntax is:  option=value"""
+        The syntax is:  option=value
+        If setting new data, the value syntax is: 
+            [[port1,profile1,key1,val1],[port2,profile2,key2,val2],...]"""
+
         value = cmd.split('=')[1] 
+        
         if 'set_data' in cmd:
+            try:
+                value_list = eval(value) # nested list of parameters to change
+            except Exception as e: 
+                self.Display_func('Failed to evaluate command: '+cmd)
+                return 0
+            prv_port = '' # keep track of which port we're communicating on
+            for port, profile, key, val in value_list:
+                # Set parameters. All the keys are unique.
+                if any(x in self.mode for x in ['single tone', 'RAM']):
+                    try: 
+                        label = self.centralwidget.findChild(key+'_'+profile)
+                        label.setText(val)
+                    except Exception as e: pass # key could be for ramp
+                if 'ramp' in self.mode:
+                    try:
+                        label = self.centralwidget.findChild(key)
+                        label.setText(val)
+                    except Exception as e: pass # key could be for ST or RAM
+                # if we need to change port
+                if not self.connected or (port != self.COM_no.currentText() and 
+                        port in [self.COM_no.itemText(i) for i in range(self.COM_no.count())]):
+                    self.Disconnect_func()
+                    self.COM_no.setCurrentText(port)
+                    self.PortConfig_func()
+                # programme the DDS with the current data
+                if port != prv_port:
+                    if 'ramp' in self.mode:
+                        self.checkBox.setChecked(True)
+                    if 'single tone' in self.mode:
+                        self.Programme_STP_func()
+                    elif 'RAM' in self.mode:
+                        self.Programme_DDS_RAM_func()
+                    prv_port = port
 
         elif 'set_mode' in cmd:
             if value in self.mode_options:
                 self.mode = value
             else: 
                 self.mode = 'single tone'
+            self.Display_func('Changed to '+self.mode+' mode.')
         elif 'set_manual_on/off' in cmd:
-            if 'manual' in value:
-                self.OSK_STP.setChecked(True)
+            if 'manual' in value: # use manual on/off
                 self.OSK_man.setChecked(True)
-                self.Amp_scl_STP.setChecked(False)
-            else:
-                self.OSK_STP.setChecked(False)
+                self.Amp_scl_STP.setChecked(False) # triggers Amplitude_scaling_func
+                self.Display_func('Changed to manual on/off.')
+            else: # use Amplitude scaling
                 self.OSK_man.setChecked(False)
                 self.Amp_scl_STP.setChecked(True)
-        
+                self.Display_func('Changed to amplitude scaling.')
+        elif 'load_single_tone_profile' in cmd:
+            self.Display_func('Oops! Loading single tone profiles is not yet supported.')
+        elif 'load_RAM_playback' in cmd:
+            self.file_open_DDS_RAM_func(value)
+        elif 'set_data_type' in cmd:
+            if value in self.RAM_data_type.keys():
+                self.RAM_data.setCurrentText(value) # triggers disable_modes_DRG_func
+        elif 'set_internal_control' in cmd:
+            if value in self.RAM_controls.keys():
+                self.Int_ctrl.setCurrentText(value)
 
 
     def setupUi_coms(self, MainWindow):
@@ -209,6 +256,12 @@ class Ui_MainWindow(object):
         self.Debug.setGeometry(QtCore.QRect(210, 120, 111, 41))
         self.Debug.setObjectName("Debug")
         self.Debug.clicked.connect(self.debug_func)
+
+        ### TCP communication with PyDex
+        self.PyDexTCP = QtWidgets.QPushButton(self.Coms)
+        self.PyDexTCP.setGeometry(QtCore.QRect(210, 170, 111, 41))
+        self.PyDexTCP.setObjectName("PyDex_TCP_reset")
+        self.PyDexTCP.clicked.connect(self.Pydex_tcp_reset)
 
         self.GB_Aux = QtWidgets.QGroupBox(self.Coms)
         self.GB_Aux.setGeometry(QtCore.QRect(540, 10, 261, 101))
@@ -612,7 +665,7 @@ class Ui_MainWindow(object):
         ### Start address ###
         self.S_add_P0 = QtWidgets.QLineEdit(self.GB_ram_P0)
         self.S_add_P0.setGeometry(QtCore.QRect(90, 20, 51, 21))
-        self.S_add_P0.setObjectName("S_add_P0")
+        self.S_add_P0.setObjectName("Start_add_P0")
 
         self.label_76 = QtWidgets.QLabel(self.GB_ram_P0)
         self.label_76.setGeometry(QtCore.QRect(10, 20, 71, 16))
@@ -629,12 +682,12 @@ class Ui_MainWindow(object):
         ### End address ###
         self.E_add_P0 = QtWidgets.QLineEdit(self.GB_ram_P0)
         self.E_add_P0.setGeometry(QtCore.QRect(90, 50, 51, 21))
-        self.E_add_P0.setObjectName("E_add_P0")
+        self.E_add_P0.setObjectName("End_add_P0")
 
         ### Step rate ###
         self.SR_P0 = QtWidgets.QLineEdit(self.GB_ram_P0)
         self.SR_P0.setGeometry(QtCore.QRect(90, 80, 51, 21))
-        self.SR_P0.setObjectName("SR_P0")
+        self.SR_P0.setObjectName("Step_rate_P0")
 
         self.label_80 = QtWidgets.QLabel(self.GB_ram_P0)
         self.label_80.setGeometry(QtCore.QRect(10, 80, 61, 16))
@@ -675,7 +728,7 @@ class Ui_MainWindow(object):
 
         self.S_add_P1 = QtWidgets.QLineEdit(self.GB_ram_P1)
         self.S_add_P1.setGeometry(QtCore.QRect(90, 20, 51, 21))
-        self.S_add_P1.setObjectName("S_add_P1")
+        self.S_add_P1.setObjectName("Start_add_P1")
 
         self.label_89 = QtWidgets.QLabel(self.GB_ram_P1)
         self.label_89.setGeometry(QtCore.QRect(10, 20, 71, 16))
@@ -691,11 +744,11 @@ class Ui_MainWindow(object):
 
         self.E_add_P1 = QtWidgets.QLineEdit(self.GB_ram_P1)
         self.E_add_P1.setGeometry(QtCore.QRect(90, 50, 51, 21))
-        self.E_add_P1.setObjectName("E_add_P1")
+        self.E_add_P1.setObjectName("End_add_P1")
 
         self.SR_P1 = QtWidgets.QLineEdit(self.GB_ram_P1)
         self.SR_P1.setGeometry(QtCore.QRect(90, 80, 51, 21))
-        self.SR_P1.setObjectName("SR_P1")
+        self.SR_P1.setObjectName("Step_rate_P1")
 
         self.label_92 = QtWidgets.QLabel(self.GB_ram_P1)
         self.label_92.setGeometry(QtCore.QRect(10, 80, 61, 16))
@@ -734,7 +787,7 @@ class Ui_MainWindow(object):
 
         self.S_add_P2 = QtWidgets.QLineEdit(self.GB_ram_P2)
         self.S_add_P2.setGeometry(QtCore.QRect(90, 20, 51, 21))
-        self.S_add_P2.setObjectName("S_add_P2")
+        self.S_add_P2.setObjectName("Start_add_P2")
 
         self.label_97 = QtWidgets.QLabel(self.GB_ram_P2)
         self.label_97.setGeometry(QtCore.QRect(10, 20, 71, 16))
@@ -750,11 +803,11 @@ class Ui_MainWindow(object):
 
         self.E_add_P2 = QtWidgets.QLineEdit(self.GB_ram_P2)
         self.E_add_P2.setGeometry(QtCore.QRect(90, 50, 51, 21))
-        self.E_add_P2.setObjectName("E_add_P2")
+        self.E_add_P2.setObjectName("End_add_P2")
 
         self.SR_P2 = QtWidgets.QLineEdit(self.GB_ram_P2)
         self.SR_P2.setGeometry(QtCore.QRect(90, 80, 51, 21))
-        self.SR_P2.setObjectName("SR_P2")
+        self.SR_P2.setObjectName("Step_rate_P2")
 
         self.label_100 = QtWidgets.QLabel(self.GB_ram_P2)
         self.label_100.setGeometry(QtCore.QRect(10, 80, 61, 16))
@@ -790,7 +843,7 @@ class Ui_MainWindow(object):
 
         self.S_add_P4 = QtWidgets.QLineEdit(self.GB_ram_P4)
         self.S_add_P4.setGeometry(QtCore.QRect(90, 20, 51, 21))
-        self.S_add_P4.setObjectName("S_add_P4")
+        self.S_add_P4.setObjectName("Start_add_P4")
 
         self.label_117 = QtWidgets.QLabel(self.GB_ram_P4)
         self.label_117.setGeometry(QtCore.QRect(10, 20, 71, 16))
@@ -806,11 +859,11 @@ class Ui_MainWindow(object):
 
         self.E_add_P4 = QtWidgets.QLineEdit(self.GB_ram_P4)
         self.E_add_P4.setGeometry(QtCore.QRect(90, 50, 51, 21))
-        self.E_add_P4.setObjectName("E_add_P4")
+        self.E_add_P4.setObjectName("End_add_P4")
 
         self.SR_P4 = QtWidgets.QLineEdit(self.GB_ram_P4)
         self.SR_P4.setGeometry(QtCore.QRect(90, 80, 51, 21))
-        self.SR_P4.setObjectName("SR_P4")
+        self.SR_P4.setObjectName("Step_rate_P4")
 
         self.label_120 = QtWidgets.QLabel(self.GB_ram_P4)
         self.label_120.setGeometry(QtCore.QRect(10, 80, 61, 16))
@@ -846,7 +899,7 @@ class Ui_MainWindow(object):
 
         self.S_add_P3 = QtWidgets.QLineEdit(self.GB_ram_P3)
         self.S_add_P3.setGeometry(QtCore.QRect(90, 20, 51, 21))
-        self.S_add_P3.setObjectName("S_add_P3")
+        self.S_add_P3.setObjectName("Start_add_P3")
 
         self.label_121 = QtWidgets.QLabel(self.GB_ram_P3)
         self.label_121.setGeometry(QtCore.QRect(10, 20, 71, 16))
@@ -862,11 +915,11 @@ class Ui_MainWindow(object):
 
         self.E_add_P3 = QtWidgets.QLineEdit(self.GB_ram_P3)
         self.E_add_P3.setGeometry(QtCore.QRect(90, 50, 51, 21))
-        self.E_add_P3.setObjectName("E_add_P3")
+        self.E_add_P3.setObjectName("End_add_P3")
 
         self.SR_P3 = QtWidgets.QLineEdit(self.GB_ram_P3)
         self.SR_P3.setGeometry(QtCore.QRect(90, 80, 51, 21))
-        self.SR_P3.setObjectName("SR_P3")
+        self.SR_P3.setObjectName("Step_rate_P3")
 
         self.label_124 = QtWidgets.QLabel(self.GB_ram_P3)
         self.label_124.setGeometry(QtCore.QRect(10, 80, 61, 16))
@@ -902,7 +955,7 @@ class Ui_MainWindow(object):
 
         self.S_add_P5 = QtWidgets.QLineEdit(self.GB_ram_P5)
         self.S_add_P5.setGeometry(QtCore.QRect(90, 20, 51, 21))
-        self.S_add_P5.setObjectName("S_add_P5")
+        self.S_add_P5.setObjectName("Start_add_P5")
 
         self.label_125 = QtWidgets.QLabel(self.GB_ram_P5)
         self.label_125.setGeometry(QtCore.QRect(10, 20, 71, 16))
@@ -918,11 +971,11 @@ class Ui_MainWindow(object):
 
         self.E_add_P5 = QtWidgets.QLineEdit(self.GB_ram_P5)
         self.E_add_P5.setGeometry(QtCore.QRect(90, 50, 51, 21))
-        self.E_add_P5.setObjectName("E_add_P5")
+        self.E_add_P5.setObjectName("End_add_P5")
 
         self.SR_P5 = QtWidgets.QLineEdit(self.GB_ram_P5)
         self.SR_P5.setGeometry(QtCore.QRect(90, 80, 51, 21))
-        self.SR_P5.setObjectName("SR_P5")
+        self.SR_P5.setObjectName("Step_rate_P5")
 
         self.label_128 = QtWidgets.QLabel(self.GB_ram_P5)
         self.label_128.setGeometry(QtCore.QRect(10, 80, 61, 16))
@@ -958,7 +1011,7 @@ class Ui_MainWindow(object):
 
         self.S_add_P6 = QtWidgets.QLineEdit(self.GB_ram_P6)
         self.S_add_P6.setGeometry(QtCore.QRect(90, 20, 51, 21))
-        self.S_add_P6.setObjectName("S_add_P6")
+        self.S_add_P6.setObjectName("Start_add_P6")
 
         self.label_137 = QtWidgets.QLabel(self.GB_ram_P6)
         self.label_137.setGeometry(QtCore.QRect(10, 20, 71, 16))
@@ -974,11 +1027,11 @@ class Ui_MainWindow(object):
 
         self.E_add_P6 = QtWidgets.QLineEdit(self.GB_ram_P6)
         self.E_add_P6.setGeometry(QtCore.QRect(90, 50, 51, 21))
-        self.E_add_P6.setObjectName("E_add_P6")
+        self.E_add_P6.setObjectName("End_add_P6")
 
         self.SR_P6 = QtWidgets.QLineEdit(self.GB_ram_P6)
         self.SR_P6.setGeometry(QtCore.QRect(90, 80, 51, 21))
-        self.SR_P6.setObjectName("SR_P6")
+        self.SR_P6.setObjectName("Step_rate_P6")
 
         self.label_140 = QtWidgets.QLabel(self.GB_ram_P6)
         self.label_140.setGeometry(QtCore.QRect(10, 80, 61, 16))
@@ -1014,7 +1067,7 @@ class Ui_MainWindow(object):
 
         self.S_add_P7 = QtWidgets.QLineEdit(self.GB_ram_P7)
         self.S_add_P7.setGeometry(QtCore.QRect(90, 20, 51, 21))
-        self.S_add_P7.setObjectName("S_add_P7")
+        self.S_add_P7.setObjectName("Start_add_P7")
 
         self.label_141 = QtWidgets.QLabel(self.GB_ram_P7)
         self.label_141.setGeometry(QtCore.QRect(10, 20, 71, 16))
@@ -1030,11 +1083,11 @@ class Ui_MainWindow(object):
 
         self.E_add_P7 = QtWidgets.QLineEdit(self.GB_ram_P7)
         self.E_add_P7.setGeometry(QtCore.QRect(90, 50, 51, 21))
-        self.E_add_P7.setObjectName("E_add_P7")
+        self.E_add_P7.setObjectName("End_add_P7")
 
         self.SR_P7 = QtWidgets.QLineEdit(self.GB_ram_P7)
         self.SR_P7.setGeometry(QtCore.QRect(90, 80, 51, 21))
-        self.SR_P7.setObjectName("SR_P7")
+        self.SR_P7.setObjectName("Step_rate_P7")
 
         self.label_144 = QtWidgets.QLabel(self.GB_ram_P7)
         self.label_144.setGeometry(QtCore.QRect(10, 80, 61, 16))
@@ -1683,6 +1736,14 @@ class Ui_MainWindow(object):
         self.actionLoad_DDS_RAM.setText(_translate("MainWindow", "Load DDS RAM playback"))
         self.actionUser_guide.setText(_translate("MainWindow", "User guide"))
         self.actionClose.setText(_translate("MainWindow", "Close"))
+
+    def Pydex_tcp_reset(self, force=False):
+        if self.tcp.isRunning():
+            if force:
+                self.tcp.close()
+                time.sleep(0.1) # give time for it to close
+                self.tcp.start()
+        else: self.tcp.start()
 
     def Get_serial_ports_func(self):
         """ Lists serial port names which are connected
@@ -2688,17 +2749,17 @@ class Ui_MainWindow(object):
                 self.Display_func(out)
 
 
-    def file_open_DDS_RAM_func(self):
+    def file_open_DDS_RAM_func(self, name=''):
         """
         User input: points the system towards the RAM data for the DDS.
 
         """
-
-        name = QtWidgets.QFileDialog.getOpenFileName(MainWindow, 'Open File')
+        if not name:
+            name, _ = QtWidgets.QFileDialog.getOpenFileName(MainWindow, 'Open File')
 
         try:
-            self.RAM_modulation_data = np.loadtxt(name[0], delimiter = ',') #file = open(name,'r')
-            self.Display_func("DSS RAM data loaded from > \t " + name[0] )
+            self.RAM_modulation_data = np.loadtxt(name, delimiter = ',') #file = open(name,'r')
+            self.Display_func("DSS RAM data loaded from > \t " + name)
             self.load_DDS_ram = True
         except:
             self.Display_func("Data load failed")
@@ -3078,7 +3139,7 @@ if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_MainWindow()
+    ui = Ui_MainWindow(port=8624, host='129.234.190.164')
     ui.setupUi_coms(MainWindow)
 
     MainWindow.show()

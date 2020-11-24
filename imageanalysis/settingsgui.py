@@ -7,6 +7,7 @@ Stefan Spence 26/02/19
 import os
 import sys
 import time
+import socket
 import numpy as np
 import pyqtgraph as pg
 from collections import OrderedDict
@@ -32,6 +33,7 @@ from strtypes import intstrlist, listlist
 from maingui import main_window, reset_slot, int_validator, double_validator, nat_validator
 from reimage import reim_window # analysis for survival probability
 from roiHandler import ROI
+from networking.client import simple_msg
 
 ####    ####    ####    ####
 
@@ -608,6 +610,27 @@ class settings_window(QMainWindow):
             mw.save_hist_data(save_file_name=os.path.join(results_path, measure_prefix, 
                     mw.name + str(hist_id) + '.csv'), confirm=False) # save histogram
             mw.image_handler.reset_arrays() # clear histogram
+            
+    def send_results(self, measure_prefix, hist_id, mw):
+        """Send a TCP message to influxdb with the data from the most recent measure.
+        measure_prefix -- label for the subdirectory results are saved in
+        hist_id        -- unique ID for histogram
+        mw             -- imageanalysis window storing results"""
+        datastr = 'Experiment,SOURCE=imageanalysis,name="%s" measure="%s",'%(mw.name, measure_prefix)
+        datastr +=','.join(['%s=%s'%(key, val) for key, val in mw.histo_handler.temp_vals.items()
+            if mw.histo_handler.types[key] != str]) 
+        datastr += str(int(time.time()*1e9)) + '\n'
+        
+        msg = "POST /write?db=arduino HTTP/1.1\nHost: 129.234.190.191\n"
+        msg += "User-Agent: PyDex\nConnection: close\n"
+        msg += "Content-Type: application/x-www-form-urlencoded\n"
+        msg += "Content-Length: %s\n\n"%len(datastr)
+        msg += datastr
+        try:
+            _ = simple_msg('129.234.190.191', 8086, msg)
+        except Exception as e:
+            logger.error("Settings window failed to send results to influxdb\n"+str(e))
+
                 
     def init_analysers_multirun(self, results_path, measure_prefix, appending=False, *args, **kwargs):
         """Prepare the active analysis windows for a multirun.
