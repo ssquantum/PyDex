@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
+"""PyDex - DDS
+Lewis McArd, Stefan Spence 24.11.20
 
-# Form implementation generated from reading ui file 'AD9910_DDS.ui'
-#
-# Created by: PyQt5 UI code generator 5.9.2
-#
-# WARNING! All changes made in this file will be lost!
+ - communicate with a DDS board via serial USB port.
+"""
 import serial
 import time
 import sys
@@ -42,13 +40,15 @@ XILINX = 2**16
 
 
 class Ui_MainWindow(object):
-    mode_options = ['single tone', 'RAM', 'single tone + ramp', 'RAM + ramp' 'FPGA'] # allowed modes of operation
+    mode_options = ['single tone', 'RAM', 'single tone + ramp', 'RAM + ramp', 'FPGA'] # allowed modes of operation
+
+    amp_options = ['fixed amp', 'manual on/off', 'amp scaling']
 
     RAM_functions = ['Linear', 'Gaussian', 'Minimum Jerk', 'Exponential', 'Logarithmic']
-    RAM_data_type = {'Frequency' : np.array([0,0]),
-                        'Phase' : np.array([0,1]),
-                        'Amplitude' : np.array([1,0]),
-                        'Polar' : np.array([1,1])}
+    RAM_data_type = {'RAM Frequency' : np.array([0,0]),
+                        'RAM Phase' : np.array([0,1]),
+                        'RAM Amplitude' : np.array([1,0]),
+                        'RAM Polar' : np.array([1,1])}
 
     RAM_controls = {"Disable" : np.array([0,0,0,0]),
                     "Burst. Profiles 0 - 1" : np.array([0,0,0,1]),
@@ -71,6 +71,8 @@ class Ui_MainWindow(object):
                         "Bidirectional ramp" : np.array([0,1,0]),
                         "Continuous bidirectional ramp" : np.array([0,1,1]),
                         "Continuous recirculate" : np.array([1,0,0])}
+
+    DRG_modes = ['DRG Frequency', 'DRG Phase', 'DRG Amplitude']
 
     def __init__(self, port=8624, host='localhost'):
         super(Ui_MainWindow, self).__init__()
@@ -148,18 +150,21 @@ class Ui_MainWindow(object):
                 self.Display_func('Failed to evaluate command: '+cmd)
                 return 0
             prv_port = '' # keep track of which port we're communicating on
-            for port, profile, key, val in value_list:
+            success = [0 for i in range(len(value_list))]
+            for i, (port, profile, key, val) in enumerate(value_list):
                 # Set parameters. All the keys are unique.
                 if any(x in self.mode for x in ['single tone', 'RAM']):
                     try: 
-                        label = self.centralwidget.findChild(key+'_'+profile)
-                        label.setText(val)
-                    except Exception as e: pass # key could be for ramp
+                        label = self.centralwidget.findChild(QtWidgets.QLineEdit, key+'_'+profile)
+                        label.setText('%s'%val)
+                        success[i] = 1
+                    except Exception as e: print(e) # pass # key could be for ramp
                 if 'ramp' in self.mode:
                     try:
-                        label = self.centralwidget.findChild(key)
-                        label.setText(val)
-                    except Exception as e: pass # key could be for ST or RAM
+                        label = self.centralwidget.findChild(QtWidgets.QLineEdit, key)
+                        label.setText('%s'%val)
+                        success[i] = 1
+                    except Exception as e: print(e) #pass # key could be for ST or RAM
                 # if we need to change port
                 if not self.connected or (port != self.COM_no.currentText() and 
                         port in [self.COM_no.itemText(i) for i in range(self.COM_no.count())]):
@@ -175,7 +180,7 @@ class Ui_MainWindow(object):
                     elif 'RAM' in self.mode:
                         self.Programme_DDS_RAM_func()
                     prv_port = port
-
+            self.Display_func('Set parameters %s'%str([val for i, val in enumerate(value_list) if success[i]]))
         elif 'set_mode' in cmd:
             if value in self.mode_options:
                 self.mode = value
@@ -183,25 +188,71 @@ class Ui_MainWindow(object):
                 self.mode = 'single tone'
             self.Display_func('Changed to '+self.mode+' mode.')
         elif 'set_manual_on/off' in cmd:
-            if 'manual' in value: # use manual on/off
-                self.OSK_man.setChecked(True)
-                self.Amp_scl_STP.setChecked(False) # triggers Amplitude_scaling_func
-                self.Display_func('Changed to manual on/off.')
-            else: # use Amplitude scaling
-                self.OSK_man.setChecked(False)
-                self.Amp_scl_STP.setChecked(True)
-                self.Display_func('Changed to amplitude scaling.')
+            if value in self.amp_options:
+                item = self.centralwidget.findChild(QtWidgets.QRadioButton, value)
+                item.setChecked(True) # triggers OSK_func
+                if value == 'manual on/off' and 'RAM' in self.mode:
+                    self.OSK_man.setChecked(True)
+                elif 'RAM' in self.mode: 
+                    self.OSK_man.setChecked(False)
+                self.Display_func('Changed to %s.'%value)
         elif 'load_single_tone_profile' in cmd:
             self.Display_func('Oops! Loading single tone profiles is not yet supported.')
         elif 'load_RAM_playback' in cmd:
             self.file_open_DDS_RAM_func(value)
-        elif 'set_data_type' in cmd:
+        elif 'set_RAM_data_type' in cmd:
             if value in self.RAM_data_type.keys():
                 self.RAM_data.setCurrentText(value) # triggers disable_modes_DRG_func
+                self.Display_func('Changed RAM data type to %s.'%value)
         elif 'set_internal_control' in cmd:
             if value in self.RAM_controls.keys():
                 self.Int_ctrl.setCurrentText(value)
+                self.Display_func('Changed RAM internal control to %s.'%value)
+        elif 'set_ramp_mode' in cmd:
+            if value in self.DRG_modes:
+                item = self.centralwidget.findChild(QtWidgets.QRadioButton, value)
+                item.setChecked(True) # requires 
+                self.Display_func('Changed DRG mode to %s.'%value if item.isChecked() else 'none')
+        elif 'save_STP' in cmd:
+            try:
+                np.savetxt(value, [self.fout, self.tht, self.amp], delimiter = ',')
+            except FileNotFoundError as e:
+                self.Display_func('Could not save STP to %s\n'%value+str(e))
+        elif 'load_STP' in cmd:
+            self.load_STP(value)
+        elif 'programme' in cmd:
+            if 'single tone' in self.mode:
+                self.Programme_STP_func()
+            elif 'RAM' in self.mode:
+                self.Programme_DDS_RAM_func()
+        
+    def load_STP(self, fname=''):
+        """Input the values from the STP file into the line edits."""
+        try:
+            if not fname:
+                fname, _ = QtWidgets.QFileDialog.getOpenFileName(self.centralwidget, 'Open File')
+            data = np.loadtxt(fname, delimiter=',')
+            for i, (freq, phase, amp) in enumerate(data.T):
+                for key, val in zip(['Freq', 'Phase', 'Amp'], [freq, phase, amp]):
+                    label = self.centralwidget.findChild(QtWidgets.QLineEdit, key+'_P%s'%i)
+                    label.setText('%.5g'%val)
+        except (FileNotFoundError, IndexError) as e:
+            self.Display_func('Could not load STP from %s\n'%fname+str(e))
 
+    def enter_ramp_mode(self):
+        """When ramp mode checkbox is checked, let pydex know it's in ramp mode"""
+        if self.checkBox.isChecked() and not 'ramp' in self.mode:
+            self.mode += ' + ramp'
+
+    def enter_STP_mode(self):
+        """When STP programme button is pressed, set mode to single tone"""
+        self.mode = 'single tone'
+        self.enter_ramp_mode()
+
+    def enter_RAM_mode(self):
+        """When RAM programme button is pressed, set mode to RAM"""
+        self.mode = 'RAM'
+        self.enter_ramp_mode()
 
     def setupUi_coms(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -259,7 +310,7 @@ class Ui_MainWindow(object):
 
         ### TCP communication with PyDex
         self.PyDexTCP = QtWidgets.QPushButton(self.Coms)
-        self.PyDexTCP.setGeometry(QtCore.QRect(210, 170, 111, 41))
+        self.PyDexTCP.setGeometry(QtCore.QRect(330, 20, 111, 41))
         self.PyDexTCP.setObjectName("PyDex_TCP_reset")
         self.PyDexTCP.clicked.connect(self.Pydex_tcp_reset)
 
@@ -612,26 +663,34 @@ class Ui_MainWindow(object):
         self.GB_ProgSTP.setAutoFillBackground(True)
         self.GB_ProgSTP.setObjectName("GB_ProgSTP")
 
+        ### Default is to assume the amplitude is 1 ###
+        self.Amp_fix_STP = QtWidgets.QRadioButton(self.GB_ProgSTP)
+        self.Amp_fix_STP.setGeometry(QtCore.QRect(10, 30, 120, 17))
+        self.Amp_fix_STP.setStatusTip("Amplitude of all profiles is set to 1")
+        self.Amp_fix_STP.setAccessibleDescription("")
+        self.Amp_fix_STP.setObjectName("fixed amp")
+        self.Amp_fix_STP.toggled.connect(self.OSK_func)
+
         ### Profile amplitude scale ###
         self.Amp_scl_STP = QtWidgets.QRadioButton(self.GB_ProgSTP)
-        self.Amp_scl_STP.setGeometry(QtCore.QRect(10, 30, 101, 17))
-        self.Amp_scl_STP.setStatusTip("Enables the user tp set the amplitude of the profile (0-1)")
+        self.Amp_scl_STP.setGeometry(QtCore.QRect(10, 60, 120, 17))
+        self.Amp_scl_STP.setStatusTip("Enables the user to set the amplitude of the profile (0-1)")
         self.Amp_scl_STP.setAccessibleDescription("")
-        self.Amp_scl_STP.setObjectName("Amp_scl_STP")
-        self.Amp_scl_STP.toggled.connect(self.Amplitude_scaling_func)
+        self.Amp_scl_STP.setObjectName("amp scaling")
+        self.Amp_scl_STP.toggled.connect(self.OSK_func)
 
         ### Manual amplitude switch ###
         self.OSK_STP = QtWidgets.QRadioButton(self.GB_ProgSTP)
-        self.OSK_STP.setGeometry(QtCore.QRect(10, 60, 101, 17))
-        self.OSK_STP.setObjectName("OSK_STP")
+        self.OSK_STP.setGeometry(QtCore.QRect(10, 90, 101, 17))
+        self.OSK_STP.setObjectName("manual on/off")
         self.OSK_STP.setStatusTip("Enables manual on/off the the single tone profiles (active high)")
-
         self.OSK_STP.toggled.connect(self.OSK_func)
 
         #Set the radio buttons to be part of a group
         self.STP_button_group = QtWidgets.QButtonGroup()
         self.STP_button_group.addButton(self.OSK_STP)
         self.STP_button_group.addButton(self.Amp_scl_STP)
+        self.STP_button_group.addButton(self.Amp_fix_STP)
 
 
         self.Prog_STP = QtWidgets.QPushButton(self.GB_ProgSTP)
@@ -644,6 +703,7 @@ class Ui_MainWindow(object):
         self.Prog_STP.setAutoFillBackground(True)
         self.Prog_STP.setObjectName("Prog_STP")
         self.Prog_STP.clicked.connect(self.Programme_STP_func)
+        self.Prog_STP.clicked.connect(self.enter_STP_mode)
         self.Prog_STP.setStatusTip("Sends the single profile tones to the AOM driver. Make sure the driver is connected first.")
 
 
@@ -1136,6 +1196,7 @@ class Ui_MainWindow(object):
         self.RAM_prog.setAutoFillBackground(True)
         self.RAM_prog.setObjectName("RAM_prog")
         self.RAM_prog.clicked.connect(self.Programme_DDS_RAM_func)
+        self.RAM_prog.clicked.connect(self.enter_RAM_mode)
 
         self.RAM_data = QtWidgets.QComboBox(self.GB_ProgRAM)
         self.RAM_data.setGeometry(QtCore.QRect(100, 20, 141, 22))
@@ -1175,9 +1236,10 @@ class Ui_MainWindow(object):
         self.Ramp_gen.setObjectName("Ramp_gen")
 
         self.checkBox = QtWidgets.QCheckBox(self.Ramp_gen)
-        self.checkBox.setGeometry(QtCore.QRect(10, 10, 151, 41))
+        self.checkBox.setGeometry(QtCore.QRect(10, 10, 180, 41))
         self.checkBox.setObjectName("checkBox")
         self.checkBox.toggled.connect(lambda:self.switch_DRG_func(self.checkBox.isChecked(), 0))
+        self.checkBox.toggled.connect(self.enter_ramp_mode)
 
         self.DRG_mode_GB = QtWidgets.QGroupBox(self.Ramp_gen)
         self.DRG_mode_GB.setGeometry(QtCore.QRect(10, 50, 391, 111))
@@ -1187,18 +1249,18 @@ class Ui_MainWindow(object):
 
         self.DRG_freq_cntrl = QtWidgets.QRadioButton(self.DRG_mode_GB)
         self.DRG_freq_cntrl.setGeometry(QtCore.QRect(20, 20, 121, 17))
-        self.DRG_freq_cntrl.setObjectName("DRG_freq_cntrl")
+        self.DRG_freq_cntrl.setObjectName("DRG Frequency")
         self.DRG_freq_cntrl.toggled.connect(lambda:self.DGR_parameter_func(self.DRG_freq_cntrl))
         self.DRG_freq_cntrl.setEnabled(False) # Disbale since we know frequency is the RAM default.
 
         self.DRG_phase_cntrl = QtWidgets.QRadioButton(self.DRG_mode_GB)
         self.DRG_phase_cntrl.setGeometry(QtCore.QRect(20, 50, 121, 17))
-        self.DRG_phase_cntrl.setObjectName("DRG_phase_cntrl")
+        self.DRG_phase_cntrl.setObjectName("DRG Phase")
         self.DRG_phase_cntrl.toggled.connect(lambda:self.DGR_parameter_func(self.DRG_phase_cntrl))
 
         self.DRG_amp_cntrl = QtWidgets.QRadioButton(self.DRG_mode_GB)
         self.DRG_amp_cntrl.setGeometry(QtCore.QRect(20, 80, 121, 17))
-        self.DRG_amp_cntrl.setObjectName("DRG_amp_cntrl")
+        self.DRG_amp_cntrl.setObjectName("DRG Amplitude")
         self.DRG_amp_cntrl.setChecked(True)
         self.DGR_destination = np.array([1,1])
         self.DRG_amp_cntrl.toggled.connect(lambda:self.DGR_parameter_func(self.DRG_amp_cntrl))
@@ -1468,6 +1530,7 @@ class Ui_MainWindow(object):
 
         self.actionLoad_stp = QtWidgets.QAction(MainWindow)
         self.actionLoad_stp.setObjectName("actionLoad_stp")
+        self.actionLoad_stp.triggered.connect(self.load_STP)
 
         self.actionLoad_DDS_RAM = QtWidgets.QAction(MainWindow)
         self.actionLoad_DDS_RAM.setObjectName("actionLoad_DDS_RAM")
@@ -1511,6 +1574,7 @@ class Ui_MainWindow(object):
         self.label_9.setText(_translate("MainWindow", "Phase"))
         self.Phase_aux.setText(_translate("MainWindow", "0.00"))
         self.Debug.setText(_translate("MainWindow", "Debug"))
+        self.PyDexTCP.setText(_translate("MainWindow", "Reset PyDex TCP"))
 
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Coms), _translate("MainWindow", "Communication"))
         self.GB_P0.setTitle(_translate("MainWindow", "Profile 0"))
@@ -1586,6 +1650,7 @@ class Ui_MainWindow(object):
         self.Amp_P7.setText(_translate("MainWindow", "1"))
         self.label_65.setText(_translate("MainWindow", "Amplitude"))
         self.GB_ProgSTP.setTitle(_translate("MainWindow", "Options"))
+        self.Amp_fix_STP.setText(_translate("MainWindow", "Amplitude fixed"))
         self.Amp_scl_STP.setText(_translate("MainWindow", "Amplitude scaling"))
         self.OSK_STP.setText(_translate("MainWindow", "Manual on/off"))
         self.Prog_STP.setText(_translate("MainWindow", "Programme"))
@@ -1744,6 +1809,7 @@ class Ui_MainWindow(object):
                 time.sleep(0.1) # give time for it to close
                 self.tcp.start()
         else: self.tcp.start()
+        self.Display_func('PyDex TCP server is ' + 'running.' if self.tcp.isRunning() else 'stopped.')
 
     def Get_serial_ports_func(self):
         """ Lists serial port names which are connected
@@ -1816,46 +1882,16 @@ class Ui_MainWindow(object):
         else:
             self.Display_func("Disconnected. But from what? Make sure you're connected to a device first.")
 
-    def Amplitude_scaling_func(self):
-        if self.Amp_scl_STP.isChecked() == True:
-            self.AMP_scale = 1
-            self.OSK_enable = 0
-            self.Manual_OSK = 0
-            self.STP_button_group.setExclusive(False)
-            self.OSK_STP.setChecked(False)
-            #self.Amp_scl_STP.setChecked(False)
-            self.STP_button_group.setExclusive(True)
-
-        else:
-            self.AMP_scale = 0
-            self.OSK_enable = 0
-            self.Manual_OSK = 0
-            self.STP_button_group.setExclusive(False)
-            self.OSK_STP.setChecked(False)
-            self.Amp_scl_STP.setChecked(False)
-            self.STP_button_group.setExclusive(True)
-
-
     def OSK_func(self):
-        if self.OSK_STP.isChecked() == True:
-            self.AMP_scale = 0
-            self.OSK_enable = 1
-            self.Manual_OSK = 1
-            self.STP_button_group.setExclusive(False)
-            #self.OSK_STP.setChecked(False)
-            self.Amp_scl_STP.setChecked(False)
-            self.STP_button_group.setExclusive(True)
-
-        else:
-            self.AMP_scale = 0
-            self.OSK_enable = 0
-            self.Manual_OSK = 0
-            self.STP_button_group.setExclusive(False)
-            self.OSK_STP.setChecked(False)
-            self.Amp_scl_STP.setChecked(False)
-            self.STP_button_group.setExclusive(True)
-
-
+        """Toggle between STP amplitude options:
+        0 = fixed, 1 = manual on/off, 2 = amp scaling"""
+        for i, label in enumerate(self.amp_options): # check which option is current
+            if self.centralwidget.findChild(QtWidgets.QRadioButton, label).isChecked():
+                break
+        self.AMP_scale = i//2
+        self.OSK_enable = i%2
+        self.Manual_OSK = i%2
+        
     def Amplitude_RAM_func(self):
         if self.OSK_man.isChecked() == True:
             self.AMP_scale = 0
@@ -1895,20 +1931,25 @@ class Ui_MainWindow(object):
         NTS = self.RAM_data_type.get(str(self.RAM_data.currentText())) # Do not allow this state
         ID =  2*(NTS[0]) + NTS[1]
         if ID == 0:
+            self.DRG_freq_cntrl.setChecked(False)
             self.DRG_freq_cntrl.setEnabled(False)
             self.DRG_phase_cntrl.setEnabled(True)
             self.DRG_amp_cntrl.setEnabled(True)
         elif ID == 1:
+            self.DRG_phase_cntrl.setChecked(False)
             self.DRG_phase_cntrl.setEnabled(False)
             self.DRG_freq_cntrl.setEnabled(True)
             self.DRG_amp_cntrl.setEnabled(True)
         elif ID == 2:
+            self.DRG_amp_cntrl.setChecked(False)
             self.DRG_amp_cntrl.setEnabled(False)
             self.DRG_freq_cntrl.setEnabled(True)
             self.DRG_phase_cntrl.setEnabled(True)
         else:
+            self.DRG_amp_cntrl.setChecked(False)
             self.DRG_amp_cntrl.setEnabled(False)
             self.DRG_freq_cntrl.setEnabled(True)
+            self.DRG_phase_cntrl.setChecked(False)
             self.DRG_phase_cntrl.setEnabled(False)
 
     def DGR_parameter_func(self, button):
@@ -2755,7 +2796,7 @@ class Ui_MainWindow(object):
 
         """
         if not name:
-            name, _ = QtWidgets.QFileDialog.getOpenFileName(MainWindow, 'Open File')
+            name, _ = QtWidgets.QFileDialog.getOpenFileName(self.centralwidget, 'Open File')
 
         try:
             self.RAM_modulation_data = np.loadtxt(name, delimiter = ',') #file = open(name,'r')
@@ -3136,7 +3177,6 @@ class Ui_MainWindow(object):
 
 
 if __name__ == "__main__":
-    import sys
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow(port=8624, host='129.234.190.164')

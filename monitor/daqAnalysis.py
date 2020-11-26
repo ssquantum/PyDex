@@ -18,6 +18,7 @@ except ImportError:
     from PyQt5.QtCore import pyqtSignal, QThread
 from collections import OrderedDict
 from strtypes import strlist, listlist, BOOL
+from networking.client import simple_msg
 import logging
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,13 @@ class daqSlice:
         self.channels = channels # dict of channelname, index
         self.stats = OrderedDict([(chan, OrderedDict([
             ('mean',[]), ('stdv',[])])) for chan in channels.keys()])
-        
+
+        self.blurbstr = "POST /write?db=arduino HTTP/1.1\nHost: 129.234.190.191\n"
+        self.blurbstr += "User-Agent: PyDex\nConnection: close\n"
+        self.blurbstr += "Content-Type: application/x-www-form-urlencoded\n"
+        self.blurbstr += "Content-Length: %s\n\n"
+        self.datastr = 'Experiment,SOURCE=DAQmonitor,name="%s",channel0="%s" '%(name, list(self.channels.keys())[0])
+                
     def process(self, data, ind):
         """Apply the slice to the given data, extract the mean and std dev.
         Note that the data must have shape to match the expected # channels.
@@ -62,6 +69,13 @@ class daqSlice:
                     row = data[0] # i if multiple channels are being measured simultaneously
                     self.stats[chan]['mean'].append(np.mean(row[self.inds]))
                     self.stats[chan]['stdv'].append(np.std(row[self.inds], ddof=1))
+                    try: # send results via TCP to influxdb
+                        datastr = self.datastr + "mean_V=%.6f,stdv_V=%.6f"%(self.stats[chan]['mean'], self.stats[chan]['stdv'])
+                        datastr += str(int(time.time()*1e9)) + '\n'
+                        msg = self.blurbstr%len(datastr) + datastr
+                        _ = simple_msg('129.234.190.191', 8086, msg)
+                    except Exception as e:
+                        logger.error("Settings window failed to send results to influxdb\n"+str(e))
                 except IndexError as e:
                     logger.error('Data wrong shape to take slice at %s.\n'%i + str(e))
             else: # just to keep them all the same length

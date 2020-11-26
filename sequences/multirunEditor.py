@@ -205,9 +205,10 @@ class multirun_widget(QWidget):
         self.chan_choices = OrderedDict()
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
         sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
-        options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG chan : seg', 'Other'], 
+        options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG chan : seg', 
+                    'DDS port : profile', 'Other'], 
             list(map(str.__add__, [str(i) for i in range(len(sht))],
-                [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht])), 
+                    [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht])), 
             ['Fast analogue', 'Slow analogue'],
             self.get_anlg_chans('Fast')]
         positions = [[1, 4, 3, 2], [1, 6, 6, 1], [1, 7, 3, 1], [1, 8, 6, 1]]
@@ -438,7 +439,8 @@ class multirun_widget(QWidget):
             antype = self.ui_param['Analogue type'][col]
             sel = {'Time step name':self.ui_param['Time step name'][col],
                 'Analogue channel':self.ui_param['Analogue channel'][col] 
-                    if mrtype=='Analogue voltage' or mrtype=='AWG chan : seg' else []}
+                    if any(mrtype==x for x in 
+                        ['Analogue voltage', 'AWG chan : seg', 'DDS port : profile']) else []}
             list_ind = self.ui_param['list index'][col]
         except (IndexError, ValueError):
             mrtype, antype = 'Time step length', 'Fast analogue'
@@ -447,7 +449,8 @@ class multirun_widget(QWidget):
         self.list_index.setText(str(list_ind))
         self.chan_choices['Type'].setCurrentText(mrtype)
         self.chan_choices['Analogue type'].setCurrentText(antype)
-        self.chan_choices['Analogue channel'].setEnabled(mrtype=='Analogue voltage' or mrtype=='AWG chan : seg')
+        self.chan_choices['Analogue channel'].setEnabled(any(mrtype==x for x in 
+                        ['Analogue voltage', 'AWG chan : seg', 'DDS port : profile']))
         for key in ['Time step name', 'Analogue channel']:
             self.chan_choices[key].setCurrentRow(0, QItemSelectionModel.Clear) # clear previous selection
             try:
@@ -484,8 +487,18 @@ class multirun_widget(QWidget):
             self.chan_choices['Analogue channel'].setEnabled(True)
             self.chan_choices['Analogue channel'].clear()
             self.chan_choices['Analogue channel'].addItems(self.awg_args)
+        elif newtype == 'DDS port : profile':
+            self.chan_choices['Time step name'].clear()
+            self.chan_choices['Time step name'].addItems(['COM%s : P%s'%(i,j) for i in range(5,8) for j in range(8)])
+            reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)
+            self.chan_choices['Analogue type'].clear()
+            self.chan_choices['Analogue type'].addItems(['DDS Parameter'])
+            self.chan_choices['Analogue channel'].setEnabled(True)
+            self.chan_choices['Analogue channel'].clear()
+            self.chan_choices['Analogue channel'].addItems(self.dds_args)
         else:
-            if self.chan_choices['Analogue type'].currentText() == 'AWG Parameter':
+            if  any(self.chan_choices['Analogue type'].currentText()==x for x in 
+                        ['AWG Parameter', 'DDS Parameter']):
                 self.chan_choices['Analogue type'].clear()
                 self.chan_choices['Analogue type'].addItems(['Fast analogue', 'Slow analogue'])
                 self.chan_choices['Analogue type'].currentTextChanged[str].connect(self.change_mr_anlg_type)

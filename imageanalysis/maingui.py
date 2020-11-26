@@ -731,14 +731,17 @@ class main_window(QMainWindow):
         """Receive the image array emitted from the event signal
         display the image in the image canvas.
         event_im: [image (np.ndarray), include? (bool)]"""
-        self.im_canvas.setImage(im)
-        vmin, vmax = np.min(im), np.max(im)
-        if self.vmin_edit.text():
-            vmin = int(self.vmin_edit.text())
-        if self.vmax_edit.text():
-            vmax = int(self.vmax_edit.text())
-        self.im_hist.setLevels(vmin, vmax)
-        
+        try:
+            self.im_canvas.setImage(im)
+            vmin, vmax = np.min(im), np.max(im)
+            if self.vmin_edit.text():
+                vmin = int(self.vmin_edit.text())
+            if self.vmax_edit.text():
+                vmax = int(self.vmax_edit.text())
+            self.im_hist.setLevels(vmin, vmax)
+        except ValueError as e:
+            logger.error('Cannot plot image. Probably CCD saturated.\n'+str(e))
+
     def update_plot(self, im, include=True):
         """Receive the event image and whether it's valid emitted from the 
         camera. Process the image array with the image handler and update

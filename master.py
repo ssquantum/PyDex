@@ -49,6 +49,8 @@ from networking.runid import runnum # synchronises run number, sends signals
 from networking.networker import TCPENUM, reset_slot # enum for DExTer produce-consumer loop cases
 sys.path.append('./sequences')
 from sequences.sequencePreviewer import Previewer
+sys.path.append('./dds')
+from dds.DDScoms import DDSComWindow
 from strtypes import intstrlist
 
 ####    ####    ####    ####
@@ -160,11 +162,14 @@ class Master(QMainWindow):
         self.rn.sw.show()
         self.rn.sw.show_analyses(show_all=True)
         
-        self.mon_win = MonitorStatus()
+        self.mon_win = MonitorStatus() # display communication with DAQ monitor
         self.mon_win.start_button.clicked.connect(self.start_monitor)
         self.mon_win.stop_button.clicked.connect(self.stop_monitor)
         self.rn.monitor.textin[str].connect(self.mon_win.set_label)
         self.rn.monitor.textin.connect(self.mon_win.set_connected)
+        self.dds_win = DDSComWindow() # display communication with DDS
+        self.dds_win.msg[str].connect(lambda msg: self.rn.ddstcp.add_message(self.rn._n, msg))
+        self.rn.ddstcp.textin[str].connect(lambda msg: self.dds_win.set_status(' received >> '+msg))
         # set a timer to update the dates 2s after midnight:
         t0 = time.localtime()
         self.date_reset = 0 # whether the dates are waiting to be reset or not
@@ -225,7 +230,7 @@ class Master(QMainWindow):
         menu_items = []
         for window_title in ['Image Analyser', 'Camera Status', 
             'Image Saver', 'TCP Server', 'Sequence Previewer',
-            'Atom Checker', 'Monitor', 'Show all']:
+            'Atom Checker', 'Monitor', 'DDS', 'Show all']:
             menu_items.append(QAction(window_title, self)) 
             menu_items[-1].triggered.connect(self.show_window)
             show_windows.addAction(menu_items[-1])
@@ -344,6 +349,7 @@ class Master(QMainWindow):
             info = 'Trigger server is running.\n' if self.rn.trigger.isRunning() else 'Trigger server stopped.\n'
             info += 'Monitor server is running.\n' if self.rn.monitor.isRunning() else 'Monitor server stopped.\n'
             info += 'AWG server is running.\n' if self.rn.awgtcp.isRunning() else 'AWG server stopped.\n'
+            info += 'DDS server is running.\n' if self.rn.ddstcp.isRunning() else 'DDS server stopped.\n'
             if self.rn.server.isRunning():
                 msgs = self.rn.server.get_queue()
                 info += "TCP server is running. %s queued message(s)."%len(msgs)
@@ -371,6 +377,8 @@ class Master(QMainWindow):
             self.rn.check.showMaximized()
         elif self.sender().text() == 'Monitor':
             self.mon_win.show()
+        elif self.sender().text() == 'DDS':
+            self.dds_win.show()
         elif self.sender().text() == 'Show all':
             for obj in [self.mon_win, self.rn.sw, self.rn.seq] + self.rn.sw.mw + self.rn.sw.rw:
                 obj.close()
@@ -677,7 +685,7 @@ class Master(QMainWindow):
                 self.stats[key] = [g.x(), g.y(), g.width(), g.height()]
             for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, 
                     self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp, 
-                    self.rn.check, self.mon_win]:
+                    self.rn.check, self.mon_win, self.dds_win]:
                 obj.close()
             self.save_state()
             event.accept()

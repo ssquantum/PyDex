@@ -9,21 +9,10 @@ import time
 import copy
 import numpy as np
 from collections import OrderedDict
-try:
-    from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
-    from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, 
-        QAction, QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, 
-        QFileDialog, QDoubleValidator, QIntValidator, QComboBox, QMenu, 
-        QActionGroup, QTabWidget, QVBoxLayout, QFont, QRegExpValidator, 
-        QInputDialog) 
-except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
-    from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
-        QFont, QRegExpValidator)
-    from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, 
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, 
         QTabWidget, QAction, QMainWindow, QLabel, QInputDialog, QGridLayout,
-        QMessageBox, QLineEdit, QFileDialog, QComboBox, QActionGroup, QMenu,
-        QVBoxLayout)
+        QMessageBox, QLineEdit, QFileDialog, QComboBox, QTextBrowser, QMenu)
 from ddsgui import Ui_MainWindow as DDSUI
 
 class DDSComWindow(QMainWindow):
@@ -42,41 +31,59 @@ class DDSComWindow(QMainWindow):
 
         self.comboBoxes = []
         i = 0
-        for key, options in zip(['set_mode', 'set_manual_on/off', 'set_data_type', 'set_internal_control'],
-                [DDSUI.mode_options, ['manual', 'auto'], DDSUI.RAM_data_type.keys(), DDSUI.RAM_controls.keys()]):
-            self.comboBoxes[i] = QComboBox(self)
+        for key, options in zip(
+                ['set_mode', 'set_manual_on/off', 'set_RAM_data_type', 'set_internal_control', 'set_ramp_mode'],
+                [DDSUI.mode_options, DDSUI.amp_options, DDSUI.RAM_data_type.keys(), DDSUI.RAM_controls.keys(), DDSUI.DRG_modes]):
+            self.comboBoxes.append(QComboBox(self))
             self.comboBoxes[i].setObjectName(key)
             self.comboBoxes[i].addItems(options)
             self.comboBoxes[i].resize(self.comboBoxes[i].sizeHint())
             layout.addWidget(self.comboBoxes[i], i,0,1,1)
-            self.comboBoxes[i].currentTextChanged[str].connect(self.send_combo_msg)
+            self.comboBoxes[i].currentTextChanged[str].connect(self.send_msg)
             i += 1
 
-        # self.load_STP = QPushButton('Load single tone profile', self, checkable=False)
-        # layout.addWidget(self.load_STP, 0,1, 1,1)
+        self.load_STP = QPushButton('Load single tone profile', self, checkable=False)
+        layout.addWidget(self.load_STP, 0,1, 1,1)
+        self.load_STP.clicked.connect(lambda: self.send_file_name(cmd='load_STP'))
         
         self.load_RAM = QPushButton('Load RAM playback', self, checkable=False)
         layout.addWidget(self.load_RAM, 1,1, 1,1)
-        self.load_RAM.clicked.connect(self.load_RAM_playback_file)
+        self.load_RAM.clicked.connect(lambda: self.send_file_name(cmd='load_RAM_playback'))
+        
+        self.programme = QPushButton('Programme', self, checkable=False)
+        layout.addWidget(self.programme, 2,1, 1,1)
+        self.programme.clicked.connect(lambda: self.send_msg(key='programme'))
         
         self.status = QTextBrowser() # show current status
         layout.addWidget(self.status, i+1,0, 1,2)
 
         self.setWindowTitle('- DDS Communication -')
+        self.setGeometry(50, 50, 550, 300)
         # self.setWindowIcon(QIcon('docs/daqicon.png'))
         
     def set_status(self, txt):
         """Set the first 100 characters of a status update."""
-        self.status.append(time.strftime("%d/%m/%Y %H:%M:%S") + '>> \t ' + txt[:100])
+        self.status.append(time.strftime("%d/%m/%Y %H:%M:%S") + txt[:100])
 
     def send_msg(self, value='', key=''):
         """Send a command message."""
         if not key: key = self.sender().objectName()
-        self.set_status('sent >> '+key+'='+value)
+        self.set_status(' sent     >> '+key+'='+value)
         self.msg.emit(key+'='+value)
 
-    def load_RAM_playback_file(self, name=''):
+    def send_file_name(self, name='', cmd='load_RAM_playback'):
         """Retrieve the file name for a RAM playback then send it."""
         if not name:
             name, _ = QFileDialog.getOpenFileName(self, 'Open File')
-        self.send_msg(name, 'load_RAM_playback')
+        self.send_msg(name, cmd)
+
+if __name__ == "__main__":
+    app = QApplication.instance()
+    standalone = app is None # false if there is already an app instance
+    if standalone: # if there isn't an instance, make one
+        app = QApplication(sys.argv) 
+        
+    dwin = DDSComWindow()
+    dwin.show()
+    if standalone: # if an app instance was made, execute it
+        sys.exit(app.exec_()) # when the window is closed, python code stops
