@@ -22,15 +22,15 @@ from networking.client import PyClient, reset_slot
 ### Set paths here
 home_path = os.getcwd()+'/'
 
-SavePrefix = home_path + "Data_Files/AOM Driver Saved files/"
+SavePrefix = home_path + "dds/Data_Files/AOM Driver Saved files/"
 
 now = datetime.datetime.now()
 date_str = now.strftime("%d_%m_%Y")
 
 Today_file = SavePrefix + date_str + "/"
 
-if os.path.exists(home_path + "Data_Files/") == False:
-    os.makedirs(home_path + "Data_Files/")
+if os.path.exists(home_path + "dds/Data_Files/") == False:
+    os.makedirs(home_path + "dds/Data_Files/")
 if os.path.exists(SavePrefix) == False:
     os.makedirs(SavePrefix)
 
@@ -214,10 +214,7 @@ class Ui_MainWindow(object):
                 item.setChecked(True) # requires 
                 self.Display_func('Changed DRG mode to %s.'%value if item.isChecked() else 'none')
         elif 'save_STP' in cmd:
-            try:
-                np.savetxt(value, [self.fout, self.tht, self.amp], delimiter = ',')
-            except FileNotFoundError as e:
-                self.Display_func('Could not save STP to %s\n'%value+str(e))
+            self.save_STP(value)
         elif 'load_STP' in cmd:
             self.load_STP(value)
         elif 'programme' in cmd:
@@ -238,6 +235,16 @@ class Ui_MainWindow(object):
                     label.setText('%.5g'%val)
         except (FileNotFoundError, IndexError) as e:
             self.Display_func('Could not load STP from %s\n'%fname+str(e))
+
+    def save_STP(self, fname=''):
+        """Save the current single tone profile parameters to a text file."""
+        try:
+            if not fname:
+                fname, _ = QtWidgets.QFileDialog.getSaveFileName(self.centralwidget, 'Open File')
+            self.update_values_func()
+            np.savetxt(fname, [self.fout, self.tht, self.amp], delimiter = ',')
+        except (FileNotFoundError, IndexError) as e:
+            self.Display_func('Could not save STP to %s\n'%fname+str(e))
 
     def enter_ramp_mode(self):
         """When ramp mode checkbox is checked, let pydex know it's in ramp mode"""
@@ -1532,6 +1539,11 @@ class Ui_MainWindow(object):
         self.actionLoad_stp.setObjectName("actionLoad_stp")
         self.actionLoad_stp.triggered.connect(self.load_STP)
 
+        self.actionSave_stp = QtWidgets.QAction(MainWindow)
+        self.actionSave_stp.setObjectName("actionSave_stp")
+        self.actionSave_stp.triggered.connect(self.save_STP)
+
+
         self.actionLoad_DDS_RAM = QtWidgets.QAction(MainWindow)
         self.actionLoad_DDS_RAM.setObjectName("actionLoad_DDS_RAM")
         self.actionLoad_DDS_RAM.triggered.connect(self.file_open_DDS_RAM_func)
@@ -1546,6 +1558,7 @@ class Ui_MainWindow(object):
 
         self.menuFile.addAction(self.actionRAM_editor)
         self.menuFile.addAction(self.actionLoad_stp)
+        self.menuFile.addAction(self.actionSave_stp)
         self.menuFile.addAction(self.actionLoad_DDS_RAM)
         self.menuFile.addAction(self.actionClose)
 
@@ -1798,6 +1811,7 @@ class Ui_MainWindow(object):
         self.menuHelp.setTitle(_translate("MainWindow", "Help"))
         self.actionRAM_editor.setText(_translate("MainWindow", "Open RAM editor"))
         self.actionLoad_stp.setText(_translate("MainWindow", "Load singe tone profile"))
+        self.actionSave_stp.setText(_translate("MainWindow", "Save singe tone profile"))
         self.actionLoad_DDS_RAM.setText(_translate("MainWindow", "Load DDS RAM playback"))
         self.actionUser_guide.setText(_translate("MainWindow", "User guide"))
         self.actionClose.setText(_translate("MainWindow", "Close"))
@@ -2134,7 +2148,7 @@ class Ui_MainWindow(object):
 
         #Encode the parameters and send to the PSoC
         self.profile_register_func()
-        self.save_parameters_func('STP', 'NONE')
+        # self.save_parameters_func('STP', 'NONE')
 
     def Programme_DDS_RAM_func(self):
         self.RAM_enable = 0
@@ -2352,7 +2366,7 @@ class Ui_MainWindow(object):
                 self.Send_serial_func(pack)
 
 
-        self.save_parameters_func('RAM', str(self.RAM_data.currentText()))
+        # self.save_parameters_func('RAM', str(self.RAM_data.currentText()))
         #self.Display_func("RAM data sent")
 
 
@@ -2765,7 +2779,7 @@ class Ui_MainWindow(object):
         Sends the CMD string to the DDS.
         """
         print(CMDStr)
-        self.Display_func(CMDStr)
+        # self.Display_func(CMDStr)
         #print(len(CMDStr))
         time.sleep(0.1)
         for ic in range(len(CMDStr)):

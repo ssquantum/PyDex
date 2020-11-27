@@ -599,6 +599,8 @@ class Master(QMainWindow):
                 self.reset_dates()
         elif 'AWG ' in msg[:10]: # send command to AWG to set new data
             self.rn.awgtcp.priority_messages([(self.rn._n, msg.replace('AWG ', '').split('||||||||')[0])])
+        elif 'DDS ' in msg[:10]: # send command to DDS to set new data
+            self.rn.ddstcp.priority_messages([(self.rn._n, msg.replace('DDS ', '').split('||||||||')[0])])
         elif 'LVData' in msg: 
             try:
                 # self.rn.seq.tr.load_xml_str(msg) # for some reason LV can't sent strings longer than 2453 ...
