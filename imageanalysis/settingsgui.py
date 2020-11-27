@@ -607,6 +607,7 @@ class settings_window(QMainWindow):
                 f.write(','.join(list(map(str, mw.histo_handler.temp_vals.values()))) + '\n')
         # save and reset the histograms, make sure to do reimage windows first!
         for mw in self.rw[:len(self.rw_inds)] + self.mw[:self._a]: 
+            self.send_results(measure_prefix, hist_id, mw)
             mw.save_hist_data(save_file_name=os.path.join(results_path, measure_prefix, 
                     mw.name + str(hist_id) + '.csv'), confirm=False) # save histogram
             mw.image_handler.reset_arrays() # clear histogram

@@ -489,7 +489,7 @@ class multirun_widget(QWidget):
             self.chan_choices['Analogue channel'].addItems(self.awg_args)
         elif newtype == 'DDS port : profile':
             self.chan_choices['Time step name'].clear()
-            self.chan_choices['Time step name'].addItems(['COM%s : P%s'%(i,j) for i in range(5,8) for j in range(8)])
+            self.chan_choices['Time step name'].addItems(['COM%s : P%s'%(i,j) for i in range(4,8) for j in range(8)])
             reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)
             self.chan_choices['Analogue type'].clear()
             self.chan_choices['Analogue type'].addItems(['DDS Parameter'])

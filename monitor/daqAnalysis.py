@@ -70,12 +70,12 @@ class daqSlice:
                     self.stats[chan]['mean'].append(np.mean(row[self.inds]))
                     self.stats[chan]['stdv'].append(np.std(row[self.inds], ddof=1))
                     try: # send results via TCP to influxdb
-                        datastr = self.datastr + "mean_V=%.6f,stdv_V=%.6f"%(self.stats[chan]['mean'], self.stats[chan]['stdv'])
+                        datastr = self.datastr + "mean_V=%.6f,stdv_V=%.6f"%(self.stats[chan]['mean'][-1], self.stats[chan]['stdv'][-1])
                         datastr += str(int(time.time()*1e9)) + '\n'
                         msg = self.blurbstr%len(datastr) + datastr
                         _ = simple_msg('129.234.190.191', 8086, msg)
                     except Exception as e:
-                        logger.error("Settings window failed to send results to influxdb\n"+str(e))
+                        logger.error("DAQ analysis failed to send results to influxdb\n"+str(e))
                 except IndexError as e:
                     logger.error('Data wrong shape to take slice at %s.\n'%i + str(e))
             else: # just to keep them all the same length

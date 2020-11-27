@@ -21,7 +21,7 @@ from mythread import reset_slot
 def simple_msg(host, port, msg, encoding='utf-8', recv_buff_size=-1):
     """Open a socket and send a TCP message, then receive back a message."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.setblocking(0) # don't hold up if there's a delay
+        # sock.setblocking(0) # don't hold up if there's a delay
         sock.connect((host, port))
         sock.sendall(bytes(msg, encoding))
         if recv_buff_size>0:
