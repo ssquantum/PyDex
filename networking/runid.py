@@ -78,12 +78,14 @@ class runnum(QThread):
         self.awgtcp.start()
         self.ddstcp = PyServer(host='', port=8624) # DDS program runs separately
         self.ddstcp.start()
+        self.seqtcp = PyServer(host='', port=8625) # Sequence viewer in seperate instance of LabVIEW
+        self.seqtcp.start()
             
     def reset_server(self, force=False):
         """Check if the server is running. If it is, don't do anything, unless 
         force=True, then stop and restart the server. If the server isn't 
         running, then start it."""
-        for server in [self.server, self.trigger, self.monitor, self.awgtcp, self.ddstcp]:
+        for server in [self.server, self.trigger, self.monitor, self.awgtcp, self.ddstcp, self.seqtcp]:
             if server.isRunning():
                 if force:
                     server.close()
@@ -221,14 +223,18 @@ class runnum(QThread):
                     self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label'], 
                     uv, 0, self.seq.mr.mr_param['# omitted'], 0, self.seq.mr.mr_param['# in hist']))
             # make the directories
-            os.makedirs(results_path, exist_ok=True)
-            os.makedirs(os.path.join(results_path, 'sequences'), exist_ok=True)
-            # save sequences and make list of messages to send and the order:
-            self.seq.mr.mrtr.write_to_file(os.path.join(results_path, 'sequences', self.seq.mr.mr_param['measure_prefix'] + '_base.xml'))
-            self.seq.mr.get_all_sequences(save_dir=os.path.join(results_path, 'sequences'))
-            self.seq.mr.save_mr_params(os.path.join(results_path, self.seq.mr.mr_param['measure_prefix'] + 
-                'params' + str(self.seq.mr.mr_param['1st hist ID']) + '.csv'))
-            self.sw.init_analysers_multirun(results_path, str(self.seq.mr.mr_param['measure_prefix']), self.seq.mr.appending)
+            try:
+                os.makedirs(results_path, exist_ok=True)
+                os.makedirs(os.path.join(results_path, 'sequences'), exist_ok=True)
+                # save sequences and make list of messages to send and the order:
+                self.seq.mr.mrtr.write_to_file(os.path.join(results_path, 'sequences', self.seq.mr.mr_param['measure_prefix'] + '_base.xml'))
+                self.seq.mr.get_all_sequences(save_dir=os.path.join(results_path, 'sequences'))
+                self.seq.mr.save_mr_params(os.path.join(results_path, self.seq.mr.mr_param['measure_prefix'] + 
+                    'params' + str(self.seq.mr.mr_param['1st hist ID']) + '.csv'))
+                self.sw.init_analysers_multirun(results_path, str(self.seq.mr.mr_param['measure_prefix']), self.seq.mr.appending)
+            except FileNotFoundError as e:
+                logger.error('Multirun could not start because of invalid directory %s\n'%results_path+str(e))
+                return 0
             # tell the monitor program to save results to the new directory
             self.monitor.add_message(self._n, results_path+'=save_dir')
             self.monitor.add_message(self._n, 'start')

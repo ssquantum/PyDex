@@ -229,7 +229,7 @@ class Master(QMainWindow):
         show_windows = menubar.addMenu('Windows')
         menu_items = []
         for window_title in ['Image Analyser', 'Camera Status', 
-            'Image Saver', 'TCP Server', 'Sequence Previewer',
+            'Image Saver', 'TCP Server', 'Multirun',
             'Atom Checker', 'Monitor', 'DDS', 'Show all']:
             menu_items.append(QAction(window_title, self)) 
             menu_items[-1].triggered.connect(self.show_window)
@@ -271,6 +271,7 @@ class Master(QMainWindow):
             'Pause multirun', 'Resume multirun', 'Cancel multirun',
             'Send sequence to DExTer',
             'Get sequence from DExTer',
+            'Get sequence from BareDExTer',
             'Save DExTer sequence', 'End Python Mode', 
             'Resync DExTer', 'Start acquisition'])
         self.actions.resize(self.actions.sizeHint())
@@ -343,13 +344,14 @@ class Master(QMainWindow):
                 else:
                     self.status_label.setText('Failed to find config file.')
 
-        elif self.sender().text() == 'Sequence Previewer':
+        elif self.sender().text() == 'Multirun':
             self.rn.seq.show()
         elif self.sender().text() == 'TCP Server':
             info = 'Trigger server is running.\n' if self.rn.trigger.isRunning() else 'Trigger server stopped.\n'
             info += 'Monitor server is running.\n' if self.rn.monitor.isRunning() else 'Monitor server stopped.\n'
             info += 'AWG server is running.\n' if self.rn.awgtcp.isRunning() else 'AWG server stopped.\n'
             info += 'DDS server is running.\n' if self.rn.ddstcp.isRunning() else 'DDS server stopped.\n'
+            info += 'BareDExTer server is running.\n' if self.rn.seqtcp.isRunning() else 'BareDExTer server stopped.\n'
             if self.rn.server.isRunning():
                 msgs = self.rn.server.get_queue()
                 info += "TCP server is running. %s queued message(s)."%len(msgs)
@@ -489,10 +491,17 @@ class Master(QMainWindow):
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
             elif action_text == 'Send sequence to DExTer':
                 self.rn.server.add_message(TCPENUM['TCP load sequence from string'], self.rn.seq.tr.seq_txt)
+                self.rn.seqtcp.add_message(TCPENUM['TCP load sequence from string'], self.rn.seq.tr.seq_txt)
             elif action_text == 'Get sequence from DExTer':
                 self.rn.server.add_message(TCPENUM['TCP read'], 'send sequence xml\n'+'0'*2000) # Dx adds sequence to msg queue
                 for i in range(5):
                     self.rn.server.add_message(TCPENUM['TCP read'], 'replaced with sequence\n') # needs some time to get msg
+                # also send this sequence to BareDExTer
+                QTimer.singleShot(0.5, lambda:self.rn.seqtcp.add_message(TCPENUM['TCP load sequence from string'], self.rn.seq.tr.seq_txt))
+            elif action_text == 'Get sequence from BareDExTer':
+                self.rn.seqtcp.add_message(TCPENUM['TCP read'], 'send sequence xml\n'+'0'*2000) # Dx adds sequence to msg queue
+                for i in range(5):
+                    self.rn.seqtcp.add_message(TCPENUM['TCP read'], 'replaced with sequence\n') # needs some time to get msg
             elif action_text == 'Save DExTer sequence':
                 self.rn.server.add_message(TCPENUM['Save sequence'], 'save log file automatic name\n'+'0'*2000)
             elif action_text == 'End Python Mode':

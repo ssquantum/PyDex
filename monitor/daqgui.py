@@ -577,6 +577,7 @@ class daq_window(QMainWindow):
                 for slave in self.slaves: # only take a single acquisition on one channel
                     reset_slot(slave.acquired, self.slave_acquire, False)
                 self.toggle.setChecked(False)
+                self.slaveind = self.slaveind % len(self.slaves) # prevent indexerror
                 self.slaves[self.slaveind].analogue_acquisition()
         else:
             # reset_slot(self.slave.finished, self.activate, False)

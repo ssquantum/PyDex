@@ -104,7 +104,7 @@ class Ui_MainWindow(object):
         #Amplitude control
         self.OSK_enable = 0
         self.Manual_OSK = 0
-        self.AMP_scale = 0
+        self.AMP_scale = 1
 
 
         self.load_FPGA_file = False
@@ -228,12 +228,13 @@ class Ui_MainWindow(object):
         try:
             if not fname:
                 fname, _ = QtWidgets.QFileDialog.getOpenFileName(self.centralwidget, 'Open File')
-            data = np.loadtxt(fname, delimiter=',')
-            for i, (freq, phase, amp) in enumerate(data.T):
-                for key, val in zip(['Freq', 'Phase', 'Amp'], [freq, phase, amp]):
-                    label = self.centralwidget.findChild(QtWidgets.QLineEdit, key+'_P%s'%i)
-                    label.setText('%.5g'%val)
-        except (FileNotFoundError, IndexError) as e:
+            if os.path.exists(fname): # if user cancels then fname is empty str
+                data = np.loadtxt(fname, delimiter=',')
+                for i, (freq, phase, amp) in enumerate(data.T):
+                    for key, val in zip(['Freq', 'Phase', 'Amp'], [freq, phase, amp]):
+                        label = self.centralwidget.findChild(QtWidgets.QLineEdit, key+'_P%s'%i)
+                        label.setText('%.5g'%val)
+        except (OSError, FileNotFoundError, IndexError) as e:
             self.Display_func('Could not load STP from %s\n'%fname+str(e))
 
     def save_STP(self, fname=''):
@@ -243,7 +244,7 @@ class Ui_MainWindow(object):
                 fname, _ = QtWidgets.QFileDialog.getSaveFileName(self.centralwidget, 'Open File')
             self.update_values_func()
             np.savetxt(fname, [self.fout, self.tht, self.amp], delimiter = ',')
-        except (FileNotFoundError, IndexError) as e:
+        except (OSError, FileNotFoundError, IndexError) as e:
             self.Display_func('Could not save STP to %s\n'%fname+str(e))
 
     def enter_ramp_mode(self):
@@ -684,6 +685,7 @@ class Ui_MainWindow(object):
         self.Amp_scl_STP.setStatusTip("Enables the user to set the amplitude of the profile (0-1)")
         self.Amp_scl_STP.setAccessibleDescription("")
         self.Amp_scl_STP.setObjectName("amp scaling")
+        self.Amp_scl_STP.setChecked(True) # default mode amplitude scaling
         self.Amp_scl_STP.toggled.connect(self.OSK_func)
 
         ### Manual amplitude switch ###
@@ -1235,6 +1237,9 @@ class Ui_MainWindow(object):
         self.tabWidget.addTab(self.DDS_RAM, "")
 
         self.setupUi_DRG(MainWindow)
+        
+        # load default STP profile
+        self.load_STP('dds/defaultSTP.txt')
 
     def setupUi_DRG(self, MainWindow):
 
@@ -1590,7 +1595,7 @@ class Ui_MainWindow(object):
         self.PyDexTCP.setText(_translate("MainWindow", "Reset PyDex TCP"))
 
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Coms), _translate("MainWindow", "Communication"))
-        self.GB_P0.setTitle(_translate("MainWindow", "Profile 0"))
+        self.GB_P0.setTitle(_translate("MainWindow", "000 Profile 0"))
         self.Freq_P0.setText(_translate("MainWindow", "0.00"))
         self.label.setText(_translate("MainWindow", "Frequency"))
         self.label_2.setText(_translate("MainWindow", "MHz"))
@@ -1599,7 +1604,7 @@ class Ui_MainWindow(object):
         self.Phase_P0.setText(_translate("MainWindow", "0.00"))
         self.Amp_P0.setText(_translate("MainWindow", "1"))
         self.label_6.setText(_translate("MainWindow", "Amplitude"))
-        self.GB_P1.setTitle(_translate("MainWindow", "Profile 1"))
+        self.GB_P1.setTitle(_translate("MainWindow", "100 Profile 1"))
         self.Freq_P1.setText(_translate("MainWindow", "0.00"))
         self.label_26.setText(_translate("MainWindow", "Frequency"))
         self.label_27.setText(_translate("MainWindow", "MHz"))
@@ -1608,7 +1613,7 @@ class Ui_MainWindow(object):
         self.Phase_P1.setText(_translate("MainWindow", "0.00"))
         self.Amp_P1.setText(_translate("MainWindow", "1"))
         self.label_30.setText(_translate("MainWindow", "Amplitude"))
-        self.GB_P2.setTitle(_translate("MainWindow", "Profile 2"))
+        self.GB_P2.setTitle(_translate("MainWindow", "010 Profile 2"))
         self.Freq_P2.setText(_translate("MainWindow", "0.00"))
         self.label_36.setText(_translate("MainWindow", "Frequency"))
         self.label_37.setText(_translate("MainWindow", "MHz"))
@@ -1617,7 +1622,7 @@ class Ui_MainWindow(object):
         self.Phase_P2.setText(_translate("MainWindow", "0.00"))
         self.Amp_P2.setText(_translate("MainWindow", "1"))
         self.label_40.setText(_translate("MainWindow", "Amplitude"))
-        self.GB_P3.setTitle(_translate("MainWindow", "Profile 3"))
+        self.GB_P3.setTitle(_translate("MainWindow", "110 Profile 3"))
         self.Freq_P3.setText(_translate("MainWindow", "0.00"))
         self.label_41.setText(_translate("MainWindow", "Frequency"))
         self.label_42.setText(_translate("MainWindow", "MHz"))
@@ -1626,7 +1631,7 @@ class Ui_MainWindow(object):
         self.Phase_P3.setText(_translate("MainWindow", "0.00"))
         self.Amp_P3.setText(_translate("MainWindow", "1"))
         self.label_45.setText(_translate("MainWindow", "Amplitude"))
-        self.GB_P4.setTitle(_translate("MainWindow", "Profile 4"))
+        self.GB_P4.setTitle(_translate("MainWindow", "001 Profile 4"))
         self.Freq_P4.setText(_translate("MainWindow", "0.00"))
         self.label_46.setText(_translate("MainWindow", "Frequency"))
         self.label_47.setText(_translate("MainWindow", "MHz"))
@@ -1635,7 +1640,7 @@ class Ui_MainWindow(object):
         self.Phase_P4.setText(_translate("MainWindow", "0.00"))
         self.Amp_P4.setText(_translate("MainWindow", "1"))
         self.label_50.setText(_translate("MainWindow", "Amplitude"))
-        self.GB_P5.setTitle(_translate("MainWindow", "Profile 5"))
+        self.GB_P5.setTitle(_translate("MainWindow", "101 Profile 5"))
         self.Freq_P5.setText(_translate("MainWindow", "0.00"))
         self.label_51.setText(_translate("MainWindow", "Frequency"))
         self.label_52.setText(_translate("MainWindow", "MHz"))
@@ -1644,7 +1649,7 @@ class Ui_MainWindow(object):
         self.Phase_P5.setText(_translate("MainWindow", "0.00"))
         self.Amp_P5.setText(_translate("MainWindow", "1"))
         self.label_55.setText(_translate("MainWindow", "Amplitude"))
-        self.GB_P6.setTitle(_translate("MainWindow", "Profile 6"))
+        self.GB_P6.setTitle(_translate("MainWindow", "011 Profile 6"))
         self.Freq_P6.setText(_translate("MainWindow", "0.00"))
         self.label_56.setText(_translate("MainWindow", "Frequency"))
         self.label_57.setText(_translate("MainWindow", "MHz"))
@@ -1653,7 +1658,7 @@ class Ui_MainWindow(object):
         self.Phase_P6.setText(_translate("MainWindow", "0.00"))
         self.Amp_P6.setText(_translate("MainWindow", "1"))
         self.label_60.setText(_translate("MainWindow", "Amplitude"))
-        self.GB_P7.setTitle(_translate("MainWindow", "Profile 7"))
+        self.GB_P7.setTitle(_translate("MainWindow", "111 Profile 7"))
         self.Freq_P7.setText(_translate("MainWindow", "0.00"))
         self.label_61.setText(_translate("MainWindow", "Frequency"))
         self.label_62.setText(_translate("MainWindow", "MHz"))
@@ -2503,7 +2508,7 @@ class Ui_MainWindow(object):
 
                 if sum_check == '100':
                     sum_check = '00'
-                    sum_check = '{0:02x}'.format(sum_check)
+                    # sum_check = '{0:02x}'.format(sum_check) # not sure what this line is supposed to be doing...
                 pack[1] = sum_check
 
                 if self.connected:
@@ -2782,16 +2787,19 @@ class Ui_MainWindow(object):
         # self.Display_func(CMDStr)
         #print(len(CMDStr))
         time.sleep(0.1)
-        for ic in range(len(CMDStr)):
-            time.sleep(0.001)
-            self.ser.write(bytearray.fromhex(CMDStr[ic]))
-            #print(bytearray.fromhex(CMDStr[ic]))
+        try:
+            for ic in range(len(CMDStr)):
+                time.sleep(0.001)
+                self.ser.write(bytearray.fromhex(CMDStr[ic]))
+                #print(bytearray.fromhex(CMDStr[ic]))
 
-        self.get_message_func()
+            self.get_message_func()
 
-
+        except (OSError, serial.SerialException):
+            self.Disconnect_func()
+            self.Display_func('COM port is no longer conected. Could not send message.')
+        
     def get_message_func(self):
-
         out = ''
         if self.connected:
             time.sleep(0.01)
@@ -3187,14 +3195,16 @@ class Ui_MainWindow(object):
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         self.fpga_PROGRAMMER_dia.append(dt_string + '>> \t ' + str(x))
 
-
-
-
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow(port=8624, host='129.234.190.164')
     ui.setupUi_coms(MainWindow)
+    def closeEvent(event):
+        """actions to carry out before closing the window"""
+        ui.save_STP('dds/defaultSTP.txt')
+        event.accept()
+    MainWindow.closeEvent = closeEvent
 
     MainWindow.show()
     sys.exit(app.exec_())

@@ -827,7 +827,7 @@ class AWG:
                         self.f1 = MEGA(170)
                         flag =1
                     
-                if 2 <= tot_amp <= 282:
+                if 0 <= tot_amp <= 282:
                     self.tot_amp = tot_amp
                 else:
                     sys.stdout.write("Chosen amplitude will damage the spectrum analyser.")
@@ -1259,7 +1259,7 @@ class AWG:
                         self.f1 = MEGA(170)
                         flag =1
                     
-                if 2 <= tot_amp <= 282:
+                if 0 <= tot_amp <= 282:
                     self.tot_amp = tot_amp
                 else:
                     sys.stdout.write("Chosen amplitude will damage the spectrum analyser.")
@@ -1450,8 +1450,8 @@ class AWG:
         # Determining which Step will follow after the current one
         ###########################################################        
         if 0 <= nextStep <= int(4096):
-            if nextStep == stepNum:
-                sys.stdout.write("Next step sequence is the same as this step.\n Will cause an infinitely looped segment unless dynamically changed.")
+            # if nextStep == stepNum:
+            #     sys.stdout.write("Next step sequence is the same as this step.\n Will cause an infinitely looped segment unless dynamically changed.")
             self.llNext = int(nextStep) # initialisation step: the step the card starts at. Can be arbitrarily chosen.
         else:
             sys.stdout.write("[Issue with fourth parameter]\n Next step must be positive integer smaller than: 4096")
@@ -1547,7 +1547,7 @@ class AWG:
                 self.saveData(save_path)
                    
             spcm_dwSetParam_i32 (AWG.hCard, SPC_TIMEOUT, int(timeOut))
-            sys.stdout.write("\nStarting the card and waiting for ready interrupt\n(continuous and single restart will have timeout)\n")
+            sys.stdout.write("\nAWG started.\n")
             dwError = spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITPREFULL)
             if dwError == ERR_TIMEOUT:
                 spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_STOP)

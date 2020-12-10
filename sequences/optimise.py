@@ -1,9 +1,8 @@
-"""PyDex Multirun Editor
-Stefan Spence 26/02/19
+"""PyDex Optimisation
+Stefan Spence 03/12/20
 
- - Provide a visual representation for multirun values
- - Allow the user to quickly edit multirun values
- - Give the list of commands for DExTer to start a multirun
+ - Provide a GUI for inputting parameters for optimisation
+ - Use M-LOOP to optimise parameters
 """
 import os
 import sys
@@ -11,7 +10,9 @@ import time
 import copy
 import numpy as np
 from collections import OrderedDict
-from random import shuffle, randint
+import mloop.interfaces as mli
+import mloop.controllers as mlc
+import mloop.visualizations as mlv
 try:
     from PyQt4.QtCore import pyqtSignal, QItemSelectionModel, QThread, Qt
     from PyQt4.QtGui import (QPushButton, QWidget, QLabel,
@@ -20,7 +21,8 @@ try:
         QTableWidget, QTableWidgetItem, QScrollArea, QMessageBox,
         QFileDialog) 
 except ImportError:
-    from PyQt5.QtCore import pyqtSignal, QItemSelectionModel, QThread, Qt
+    from PyQt5.QtCore import (pyqtSignal, QItemSelectionModel, QThread, Qt,
+        QEventLoop, QTimer)
     from PyQt5.QtGui import QDoubleValidator, QIntValidator
     from PyQt5.QtWidgets import (QVBoxLayout, QWidget, QComboBox,
         QLineEdit, QGridLayout, QPushButton, QListWidget, QListWidgetItem, 
@@ -33,135 +35,87 @@ sys.path.append('..')
 from mythread import reset_slot # for dis- and re-connecting slots
 from strtypes import strlist, intstrlist, listlist
 from translator import translate
+from multirunEditor import multirun_widget, sequenceSaver
 
 ####    ####    ####    ####
 
-class sequenceSaver(QThread):
-    """Saving DExTer sequences can sometimes take a long time.
-    Save them on this thread so that they don't make the GUI lag.
-    mrtr    -- translator instance for the multirun sequence
-    mrvals  -- table of values to change in the multirun
-    mrparam -- multirun parameters; which channels to change etc.
-    savedir -- directory to save sequences into."""
-    def __init__(self, mrtr, mrvals, mrparam, savedir):
-        super().__init__()
-        self.mrtr = mrtr 
-        self.mr_vals = mrvals
-        self.mr_param = mrparam
-        self.savedir = savedir
-    
-    def run(self):
-        """Use the values in the multirun array to make the next
-        sequence to run in the multirun. Uses saved mr_param not UI"""
-        if self.savedir:
-            for i in range(len(self.mr_vals)):
-                esc = self.mrtr.seq_dic['Experimental sequence cluster in'] # shorthand
-                try:
-                    for col in range(len(self.mr_vals[i])): # edit the sequence
-                        try:
-                            val = float(self.mr_vals[i][col])
-                            if self.mr_param['Type'][col] == 'Time step length':
-                                for head in ['Sequence header top', 'Sequence header middle']:
-                                    for t in self.mr_param['Time step name'][col]:
-                                        esc[head][t]['Time step length'] = val
-                            elif self.mr_param['Type'][col] == 'Analogue voltage':
-                                for t in self.mr_param['Time step name'][col]:
-                                    for c in self.mr_param['Analogue channel'][col]:
-                                        esc[self.mr_param['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
-                        except ValueError: pass
-                    self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
-                            ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
-                    self.mrtr.write_to_file(os.path.join(self.savedir, self.mr_param['measure_prefix'] + '_' + 
-                        str(i + self.mr_param['1st hist ID']) + '.xml'))
-                except IndexError as e:
-                    logger.error('Multirun failed to edit sequence at ' + self.mr_param['Variable label']
-                        + ' = ' + self.mr_vals[i][0] + '\n' + str(e))
+@contextmanager
+def wait_signal(signal, timeout=10000):
+    """Block loop until signal emitted, or timeout (ms) elapses.
+    https://www.jdreaver.com/posts/2014-07-03-waiting-for-signals-pyside-pyqt.html"""
+    loop = QEventLoop()
+    signal.connect(loop.quit)
+    yield
+    if timeout is not None:
+        QTimer.singleShot(timeout, loop.quit)
+    loop.exec_()
 
+class MLOOPInterface(mli.Interface):
+    opt_params = pyqtSignal(np.ndarray) # the array of optimal values
+    progress = pyqtSignal(str) # string detailing the progress of the optimisation
+
+    def __init__(self, costfunc, measure):
+        super(CustomInterface,self).__init__()
+        self.costfunc = costfunc
+
+    def get_next_cost_dict(self,params_dict):
+        """The cost function needs to send our suggested parameters, run the 
+        experiment, then return a cost."""
+        try:
+            cost, uncer = self.costfunc(*params_dict['params']) # Cost from the algorithm 
+            bad = False
+        except Exception as e:
+            logger.error('Exception: '+str(e))
+            cost = -1
+            uncer = 0
+            bad = True
+        return {'cost':cost, 'uncer':uncer, 'bad':bad}
+
+interface = CustomInterface()
+    controller = mlc.create_controller(interface,controller_type = 'neural_net', # 
+                    max_num_runs = 1000, # these don't include training runs
+                    target_cost =0.001, # value of the cost function to aim for
+                    num_params = 3, # detuning, duration, rabi freq
+                    min_boundary = [0.9,0.1,1], # lower limit on parameters
+                    max_boundary = [1.1,1.5,400], # upper limit on parameters
+                    cost_has_noise = False,trust_region = 0.4,
+                    learner_archive_filename='RSCm-loop_learner_archive.txt')
+    controller.optimize()
+    print('Best parameters found:')
+    print(controller.best_params)
+with wait_signal(simulator.finished, timeout=10000):
+    run sim
 
 ####    ####    ####    ####
 
-class multirun_widget(QWidget):
-    """Widget for editing multirun values.
+class optimise_widget(multirun_widget):
+    """Widget for editing optimisations.
 
     Keyword arguments:
     tr    -- a translate instance that contains the experimental sequence
-    nrows -- number of rows = number of multirun steps.
-    ncols -- number of columns = number of channels to change in one step.
-    order -- the order to produce the variables list in:
-        ascending  - with repeats next to each other
-        descending - with repeats next to each other
-        random     - completely randomise the order
-        coarse random - randomise order but repeats next to each other
-        unsorted   - make an ascending list, then repeat the list
     """
     multirun_vals = pyqtSignal(np.ndarray) # the array of multirun values
     progress = pyqtSignal(str) # string detailing the progress of the multirun
 
-    def __init__(self, tr, nrows=8, ncols=1, order='ascending'):
-        super().__init__()
-        self.tr = tr # translator for the current sequence
-        self.mrtr = tr.copy() # translator for multirun sequence
-        self.msglist = [] # list of multirun sequences as XML string
-        self.ind = 0 # index for how far through the multirun we are
-        self.nrows = nrows
-        self.ncols = ncols
-        self.types = OrderedDict([('measure',int), ('measure_prefix',str),
-            ('1st hist ID', int), ('Variable label', str), 
-            ('Order', str), ('Type', strlist), 
-            ('Analogue type', strlist), ('Time step name', listlist), 
-            ('Analogue channel', listlist), ('runs included', listlist),
-            ('Last time step run', str), ('Last time step end', str),
-            ('# omitted', int), ('# in hist', int), ('list index', strlist)])
-        self.ui_param = OrderedDict([('measure',0), ('measure_prefix','Measure0'),
-            ('1st hist ID', -1), ('Variable label', ''), 
-            ('Order', order), ('Type', ['Time step length']*ncols), 
-            ('Analogue type', ['Fast analogue']*ncols), ('Time step name', [[]]*ncols), 
-            ('Analogue channel', [[]]*ncols), ('runs included', [[] for i in range(nrows)]),
-            ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'), 
-            ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'),
-            ('# omitted', 0), ('# in hist', 100), ('list index', ['0']*ncols)])
-        self.awg_args = ['duration_[ms]','freqs_input_[MHz]','start_freq_[MHz]','end_freq_[MHz]','hybridicity',
-        'num_of_traps','distance_[um]','tot_amp_[mV]','start_amp','end_amp','start_output_[Hz]','end_output_[Hz]',
-        'freq_amp','mod_freq_[kHz]','mod_depth','freq_phase_[deg]','freq_adjust','amp_adjust','freqs_output_[Hz]',
-        'num_of_samples','duration_loop_[ms]','number_of_cycles']
-        self.dds_args = ['Freq', 'Phase', 'Amp', 'Start_add', 'End_add', 'Step_rate', 'Sweep_start', 
-        'Sweep_end', 'Pos_step', 'Neg_step' 'Pos_step_rate', 'Neg_step_rate']
-        self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
-        self.mr_vals  = [] # multirun values for the current multirun
-        self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
-        self.appending = False # whether the current multirun will be appended on to the displayed results
-        self.init_UI()  # make the widgets
-        self.ss = sequenceSaver(self.mrtr, self.mr_vals, self.mr_param, '') # used to save sequences
-
-    def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
-            default_text='', validator=None):
-        """Make a QLabel with an accompanying QLineEdit and add them to the 
-        given layout with an input validator. The position argument should
-        be [row number, column number, row width, column width]."""
-        label = QLabel(label_text, self)
-        layout.addWidget(label, *position)
-        line_edit = QLineEdit(self)
-        if np.size(position) == 4:
-            position[1] += 1
-        layout.addWidget(line_edit, *position)
-        line_edit.setText(default_text) 
-        line_edit.setValidator(validator)
-        return label, line_edit
+    def __init__(self, tr):
+        super().__init__(tr, nrows=)
+        self.types = OrderedDict([('measure_prefix',str), ('Controller type',str), 
+            ('Max # runs', int), ('Target cost', float), ('Trust region', float),
+            ('Archive filename', str), ('Cost function', str), ('Param Labels', strlist),
+            ('Param Mins', eval), ('Param Maxs', eval), ('First Params', eval),
+            ('Maximise', BOOL), ('Repeats', int)])
+        self.ui_param = OrderedDict([('measure_prefix','Measure0'), ('Controller type','gaussian_process'), 
+            ('Max # runs', 50), ('Target cost', 1), ('Trust region', 0.1),
+            ('Archive filename', 'learner.txt'), , ('Cost function', 'Loading probability'), 
+            ('Param Labels', ['Param0']), ('Param Mins', [0]]), 
+            ('Param Maxs', [1]]), ('First Params', [1]]), 
+            ('Maximise', True), ('Repeats', 100)])
+        self.mr_param = copy.deepcopy(self.ui_param)
+        self.reinit_UI()  # edit the widgets
         
     def init_UI(self):
-        """Create all of the widget objects required"""
-        layout = QVBoxLayout()
-        self.setLayout(layout)
+        """Edit the widgets from the multirun editor"""
         
-        # place scroll bars if the contents of the window are too large
-        scroll = QScrollArea(self)
-        layout.addWidget(scroll)
-        scroll_content = QWidget(scroll)
-        scroll.setWidgetResizable(True)
-        scroll.setFixedHeight(800)
-        self.grid = QGridLayout()
-        scroll_content.setLayout(self.grid)
-
         #### validators for user input ####
         double_validator = QDoubleValidator() # floats
         int_validator = QIntValidator(0,10000000) # positive integers
@@ -170,28 +124,26 @@ class multirun_widget(QWidget):
         col_validator = QIntValidator(1,self.ncols-1) # for number of columns
 
         #### table dimensions and ordering ####
-        # choose the number of rows = number of multirun steps
-        labels = ['# Omit', '# in Histogram', '# Columns', '# Rows']
-        default = ['0', '100', str(self.ncols), str(self.nrows)]
-        vldtr = [int_validator, nat_validator, nat_validator, nat_validator]
+        cols_label = self.grid.itemAtPosition(0,4) # cols -> parameters
+        cols_label.setText('# Parameters')
+        self.rows_edit.disconnect() # rows -> max # runs
+        rows_label = self.grid.itemAtPosition(0,4)
         self.omit_edit, self.nhist_edit, self.cols_edit, self.rows_edit = [
             self.make_label_edit(labels[i], self.grid, [0,2*i, 1,1],
                 default[i], vldtr[i])[1] for i in range(4)]
         self.cols_edit.textChanged[str].connect(self.change_array_size)
-        self.rows_edit.textChanged[str].connect(self.change_array_size)
         self.omit_edit.editingFinished.connect(self.update_repeats)
         self.nhist_edit.editingFinished.connect(self.update_repeats)
 
-        # choose the order
-        self.order_edit = QComboBox(self)
-        self.order_edit.addItems(['ascending', 'descending', 'random', 'coarse random', 'unsorted']) 
-        self.grid.addWidget(self.order_edit, 0,8, 1,1)
+        # order -> controller type
+        for i in range(self.order_edit.count()): self.order_edit.removeItem(i)
+        self.order_edit.addItems(['random', 'nelder_mead', 'gaussian_process', 'neural_net']) 
 
         #### create multirun list of values ####
         # metadata for the multirun list: which channels and timesteps
         self.measures = OrderedDict()
-        labels = ['Variable label', 'measure', 'measure_prefix', '1st hist ID']
-        defaults = ['Variable 0', '0', 'Measure0', '0']
+        labels = ['Variable label', 'measure', 'measure_prefix', 'Archive filename']
+        defaults = ['Variable 0', '0', 'Measure0', 'learner.txt']
         for i in range(len(labels)):
             label = QLabel(labels[i], self)
             self.grid.addWidget(label, i+1,0, 1,1)
@@ -199,9 +151,7 @@ class multirun_widget(QWidget):
             self.measures[labels[i]].textChanged.connect(self.update_all_stats)
             self.grid.addWidget(self.measures[labels[i]], i+1,1, 1,3)
         self.measures['measure'].setValidator(int_validator)
-        self.measures['1st hist ID'].setValidator(msr_validator)
-        label.setText('1st ID (-1 to append)') # change label
-
+        
         self.chan_choices = OrderedDict()
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
         sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
