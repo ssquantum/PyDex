@@ -14,7 +14,8 @@ from PIL import Image
 os.environ['PATH'] = r'Z:\Tweezer\Code\Python 3.5\thorcam control\dlls'
 from thorlabs_tsi_sdk.tl_camera import TLCameraSDK
 
-img_path = r'Z:\Tweezer\Experimental Results\2020\December\04\tweezer AWG imaging\images6'
+fdir = r'Z:\Tweezer\Experimental Results\2020\December\11\AWGcalibration5'
+img_path = os.path.join(fdir, 'images')
 os.makedirs(img_path, exist_ok=True)
 
 daqs = PyServer(host='', port=8622) # server for DAQ
@@ -44,7 +45,6 @@ amps = np.arange(1,220)
 shuffle(amps)
 acalibration = 220
 #amps = [a for x in zip(np.ones(len(amps))*220, amps) for a in x]
-fdir = r'Z:\Tweezer\Experimental Results\2020\December\04\AWGcalibration6'
 os.makedirs(fdir, exist_ok=True)
 daqs.add_message(0, fdir+'=save_dir')
 daqs.add_message(0, 'reset graph')
@@ -62,7 +62,7 @@ with TLCameraSDK() as sdk:
         """
         uncomment the line below to set a region of interest (ROI) on the camera
         """
-        camera.roi = (1108, 288, 1200, 352)  # set roi to be at (xmin,ymin,xmax,ymax)
+        camera.roi = (1108, 268, 1200, 328)  # set roi to be at (xmin,ymin,xmax,ymax)
         
         """
         uncomment the lines below to set the gain of the camera and read it back in decibels
@@ -83,8 +83,8 @@ with TLCameraSDK() as sdk:
                 # t.setSegment(1, t.dataGen(1,0,'static',1,[f],1,9, a,[1],[0],False,False), 
                 #                 t.dataGen(1,1,'static',1,[f],1,9, a,[1],[0],False,False))
                 awgtcp.add_message(i, 'set_data=[[0,0,"freqs_input_[MHz]",%s,0],[0,0,"tot_amp_[mV]",%s,0],'%(f,a)
-                    +'[1,0,"freqs_input_[MHz]",%s,0],[1,0,"tot_amp_[mV]",%s,0]]'%(f,a)+'||||||||'+'0'*2000)
-                time.sleep(0.2)
+                    +'[1,0,"freqs_input_[MHz]",%s,0],[1,0,"tot_amp_[mV]",%s,0]]'%(f,a))
+                time.sleep(0.5)
                 daqs.add_message(i, 'start') # tells the DAQ to acquire
                 daqs.add_message(i, 'measure') # tells DAQ to add the measurement to the next message
                 daqs.add_message(i, 'readout') # reads the measurement
@@ -96,7 +96,7 @@ with TLCameraSDK() as sdk:
                 else:
                     print("camera timeout reached, skipping this image")
                 i += 1
-                time.sleep(0.1)
+                time.sleep(0.2)
         
             print(['calibration',fcalibration,acalibration], end='-')
             daqs.add_message(i, 'sets n') # sets the amplitude for reference
@@ -104,8 +104,8 @@ with TLCameraSDK() as sdk:
             # t.setSegment(1, t.dataGen(1,0,'static',1,[f],1,9, a,[1],[0],False,False), 
             #                 t.dataGen(1,1,'static',1,[f],1,9, a,[1],[0],False,False))
             awgtcp.add_message(i, 'set_data=[[0,0,"freqs_input_[MHz]",%s,0],[0,0,"tot_amp_[mV]",%s,0],'%(fcalibration,acalibration)
-                +'[1,0,"freqs_input_[MHz]",%s,0],[1,0,"tot_amp_[mV]",%s,0]]'%(fcalibration,acalibration)+'||||||||'+'0'*2000)
-            time.sleep(0.2)
+                +'[1,0,"freqs_input_[MHz]",%s,0],[1,0,"tot_amp_[mV]",%s,0]]'%(fcalibration,acalibration))
+            time.sleep(0.5)
             daqs.add_message(i, 'start') # tells the DAQ to acquire
             daqs.add_message(i, 'measure') # tells DAQ to add the measurement to the next message
             daqs.add_message(i, 'readout') # reads the measurement
@@ -119,11 +119,14 @@ with TLCameraSDK() as sdk:
             i += 1
             time.sleep(0.1)
         
-            daqs.add_message(i, 'DAQ%.3gMHz.csv=graph_file'%f)
-            time.sleep(0.01)
-            daqs.add_message(i, 'save graph')
-            time.sleep(0.01)
-            daqs.add_message(i, 'reset graph')
+        daqs.add_message(i, 'DAQgraph.csv=graph_file'%f)
+        time.sleep(0.1)
+        daqs.add_message(i, 'save graph')
+        time.sleep(0.1)
+        # daqs.add_message(i, 'reset graph')
 
         # t.stop()
         camera.disarm()
+        
+daqs.close()
+awgtcp.close()

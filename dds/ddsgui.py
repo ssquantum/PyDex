@@ -104,7 +104,7 @@ class Ui_MainWindow(object):
         #Amplitude control
         self.OSK_enable = 0
         self.Manual_OSK = 0
-        self.AMP_scale = 1
+        self.AMP_scale = 0
 
 
         self.load_FPGA_file = False
@@ -685,7 +685,6 @@ class Ui_MainWindow(object):
         self.Amp_scl_STP.setStatusTip("Enables the user to set the amplitude of the profile (0-1)")
         self.Amp_scl_STP.setAccessibleDescription("")
         self.Amp_scl_STP.setObjectName("amp scaling")
-        self.Amp_scl_STP.setChecked(True) # default mode amplitude scaling
         self.Amp_scl_STP.toggled.connect(self.OSK_func)
 
         ### Manual amplitude switch ###
@@ -1370,6 +1369,8 @@ class Ui_MainWindow(object):
 
         self.tabWidget.addTab(self.Ramp_gen, "")
         self.setupUi_FPGA(MainWindow)
+
+        self.Amp_scl_STP.setChecked(True) # default mode amplitude scaling
 
     def setupUi_FPGA(self, MainWindow):
         self.FPGA_playback = QtWidgets.QWidget()
@@ -2126,7 +2127,7 @@ class Ui_MainWindow(object):
 
             if sum_check == '100':
                 sum_check = '00'
-                sum_check = '{0:02x}'.format(sum_check)
+                # sum_check = '{0:02x}'.format(sum_check)
             pack[1] = sum_check
             if self.connected:
                 self.Send_serial_func(pack)
@@ -2146,7 +2147,7 @@ class Ui_MainWindow(object):
 
             if sum_check == '100':
                 sum_check = '00'
-                sum_check = '{0:02x}'.format(sum_check)
+                # sum_check = '{0:02x}'.format(sum_check)
             pack[1] = sum_check
             if self.connected:
                 self.Send_serial_func(pack)
@@ -2178,7 +2179,7 @@ class Ui_MainWindow(object):
 
             if sum_check == '100':
                 sum_check = '00'
-                sum_check = '{0:02x}'.format(sum_check)
+                # sum_check = '{0:02x}'.format(sum_check)
             pack[1] = sum_check
             if self.connected:
                 self.Send_serial_func(pack)
@@ -2212,7 +2213,7 @@ class Ui_MainWindow(object):
 
         if sum_check == '100':
             sum_check = '00'
-            sum_check = '{0:02x}'.format(sum_check)
+            # sum_check = '{0:02x}'.format(sum_check)
         pack[1] = sum_check
         if self.connected:
             self.Send_serial_func(pack)
@@ -2235,7 +2236,7 @@ class Ui_MainWindow(object):
 
         if sum_check == '100':
             sum_check = '00'
-            sum_check = '{0:02x}'.format(sum_check)
+            # sum_check = '{0:02x}'.format(sum_check)
         pack[1] = sum_check
         if self.connected:
             self.Send_serial_func(pack)
@@ -2307,7 +2308,7 @@ class Ui_MainWindow(object):
 
                 if sum_check == '100':
                     sum_check = '00'
-                    sum_check = '{0:02x}'.format(sum_check)
+                    # sum_check = '{0:02x}'.format(sum_check)
                 pack[1] = sum_check
                 #print(sum_check)
 
@@ -2345,7 +2346,7 @@ class Ui_MainWindow(object):
 
             if sum_check == '100':
                 sum_check = '00'
-                sum_check = '{0:02x}'.format(sum_check)
+                # sum_check = '{0:02x}'.format(sum_check)
             pack[1] = sum_check
             if self.connected:
                 self.Send_serial_func(pack)
@@ -2365,7 +2366,7 @@ class Ui_MainWindow(object):
 
             if sum_check == '100':
                 sum_check = '00'
-                sum_check = '{0:02x}'.format(sum_check)
+                # sum_check = '{0:02x}'.format(sum_check)
             pack[1] = sum_check
             if self.connected:
                 self.Send_serial_func(pack)
@@ -2595,7 +2596,7 @@ class Ui_MainWindow(object):
 
             if sum_check == '100':
                 sum_check = '00'
-                sum_check = '{0:02x}'.format(sum_check)
+                # sum_check = '{0:02x}'.format(sum_check)
             pack[1] = sum_check
 
             if self.connected:
@@ -2737,7 +2738,7 @@ class Ui_MainWindow(object):
 
             if sum_check == '100':
                 sum_check = '00'
-                sum_check = '{0:02x}'.format(sum_check)
+                # sum_check = '{0:02x}'.format(sum_check)
             pack1[1] = sum_check
 
             if self.connected:
@@ -2754,7 +2755,7 @@ class Ui_MainWindow(object):
 
             if sum_check == '100':
                 sum_check = '00'
-                sum_check = '{0:02x}'.format(sum_check)
+                # sum_check = '{0:02x}'.format(sum_check)
             pack2[1] = sum_check
 
             if self.connected:
@@ -2771,7 +2772,7 @@ class Ui_MainWindow(object):
 
             if sum_check == '100':
                 sum_check = '00'
-                sum_check = '{0:02x}'.format(sum_check)
+                # sum_check = '{0:02x}'.format(sum_check)
             pack3[1] = sum_check
 
             if self.connected:
@@ -2864,7 +2865,7 @@ class Ui_MainWindow(object):
 
         if sum_check == '100':
             sum_check = '00'
-            sum_check = '{0:02x}'.format(sum_check)
+            # sum_check = '{0:02x}'.format(sum_check)
 
         pack[1] = sum_check
         if self.connected:
@@ -2907,7 +2908,7 @@ class Ui_MainWindow(object):
 
             if sum_check == '100':
                 sum_check = '00'
-                sum_check = '{0:02x}'.format(sum_check)
+                # sum_check = '{0:02x}'.format(sum_check)
             pack[1] = sum_check
             if self.connected:
                 self.Send_serial_func(pack)
@@ -2927,7 +2928,7 @@ class Ui_MainWindow(object):
 
             if sum_check == '100':
                 sum_check = '00'
-                sum_check = '{0:02x}'.format(sum_check)
+                # sum_check = '{0:02x}'.format(sum_check)
             pack[1] = sum_check
             if self.connected:
                 self.Send_serial_func(pack)
