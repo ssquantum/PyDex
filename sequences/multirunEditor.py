@@ -223,6 +223,13 @@ class multirun_widget(QWidget):
         self.chan_choices['Analogue type'].currentTextChanged[str].connect(self.change_mr_anlg_type)
         self.chan_choices['Analogue channel'].setEnabled(False)
         
+        # enter desired time step selection via python cmd
+        self.index_slice = QLineEdit('range(0,1,2)', self)
+        self.grid.addWidget(self.index_slice, 3,4,3,2)
+        self.apply_slice_btn = QPushButton('Apply range', self)
+        self.grid.addWidget(self.apply_slice_btn, 4,4,3,2)
+        self.apply_slice_btn.clicked.connect(self.apply_slice)
+        
         # AWG takes a list for some arguments, so needs an index
         label = QLabel('List index:', self)
         self.grid.addWidget(label, 3,7,3,1)
@@ -366,6 +373,18 @@ class multirun_widget(QWidget):
         """Save the current values of the last time step file paths."""
         self.ui_param['Last time step run'] = self.last_step_run_edit.text()
         self.ui_param['Last time step end'] = self.last_step_end_edit.text()
+
+    def apply_slice(self):
+        """Use the text in the index slice line edit to select time steps"""
+        try:
+            self.chan_choices['Time step name'].clearSelection()
+            for i in range(*map(int, self.index_slice.text().split('(')[-1].replace(')','').split(','))):
+                try:
+                    self.chan_choices['Time step name'].item(i).setSelected(True)
+                except AttributeError: pass # index out of range
+            self.save_chan_selection()
+        except (TypeError, ValueError) as e: 
+            logger.warning('Invalid selection command for multirun timesteps "'+self.index_slice.text()+'".\n'+str(e))
         
     def add_column_to_array(self):
         """Make a list of values and add it to the given column 

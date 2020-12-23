@@ -117,6 +117,7 @@ class Ui_MainWindow(object):
         # Auxillary control parameters
         self.FTW = 0
         self.POW = 0
+        self.AMW = 1
 
         #RAM playblack options
         self.RAM_enable = 0
@@ -233,8 +234,8 @@ class Ui_MainWindow(object):
                 for i, (freq, phase, amp) in enumerate(data.T):
                     for key, val in zip(['Freq', 'Phase', 'Amp'], [freq, phase, amp]):
                         label = self.centralwidget.findChild(QtWidgets.QLineEdit, key+'_P%s'%i)
-                        label.setText('%.5g'%val)
-        except (OSError, FileNotFoundError, IndexError) as e:
+                        label.setText('%s'%val)
+        except Exception as e:
             self.Display_func('Could not load STP from %s\n'%fname+str(e))
 
     def save_STP(self, fname=''):
@@ -261,6 +262,11 @@ class Ui_MainWindow(object):
         """When RAM programme button is pressed, set mode to RAM"""
         self.mode = 'RAM'
         self.enter_ramp_mode()
+
+    def reload_RAM(self):
+        """If the aux Amp parameter is changed, reload the RAM 
+        data saved on the DDS when it's next programmed."""
+        self.load_DDS_ram = False
 
     def setupUi_coms(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -323,27 +329,37 @@ class Ui_MainWindow(object):
         self.PyDexTCP.clicked.connect(self.Pydex_tcp_reset)
 
         self.GB_Aux = QtWidgets.QGroupBox(self.Coms)
-        self.GB_Aux.setGeometry(QtCore.QRect(540, 10, 261, 101))
+        self.GB_Aux.setGeometry(QtCore.QRect(540, 10, 270, 150))
         self.GB_Aux.setAutoFillBackground(True)
         self.GB_Aux.setObjectName("GB_Aux")
         self.Freq_aux = QtWidgets.QLineEdit(self.GB_Aux)
         self.Freq_aux.setGeometry(QtCore.QRect(70, 20, 151, 21))
         self.Freq_aux.setObjectName("Freq_aux")
         self.label_5 = QtWidgets.QLabel(self.GB_Aux)
-        self.label_5.setGeometry(QtCore.QRect(10, 20, 61, 16))
+        self.label_5.setGeometry(QtCore.QRect(10, 20, 65, 16))
         self.label_5.setObjectName("label_5")
         self.label_7 = QtWidgets.QLabel(self.GB_Aux)
-        self.label_7.setGeometry(QtCore.QRect(230, 20, 21, 16))
+        self.label_7.setGeometry(QtCore.QRect(230, 20, 25, 16))
         self.label_7.setObjectName("label_7")
         self.label_8 = QtWidgets.QLabel(self.GB_Aux)
-        self.label_8.setGeometry(QtCore.QRect(230, 60, 21, 16))
+        self.label_8.setGeometry(QtCore.QRect(230, 60, 25, 16))
         self.label_8.setObjectName("label_8")
         self.label_9 = QtWidgets.QLabel(self.GB_Aux)
-        self.label_9.setGeometry(QtCore.QRect(10, 60, 61, 16))
+        self.label_9.setGeometry(QtCore.QRect(10, 60, 65, 16))
         self.label_9.setObjectName("label_9")
         self.Phase_aux = QtWidgets.QLineEdit(self.GB_Aux)
         self.Phase_aux.setGeometry(QtCore.QRect(70, 60, 151, 21))
         self.Phase_aux.setObjectName("Phase_aux")
+        self.label_AMWunits = QtWidgets.QLabel(self.GB_Aux)
+        self.label_AMWunits.setGeometry(QtCore.QRect(230, 100, 25, 16))
+        self.label_AMWunits.setObjectName("label_AMWunits")
+        self.label_AMW = QtWidgets.QLabel(self.GB_Aux)
+        self.label_AMW.setGeometry(QtCore.QRect(10, 100, 65, 16))
+        self.label_AMW.setObjectName("label_AMW")
+        self.Amp_aux = QtWidgets.QLineEdit(self.GB_Aux)
+        self.Amp_aux.setGeometry(QtCore.QRect(70, 100, 151, 21))
+        self.Amp_aux.setObjectName("Amp_aux")
+        self.Amp_aux.editingFinished.connect(self.reload_RAM) # reload data if this parameter is changed
         self.tabWidget.addTab(self.Coms, "")
         self.Single_tone = QtWidgets.QWidget()
         self.Single_tone.setObjectName("Single_tone")
@@ -1592,6 +1608,9 @@ class Ui_MainWindow(object):
         self.label_8.setText(_translate("MainWindow", "Deg"))
         self.label_9.setText(_translate("MainWindow", "Phase"))
         self.Phase_aux.setText(_translate("MainWindow", "0.00"))
+        self.label_AMW.setText(_translate("MainWindow", "Amp"))
+        self.label_AMWunits.setText(_translate("MainWindow", "0-1"))
+        self.Amp_aux.setText(_translate("MainWindow", "1.00"))
         self.Debug.setText(_translate("MainWindow", "Debug"))
         self.PyDexTCP.setText(_translate("MainWindow", "Reset PyDex TCP"))
 
@@ -2059,6 +2078,7 @@ class Ui_MainWindow(object):
 
             self.POW = abs(float(self.Phase_aux.text()))
             self.FTW = abs(float(self.Freq_aux.text()))
+            self.AMW = abs(float(self.Amp_aux.text())%1)
 
 
         except:
@@ -2248,7 +2268,8 @@ class Ui_MainWindow(object):
             RAM_data_reg = np.zeros((1024, 32), dtype = np.bool_())
 
             if len(self.RAM_modulation_data[0,:]) >= 1024:
-               end = 1024
+                self.Display_func('Data is too long and will be truncated')
+                end = 1024
             else:
                 end = len(self.RAM_modulation_data[0,:])
 
@@ -2258,9 +2279,6 @@ class Ui_MainWindow(object):
 
             pack = ['{0:02x}'.format(22), '0']
             Sum = int(pack[0], 16)
-            if len(self.RAM_modulation_data[0,:]) > 1024:
-                self.Display_func('Data is too long and will be truncated')
-
             if ID == 0: # If the ramp generator is modulating frequency
                 data = np.around((2**32 *(np.absolute(self.RAM_modulation_data[0,:])/1000)), decimals = 0) #Note AD9910 has a clock frequency of 1 GHz or 1000 MHz
                 ind_high = np.where(data >= 2**31)[0]
@@ -2274,7 +2292,7 @@ class Ui_MainWindow(object):
                 ind = 16
 
             elif ID == 2:
-                data = np.around((2**14 *(np.absolute(self.RAM_modulation_data[0,:])/ np.amax(self.RAM_modulation_data[0, :]))), decimals = 0)
+                data = np.around((2**14 *(np.absolute(self.RAM_modulation_data[0,:])/ np.amax(self.RAM_modulation_data[0, :]))*self.AMW), decimals = 0)
                 ind_high = np.where(data >= 2**14)[0]
                 data[ind_high] = 2**14- 1
                 ind = 14
@@ -2315,9 +2333,7 @@ class Ui_MainWindow(object):
                 if self.connected:
                     time.sleep(0.5)
                     self.Send_serial_func(pack)
-                self.load_DDS_ram = False
-
-                #    self.load_DDS_ram = False #Save time and not rewrite the Ram
+                self.load_DDS_ram = False # Save time and not rewrite the Ram
         except:
             self.Display_func("Make sure the RAM data has been loaded")
 
@@ -2823,7 +2839,7 @@ class Ui_MainWindow(object):
 
         try:
             self.RAM_modulation_data = np.loadtxt(name, delimiter = ',') #file = open(name,'r')
-            self.Display_func("DSS RAM data loaded from > \t " + name)
+            self.Display_func("DDS RAM data loaded from: " + name)
             self.load_DDS_ram = True
         except:
             self.Display_func("Data load failed")

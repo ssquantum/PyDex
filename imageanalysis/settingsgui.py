@@ -617,10 +617,10 @@ class settings_window(QMainWindow):
         measure_prefix -- label for the subdirectory results are saved in
         hist_id        -- unique ID for histogram
         mw             -- imageanalysis window storing results"""
-        datastr = 'Experiment,SOURCE=imageanalysis,name="%s" measure="%s",'%(mw.name, measure_prefix)
-        datastr +=','.join(['%s=%s'%(key, val) for key, val in mw.histo_handler.temp_vals.items()
+        datastr = 'Experiment,SOURCE=imageanalysis,name="%s" measure=%s,'%(mw.name, measure_prefix)
+        datastr +=','.join(['%s=%s'%(key.replace(' ', '_'), val) for key, val in mw.histo_handler.temp_vals.items()
             if mw.histo_handler.types[key] != str]) 
-        datastr += str(int(time.time()*1e9)) + '\n'
+        datastr += ' ' + str(int(time.time()*1e9)) + '\n'
         
         msg = "POST /write?db=arduino HTTP/1.1\nHost: 129.234.190.191\n"
         msg += "User-Agent: PyDex\nConnection: close\n"
