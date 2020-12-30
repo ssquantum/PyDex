@@ -40,7 +40,7 @@ def dataj(data,segVal,chVal,action,duration,*args):
     ###########
     if action ==1: 
         if  len(args)==10:
-            data["segments"][seg][ch].append({
+            data["segments"][seg][ch] = {
             'segment'             :segVal,
             'channel_out'         :chVal,
             'action_type'         :'static trap',
@@ -57,7 +57,7 @@ def dataj(data,segVal,chVal,action,duration,*args):
             'amp_adjust'          :args[7],
             'freqs_output_[Hz]'   :args[8],
             'num_of_samples'      :args[9]
-            })
+            }
         else:
             print('wrong number of arguments')
     
@@ -66,7 +66,7 @@ def dataj(data,segVal,chVal,action,duration,*args):
     ###############################################    
     elif action ==2:
         if  len(args)==12:
-            data["segments"][seg][ch].append({
+            data["segments"][seg][ch] = {
             'segment'           :segVal,
             'channel_out'       :chVal,
             'action_type'       :'moving trap',
@@ -85,9 +85,7 @@ def dataj(data,segVal,chVal,action,duration,*args):
             'start_output_[Hz]' :args[9],
             'end_output_[Hz]'   :args[10],
             'num_of_samples'    :args[11],
-            
-            
-            })
+            }
             
         else:
             print("wrong number of arguments")
@@ -100,7 +98,7 @@ def dataj(data,segVal,chVal,action,duration,*args):
     elif action == 3:
 
         if len(args)==11:
-            data["segments"][seg][ch].append({
+            data["segments"][seg][ch] = {
             'segment'             :segVal,
             'channel_out'         :chVal,
             'action_type'         :'amp ramping trap',
@@ -112,19 +110,19 @@ def dataj(data,segVal,chVal,action,duration,*args):
             'distance_[um]'       :args[2],
             'tot_amp_[mV]'        :args[3],
             'start_amp'           :args[4],
-            'end_amp'           :args[5],
+            'end_amp'             :args[5],
             'freq_phase_[deg]'    :args[6],
             'freq_adjust'         :args[7],
             'amp_adjust'          :args[8],
             'freqs_output_[Hz]'   :args[9],
             'num_of_samples'      :args[10]
-            })
+            }
         else:
             print("wrong number of arguments")
             
     if action ==4: 
         if  len(args)==14:
-            data["segments"][seg][ch].append({
+            data["segments"][seg][ch] = {
             'segment'             :segVal,
             'channel_out'         :chVal,
             'action_type'         :'amp modulated trap',
@@ -145,12 +143,34 @@ def dataj(data,segVal,chVal,action,duration,*args):
             'num_of_samples'      :args[11],
             'duration_loop_[ms]'  :args[12],
             'number_of_cycles'    :args[13]
-            })
+            }
         else:
             print('wrong number of arguments')
-            
-    data['segments'][seg][ch]=data['segments'][seg][ch][0]
-            
+
+    elif action == 5: 
+        if  len(args)==11:
+            data["segments"][seg][ch] = {
+            'segment'             :segVal,
+            'channel_out'         :chVal,
+            'action_type'         :'static trap drop',
+            'action_code'         :'switch',
+            'action_val'          :action,
+            'duration_[ms]'       :duration,
+            'off_time_[ms]'       :args[0],
+            'freqs_input_[MHz]'   :args[1],
+            'num_of_traps'        :args[2],
+            'distance_[um]'       :args[3],
+            'tot_amp_[mV]'        :args[4],
+            'freq_amp'            :args[5],
+            'freq_phase_[deg]'    :args[6],
+            'freq_adjust'         :args[7],
+            'amp_adjust'          :args[8],
+            'freqs_output_[Hz]'   :args[9],
+            'num_of_samples'      :args[10]
+            }
+        else:
+            print('wrong number of arguments')
+           
             
            
 def stepj(data,stepVal,segVal,loopNum,nextStep,condition):
@@ -208,40 +228,3 @@ def calj(data,*args):
     "calibration_file"   : args[0],
     "saved_in"           : args[1]
     }
-                      
-if __name__ == "__main__":
-    
-    filedata = {}
-    filedata["steps"]       = {} 
-    filedata["segments"]    = {} 
-    filedata["properties"]  = {} 
-    filedata["calibration"] = {}
-            
-    dataj(filedata,0,0,1,0.02,[170,182],2,1.645*1,220,[1,0],[0,0],"False","False",[170000000,182000000],1024)
-    dataj(filedata,0,1,1,0.02,[170,182],2,1.645*1,110,[1,1],[0,0],"False","False",[170000000,182000000],1024)
-# dataj(filedata,1,2,0.1,170,175,175,0)
-# dataj(filedata,2,3,0.1,175,175,100,0)
-# dataj(filedata,3,3,0.1,175,175,0,100)
-# dataj(filedata,4,2,0.1,175,170,175,0)
-# dataj(filedata,5,1,0.02,170,2,1.645*1)
-# 
-# stepj(filedata,0,0,1000,1,1)
-# 
-# paramj(filedata,1,2,3,4,5,6,7,8,9,10,11)
-# ddate =time.strftime('%Y%m%d')
-# ttime =time.strftime('%H%M%S')
-# fname = ddate+"_"+ttime
-# 
-# mypath =  'S:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin\\'+ddate
-# if not os.path.isdir(mypath):
-#     os.makedirs(mypath)
-# 
-# with open(mypath+'\\'+fname+'.txt','w') as outfile:
-#     json.dump(filedata,outfile,sort_keys = True,indent =4)
-
-# with open(mypath+'\\'+fname+'.txt') as json_file:
-#     d = json.load(json_file)   
-#        
-
-
-    

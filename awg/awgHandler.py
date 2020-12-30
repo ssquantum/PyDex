@@ -662,7 +662,7 @@ class AWG:
         ######
         # Allows users to use either numbers or strings to denote action type used.
         ##########################
-        actionNames = {'static':1,'moving':2,'ramp'  :3,'ampMod':4}
+        actionNames = {'static':1,'moving':2,'ramp'  :3,'ampMod':4, 'switch':5}
         
         if action in actionNames.keys():
             action = actionNames[action]
@@ -696,7 +696,7 @@ class AWG:
         occurs here, as this will also determine the size of the buffer memory.
         """
         
-        if action == 1 :                                            # If the action taken is a static trap, then register the desired value, and ascribe self.statDur to the segment.
+        if action == 1 or action == 5:                      # If the action taken is a static trap, then register the desired value, and ascribe self.statDur to the segment.
             self.staticDuration[self.segment] = duration           # Writes down the requested duration for a static trap in a dictionary (__init__)
             self.duration = self.statDur
         
@@ -746,16 +746,7 @@ class AWG:
             
         self.numOfSamples = int(memBytes*self.rounding) # number of samples
         
-
-        
-        actionOptions = {
-            1:  "Creates a series of static traps.",                       
-            2:  "Performs a move operation from freq1 to freq2.",                  
-            3:  "Ramps freq1 from X% to Y% amplitude (increasing or decreasing)",
-            4:  "Creates a static trap with a given amplitude modulation frequency and depth."                                                            
-            }
-        
-        freqBounds=[50,300]
+        freqBounds=[1,300]
         
 
         
@@ -769,21 +760,7 @@ class AWG:
             Generating static traps
             
             """
-            
-            staticOptions = {
-            1:  "Starting Frequency [MHz].",                       
-            2:  "Number of traps [integer].",                  
-            3:  "Distance between traps [um].",
-            4:  "Total Frequency Amplitude [mV]",
-            5:  "Individual Freqency amplitudes [fraction of total amplitude]",
-            6:  "Individual Frequency phase   [deg]" ,
-            7:  "Frequency Adjustment  [True/False]",
-            8:  "Amplitude Adjustment [True/False]"                                                          
-            }
-            
-            
-            
-            if len(args)==len(staticOptions):
+            if len(args)==9:
             
                 f1         = typeChecker(args[0])
                 numOfTraps = typeChecker(args[1])
@@ -830,7 +807,7 @@ class AWG:
                 if 0 <= tot_amp <= 282:
                     self.tot_amp = tot_amp
                 else:
-                    sys.stdout.write("Chosen amplitude will damage the spectrum analyser.")
+                    sys.stdout.write("Chosen amplitude will damage the spectrum analyser. Set to 50mV")
                     self.tot_amp = 50
                 
                 """
@@ -893,10 +870,7 @@ class AWG:
                          
                 
             else: 
-                sys.stdout.write("Static trap ancilla variables:\n")
-                for x in staticOptions:
-                    sys.stdout.write("{}: {}\n".format(x,staticOptions[x]))
-                sys.stdout.write("\n")
+                sys.stdout.write("Failed to create data for static trap.\n")
                 flag =1
         
         #####################################################################
@@ -1379,11 +1353,120 @@ class AWG:
         
         
         else:
-            sys.stdout.write("Action value not recognised. Available options are:\n")
-            for x in staticOptions:
-                sys.stdout.write("{}: {}\n".format(x,actionOptions[x]))
-            sys.stdout.write("\n")
+            sys.stdout.write("Action value not recognised.\n")
             flag =1
+        
+        #####################################################################
+        # TRAPS RELEASE AND RECAPTURE - ACTION 5
+        #####################################################################
+        
+        if action == 5:
+            if len(args)==10:
+                off_time   = typeChecker(args[0])
+                f1         = typeChecker(args[1])
+                numOfTraps = typeChecker(args[2])
+                distance   = typeChecker(args[3])
+                tot_amp    = typeChecker(args[4])
+                freq_amp   = typeChecker(args[5])
+                freq_phase = typeChecker(args[6])
+                fAdjust    = typeChecker(args[7])
+                aAdjust    = typeChecker(args[8])
+                
+                ##############
+                # In case argument is a list
+                ######################################   
+                if type(f1) == list or type(f1)==np.ndarray:
+                    """
+                    In case the user wants to place its own arbitrary frequencies, this will test
+                    whether the frequencies are within the AOD bounds. 
+                    """
+                    minFreq = min(f1)
+                    maxFreq = max(f1)
+                    if minFreq >= freqBounds[0] and maxFreq <= freqBounds[1]:
+                        if type(f1) == list:
+                            self.f1 = MEGA(np.array(f1))
+                        else:
+                            self.f1 = MEGA(f1)
+                        numOfTraps = len(self.f1)
+                        
+                    else:
+                        sys.stdout.write("One of the requested frequencies is out the AOD bounds ({} - {} MHz).".format(minFreq,maxFreq))
+                        self.f1 = MEGA(170)
+                        flag =1
+
+                else:   
+                    if  freqBounds[0] <= f1+(numOfTraps-1)*distance/AWG.umPerMHz <= freqBounds[1]:
+                        self.f1 = MEGA(f1)
+                    else:
+                        sys.stdout.write("Chosen starting frequency is out of the AOD frequency range. Value defaulted at 170 MHz")
+                        self.f1 = MEGA(170)
+                        flag =1
+                    
+                if 0 <= tot_amp <= 282:
+                    self.tot_amp = tot_amp
+                else:
+                    sys.stdout.write("Chosen amplitude will damage the spectrum analyser. Set to 50mV")
+                    self.tot_amp = 50
+                
+                """
+                The following two lines that convert the input into an expression 
+                were created with a cosmetic idea in mind.
+                The values stored as a list will be converted in a large column in JSON (when/if exported)
+                whereas a string file will remain more compact.
+                This just enables the flexibility of typing an actual list or loading a string from a file. 
+                """
+                    
+                if abs(max(freq_amp)) <= 1 and len(freq_amp)==numOfTraps:
+                    self.freq_amp = freq_amp
+                elif abs(max(freq_amp))> 1:
+                    sys.stdout.write("Amplitudes must only contain values between 0 and 1.\n")
+                    self.freq_amp = [1]*numOfTraps
+                    flag =1
+                elif len(freq_amp) != numOfTraps:
+                    sys.stdout.write("Number of amplitudes does not match number of traps.\n")
+                    self.freq_amp = [1]*numOfTraps
+                    flag = 1
+                    
+                if len(freq_phase)==numOfTraps:
+                    self.freq_phase = freq_phase
+                
+                elif len(freq_phase) != numOfTraps:
+                    sys.stdout.write("Number of phases does not match number of traps.\n")
+                    self.freq_phase = [0]*numOfTraps
+                    flag = 1
+                
+                if type(fAdjust) != bool:
+                    sys.stdout.write("Frequency Adjustment is not a boolean.\n")
+                    self.fAdjust = True
+                    flag = 1
+                else:
+                    self.fAdjust = fAdjust
+                    self.exp_freqs = self.f1
+                    
+                if type(aAdjust) != bool:
+                    sys.stdout.write("Amplitude Adjustment is not a boolean.\n")
+                    self.aAdjust = True
+                    flag = 1
+                else:
+                    self.aAdjust = aAdjust
+                
+               
+                self.exp_freqs = getFrequencies(action,self.f1,numOfTraps,distance,self.duration,self.fAdjust,self.sample_rate.value,AWG.umPerMHz)
+                
+                
+                ##############
+                #  Generate the Data
+                #########################
+                outData =  switch(self.f1,numOfTraps,distance,self.duration,off_time,self.tot_amp,self.freq_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)            # Generates the requested data
+                
+                if type(f1)==np.ndarray or type(f1)==list :
+                    f1 = str(list(f1))
+                dataj(self.filedata,self.segment,channel,action,duration,off_time,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),\
+                    str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples)                # Stores information in the filedata variable, to be written when card initialises. 
+            
+            else: 
+                sys.stdout.write("Failed to create data for static trap.\n")
+                flag =1
         
 
               
@@ -1768,10 +1851,6 @@ class AWG:
         AWG.hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
         
 
-def rep(freq,srate):
-    t.setSampleRate(MEGA(srate))
-    t.setSegment(0,1,0.12,freq,1,0.329*4,20,[1],[0])
-    t.start()
    
 if __name__ == "__main__":
     
