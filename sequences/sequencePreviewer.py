@@ -46,6 +46,64 @@ def fmt(val, p):
     except ValueError:
         return str(val)[:p]
 
+#### #### Update sequence preview #### ####
+
+class Updater(QThread):
+    """A thread to update the sequence previewer so that
+    it doesn't hold up the GUI.
+    prv -- SequencePreviewer instance"""
+    def __init__(self, prv):
+        super().__init__()
+        self.app = QApplication.instance()
+        self.prv = prv # SequencePreviewer
+
+    def run(self):
+        seq = self.prv.tr.seq_dic
+        self.prv.routine_name.setText(seq['Routine name in'])
+        self.prv.routine_desc.setText(seq['Routine description in'])
+        ela = seq['Event list array in'] # shorthand
+        esc = seq['Experimental sequence cluster in']
+        self.prv.fd_chans.setVerticalHeaderLabels(map(str.__add__, esc['Fast digital names']['Hardware ID'],
+                [': '+name if name else '' for name in esc['Fast digital names']['Name']]))
+        self.prv.fa_chans.setVerticalHeaderLabels(map(str.__add__, esc['Fast analogue names']['Hardware ID'],
+                [': '+name if name else '' for name in esc['Fast analogue names']['Name']]))
+        self.prv.sd_chans.setVerticalHeaderLabels(map(str.__add__, esc['Slow digital names']['Hardware ID'],
+                [': '+name if name else '' for name in esc['Slow digital names']['Name']]))
+        self.prv.sa_chans.setVerticalHeaderLabels(map(str.__add__, esc['Slow analogue names']['Hardware ID'],
+                [': '+name if name else '' for name in esc['Slow analogue names']['Name']]))
+        for i in range(len(ela)):
+            self.prv.e_list.item(0, i).setText(ela[i]['Event name'])
+            self.prv.e_list.item(1, i).setText(str(ela[i]['Routine specific event?']))
+            self.prv.e_list.item(2, i).setText(','.join(map(str, ela[i]['Event indices'])))
+            self.prv.e_list.item(3, i).setText(ela[i]['Event path'])
+        for i in range(len(esc['Sequence header top'])):
+            for j, key in enumerate(['Skip Step', 'Event name', 'Hide event steps', 
+                    'Event ID', 'Time step name', 'Populate multirun', 'Time step length', 
+                    'Time unit', 'Digital or analogue trigger?', 'Trigger this time step?', 
+                    'Channel', 'Analogue voltage (V)', 'GPIB event name', 'GPIB on/off?']):
+                if key == 'Time step length' or key == 'Analogue voltage (V)':
+                    self.prv.head_top.item(j, i).setText(fmt(esc['Sequence header top'][i][key], self.prv.p))  # to 'p' s.f.
+                    self.prv.head_mid.item(j, i).setText(fmt(esc['Sequence header middle'][i][key], self.prv.p))
+                else:
+                    self.prv.head_top.item(j, i).setText(str(esc['Sequence header top'][i][key]))
+                    self.prv.head_mid.item(j, i).setText(str(esc['Sequence header middle'][i][key]))
+            self.prv.fd_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header top']])
+            for j in range(self.prv.tr.nfd):
+                self.prv.fd_chans.item(j, i).setBackground(Qt.green if BOOL(esc['Fast digital channels'][i][j]) else Qt.red)
+            self.prv.fa_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header top'] for j in range(2)])
+            for j in range(self.prv.tr.nfa):
+                self.prv.fa_chans.item(j, 2*i).setText(fmt(esc['Fast analogue array'][j]['Voltage'][i], self.prv.p))
+                self.prv.fa_chans.item(j, 2*i+1).setText(
+                    'Ramp' if BOOL(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
+            self.prv.sd_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header middle']])
+            for j in range(self.prv.tr.nsd):
+                self.prv.sd_chans.item(j, i).setBackground(Qt.green if BOOL(esc['Slow digital channels'][i][j]) else Qt.red)
+            self.prv.sa_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header middle'] for j in range(2)])
+            for j in range(self.prv.tr.nsa):
+                self.prv.sa_chans.item(j, 2*i).setText(fmt(esc['Slow analogue array'][j]['Voltage'][i], self.prv.p))
+                self.prv.sa_chans.item(j, 2*i+1).setText(
+                    'Ramp' if BOOL(esc['Slow analogue array'][j]['Ramp?'][i]) else '')
+
 #### #### Preview sequences #### ####
 
 class Previewer(QMainWindow):
@@ -56,6 +114,7 @@ class Previewer(QMainWindow):
         super().__init__()
         self.p = precision + 1 # number of s.f. for floating points
         self.tr = tr
+        self.ud = Updater(self)
         self.init_UI()
         self.set_sequence()
     
@@ -265,52 +324,7 @@ class Previewer(QMainWindow):
 
     def set_sequence(self):
         """Fill the labels with the values from the sequence"""
-        seq = self.tr.seq_dic
-        self.routine_name.setText(seq['Routine name in'])
-        self.routine_desc.setText(seq['Routine description in'])
-        ela = seq['Event list array in'] # shorthand
-        esc = seq['Experimental sequence cluster in']
-        self.fd_chans.setVerticalHeaderLabels(map(str.__add__, esc['Fast digital names']['Hardware ID'],
-                [': '+name if name else '' for name in esc['Fast digital names']['Name']]))
-        self.fa_chans.setVerticalHeaderLabels(map(str.__add__, esc['Fast analogue names']['Hardware ID'],
-                [': '+name if name else '' for name in esc['Fast analogue names']['Name']]))
-        self.sd_chans.setVerticalHeaderLabels(map(str.__add__, esc['Slow digital names']['Hardware ID'],
-                [': '+name if name else '' for name in esc['Slow digital names']['Name']]))
-        self.sa_chans.setVerticalHeaderLabels(map(str.__add__, esc['Slow analogue names']['Hardware ID'],
-                [': '+name if name else '' for name in esc['Slow analogue names']['Name']]))
-        for i in range(len(ela)):
-            self.e_list.item(0, i).setText(ela[i]['Event name'])
-            self.e_list.item(1, i).setText(str(ela[i]['Routine specific event?']))
-            self.e_list.item(2, i).setText(','.join(map(str, ela[i]['Event indices'])))
-            self.e_list.item(3, i).setText(ela[i]['Event path'])
-        for i in range(len(esc['Sequence header top'])):
-            for j, key in enumerate(['Skip Step', 'Event name', 'Hide event steps', 
-                    'Event ID', 'Time step name', 'Populate multirun', 'Time step length', 
-                    'Time unit', 'Digital or analogue trigger?', 'Trigger this time step?', 
-                    'Channel', 'Analogue voltage (V)', 'GPIB event name', 'GPIB on/off?']):
-                if key == 'Time step length' or key == 'Analogue voltage (V)':
-                    self.head_top.item(j, i).setText(fmt(esc['Sequence header top'][i][key], self.p))  # to 'p' s.f.
-                    self.head_mid.item(j, i).setText(fmt(esc['Sequence header middle'][i][key], self.p))
-                else:
-                    self.head_top.item(j, i).setText(str(esc['Sequence header top'][i][key]))
-                    self.head_mid.item(j, i).setText(str(esc['Sequence header middle'][i][key]))
-            self.fd_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header top']])
-            for j in range(self.tr.nfd):
-                self.fd_chans.item(j, i).setBackground(Qt.green if BOOL(esc['Fast digital channels'][i][j]) else Qt.red)
-            self.fa_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header top'] for j in range(2)])
-            for j in range(self.tr.nfa):
-                self.fa_chans.item(j, 2*i).setText(fmt(esc['Fast analogue array'][j]['Voltage'][i], self.p))
-                self.fa_chans.item(j, 2*i+1).setText(
-                    'Ramp' if BOOL(esc['Fast analogue array'][j]['Ramp?'][i]) else '')
-            self.sd_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header middle']])
-            for j in range(self.tr.nsd):
-                self.sd_chans.item(j, i).setBackground(Qt.green if BOOL(esc['Slow digital channels'][i][j]) else Qt.red)
-            self.sa_chans.setHorizontalHeaderLabels([h['Time step name'] for h in esc['Sequence header middle'] for j in range(2)])
-            for j in range(self.tr.nsa):
-                self.sa_chans.item(j, 2*i).setText(fmt(esc['Slow analogue array'][j]['Voltage'][i], self.p))
-                self.sa_chans.item(j, 2*i+1).setText(
-                    'Ramp' if BOOL(esc['Slow analogue array'][j]['Ramp?'][i]) else '')
-
+        self.ud.start(self.ud.LowestPriority)
 
     def choose_multirun_dir(self):
         """Allow the user to choose the directory where the histogram .csv

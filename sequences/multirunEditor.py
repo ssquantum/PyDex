@@ -18,14 +18,14 @@ try:
         QGridLayout, QLineEdit, QDoubleValidator, QIntValidator, 
         QComboBox, QListWidget, QTabWidget, QVBoxLayout, QInputDialog,
         QTableWidget, QTableWidgetItem, QScrollArea, QMessageBox,
-        QFileDialog) 
+        QFileDialog, QApplication) 
 except ImportError:
     from PyQt5.QtCore import pyqtSignal, QItemSelectionModel, QThread, Qt
     from PyQt5.QtGui import QDoubleValidator, QIntValidator
     from PyQt5.QtWidgets import (QVBoxLayout, QWidget, QComboBox,
         QLineEdit, QGridLayout, QPushButton, QListWidget, QListWidgetItem, 
         QScrollArea, QLabel, QTableWidget, QTableWidgetItem, QMessageBox,
-        QFileDialog)
+        QFileDialog, QApplication)
 import logging
 logger = logging.getLogger(__name__)
 sys.path.append('.')
@@ -49,12 +49,14 @@ class sequenceSaver(QThread):
         self.mr_vals = mrvals
         self.mr_param = mrparam
         self.savedir = savedir
+        self.app = QApplication.instance()
     
     def run(self):
         """Use the values in the multirun array to make the next
         sequence to run in the multirun. Uses saved mr_param not UI"""
         if self.savedir:
             for i in range(len(self.mr_vals)):
+                self.app.processEvents()  # avoids GUI lag but slows this task down
                 esc = self.mrtr.seq_dic['Experimental sequence cluster in'] # shorthand
                 try:
                     for col in range(len(self.mr_vals[i])): # edit the sequence
@@ -593,10 +595,10 @@ class multirun_widget(QWidget):
             self.msglist.append(self.get_next_sequence(i))
         if not self.ss.isRunning():
             self.ss = sequenceSaver(self.mrtr, self.mr_vals, self.mr_param, save_dir)
-            self.ss.start() # save the sequences
+            self.ss.start(self.ss.LowestPriority) # save the sequences
         else: # a backup if the first is busy saving sequences
             self.s2 = sequenceSaver(self.mrtr, self.mr_vals, self.mr_param, save_dir)
-            self.s2.start()
+            self.s2.start(self.s2.LowestPriority)
 
     #### save and load parameters ####
 
