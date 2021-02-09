@@ -268,9 +268,12 @@ class Previewer(QMainWindow):
             try:
                 self.ud.fname = fname
                 self.ud.start(self.ud.LowestPriority)
-                self.reset_UI()
-                self.set_sequence()
+                self.ud.finished.connect(self.reset_sequence)
             except TypeError as e: logger.error("Tried to load invalid sequence")
+
+    def reset_sequence(self):
+        self.reset_UI()
+        self.set_sequence()
 
     def save_seq_file(self, fname=''):
         """Save the current sequence to an xml file."""
