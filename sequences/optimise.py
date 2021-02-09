@@ -98,19 +98,27 @@ class optimise_widget(multirun_widget):
     progress = pyqtSignal(str) # string detailing the progress of the multirun
 
     def __init__(self, tr):
-        super().__init__(tr, nrows=)
-        self.types = OrderedDict([('measure_prefix',str), ('Controller type',str), 
-            ('Max # runs', int), ('Target cost', float), ('Trust region', float),
-            ('Archive filename', str), ('Cost function', str), ('Param Labels', strlist),
+        super().__init__(tr, nrows=1, ncols=4)
+        self.types = OrderedDict([('measure_prefix',str), ('Type', strlist), 
+            ('Analogue type', strlist), ('Time step name', listlist), 
+            ('Analogue channel', listlist), 
+            ('Controller type',str), ('Max # runs', int), ('Target cost', float), 
+            ('Trust region', float), ('Archive filename', str), 
+            ('Cost function', str), ('Param Labels', strlist),
             ('Param Mins', eval), ('Param Maxs', eval), ('First Params', eval),
             ('Maximise', BOOL), ('Repeats', int)])
-        self.ui_param = OrderedDict([('measure_prefix','Measure0'), ('Controller type','gaussian_process'), 
-            ('Max # runs', 50), ('Target cost', 1), ('Trust region', 0.1),
+        self.ui_param = OrderedDict([('measure_prefix','Measure0'), 
+            ('Analogue type', ['Fast analogue']*nrows), ('Time step name', [[]]*nrows), 
+            ('Analogue channel', [[]]*nrows),
+            ('Controller type','gaussian_process'), ('Type', ['Time step length']*nrows), 
+            ('Max # runs', 50), ('Target cost', 1), ('Trust region', 0.4),
             ('Archive filename', 'learner.txt'), , ('Cost function', 'Loading probability'), 
-            ('Param Labels', ['Param0']), ('Param Mins', [0]]), 
-            ('Param Maxs', [1]]), ('First Params', [1]]), 
+            ('Param Labels', ['Param0']), ('Param Mins', [0]), 
+            ('Param Maxs', [1]), ('First Params', [1]), 
             ('Maximise', True), ('Repeats', 100)])
         self.mr_param = copy.deepcopy(self.ui_param)
+        self.nrows = nrows
+        self.ncols = ncols
         self.reinit_UI()  # edit the widgets
         
     def init_UI(self):
@@ -183,7 +191,7 @@ class optimise_widget(multirun_widget):
         
         
         # add a new list of multirun values to the array
-        self.col_index = self.make_label_edit('column index:', self.grid, 
+        self.col_index = self.make_label_edit('row index:', self.grid, 
                 position=[5,0, 1,1], default_text='0', 
                 validator=col_validator)[1]
         self.col_range = QLineEdit('linspace(0,1,%s)'%(self.nrows), self)
@@ -194,22 +202,22 @@ class optimise_widget(multirun_widget):
         self.col_index.textChanged[str].connect(self.set_chan_listbox)
 
         # add the column to the multirun values array
-        add_var_button = QPushButton('Add column', self)
-        add_var_button.clicked.connect(self.add_column_to_array)
-        add_var_button.resize(add_var_button.sizeHint())
-        self.grid.addWidget(add_var_button, 6,0, 1,1)
-        
-        # clear the current list of user variables
-        clear_vars_button = QPushButton('Clear', self)
-        clear_vars_button.clicked.connect(self.clear_array)
-        clear_vars_button.resize(clear_vars_button.sizeHint())
-        self.grid.addWidget(clear_vars_button, 6,1, 1,1)
+        # add_var_button = QPushButton('Add column', self)
+        # add_var_button.clicked.connect(self.add_column_to_array)
+        # add_var_button.resize(add_var_button.sizeHint())
+        # self.grid.addWidget(add_var_button, 6,0, 1,1)
+        # 
+        # # clear the current list of user variables
+        # clear_vars_button = QPushButton('Clear', self)
+        # clear_vars_button.clicked.connect(self.clear_array)
+        # clear_vars_button.resize(clear_vars_button.sizeHint())
+        # self.grid.addWidget(clear_vars_button, 6,1, 1,1)
         
         # suggest new measure when multirun started
-        self.suggest_button = QPushButton('Auto-increment measure', self, 
-                checkable=True, checked=True)
-        self.suggest_button.resize(self.suggest_button.sizeHint())
-        self.grid.addWidget(self.suggest_button, 6,2, 1,2)
+        # self.suggest_button = QPushButton('Auto-increment measure', self, 
+        #         checkable=True, checked=True)
+        # self.suggest_button.resize(self.suggest_button.sizeHint())
+        # self.grid.addWidget(self.suggest_button, 6,2, 1,2)
         
         # choose last time step for multirun
         lts_label = QLabel('Last time step: ', self)
@@ -240,7 +248,7 @@ class optimise_widget(multirun_widget):
         """Empty the table of its values. If newvals are supplied then it
         should have the right shape (rows, cols) so that it can be used
         to fill the table items."""
-        self.table.setHorizontalHeaderLabels(list(map(str, range(self.ncols))))
+        self.table.setVerticalHeaderLabels(list(map(str, range(self.nrows))))
         if not newvals:
             newvals = [['']*self.ncols]*self.nrows
         for i in range(self.table.rowCount()):
@@ -251,11 +259,15 @@ class optimise_widget(multirun_widget):
     def clear_array(self):
         """Empty the table of its values and reset the selected channels."""
         self.reset_array()
-        self.ui_param['Type'] = ['Time step length']*self.ncols
-        self.ui_param['Analogue type'] = ['Fast analogue']*self.ncols
-        self.ui_param['Time step name'] = [[]]*self.ncols
-        self.ui_param['Analogue channel'] = [[]]*self.ncols
-        self.ui_param['list index'] = ['0']*self.ncols
+        self.ui_param['Type'] = ['Time step length']*self.nrows
+        self.ui_param['Analogue type'] = ['Fast analogue']*self.nrows
+        self.ui_param['Time step name'] = [[]]*self.nrows
+        self.ui_param['Analogue channel'] = [[]]*self.nrows
+        self.ui_param['list index'] = ['0']*self.nrows
+        # self.ui_param['Param Labels'] = ['Param0']*self.nrows
+        # self.ui_param['Param Mins'] = [0]*self.nrows
+        # self.ui_param['Param Maxs'] = [1]*self.nrows
+        # self.ui_param['First Params'] = [1]*self.nrows
         self.set_chan_listbox(0)
         
     def check_table(self):

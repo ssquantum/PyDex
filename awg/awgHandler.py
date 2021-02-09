@@ -696,9 +696,12 @@ class AWG:
         occurs here, as this will also determine the size of the buffer memory.
         """
         
-        if action == 1 or action == 5:                      # If the action taken is a static trap, then register the desired value, and ascribe self.statDur to the segment.
+        if action == 1 :                      # If the action taken is a static trap, then register the desired value, and ascribe self.statDur to the segment.
             self.staticDuration[self.segment] = duration           # Writes down the requested duration for a static trap in a dictionary (__init__)
             self.duration = self.statDur
+            
+        elif action == 5:
+            self.duration = duration
         
         elif action == 4 :
             
@@ -760,7 +763,7 @@ class AWG:
             Generating static traps
             
             """
-            if len(args)==9:
+            if len(args)==8:
             
                 f1         = typeChecker(args[0])
                 numOfTraps = typeChecker(args[1])
@@ -1278,21 +1281,6 @@ class AWG:
                 ###############################################################
                 # Amplitude modulation
                 ##################################################################
-                AODlimiter = 220 #limiting AWG output for the AOD (after amplifier).
-                maxAmp = max(self.freq_amp)  # finds the maximum of the individual amplitudes
-                maxpos = self.freq_amp.index(maxAmp)
-                if self.tot_amp *maxAmp* (1+mod_depth) <= 220:
-                    self.mod_depth = mod_depth
-                else:
-                    sugDepth = round(AODlimiter/self.tot_amp/maxAmp -1,2)
-                    sugTotAmp = round(AODlimiter/(1+mod_depth)/maxAmp,2)
-                    sugfreqAmp = round(AODlimiter/(1+mod_depth)/self.tot_amp,2)
-                    sys.stdout.write("For these values of tot_amp and mod_depth, the output of the card will exceed 220 mV.\n")
-                    sys.stdout.write("Either change tot_amp to {} mV, mod_depth to {}, or freqAmp position {} to {}.\n".format(sugTotAmp,sugDepth,maxpos,sugfreqAmp))
-                    flag =1    
-                        
-                    
-            
                 if len(freq_phase)==numOfTraps:
                     self.freq_phase = freq_phase
                 
@@ -1307,6 +1295,19 @@ class AWG:
                 
                 if type(aAdjust) == str:
                     aAdjust = eval(aAdjust)
+                    
+                AODlimiter = 220 #limiting AWG output for the AOD (after amplifier).
+                maxAmp = max(self.freq_amp)  # finds the maximum of the individual amplitudes
+                maxpos = self.freq_amp.index(maxAmp)
+                if self.tot_amp *maxAmp* (1+mod_depth) <= 220 and not aAdjust:
+                    self.mod_depth = mod_depth
+                else:
+                    sugDepth = round(AODlimiter/self.tot_amp/maxAmp -1,2)
+                    sugTotAmp = round(AODlimiter/(1+mod_depth)/maxAmp,2)
+                    sugfreqAmp = round(AODlimiter/(1+mod_depth)/self.tot_amp,2)
+                    sys.stdout.write("For these values of tot_amp and mod_depth, the output of the card will exceed 220 mV.\n")
+                    sys.stdout.write("Either change tot_amp to {} mV, mod_depth to {}, or freqAmp position {} to {}.\n".format(sugTotAmp,sugDepth,maxpos,sugfreqAmp))
+                    flag =1    
                     
                     
                 if type(fAdjust) != bool:
@@ -1352,16 +1353,12 @@ class AWG:
                 flag =1
         
         
-        else:
-            sys.stdout.write("Action value not recognised.\n")
-            flag =1
-        
         #####################################################################
         # TRAPS RELEASE AND RECAPTURE - ACTION 5
         #####################################################################
         
-        if action == 5:
-            if len(args)==10:
+        elif action == 5:
+            if len(args)==9:
                 off_time   = typeChecker(args[0])
                 f1         = typeChecker(args[1])
                 numOfTraps = typeChecker(args[2])
@@ -1376,10 +1373,6 @@ class AWG:
                 # In case argument is a list
                 ######################################   
                 if type(f1) == list or type(f1)==np.ndarray:
-                    """
-                    In case the user wants to place its own arbitrary frequencies, this will test
-                    whether the frequencies are within the AOD bounds. 
-                    """
                     minFreq = min(f1)
                     maxFreq = max(f1)
                     if minFreq >= freqBounds[0] and maxFreq <= freqBounds[1]:
@@ -1408,14 +1401,6 @@ class AWG:
                     sys.stdout.write("Chosen amplitude will damage the spectrum analyser. Set to 50mV")
                     self.tot_amp = 50
                 
-                """
-                The following two lines that convert the input into an expression 
-                were created with a cosmetic idea in mind.
-                The values stored as a list will be converted in a large column in JSON (when/if exported)
-                whereas a string file will remain more compact.
-                This just enables the flexibility of typing an actual list or loading a string from a file. 
-                """
-                    
                 if abs(max(freq_amp)) <= 1 and len(freq_amp)==numOfTraps:
                     self.freq_amp = freq_amp
                 elif abs(max(freq_amp))> 1:
@@ -1458,18 +1443,19 @@ class AWG:
                 #  Generate the Data
                 #########################
                 outData =  switch(self.f1,numOfTraps,distance,self.duration,off_time,self.tot_amp,self.freq_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)            # Generates the requested data
-                
                 if type(f1)==np.ndarray or type(f1)==list :
                     f1 = str(list(f1))
                 dataj(self.filedata,self.segment,channel,action,duration,off_time,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),\
                     str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples)                # Stores information in the filedata variable, to be written when card initialises. 
             
             else: 
-                sys.stdout.write("Failed to create data for static trap.\n")
+                sys.stdout.write("Failed to create data for switch.\n")
                 flag =1
         
-
-              
+        else:
+            sys.stdout.write("Action value not recognised.\n")
+            flag =1
+                      
         ######################################################################
         # TRANSFER OF DATA
         ######################################################################                      
@@ -1653,7 +1639,9 @@ class AWG:
                     3:('segment','channel_out','action_val','duration_[ms]','freqs_input_[MHz]','num_of_traps','distance_[um]',\
                     'tot_amp_[mV]','start_amp','end_amp','freq_phase_[deg]','freq_adjust','amp_adjust'),
                     4:('segment','channel_out','action_val','duration_[ms]','freqs_input_[MHz]','num_of_traps',\
-                    'distance_[um]','tot_amp_[mV]','freq_amp','mod_freq_[kHz]','mod_depth','freq_phase_[deg]','freq_adjust','amp_adjust')}
+                    'distance_[um]','tot_amp_[mV]','freq_amp','mod_freq_[kHz]','mod_depth','freq_phase_[deg]','freq_adjust','amp_adjust'),
+                    5:('segment','channel_out','action_val','duration_[ms]','off_time_[us]','freqs_input_[MHz]','num_of_traps',\
+                    'distance_[um]','tot_amp_[mV]','freq_amp','freq_phase_[deg]','freq_adjust','amp_adjust')}
     
     stepOrder = ("step_value","segment_value","num_of_loops","next_step","condition")
     
@@ -1996,7 +1984,6 @@ if __name__ == "__main__":
 #     t.setStep(3,3,1,0,2)
 # 
 #     
-    t.start(True)
     
     # data11 = t.dataGen(1,ch1,'ramp',5,[166, 167],2, 9, 220,[1,0],[1,1],[0,0],False,False)
     # data12 = t.dataGen(1,ch2,'ramp',5,[166, 167],2, 9, 220,[1,0],[1,1],[0,0],False,False)
@@ -2041,4 +2028,15 @@ if __name__ == "__main__":
     # ## MOVING
     # # action/freq/num of traps/distance/duration/freq Adjust/sample rate/umPerMhz
     # getFrequencies(2,[135e6],[200e6],1,True,625e6)*10**-6 #moving
-
+    
+    # #### TRAP DROP
+    # data01 = t.dataGen(0,0,'static',1,[166],1,9, 220,[1],[0],False,True)
+    # data02 = t.dataGen(0,1,'static',1,[166],1,9, 220,[1],[0],False,True)
+    # t.setSegment(0,data01, data02)
+    # t.setStep(0,0,1,1,1)  
+    # data01 = t.dataGen(1,0,'switch',1,0.5,[166],1,9, 220,[1],[0],False,True)
+    # data02 = t.dataGen(1,1,'switch',1,0.5,[166],1,9, 220,[1],[0],False,True)
+    # t.setSegment(1,data01, data02)
+    # t.setStep(1,1,1,0,2)   
+    # t.saveData(r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\test amp_adjust\switch.txt')
+    # t.start()

@@ -120,7 +120,7 @@ class multirun_widget(QWidget):
             ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'), 
             ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'),
             ('# omitted', 0), ('# in hist', 100), ('list index', ['0']*ncols)])
-        self.awg_args = ['duration_[ms]','freqs_input_[MHz]','start_freq_[MHz]','end_freq_[MHz]','hybridicity',
+        self.awg_args = ['duration_[ms]','off_time_[us]','freqs_input_[MHz]','start_freq_[MHz]','end_freq_[MHz]','hybridicity',
         'num_of_traps','distance_[um]','tot_amp_[mV]','start_amp','end_amp','start_output_[Hz]','end_output_[Hz]',
         'freq_amp','mod_freq_[kHz]','mod_depth','freq_phase_[deg]','freq_adjust','amp_adjust','freqs_output_[Hz]',
         'num_of_samples','duration_loop_[ms]','number_of_cycles']

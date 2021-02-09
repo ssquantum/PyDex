@@ -7,7 +7,7 @@ if EXIST %ALLUSERSPROFILE%\Anaconda3 (
 )
 
 rem -- activate the Python environment to load modules
-call conda activate saiaenv
+call conda activate pydexenv
 
 rem -- now run the program
 set /p FileToRun=Enter the file to run: 

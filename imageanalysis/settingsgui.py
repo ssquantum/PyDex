@@ -938,18 +938,21 @@ class settings_window(QMainWindow):
             else:
                 self.rw_inds.append('0,1')
         
-        for i in range(min(len(self.rw_inds), len(self.rw))): # update current re-image instances
-            j, k = map(int, self.rw_inds[i].split(','))
-            self.rw[i].ih1 = self.mw[j].image_handler
-            self.rw[i].ih2 = self.mw[k].image_handler
-            self.rw[i].setWindowTitle(self.rw[i].name + ' - Re-Image Analaysing hists %s, %s'%(j,k))
-        for i in range(len(self.rw), len(self.rw_inds)): # add new re-image instances as required
-            j, k = map(int, self.rw_inds[i].split(','))
-            self.rw.append(reim_window(self.mw[j].event_im,
-                    [self.mw[j].image_handler, self.mw[k].image_handler],
-                    [self.mw[j].histo_handler, self.mw[k].histo_handler],
-                    self.results_path, self.image_storage_path, 'ROI'+str(i)+'_Re_'))
-            self.rw[i].setWindowTitle(self.rw[i].name + ' - Re-Image Analaysing hists %s, %s'%(j,k))
+        try:
+            for i in range(min(len(self.rw_inds), len(self.rw))): # update current re-image instances
+                j, k = map(int, self.rw_inds[i].split(','))
+                self.rw[i].ih1 = self.mw[j].image_handler
+                self.rw[i].ih2 = self.mw[k].image_handler
+                self.rw[i].setWindowTitle(self.rw[i].name + ' - Re-Image Analaysing hists %s, %s'%(j,k))
+            for i in range(len(self.rw), len(self.rw_inds)): # add new re-image instances as required
+                j, k = map(int, self.rw_inds[i].split(','))
+                self.rw.append(reim_window(self.mw[j].event_im,
+                        [self.mw[j].image_handler, self.mw[k].image_handler],
+                        [self.mw[j].histo_handler, self.mw[k].histo_handler],
+                        self.results_path, self.image_storage_path, 'ROI'+str(i)+'_Re_'))
+                self.rw[i].setWindowTitle(self.rw[i].name + ' - Re-Image Analaysing hists %s, %s'%(j,k))
+        except IndexError as e:
+            logger.warning('Could not create reimage analysers %s.\n'%self.rw_inds+str(e))
         for rw in self.rw[len(self.rw_inds):]:
             rw.deleteLater() # remove unused windows
         self.rw = self.rw[:len(self.rw_inds)]

@@ -101,7 +101,7 @@ def chirp(t,d,T,a):
 
 
 importPath="Z:\\Tweezer\Experimental\\Setup and characterisation\\Settings and calibrations\\tweezer calibrations\\AWG calibrations\\"
-importFile = "calFile_30.12.2020.txt"
+importFile = "calFile_06.10.2020.txt"
 
 
 with open(importPath+importFile) as json_file:
@@ -132,9 +132,10 @@ def ampAdjuster(freq, optical_power):
     else:
         i = np.argmin([abs(float(p) - optical_power) for p in contour_dict.keys()]) 
         key = list(contour_dict.keys())[i]
-        y = np.array(contour_dict[key]['Calibration'](freq)) # return amplitude in mV to keep constant optical power
-        y[y>220] = 220
-        # if >220 print warning
+        y = np.array(contour_dict[key]['Calibration'](freq), ndmin=1) # return amplitude in mV to keep constant optical power
+        if (np.size(y)==1 and y>220) or any(y > 220):
+            print('WARNING: power calibration overflow: required power is > 220mV')
+            y[y>220] = 220
         return y
     
 def ampRampAdjuster(freq, optical_power):
@@ -143,14 +144,15 @@ def ampRampAdjuster(freq, optical_power):
     i = np.argmin([abs(float(f) - freq) for f in DE_RF_dict.keys()]) 
     key = list(DE_RF_dict.keys())[i]
     y = np.array(DE_RF_dict[key]['Calibration'](optical_power)) # return amplitude in mV
-    y[y>220] = 220
+    if (np.size(y)==1 and y>220) or any(y > 220):
+        print('WARNING: power calibration overflow: required power is > 220mV')
+        y[y>220] = 220
     y[y<0] = 0
-    # if >220 print warning
     return y
 
 def getFrequencies(action,*args):
     
-    if action ==1 or action==3 or action ==4:
+    if action ==1 or action==3 or action ==4 or action==5:
         if len(args)==7:
             freqs          = args[0]
             numberOfTraps  = args[1]
@@ -173,10 +175,8 @@ def getFrequencies(action,*args):
             print("Expecting 5 arguments: [start freqs,ending freqs,duration, bool_freqAdjust,sample rate]")
     else:
         print("Action value not recognised.\n")
-        print("1: Static trap. \n")
-        print("2: Moving trap. \n")
-        print("3: Amplitude ramp.\n")
-    
+        return 0
+        
     Samplerounding = 1024 # Reference number of samples
     memBytes = round(sampleRate * (duration*10**-3)/Samplerounding) #number of bytes as a multiple of kB
         
@@ -185,7 +185,7 @@ def getFrequencies(action,*args):
         
     numOfSamples = int(memBytes*Samplerounding) # number of samples
     
-    if action ==1 or action==3:
+    if action ==1 or action==3 or action==5:
     
         ############################
         # If the input is a list, then ignore numberOfTraps and separation.
@@ -552,19 +552,6 @@ def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duratio
         separation = distance/umPerMHz *10**6
         freqs = np.linspace(centralFreq,centralFreq+(numberOfTraps)*separation,numberOfTraps, endpoint=False)
     
-    ##############################
-    # Ensure that the freq_amp/freq_phase all have the correct size.
-    ################################################################################
-    
-    if numberOfTraps != len(freq_amp):
-        freq_amp = [1]*numberOfTraps
-        print("ERROR: Number of amplitudes do not match number of traps. All traps set to 100%\n")
-             
-    
-    if numberOfTraps != len(freq_phase):
-        freq_phase = [0]*numberOfTraps
-        print("ERROR: Number of phases do not match number of traps. All trap phases set to 0.\n")
-    
     ################
     # Calculate the number of samples
     ######################################### 
@@ -592,8 +579,10 @@ def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duratio
     t = np.arange(numOfSamples)
     mod_amp = mod_depth*np.sin(2.*np.pi*t*mod_freq/sampleRate)
     if ampAdjust:
+        if (np.size(mod_amp)==1 and mod_amp>1) or any(mod_amp > 1):
+            print('WARNING: power calibration overflow: cannot exceed freq_amp > 1')
         return 1./282/len(freqs)*0.5*2**16*np.sum([
-            ampRampAdjuster(freqs[Y]*10**-6, freq_amp[Y] + mod_amp
+            ampRampAdjuster(freqs[Y]*10**-6, freq_amp[Y]*(1 + mod_amp)
             )*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360.) for Y in range(numberOfTraps)],axis=0)
     else:
        return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*(1+mod_amp)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
@@ -604,7 +593,7 @@ def switch(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration=0.1,o
     numberOfTraps : Defines the total number of traps including the central frequency.
     distance      : Defines the relative distance between each of the trap in [MICROmeters]. Can accept negative values.
     duration      : Defines the duration of the static trap in [MILLIseconds]. The actual duration is handled by the number of loops.
-    offt          : Defines the duration for which the trap is off in [MILLIseconds]. Should be < duration.
+    offt          : Defines the duration for which the trap is off in [MICROseconds]. Should be < duration.
     tot_amp       : Defines the global amplitude of the sine waves [mV]
     freq_amp      : Defines the individual frequency amplitude as a fraction of the global (ranging from 0 to 1).
     freq_phase    : Defines the individual frequency phase in degrees [deg].
@@ -661,22 +650,28 @@ def switch(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration=0.1,o
     #########
     # Generate the data 
     ##########################
-    duty = 1-(offt/duration) # fraction of duration with trap off
+    duty = 1-(offt*1e-3/duration) # fraction of duration with trap off
     if duty > 1: duty = 1   # must be between 0 - 1 
     elif duty < 0: duty = 0
     t0 = np.arange(int(duty*0.5*numOfSamples)+1) # initial on period
     t1 = np.arange(int((1-duty*0.5)*numOfSamples), numOfSamples) # final on period
     if ampAdjust ==True:
-        return 1./282/len(freqs)*0.5*2**16 * np.concatenate((
-            np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y])*np.sin(2.*np.pi*t0*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0),
-            np.zeros(numOfSamples - len(t0) - len(t1)),
-            np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y])*np.sin(2.*np.pi*t1*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)))
+        try:
+            return 1./282/len(freqs)*0.5*2**16 * np.concatenate((
+                np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y])*np.sin(2.*np.pi*t0*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0),
+                np.zeros(numOfSamples - len(t0) - len(t1)),
+                np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y])*np.sin(2.*np.pi*t1*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)))
+        except ValueError: # if off time = 0
+            return 1./282/len(freqs)*0.5*2**16 * np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y])*np.sin(2.*np.pi*np.arange(numOfSamples)*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     else:
-        return 1.*tot_amp/282/len(freqs)*0.5*2**16 * np.concatenate((
-            np.sum([freq_amp[Y]*np.sin(2.*np.pi*t0*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0),
-            np.zeros(numOfSamples - len(t0) - len(t1)),
-            np.sum([freq_amp[Y]*np.sin(2.*np.pi*t1*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)))
-    
+        try: 
+            return 1.*tot_amp/282/len(freqs)*0.5*2**16 * np.concatenate((
+                np.sum([freq_amp[Y]*np.sin(2.*np.pi*t0*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0),
+                np.zeros(numOfSamples - len(t0) - len(t1)),
+                np.sum([freq_amp[Y]*np.sin(2.*np.pi*t1*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)))
+        except ValueError: # if off time = 0
+            return 1./282/len(freqs)*0.5*2**16 * np.sum([freq_amp[Y]*np.sin(2.*np.pi*np.arange(numOfSamples)*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+
 
 #Using ideas from the following:
 #https://towardsdatascience.com/reshaping-numpy-arrays-in-python-a-step-by-step-pictorial-tutorial-aed5f471cf0b

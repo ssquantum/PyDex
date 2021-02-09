@@ -156,7 +156,7 @@ def dataj(data,segVal,chVal,action,duration,*args):
             'action_code'         :'switch',
             'action_val'          :action,
             'duration_[ms]'       :duration,
-            'off_time_[ms]'       :args[0],
+            'off_time_[us]'       :args[0],
             'freqs_input_[MHz]'   :args[1],
             'num_of_traps'        :args[2],
             'distance_[um]'       :args[3],
