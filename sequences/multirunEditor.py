@@ -57,7 +57,8 @@ class sequenceSaver(QThread):
         if self.savedir:
             for i in range(len(self.mr_vals)):
                 self.app.processEvents()  # avoids GUI lag but slows this task down
-                esc = self.mrtr.seq_dic['Experimental sequence cluster in'] # shorthand
+                esc = self.mrtr.seq_tree[1][3] # shorthand
+                num_s = len(esc[2]) - 2 # number of steps
                 try:
                     for col in range(len(self.mr_vals[i])): # edit the sequence
                         try:
@@ -65,13 +66,16 @@ class sequenceSaver(QThread):
                             if self.mr_param['Type'][col] == 'Time step length':
                                 for head in ['Sequence header top', 'Sequence header middle']:
                                     for t in self.mr_param['Time step name'][col]:
-                                        esc[head][t]['Time step length'] = val
+                                       esc[head][3][t+2][1].text = str(val) # time step length
                             elif self.mr_param['Type'][col] == 'Analogue voltage':
                                 for t in self.mr_param['Time step name'][col]:
                                     for c in self.mr_param['Analogue channel'][col]:
-                                        esc[self.mr_param['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
+                                        if 'Fast' in self.mr_param['Analogue type'][col]:
+                                            esc[6][t + c*num_s + 3][3][1].text = str(val)
+                                        else:
+                                            esc[11][t + c*num_s + 3][3][1].text = str(val)
                         except ValueError: pass
-                    self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
+                    self.mrtr.seq_tree[1][4][1].text = 'Multirun ' + self.mr_param['Variable label'] + \
                             ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
                     self.mrtr.write_to_file(os.path.join(self.savedir, self.mr_param['measure_prefix'] + '_' + 
                         str(i + self.mr_param['1st hist ID']) + '.xml'))
@@ -206,11 +210,11 @@ class multirun_widget(QWidget):
 
         self.chan_choices = OrderedDict()
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
-        sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
+        sht = self.tr.seq_tree[1][3][2][2:] # 'Sequence header top'
         options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG chan : seg', 
                     'DDS port : profile', 'Other'], 
             list(map(str.__add__, [str(i) for i in range(len(sht))],
-                    [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht])), 
+                    [': '+hc[6][1].text for hc in sht])), # time step names
             ['Fast analogue', 'Slow analogue'],
             self.get_anlg_chans('Fast')]
         positions = [[1, 4, 3, 2], [1, 6, 6, 1], [1, 7, 3, 1], [1, 8, 6, 1]]
@@ -490,15 +494,15 @@ class multirun_widget(QWidget):
     def get_anlg_chans(self, speed):
         """Return a list of name labels for the analogue channels.
         speed -- 'Fast' or 'Slow'"""
-        d = self.tr.seq_dic['Experimental sequence cluster in'][speed + ' analogue names']
-        return map(str.__add__, d['Hardware ID'], [': '+name if name else '' for name in d['Name']])
+        chans = self.tr.seq_tree[1][3][5 if speed=='Fast' else 10][2:]
+        return [c[2][1].text + ': ' + c[3][1].text for c in chans]
 
     def change_mr_type(self, newtype):
         """Enable/Disable list boxes to reflect the multirun type:
         newtype[str] -- Time step length: only needs timesteps
                      -- Analogue voltage: also needs channels
                      -- AWG: takes float values but with a list index."""
-        sht = self.tr.seq_dic['Experimental sequence cluster in']['Sequence header top']
+        sht = self.tr.seq_tree[1][3][2][2:] # 'Sequence header top'
         if newtype == 'AWG chan : seg':
             self.chan_choices['Time step name'].clear()
             self.chan_choices['Time step name'].addItems([str(i)+', '+str(j) for j in range(10) for i in range(4)])
@@ -531,11 +535,11 @@ class multirun_widget(QWidget):
             self.chan_choices['Analogue channel'].setEnabled(False)
             self.chan_choices['Time step name'].clear()
             self.chan_choices['Time step name'].addItems(list(map(str.__add__, [str(i) for i in range(len(sht))],
-                    [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht])))
+                    [': '+hc[6][1].text for hc in sht]))) # time step names
         elif newtype == 'Analogue voltage':
             self.chan_choices['Time step name'].clear()
             self.chan_choices['Time step name'].addItems(list(map(str.__add__, [str(i) for i in range(len(sht))],
-                    [': '+hc['Time step name'] if hc['Time step name'] else ': ' for hc in sht])))
+                    [': '+hc[6][1].text for hc in sht]))) # time step names
             self.chan_choices['Analogue channel'].setEnabled(True)
             self.chan_choices['Analogue channel'].clear()
             self.chan_choices['Analogue channel'].addItems(
@@ -565,21 +569,25 @@ class multirun_widget(QWidget):
         """Use the values in the multirun array to make the next
         sequence to run in the multirun. Uses saved mr_param not UI"""
         if i == None: i = self.ind # row index
-        esc = self.mrtr.seq_dic['Experimental sequence cluster in'] # shorthand
+        esc = self.mrtr.seq_tree[1][3] # shorthand
+        num_s = len(esc[2]) - 2 # number of steps
         try:
             for col in range(len(self.mr_vals[i])): # edit the sequence
                 try:
                     val = float(self.mr_vals[i][col])
                     if self.mr_param['Type'][col] == 'Time step length':
-                        for head in ['Sequence header top', 'Sequence header middle']:
+                        for head in [2, 9]:
                             for t in self.mr_param['Time step name'][col]:
-                                esc[head][t]['Time step length'] = val
+                                esc[head][3][t+2][1].text = str(val)
                     elif self.mr_param['Type'][col] == 'Analogue voltage':
                         for t in self.mr_param['Time step name'][col]:
                             for c in self.mr_param['Analogue channel'][col]:
-                                esc[self.mr_param['Analogue type'][col] + ' array'][c]['Voltage'][t] = val
+                                if 'Fast' in self.mr_param['Analogue type'][col]:
+                                    esc[6][t + c*num_s + 3][3][1].text = str(val)
+                                else:
+                                    esc[11][t + c*num_s + 3][3][1].text = str(val)
                 except ValueError as e: pass # non-float variable
-            self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
+            self.mrtr.seq_tree[1][4][1].text = 'Multirun ' + self.mr_param['Variable label'] + \
                     ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
         except IndexError as e:
             logger.error('Multirun failed to edit sequence at ' + self.mr_param['Variable label']
