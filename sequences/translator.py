@@ -38,15 +38,15 @@ tdict = { # i: time step, j: channel
         'Time unit':9, 
         'Event ID':10, 
         'Skip Step':11,
-    'Fast digital channels':3, # tree[1][3][3][i*56+j*num_steps+3][1].text
+    'Fast digital channels':3, # tree[1][3][3][i+j*num_steps+3][1].text
     'Fast digital names':4, 
     'Fast analogue names':5, 
-    'Fast analogue array':6,   # ramp: tree[1][3][6][i*8+j*num_steps+3][2][1].text, voltage: tree[1][3][6][i*8+j*num_steps+3][3][1].text
-    'Slow digital channels':7, # tree[1][3][7][i*48+j*num_steps+3][1].text
+    'Fast analogue array':6,   # ramp: tree[1][3][6][i+j*num_steps+3][2][1].text, voltage: tree[1][3][6][i*8+j*num_steps+3][3][1].text
+    'Slow digital channels':7, # tree[1][3][7][i+j*num_steps+3][1].text
     'Slow digital names':8, 
     'Sequence header middle':9, 
     'Slow analogue names':10, 
-    'Slow analogue array':11,  # ramp: tree[1][3][11][i*32+j*num_steps+3][2][1].text, voltage: tree[1][3][11][i*32+j*num_steps+3][3][1].text
+    'Slow analogue array':11,  # ramp: tree[1][3][11][i+j*num_steps+3][2][1].text, voltage: tree[1][3][11][i*32+j*num_steps+3][3][1].text
 'Routine name in':4,           # tree[1][4][1].text
 'Routine description in': 5,
 }
@@ -96,7 +96,7 @@ class translate:
         format to an XML file with name fname."""
         try:
             with open(fname, 'w+') as f:
-                f.write(self.seq_txt)
+                f.write(self.write_to_str())
         except (FileNotFoundError, OSError) as e: 
             logger.error('Translator could not save sequence:\n'+str(e))
             
