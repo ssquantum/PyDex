@@ -1,8 +1,8 @@
-<?xml version='1.0' standalone='yes' ?>
+<?xml version="1.0" standalone="yes" ?>
 <LVData xmlns="http://www.ni.com/LVData">
 <Version>12.0.1f5</Version>
 <Cluster>
-<Name></Name>
+<Name>input cluster</Name>
 <NumElts>4</NumElts>
 <Array>
 <Name>Event list array in</Name>

@@ -105,8 +105,8 @@ class translate:
         in XML string format specified by LabVIEW and
         return this string."""
         try:
-            self.seq_txt = '<?xml version="1.0" standalone="yes" ?>\n' + etree.tostring(
-                self.seq_tree, encoding='cp1252', method='html').decode('cp1252')
+            self.seq_txt = etree.tostring(self.seq_tree, encoding='cp1252', method='html').decode('cp1252'
+                ).replace('<LVData xmlns="http://www.ni.com/LVData">\n<Version>12.0.1f5</Version>\n', '')
         except TypeError as e:
             logger.error('Translator could not write sequence to str\n'+str(e))
             self.seq_txt = ''
@@ -115,6 +115,7 @@ class translate:
     def setup_multirun(self):
         """In order for DExTer to accept changes to the sequence, all
         events must be routine specific and populate multirun true."""
+        self.seq_tree[1][0].text = 'input cluster' # cluster name
         for event in self.seq_tree[1][2][2:]: # 'Event list array in'
             event[5][1].text = '1' # 'Routine sepecific event?'
         for head in [2, 9]: # 'Sequence header top', 'Sequence header middle'

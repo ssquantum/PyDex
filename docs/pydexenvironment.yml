@@ -81,6 +81,7 @@ dependencies:
     - colorlog==4.0.2
     - future==0.18.2
     - iso8601==0.1.13
+    - lxml==4.6.2
     - pyserial==3.5
     - pyyaml==5.3.1
 prefix: C:\Users\Lab\Anaconda3\envs\pydexenv

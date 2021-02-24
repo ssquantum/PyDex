@@ -64,7 +64,7 @@ class sequenceSaver(QThread):
                         try:
                             val = float(self.mr_vals[i][col])
                             if self.mr_param['Type'][col] == 'Time step length':
-                                for head in ['Sequence header top', 'Sequence header middle']:
+                                for head in [2, 9]:
                                     for t in self.mr_param['Time step name'][col]:
                                        esc[head][3][t+2][1].text = str(val) # time step length
                             elif self.mr_param['Type'][col] == 'Analogue voltage':
