@@ -96,7 +96,7 @@ class translate:
         format to an XML file with name fname."""
         try:
             with open(fname, 'w+') as f:
-                f.write(self.write_to_str())
+                f.write(etree.tostring(self.seq_tree, encoding='cp1252', method='html').decode('cp1252'))
         except (FileNotFoundError, OSError) as e: 
             logger.error('Translator could not save sequence:\n'+str(e))
             
@@ -105,8 +105,8 @@ class translate:
         in XML string format specified by LabVIEW and
         return this string."""
         try:
-            self.seq_txt = etree.tostring(self.seq_tree, encoding='cp1252', method='html').decode('cp1252'
-                ).replace('<LVData xmlns="http://www.ni.com/LVData">\n<Version>12.0.1f5</Version>\n', '')
+            txt = etree.tostring(self.seq_tree, encoding='cp1252', method='html').decode('cp1252')
+            self.seq_txt = txt[txt.index('<Cluster>'):].replace('</LVData>', '')
         except TypeError as e:
             logger.error('Translator could not write sequence to str\n'+str(e))
             self.seq_txt = ''
@@ -131,7 +131,8 @@ class translate:
                     e.text = ''
             self.setup_multirun()
             self.write_to_str()
-        except (FileNotFoundError, OSError) as e: 
+        except (FileNotFoundError, OSError, IndexError) as e: 
+            self.seq_tree = root
             logger.error('Translator could not load sequence:\n'+str(e))
 
     def load_xml_str(self, text=""):
@@ -144,6 +145,7 @@ class translate:
             self.setup_multirun()
             self.write_to_str()
         except (lxml.etree.XMLSyntaxError) as e: 
+            self.seq_tree = root
             logger.error('Translator could not load sequence:\n'+str(e))
     
     def copy(self):

@@ -66,7 +66,7 @@ class sequenceSaver(QThread):
                             if self.mr_param['Type'][col] == 'Time step length':
                                 for head in [2, 9]:
                                     for t in self.mr_param['Time step name'][col]:
-                                       esc[head][3][t+2][1].text = str(val) # time step length
+                                       esc[head][t+2][3][1].text = str(val) # time step length
                             elif self.mr_param['Type'][col] == 'Analogue voltage':
                                 for t in self.mr_param['Time step name'][col]:
                                     for c in self.mr_param['Analogue channel'][col]:
@@ -578,7 +578,7 @@ class multirun_widget(QWidget):
                     if self.mr_param['Type'][col] == 'Time step length':
                         for head in [2, 9]:
                             for t in self.mr_param['Time step name'][col]:
-                                esc[head][3][t+2][1].text = str(val)
+                                esc[head][t+2][3][1].text = str(val)
                     elif self.mr_param['Type'][col] == 'Analogue voltage':
                         for t in self.mr_param['Time step name'][col]:
                             for c in self.mr_param['Analogue channel'][col]:
