@@ -19,9 +19,10 @@ try:
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
     from PyQt5.QtWidgets import QApplication 
-import logging
-logger = logging.getLogger(__name__)
-    
+import sys
+if '..' not in sys.path: sys.path.append('..')
+from strtypes import error, warning, info
+
 TCPENUM = { # enum for DExTer's producer-consumer loop cases
 'Initialise': 0,
 'Save sequence': 1,
@@ -128,7 +129,7 @@ class PyServer(QThread):
                 # start the socket that waits for connections
                 s.listen(0) # only allow one connection at a time
             except OSError as e:
-                logger.error('Failed to start server at address: ' + 
+                error('Failed to start server at address: ' + 
                     ', '.join(map(str, self.server_address)) + '\n' + str(e))
                 reset_slot(self.finished, self.reset_stop)
                 self.stop = True # stop the thread running
@@ -150,7 +151,7 @@ class PyServer(QThread):
                                 conn.sendall(message) # send text
                             except (ConnectionResetError, ConnectionAbortedError) as e:
                                 self.__mq.insert(0, [enum, mes_len, message]) # check this doesn't infinitely add the message back
-                                logger.error('Python server: client terminated connection before message was sent.' +
+                                error('Python server: client terminated connection before message was sent.' +
                                     ' Re-inserting message at front of queue.\n'+str(e))
                             self.ts['sent'].append(time.time() - self.ts['connect'][-1])
                             try:
@@ -160,11 +161,11 @@ class PyServer(QThread):
                                 buffer_size = int.from_bytes(conn.recv(4), 'big')
                                 self.textin.emit(str(conn.recv(buffer_size), encoding))
                             except (ConnectionResetError, ConnectionAbortedError) as e:
-                                logger.error('Python server: client terminated connection before receive.\n'+str(e))
+                                error('Python server: client terminated connection before receive.\n'+str(e))
                             self.ts['received'].append(time.time() - self.ts['connect'][-1] - self.ts['sent'][-1])
                             self.ts['disconnect'].append(time.time())
                         except IndexError as e: 
-                            logger.error('Server msg queue was emptied before msg could be sent.\n'+str(e))
+                            error('Server msg queue was emptied before msg could be sent.\n'+str(e))
                     self.connected = False
                         
     def save_times(self):
@@ -187,7 +188,7 @@ class PyServer(QThread):
         """Stop the event loop safely, ensuring that the sockets are closed.
         Once the thread has stopped, reset the stop toggle so that it 
         doesn't block the thread starting again the next time."""
-        reset_slot(self.finished, self.reset_stop)
+        reset_slot(self.finished, self.reset_stop, True)
         self.stop = True
                             
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ Collection of functions for converting types
 """
 import re
 from distutils.util import strtobool
+import time
 
 def BOOL(x):
     """Fix the conversion from string to Boolean.
@@ -31,3 +32,16 @@ def listlist(text):
     list of lists."""
     return list(map(intstrlist, re.findall('\[[\d\s,]*\]', text)))
 
+
+#### custom logging functions
+def warning(msg=''):
+    print('\033[33m' + '####\tWARNING\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))
+    print('\t' + msg + '\n', '\033[m')
+
+def error(msg=''):
+    print('\033[31m' + '####\tERROR\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))
+    print('\t' + msg + '\n', '\033[m')
+
+def info(msg=''):
+    print('\033[34m' + '####\tINFO\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))
+    print('\t' + msg + '\n', '\033[m')

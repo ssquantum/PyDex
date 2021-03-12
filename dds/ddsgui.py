@@ -14,8 +14,8 @@ import numpy as np
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-sys.path.append('.')
-sys.path.append('..')
+if '.' not in sys.path: sys.path.append('.')
+if '..' not in sys.path: sys.path.append('..')
 from networking.client import PyClient, reset_slot
 
 ################################################################################

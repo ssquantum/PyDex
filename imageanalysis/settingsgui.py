@@ -25,11 +25,9 @@ except ImportError:
         QFileDialog, QMessageBox, QLineEdit, QGridLayout, QWidget,
         QApplication, QPushButton, QAction, QMainWindow, QTabWidget,
         QTableWidget, QTableWidgetItem, QLabel)
-import logging
-logger = logging.getLogger(__name__)
-sys.path.append('.')
-sys.path.append('..')
-from strtypes import intstrlist, listlist
+if '.' not in sys.path: sys.path.append('.')
+if '..' not in sys.path: sys.path.append('..')
+from strtypes import intstrlist, listlist, error, warning, info
 from maingui import main_window, reset_slot, int_validator, double_validator, nat_validator
 from reimage import reim_window # analysis for survival probability
 from roiHandler import ROI
@@ -100,7 +98,7 @@ class settings_window(QMainWindow):
                 results_path = mw.log_file_name.split('\\')[:-4]
                 mw.init_log('\\'.join(results_path))
             except IndexError as e:
-                logger.error('Settings window failed to re-initialise log file.\n'+str(e))
+                error('Settings window failed to re-initialise log file.\n'+str(e))
         
     def find(self, image_number):
         """Generate the indices there image number is found in the list
@@ -385,9 +383,9 @@ class settings_window(QMainWindow):
                 self.stats['ROIs'][item.row()][item.column()-1] = int(item.text())
                 self.create_rois()
             except ValueError as e:
-                logger.error('Invalid ROI value from table: '+item.text()+'\n'+str(e))
+                error('Invalid ROI value from table: '+item.text()+'\n'+str(e))
             except IndexError as e:
-                logger.error('Not enough ROIs for table item %s\n'%item.row()+str(e))
+                error('Not enough ROIs for table item %s\n'%item.row()+str(e))
 
     #### image display and ROI functions ####
 
@@ -437,7 +435,7 @@ class settings_window(QMainWindow):
             try: 
                 x, y, w, h, t = self.stats['ROIs'][j] # xc, yc, width, height, threshold
             except IndexError as e:
-                logger.error('Not enough ROIs for main windows: %s\n'%j+str(e))
+                error('Not enough ROIs for main windows: %s\n'%j+str(e))
                 self.stats['ROIs'].append([1,1,1,1,1])
                 x, y, w, h, t = 1, 1, 1, 1, 1
             if not i % self._m: # for the first window in each set of _m
@@ -470,7 +468,7 @@ class settings_window(QMainWindow):
                 mw.roi.setPos(*self.stats['ROIs'][j][:2]) # triggers user_roi()
                 if masks: mw.image_handler.mask = masks[j] # allows non-square mask
             except IndexError as e:
-                logger.error('Failed to set main window ROI %s.\n'%j+str(e))
+                error('Failed to set main window ROI %s.\n'%j+str(e))
 
     def make_roi_grid(self, toggle=True, method=''):
         """Create a grid of ROIs and assign them to analysers that are using the
@@ -497,13 +495,13 @@ class settings_window(QMainWindow):
                     newpos = [int(X * (i%d + 0.5)),
                             int(Y * (i//d + 0.5))]
                     if any([newpos[0]//self.stats['pic_width'], newpos[1]//self.stats['pic_height']]):
-                        logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(newpos[0], newpos[1])+
+                        warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(newpos[0], newpos[1])+
                         ' outside of the image')
                         newpos = [0,0]
                     self.stats['ROIs'][i] = list(map(int, [newpos[0], newpos[1], shape[0], shape[1], self.stats['ROIs'][i][-1]]))
                     self.rois[i].resize(*map(int, [newpos[0], newpos[1], 1, 1]))
                 except ZeroDivisionError as e:
-                    logger.error('Invalid parameters for square ROI grid: '+
+                    error('Invalid parameters for square ROI grid: '+
                         'x - %s, y - %s, pic size - (%s, %s), roi size - %s.\n'%(
                             pos[0], pos[1], self.stats['pic_width'], self.stats['pic_height'], (shape[0], shape[1]))
                         + 'Calculated width - %s, height - %s.\n'%(X, Y) + str(e))
@@ -534,7 +532,7 @@ class settings_window(QMainWindow):
         n = 1 if self._m != 1 else 0 # make a new ROI when there are a windows for m images
         for roi in self.rois[:(self._a+n)//self._m]:
             try: im += roi.mask
-            except ValueError as e: logger.error('ROI %s has mask of wrong shape\n'%roi.id+str(e))
+            except ValueError as e: error('ROI %s has mask of wrong shape\n'%roi.id+str(e))
         self.update_im(im)
 
     def reset_table(self, newvals=None):
@@ -556,7 +554,7 @@ class settings_window(QMainWindow):
                 for j in range(self.roi_table.columnCount()):
                     self.roi_table.setItem(i, j, QTableWidgetItem())
                     self.roi_table.item(i, j).setText(data[j])
-                logger.error('Not enough ROIs for main windows in table: %s\n'%j+str(e))
+                error('Not enough ROIs for main windows in table: %s\n'%j+str(e))
         reset_slot(self.roi_table.itemChanged, self.roi_table_edit, True) # reconnect
 
     #### #### toggle functions #### #### 
@@ -598,7 +596,7 @@ class settings_window(QMainWindow):
             if not success:                   # if fit fails, use peak search
                 mw.display_fit(fit_method='quick')
                 mw.display_fit(fit_method='quick')
-                logger.warning('\nMultirun run %s fitting failed. '%n +
+                warning('\nMultirun run %s fitting failed. '%n +
                     'Histogram data in '+ measure_prefix+'\\'+mw.name + 
                     str(hist_id) + '.csv')
             # append histogram stats to measure log file:
@@ -630,7 +628,7 @@ class settings_window(QMainWindow):
         try:
             _ = simple_msg('129.234.190.191', 8086, msg)
         except Exception as e:
-            logger.error("Settings window failed to send results to influxdb\n"+str(e))
+            error("Settings window failed to send results to influxdb\n"+str(e))
 
                 
     def init_analysers_multirun(self, results_path, measure_prefix, appending=False, *args, **kwargs):
@@ -689,7 +687,7 @@ class settings_window(QMainWindow):
             except IndexError as e:
                 self.cam_pic_size_changed(pic_width, pic_height) # reset image shape
                 self.update_im(np.arange(pic_width*pic_height).reshape((pic_width, pic_height))+self.stats['bias'])
-                logger.error("Settings window failed to load image file: "+fname+'\n'+str(e))
+                error("Settings window failed to load image file: "+fname+'\n'+str(e))
     
     def load_images(self):
         """Prompt the user to choose a selection of image files."""
@@ -702,7 +700,7 @@ class settings_window(QMainWindow):
             try:
                 im_list.append(self.mw[0].image_handler.load_full_im(fname))
             except Exception as e: # probably file size was wrong
-                logger.error("Settings window failed to load image file: "+fname+'\n'+str(e))
+                error("Settings window failed to load image file: "+fname+'\n'+str(e))
         return im_list
                 
     def make_ave_im(self):
@@ -726,9 +724,9 @@ class settings_window(QMainWindow):
                         try:
                             self.stats[key] = self.types[key](val)
                         except KeyError as e:
-                            logger.warning('Failed to load image analysis default config file line: '+line+'\n'+str(e))
+                            warning('Failed to load image analysis default config file line: '+line+'\n'+str(e))
         except FileNotFoundError as e: 
-            logger.warning('Image analysis settings could not find the default.config file.\n'+str(e))
+            warning('Image analysis settings could not find the default.config file.\n'+str(e))
     
     def save_settings(self, fname='.\\imageanalysis\\default.config'):
         """Save the current settings to a config file"""
@@ -866,7 +864,7 @@ class settings_window(QMainWindow):
                 regstr = '('+regstr+r',){0,%s}'%(a-1) + regstr
             regexp_validator = QRegExpValidator(QRegExp(regstr))
             self.a_ind_edit.setValidator(regexp_validator)
-        except ValueError as e: pass # logger.error('Invalid analysis setting.\n'+str(e))
+        except ValueError as e: pass # error('Invalid analysis setting.\n'+str(e))
 
     def reset_analyses(self):
         """Remake the analyses instances for SAIA and re-image"""
@@ -875,7 +873,7 @@ class settings_window(QMainWindow):
             m, a = map(int, [self.m_edit.text(), self.a_edit.text()])
             ainds = list(map(int, self.a_ind_edit.text().split(',')))
         except ValueError as e:
-            logger.error('Invalid analysis settings.\n'+str(e))
+            error('Invalid analysis settings.\n'+str(e))
             return 0
         
         for mw in self.mw + self.rw:
@@ -905,14 +903,14 @@ class settings_window(QMainWindow):
         self.reset_table() # display (xc, yc, size) of ROIs in table
 
         if len(ainds) != self._a: 
-            logger.warning('While creating new analysers: there are %s image indices for the %s image analysers.\n'%(len(ainds), self._a))
+            warning('While creating new analysers: there are %s image indices for the %s image analysers.\n'%(len(ainds), self._a))
             ainds = [i % self._m for i in range(self._a)]
         for i, a in enumerate(ainds):
             try: 
                 self.mw_inds[i] = a
                 self.mw[i].name_edit.setText('ROI' + str(i//self._m) + '.Im' + str(a) + '.')
             except IndexError as e: 
-                logger.warning('Cannot set image index for image analyser %s.\n'%i+str(e))
+                warning('Cannot set image index for image analyser %s.\n'%i+str(e))
 
         self.mw_inds = self.mw_inds[:self._a]
         self.im_inds_validator('')
@@ -924,10 +922,10 @@ class settings_window(QMainWindow):
         #         j, k = map(int, rinds[i].split(','))
         #         if j >= self._a or k >= self._a:
         #             rind = rinds.pop(i)
-        #             logger.warning('Invalid histogram indices for re-imaging: '+rind)
+        #             warning('Invalid histogram indices for re-imaging: '+rind)
         #     except ValueError as e:
         #         rind = rinds.pop(i)
-        #         logger.error('Invalid syntax for re-imaging histogram indices: '+rind+'\n'+str(e))    
+        #         error('Invalid syntax for re-imaging histogram indices: '+rind+'\n'+str(e))    
         #     except IndexError:
         #         break # since we're popping elements from the list its length shortens
         # self.rw_inds = rinds
@@ -952,7 +950,7 @@ class settings_window(QMainWindow):
                         self.results_path, self.image_storage_path, 'ROI'+str(i)+'_Re_'))
                 self.rw[i].setWindowTitle(self.rw[i].name + ' - Re-Image Analaysing hists %s, %s'%(j,k))
         except IndexError as e:
-            logger.warning('Could not create reimage analysers %s.\n'%self.rw_inds+str(e))
+            warning('Could not create reimage analysers %s.\n'%self.rw_inds+str(e))
         for rw in self.rw[len(self.rw_inds):]:
             rw.deleteLater() # remove unused windows
         self.rw = self.rw[:len(self.rw_inds)]

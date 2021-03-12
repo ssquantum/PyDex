@@ -25,11 +25,9 @@ except ImportError:
     from PyQt5.QtWidgets import (QMenu, QFileDialog, QMessageBox, QLineEdit, 
         QGridLayout, QWidget, QApplication, QPushButton, QAction, QMainWindow, 
         QLabel)
-import logging
-logger = logging.getLogger(__name__)
-sys.path.append('.')
-sys.path.append('..')
-from strtypes import intstrlist, listlist
+if '.' not in sys.path: sys.path.append('.')
+if '..' not in sys.path: sys.path.append('..')
+from strtypes import intstrlist, listlist, error, warning, info
 from maingui import reset_slot, int_validator, double_validator # single atom image analysis
 from roiHandler import ROI, roi_handler
 
@@ -131,7 +129,7 @@ class atom_window(QMainWindow):
                 # line edits with ROI x, y, w, h, threshold, auto update threshold
                 for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]): 
                     layout.addWidget(label, (i//k)*3, 7+(i%k)*6+j, 1,1)
-            except IndexError as e: pass # logger.warning('Atom Checker has more plots than ROIs')
+            except IndexError as e: pass # warning('Atom Checker has more plots than ROIs')
         
         self.display_rois() # put ROIs on the image
 
@@ -226,12 +224,12 @@ class atom_window(QMainWindow):
                 try:
                     newx, newy = int(X * (i%d + 0.5)), int(Y * (i//d + 0.5))
                     if any([newx//self.rh.shape[0], newy//self.rh.shape[1]]):
-                        logger.warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(newx, newy)+
+                        warning('Tried to set square ROI grid with (xc, yc) = (%s, %s)'%(newx, newy)+
                         ' outside of the image')
                         newx, newy = 0, 0
                     self.rh.ROIs[i].resize(*map(int, [newx, newy, 1, 1]))
                 except ZeroDivisionError as e:
-                    logger.error('Invalid parameters for square ROI grid: '+
+                    error('Invalid parameters for square ROI grid: '+
                         'x - %s, y - %s, pic size - %s, roi size - %s.\n'%(
                             pos[0], pos[1], self.rh.shape[0], (shape[0], shape[1]))
                         + 'Calculated width - %s, height - %s.\n'%(X, Y) + str(e))
@@ -273,7 +271,7 @@ class atom_window(QMainWindow):
                     self.plots[i]['plot'].setTitle('ROI '+str(r.id))
                     for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]):
                         layout.addWidget(label, (i//k)*3, 7+(i%k)*6+j, 1,1)
-                except IndexError as e: pass # logger.warning('Atom Checker has more plots than ROIs')
+                except IndexError as e: pass # warning('Atom Checker has more plots than ROIs')
     
     def update_plots(self, im=0, include=1):
         """Plot the history of counts in each ROI in the associated plots"""
@@ -300,7 +298,7 @@ class atom_window(QMainWindow):
         im = np.zeros(self.rh.shape)
         for roi in self.rh.ROIs:
             try: im += roi.mask
-            except ValueError as e: logger.error('ROI %s has mask of wrong shape\n'%roi.id+str(e))
+            except ValueError as e: error('ROI %s has mask of wrong shape\n'%roi.id+str(e))
         self.update_im(im)
 
     #### #### save and load data functions #### ####
@@ -341,7 +339,7 @@ class atom_window(QMainWindow):
                 im_vals = self.rh.load_full_im(file_name)
                 im_list.append(im_vals)
             except Exception as e: # probably file size was wrong
-                logger.warning("Failed to load image file: "+file_name+'\n'+str(e)) 
+                warning("Failed to load image file: "+file_name+'\n'+str(e)) 
         return im_list
 
     def load_image(self, trigger=None):

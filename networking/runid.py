@@ -15,8 +15,9 @@ except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal, QTimer
     from PyQt5.QtWidgets import QMessageBox
 from networker import PyServer, reset_slot, TCPENUM
-import logging
-logger = logging.getLogger(__name__)
+import sys
+if '..' not in sys.path: sys.path.append('..')
+from strtypes import error, warning, info
 
 class runnum(QThread):
     """Take ownership of the run number that is
@@ -185,14 +186,14 @@ class runnum(QThread):
                     msg += '[%s, %s, "%s", %s, %s],'%(n%4, n//4, 
                         self.seq.mr.awg_args[self.seq.mr.mr_param['Analogue channel'][col][0]], 
                         self.seq.mr.mr_vals[v][col], self.seq.mr.mr_param['list index'][col])
-                except Exception as e: logger.error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
+                except Exception as e: error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
             elif 'DDS' in self.seq.mr.mr_param['Type'][col] and module == 'DDS':
                 try: # argument: value
                     n = self.seq.mr.mr_param['Time step name'][col][0] # index of chosen DDS COM port, profile
                     msg += '["COM%s", "P%s", "%s", %s],'%((n//8)+4, n%8, 
                         self.seq.mr.dds_args[self.seq.mr.mr_param['Analogue channel'][col][0]], 
                         self.seq.mr.mr_vals[v][col])
-                except Exception as e: logger.error('Invalid DDS parameter at (%s, %s)\n'%(v,col)+str(e))
+                except Exception as e: error('Invalid DDS parameter at (%s, %s)\n'%(v,col)+str(e))
         if col > -1: msg = msg[:-1] + ']'
         else: msg += ']'
         return msg
@@ -207,7 +208,7 @@ class runnum(QThread):
             try: # take the multirun parameters from the queue (they're added to the queue in master.py)
                 self.seq.mr.mr_param, self.seq.mr.mrtr, self.seq.mr.mr_vals, self.seq.mr.appending = self.seq.mr.mr_queue.pop(0) # parameters, sequence, values, whether to append
             except IndexError as e:
-                logger.error('runid.py could not start multirun because no multirun was queued.\n'+str(e))
+                error('runid.py could not start multirun because no multirun was queued.\n'+str(e))
                 return 0
                 
             results_path = os.path.join(self.sv.results_path, self.seq.mr.mr_param['measure_prefix'])
@@ -233,7 +234,7 @@ class runnum(QThread):
                     'params' + str(self.seq.mr.mr_param['1st hist ID']) + '.csv'))
                 self.sw.init_analysers_multirun(results_path, str(self.seq.mr.mr_param['measure_prefix']), self.seq.mr.appending)
             except FileNotFoundError as e:
-                logger.error('Multirun could not start because of invalid directory %s\n'%results_path+str(e))
+                error('Multirun could not start because of invalid directory %s\n'%results_path+str(e))
                 return 0
             # tell the monitor program to save results to the new directory
             self.monitor.add_message(self._n, results_path+'=save_dir')
@@ -324,7 +325,7 @@ class runnum(QThread):
         based on the run number +1."""
         self.monitor.add_message(self._n, 'update run number')
         if self._k != self._m and self.seq.mr.ind > 1:
-            logger.warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
+            warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
         self._k = 0
         r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # repeat
         if r == 1:
@@ -353,7 +354,7 @@ class runnum(QThread):
         try:
             prv = self.seq.mr.mr_vals[v][0] # get user variable from the previous row
         except AttributeError as e:     
-            logger.error('Multirun step could not extract user variable from table at row %s.\n'%v+str(e))
+            error('Multirun step could not extract user variable from table at row %s.\n'%v+str(e))
             prv = ''
         # fit and save data
         self.sw.multirun_save(self.sv.results_path, 

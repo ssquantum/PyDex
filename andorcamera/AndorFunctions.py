@@ -29,8 +29,9 @@ from ctypes import *   # Used to read and define C variables in Python.
 import sys
 import os
 import numpy as np
-import logging
-logger = logging.getLogger(__name__)
+if '.' not in sys.path: sys.path.append('.')
+if '..' not in sys.path: sys.path.append('..')
+from strtypes import error, warning, info
 
 # Ctype files stored here: C:\Users\Lab\AppData\Local\Enthought\Canopy\App\appdata\canopy-2.1.9.3717.win-x86_64\Lib\ctypes
 
@@ -50,7 +51,7 @@ class Andor:
         try:            
             self.dll = cdll.LoadLibrary(dllpath) # note dll path must be absolute, not relative
         except OSError:
-            logger.exception('Andor functions dll file not found.')
+            exception('Andor functions dll file not found.')
     
         self.verbosity      = True      # Amount of information to display when debugging
         self.coolerStatus   = None       # Cooler on (1) or off (0)?

@@ -26,25 +26,25 @@ class Optimiser():
     f1    : top of frequency range, MHz
     nfreqs: number of frequencies to test in the range
     fset  : setpoint frequency, match the diffraction efficiency at this point, MHz
-    amp   : reference amplitude to apply at the setpoint frequency, mV
+    pwr   : output power desired as a fraction of the setpoint
     tol   : tolerance to match to setpoint
     sleep : time to sleep betewen setting AWG freq and taking measurement, seconds
     """
-    def __init__(self, f0=135, f1=185, nfreqs=50, fset=166, amp=220, tol=1e-3, sleep=0.5):
+    def __init__(self, f0=135, f1=185, nfreqs=50, fset=166, pwr=1, tol=1e-3, sleep=0.5):
         self.status = 'checking' 
         # parameters
         self.f0 = f0 # lower bound
         self.f1 = f1 # upper bound
         self.nfreqs = nfreqs # number of frequencies
         self.fset = fset # setpoint
-        self.amp = amp # amplitude
+        self.pwr = pwr # amplitude
         self.tol = tol # tolerance
         self.sleep = sleep # sleep duration
         
         # 
         self.fs = np.linspace(f0, f1, nfreqs) # frequencies to test
-        self.vs = np.ones(nfreqs) # fractional amplitudes at those frequencies
-        self.v  = 1 # current fractional amplitude being tried
+        self.vs = np.ones(nfreqs)*200 # amplitude mV at those freqs
+        self.v  = 200 # current amplitude being tried
         self.i  = 0 # current index being set
         self.setpoint = 1 # DAQ measurement to match to
         self.n = 0 # counter for number of measurements
@@ -88,7 +88,7 @@ class Optimiser():
                 return 0
                 
             print('f:%.4g, v:%.4g'%(f,v), val, self.setpoint)
-            self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[f],1,9, self.amp,[v],[0],False,False))
+            self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[f],1,9, v,[self.pwr],[0],False,False))
             self.measure()
         
             self.n += 1
@@ -126,10 +126,10 @@ class Optimiser():
     def check(self, i=0):
         try:
             self.status = 'finished'
-            self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[self.fset],1,9, self.amp,[1],[0],False,False))
+            self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[self.fset],1,9, 220,[self.pwr],[0],False,False))
             self.measure()
             time.sleep(self.sleep)
-            self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[self.fs[i]],1,9, self.amp,[self.vs[i]],[0],False,False))
+            self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[self.fs[i]],1,9, self.vs[i],[self.pwr],[0],False,False))
             self.measure()
         except IndexError as e:
             print(e)
@@ -138,7 +138,7 @@ class Optimiser():
         plt.figure()
         plt.plot(self.fs, self.vs)
         plt.xlabel('Frequency (MHz)')
-        plt.ylabel('Fractional Amplitude')
+        plt.ylabel('RF amplitude to flatten (mV)')
         plt.show()
         
 if __name__ == "__main__":
@@ -147,22 +147,22 @@ if __name__ == "__main__":
     if standalone: # if there isn't an instance, make one
         app = QApplication(sys.argv) 
         
-    o = Optimiser(f0=120, f1=220, nfreqs=80, fset=166, amp=220, tol=1e-3, sleep=0.3)
+    o = Optimiser(f0=130, f1=190, nfreqs=61, fset=166, pwr=1, tol=1e-3, sleep=0.3)
     o.t.getParam(3)
     # o.restart()
     
-    from numpy.random import shuffle
-    fs = np.arange(120, 220)
-    # fs = np.delete(fs, np.array([154, 174, 152, 169, 155, 208, 140, 199, 173, 121, 189, 120])-120)
-    shuffle(fs)
-    amps = np.linspace(1,230,120)
-    shuffle(amps)
-    fdir = r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\111020AWG_power_calibration'
-    os.mkdir(fdir, exist_ok=True)
-    o.s.textin.disconnect()
-    o.s.add_message(o.n, fdir+'=save_dir')
-    o.s.add_message(o.n, 'reset graph')
-    # for f in fs:
+    # from numpy.random import shuffle
+    # fs = np.arange(120, 220)
+    # # fs = np.delete(fs, np.array([154, 174, 152, 169, 155, 208, 140, 199, 173, 121, 189, 120])-120)
+    # shuffle(fs)
+    # amps = np.linspace(1,230,120)
+    # shuffle(amps)
+    # fdir = r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\111020AWG_power_calibration'
+    # os.mkdir(fdir, exist_ok=True)
+    # o.s.textin.disconnect()
+    # o.s.add_message(o.n, fdir+'=save_dir')
+    # o.s.add_message(o.n, 'reset graph')
+    # # for f in fs:
     #     for a in amps:
     #         o.n = int(a)
     #         o.s.add_message(o.n, 'sets n') # sets the amplitude for reference

@@ -33,10 +33,6 @@ except ImportError:
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 import warnings
 warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
-import logging
-import logerrs
-logerrs.setup_log()
-logger = logging.getLogger(__name__)
 sys.path.append('./imageanalysis')
 from imageanalysis.settingsgui import settings_window
 from imageanalysis.atomChecker import atom_window
@@ -51,7 +47,7 @@ sys.path.append('./sequences')
 from sequences.sequencePreviewer import Previewer
 sys.path.append('./dds')
 from dds.DDScoms import DDSComWindow
-from strtypes import intstrlist
+from strtypes import intstrlist, error, warning, info
 
 ####    ####    ####    ####
 
@@ -192,9 +188,9 @@ class Master(QMainWindow):
                         try:
                             self.stats[key] = self.types[key](val)
                         except KeyError as e:
-                            logger.warning('Failed to load PyDex state line: '+line+'\n'+str(e))
+                            warning('Failed to load PyDex state line: '+line+'\n'+str(e))
         except FileNotFoundError as e: 
-            logger.warning('PyDex master settings could not find the state file.\n'+str(e))
+            warning('PyDex master settings could not find the state file.\n'+str(e))
         if self.stats['Date'] == time.strftime("%d,%B,%Y"): # restore file number
             return self.stats['File#'] # [Py]DExTer file number
         else: return 0
@@ -298,7 +294,7 @@ class Master(QMainWindow):
             if not hasattr(self.sender(), 'text'): # don't set timer if user pushed button
                 QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
                     self.reset_dates) # set the next timer to reset dates
-            logger.info(time.strftime("Date reset: %d %B %Y", t0))
+            info(time.strftime("Date reset: %d %B %Y", t0))
         else:
             self.date_reset = 1 # whether the dates are waiting to be reset or not
 
@@ -420,7 +416,7 @@ class Master(QMainWindow):
         ROI and so must be closed and restarted."""
         try:
             self.rn.cam.SafeShutdown()
-        except: logger.warning('Andor camera safe shutdown failed') # probably not initialised
+        except: warning('Andor camera safe shutdown failed') # probably not initialised
         self.rn.cam = camera(config_file=ancam_config) # Andor camera
         reset_slot(self.rn.cam.AcquireEnd, self.rn.receive, True) # connect signal
         self.status_label.setText('Camera settings config: '+ancam_config)
@@ -454,7 +450,7 @@ class Master(QMainWindow):
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam() # wait for camera to initialise before running
                 self.status_label.setText('Camera acquiring')
-            else: logger.warning('Master: Tried to start camera acquisition but camera is not initialised.')
+            else: warning('Master: Tried to start camera acquisition but camera is not initialised.')
         elif action_text == 'Start acquisition' and self.action_button.text() == 'Stop acquisition':
             self.actions.setEnabled(True)
             self.action_button.setText('Go')
@@ -471,7 +467,7 @@ class Master(QMainWindow):
                 if self.rn.seq.mr.check_table():
                     if not self.sync_toggle.isChecked():
                         self.sync_toggle.setChecked(True) # it's better to multirun in synced mode
-                        logger.warning('Multirun has changed the "sync with DExTer" setting.')
+                        warning('Multirun has changed the "sync with DExTer" setting.')
                     status = self.rn.seq.mr.check_mr_params(self.rn.sv.results_path) # add to queue if valid
                     self.check_mr_queue() # prevent multiple multiruns occurring simultaneously
                 else: 
@@ -575,7 +571,7 @@ class Master(QMainWindow):
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam() # wait for camera to initialise before running
             else: 
-                logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
+                warning('Run %s started without camera acquisition.'%(self.rn._n))
             self.rn.server.priority_messages([(TCPENUM['Save sequence'], 'save log file automatic name\n'+'0'*2000),
                 (TCPENUM['Run sequence'], 'single run '+str(self.rn._n)+'\n'+'0'*2000),
                 (TCPENUM['TCP read'], 'finished run '+str(self.rn._n)+'\n'+'0'*2000)]) # second message confirms end
@@ -587,7 +583,7 @@ class Master(QMainWindow):
             elif self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam()
-            else: logger.warning('Run %s started without camera acquisition.'%(self.rn._n))
+            else: warning('Run %s started without camera acquisition.'%(self.rn._n))
             if 'restart' not in msg: self.rn.multirun_go(msg) # might be resuming multirun instead of starting a new one
         elif 'multirun run' in msg:
             if self.check_rois.isChecked(): # start experiment when ROIs have atoms
@@ -617,7 +613,7 @@ class Master(QMainWindow):
                 self.rn.seq.reset_UI()
                 self.rn.seq.set_sequence()
                 self.status_label.setText('Sequence has been set from DExTer.')
-            except TypeError as e: logger.error("Tried to load invalid sequence.\n"+str(e))
+            except TypeError as e: error("Tried to load invalid sequence.\n"+str(e))
         self.ts['msg end'] = time.time()
         self.ts['blocking'] = time.time() - self.ts['msg start']
         # self.print_times()
@@ -637,7 +633,7 @@ class Master(QMainWindow):
             unprocessed = self.rn.cam.EmptyBuffer()
             self.rn.cam.AF.AbortAcquisition()
         except Exception as e: 
-            logger.warning('Failed to abort camera acquisition at end of run.\n'+str(e))
+            warning('Failed to abort camera acquisition at end of run.\n'+str(e))
         # if unprocessed:
         #     reply = QMessageBox.question(self, 'Unprocessed Images',
         # "Process the remaining %s images from the buffer?"%len(unprocessed), 
@@ -688,7 +684,7 @@ class Master(QMainWindow):
         elif reply == QMessageBox.Yes:
             try:
                 self.rn.cam.SafeShutdown()
-            except Exception as e: logger.warning('camera safe shutdown failed.\n'+str(e))
+            except Exception as e: warning('camera safe shutdown failed.\n'+str(e))
             # self.rn.check.send_rois() # give ROIs from atom checker to image analysis
             self.rn.sw.save_settings()
             for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 

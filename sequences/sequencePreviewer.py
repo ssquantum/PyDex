@@ -30,11 +30,9 @@ except ImportError:
         QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QScrollArea)
 from translator import translate
 from multirunEditor import multirun_widget
-import logging
-logger = logging.getLogger(__name__)
 sys.path.append('.')
 sys.path.append('..')
-from strtypes import BOOL
+from strtypes import BOOL, error, warning, info
 
 def fmt(val, p):
     """Reformat the string so that it is displayed better.
@@ -258,7 +256,7 @@ class Previewer(QMainWindow):
                 self.tr.load_xml(fname)
                 self.reset_UI()
                 # self.set_sequence()
-            except TypeError as e: logger.error("Tried to load invalid sequence")
+            except TypeError as e: error("Tried to load invalid sequence")
 
     def save_seq_file(self, fname=''):
         """Save the current sequence to an xml file."""

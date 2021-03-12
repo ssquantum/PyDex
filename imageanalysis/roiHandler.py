@@ -18,8 +18,9 @@ except ImportError:
     from PyQt5.QtGui import QFont
     from PyQt5.QtCore import QRect
     from PyQt5.QtWidgets import QWidget, QLineEdit, QCheckBox
-import logging
-logger = logging.getLogger(__name__)
+if '.' not in sys.path: sys.path.append('.')
+if '..' not in sys.path: sys.path.append('..')
+from strtypes import error, warning, info
 from maingui import int_validator, nat_validator
 from fitCurve import fit
 
@@ -79,7 +80,7 @@ class ROI(QWidget):
                 self.y - self.h//2 : (self.y + self.h//2 + self.h%2)
                 ] = np.ones((self.w, self.h))
             self.mask_type = 'rect'
-        else: logger.warning('ROI tried to create invalid mask.\n' + 
+        else: warning('ROI tried to create invalid mask.\n' + 
             'shape %s, x %s, y %s, w %s, h %s'%(self.s, self.x, self.y, self.w, self.h))
 
     def create_gauss_mask(self, im=0):
@@ -114,7 +115,7 @@ class ROI(QWidget):
                 if not np.isfinite(self.mask).all(): # need mask to have only finite values
                     self.resize(l0+x, l1+y, 1, 1, True) # update stored ROI values and make square mask
                 else: self.resize(l0+x, l1+y, w, h, False) # update stored ROI values
-        except Exception as e: logger.error('ROI %s failed to set Gaussian mask\n'%self.id+str(e))
+        except Exception as e: error('ROI %s failed to set Gaussian mask\n'%self.id+str(e))
         
     def translate_mask(self, xc, yc):
         """Take the new positions as the centre of the ROI and recreate the mask."""
@@ -130,7 +131,7 @@ class ROI(QWidget):
                 self.mask[l0:xc+self.d, l1:yc+self.d] = np.exp( # fill in 2D Gaussian
                         -2*(xy[0]-xc)**2 / self.ps[1]**2 -2*(xy[1]-yc)**2 / self.ps[3]**2) 
                 self.mask /= np.sum(self.mask) # normalise (we care about integrated counts)
-            except Exception as e: logger.error('ROI %s failed to set Gaussian mask\n'%self.id+str(e))
+            except Exception as e: error('ROI %s failed to set Gaussian mask\n'%self.id+str(e))
         
     
     def resize(self, xc, yc, width, height, create_sq_mask=True):
@@ -206,7 +207,7 @@ class roi_handler(QWidget):
                 self.ROIs[i].resize(*roi[:-1])
                 self.ROIs[i].t = roi[-1]
                 self.ROIs[i].threshedit.setText(str(roi[-1]))
-            except (IndexError, ValueError) as e: logger.warning(
+            except (IndexError, ValueError) as e: warning(
                 "Failed to resize ROI "+str(i)+": %s\n"%roi + str(e))
 
     def reset_count_lists(self, ids=[]):
@@ -228,7 +229,7 @@ class roi_handler(QWidget):
                 r.c[r.i%1000] = counts
                 r.i += 1
             except ValueError as e:
-                logger.error("Image was wrong shape %s for atom checker's ROI%s %s"%(
+                error("Image was wrong shape %s for atom checker's ROI%s %s"%(
                     np.shape(im), r.id, r.s) + str(e))
         try:
             1 // (1 - success) # ZeroDivisionError if success = 1
@@ -265,5 +266,5 @@ class roi_handler(QWidget):
             return np.loadtxt(im_name, delimiter=self.delim,
                               usecols=range(1,self.shape[0]+1)).reshape(self.shape)
         except IndexError as e:
-            logger.error('Image analysis failed to load image '+im_name+'\n'+str(e))
+            error('Image analysis failed to load image '+im_name+'\n'+str(e))
             return np.zeros(self.shape)

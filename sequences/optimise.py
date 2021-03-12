@@ -28,12 +28,10 @@ except ImportError:
         QLineEdit, QGridLayout, QPushButton, QListWidget, QListWidgetItem, 
         QScrollArea, QLabel, QTableWidget, QTableWidgetItem, QMessageBox,
         QFileDialog)
-import logging
-logger = logging.getLogger(__name__)
 sys.path.append('.')
 sys.path.append('..')
 from mythread import reset_slot # for dis- and re-connecting slots
-from strtypes import strlist, intstrlist, listlist
+from strtypes import strlist, intstrlist, listlist, error, warning, info
 from translator import translate
 from multirunEditor import multirun_widget, sequenceSaver
 
@@ -65,7 +63,7 @@ class MLOOPInterface(mli.Interface):
             cost, uncer = self.costfunc(*params_dict['params']) # Cost from the algorithm 
             bad = False
         except Exception as e:
-            logger.error('Exception: '+str(e))
+            error('Exception: '+str(e))
             cost = -1
             uncer = 0
             bad = True
@@ -344,7 +342,7 @@ class optimise_widget(multirun_widget):
         try: # make the list of values
             vals = f(*map(float, self.col_range.text().split('(')[-1].replace(')','').split(',')))
         except (ZeroDivisionError, TypeError, ValueError) as e: 
-            logger.warning('Add column to multirun: invalid syntax "'+self.col_range.text()+'".\n'+str(e))
+            warning('Add column to multirun: invalid syntax "'+self.col_range.text()+'".\n'+str(e))
             return 0
         col = int(self.col_index.text()) if self.col_index.text() else 0
         # store the selected channels
@@ -388,7 +386,7 @@ class optimise_widget(multirun_widget):
                     self.ui_param[key][col] = list(map(self.chan_choices[key].row, self.chan_choices[key].selectedItems()))
                 self.ui_param['list index'][col] = int(self.list_index.text()) if self.list_index.text() else 0
         except IndexError as e:
-            logger.error("Multirun couldn't save channel choices for column "+self.col_index.text()+'.\n'+str(e))
+            error("Multirun couldn't save channel choices for column "+self.col_index.text()+'.\n'+str(e))
         
     def set_chan_listbox(self, col):
         """Set the selected channels and timesteps with the values
@@ -419,7 +417,7 @@ class optimise_widget(multirun_widget):
                 for i in sel[key]: # select items at the stored indices
                     self.chan_choices[key].item(i).setSelected(True)
             except IndexError: pass # perhaps sequence was updated but using old selection indices
-            except AttributeError as e: logger.warning("Couldn't set channels for the loaded multirun parameters. Load the sequence first, then load multirun parameters.\n"+str(e))
+            except AttributeError as e: warning("Couldn't set channels for the loaded multirun parameters. Load the sequence first, then load multirun parameters.\n"+str(e))
         
     def setListboxFlag(self, listbox, flag):
         """Set the items of the listbox all have the given flag.
@@ -523,7 +521,7 @@ class optimise_widget(multirun_widget):
             self.mrtr.seq_dic['Routine name in'] = 'Multirun ' + self.mr_param['Variable label'] + \
                     ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
         except IndexError as e:
-            logger.error('Multirun failed to edit sequence at ' + self.mr_param['Variable label']
+            error('Multirun failed to edit sequence at ' + self.mr_param['Variable label']
                 + ' = ' + self.mr_vals[i][0] + '\n' + str(e))
         return self.mrtr.write_to_str()
 
@@ -601,7 +599,7 @@ class optimise_widget(multirun_widget):
                     try:
                         self.ui_param[header[i]] = self.types[header[i]](params[i])
                     except ValueError as e:
-                        logger.error('Multirun editor could not load parameter: %s\n'%params[i]+str(e))
+                        error('Multirun editor could not load parameter: %s\n'%params[i]+str(e))
             # store values in case they're overwritten after setText()
             nrows, ncols = np.shape(vals) # update array of values
             col = int(self.col_index.text()) if self.col_index.text() else 0
@@ -667,7 +665,7 @@ class optimise_widget(multirun_widget):
             #             if '.csv' in fn or '.dat' in fn:
             #                 os.remove(os.path.join(results_path, fn))
             #     except Exception as e:
-            #         logger.warning('Multirun could not remove files from '+results_dir+'\n'+str(e))
+            #         warning('Multirun could not remove files from '+results_dir+'\n'+str(e))
         
         # parameters are valid, add to queue
         self.mr_queue.append([copy.deepcopy(self.ui_param), self.tr.copy(), self.get_table(), self.appending]) 

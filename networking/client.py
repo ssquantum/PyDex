@@ -12,11 +12,10 @@ try:
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
     from PyQt5.QtWidgets import QApplication 
-import logging
-logger = logging.getLogger(__name__)
 import sys
-sys.path.append('..')
+if '..' not in sys.path: sys.path.append('..')
 from mythread import reset_slot
+from strtypes import error, warning, info
 
 def simple_msg(host, port, msg, encoding='utf-8', recv_buff_size=-1):
     """Open a socket and send a TCP message, then receive back a message."""
@@ -92,7 +91,7 @@ class PyClient(QThread):
                     try:
                         dxn, bytesize, msg = self.__mq.pop(0)
                     except IndexError as e: 
-                        logger.error('Server msg queue was emptied before msg could be sent.\n'+str(e))
+                        error('Server msg queue was emptied before msg could be sent.\n'+str(e))
                 sock.sendall(dxn)
                 sock.sendall(bytesize)
                 sock.sendall(msg)
@@ -101,7 +100,7 @@ class PyClient(QThread):
             except (ConnectionRefusedError, TimeoutError) as e:
                 pass
             except (ConnectionResetError, ConnectionAbortedError) as e:
-                logger.error('Python client: server cancelled connection.\n'+str(e))
+                error('Python client: server cancelled connection.\n'+str(e))
                 
     def check_stop(self):
         """Check if the thread has been told to stop"""
@@ -121,5 +120,5 @@ class PyClient(QThread):
         """Stop the event loop safely, ensuring that the sockets are closed.
         Once the thread has stopped, reset the stop toggle so that it 
         doesn't block the thread starting again the next time."""
-        reset_slot(self.finished, self.reset_stop)
+        reset_slot(self.finished, self.reset_stop, True)
         self.stop = True

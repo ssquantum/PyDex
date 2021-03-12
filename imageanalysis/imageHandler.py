@@ -15,8 +15,9 @@ from scipy.stats import norm
 from skimage.filters import threshold_minimum
 from astropy.stats import binom_conf_interval
 from analysis import Analysis, BOOL
-import logging
-logger = logging.getLogger(__name__)
+if '.' not in sys.path: sys.path.append('.')
+if '..' not in sys.path: sys.path.append('..')
+from strtypes import error, warning, info
 
 def est_param(h):
     """Generator function to estimate the parameters for a Guassian fit. 
@@ -94,7 +95,7 @@ class image_handler(Analysis):
             not_roi = np.zeros(s0)
             include = False
             s1 = np.shape(im)
-            logger.error("Received image was wrong shape (%s,%s) for analyser's ROI (%s,%s)"%(
+            error("Received image was wrong shape (%s,%s) for analyser's ROI (%s,%s)"%(
                 s1[0],s1[1],s0[0],s0[1]))
         # background statistics: mean count and standard deviation across image
         N = np.sum(1-self.mask)
@@ -109,7 +110,7 @@ class image_handler(Analysis):
         try:
             self.stats['ROI centre count'].append(full_im[self.xc, self.yc])
         except IndexError as e:
-            logger.error('ROI centre (%s, %s) outside of image size (%s, %s)'%(
+            error('ROI centre (%s, %s) outside of image size (%s, %s)'%(
                 self.xc, self.yc, self.pic_width, self.pic_height))
             self.stats['ROI centre count'].append(0)
         # position of the (first) max intensity pixel
@@ -301,5 +302,5 @@ class image_handler(Analysis):
             return np.loadtxt(im_name, delimiter=self.delim,
                               usecols=range(1,self.pic_width+1))
         except IndexError as e:
-            logger.error('Image analysis failed to load image '+im_name+'\n'+str(e))
+            error('Image analysis failed to load image '+im_name+'\n'+str(e))
             return np.zeros((self.pic_width, self.pic_height))

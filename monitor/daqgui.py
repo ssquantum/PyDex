@@ -18,14 +18,14 @@ pg.setConfigOption('foreground', 'k') # set graph foreground default black
 from collections import OrderedDict
 # some python packages use PyQt4, some use PyQt5...
 try:
-    from PyQt4.QtCore import pyqtSignal, QRegExp, QItemSelectionModel
+    from PyQt4.QtCore import pyqtSignal, QRegExp, QItemSelectionModel, QThread
     from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
             QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
             QMenu, QActionGroup, QFont, QTableWidget, QTableWidgetItem, QTabWidget, 
             QVBoxLayout, QDoubleValidator, QIntValidator, QRegExpValidator, 
             QComboBox, QListWidget) 
 except ImportError:
-    from PyQt5.QtCore import pyqtSignal, QRegExp, QItemSelectionModel
+    from PyQt5.QtCore import pyqtSignal, QRegExp, QItemSelectionModel, QThread
     from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, QFont,
         QRegExpValidator)
     from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
@@ -33,15 +33,11 @@ except ImportError:
         QApplication, QPushButton, QAction, QMainWindow, QTabWidget,
         QTableWidget, QTableWidgetItem, QLabel, QComboBox, QListWidget)
 os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-sys.path.append('.')
-sys.path.append('..')
+if '.' not in sys.path: sys.path.append('.')
+if '..' not in sys.path: sys.path.append('..')
 import warnings
 warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
-import logerrs
-logerrs.setup_log()
-import logging
-logger = logging.getLogger(__name__)
-from strtypes import strlist, BOOL
+from strtypes import strlist, BOOL, error, warning, info
 from daqController import worker, reset_slot
 from daqAnalysis import daqCollection
 from networking.client import PyClient
@@ -124,7 +120,7 @@ class daq_window(QMainWindow):
         self.tcp = PyClient(host=host, port=port)
         reset_slot(self.tcp.dxnum, self.set_n, True)
         reset_slot(self.tcp.textin, self.respond, True)
-        self.tcp.start()
+        self.tcp.start(QThread.LowestPriority)
 
     def init_UI(self):
         """Produce the widgets and buttons."""
@@ -209,7 +205,7 @@ class daq_window(QMainWindow):
             vrange.text = vrange.currentText # overload function so it's same as QLabel
             vrange.addItems(['%.1f'%x for x in worker.vrs])
             try: vrange.setCurrentIndex(worker.vrs.index(defaults['range']))
-            except Exception as e: logger.error('Invalid channel voltage range\n'+str(e))
+            except Exception as e: error('Invalid channel voltage range\n'+str(e))
             self.channels.setCellWidget(i,4, vrange)
 
         #### Plot for most recently acquired trace ####
@@ -324,7 +320,7 @@ class daq_window(QMainWindow):
         self.graph_edit.textEdited[str].connect(self.set_graph_file)
         tcp_grid.addWidget(self.graph_edit, 3,1, 1,1)
         
-        reset = QPushButton('Reset TCP client', self)
+        reset = QPushButton('Stop TCP client', self, checkable=True, checked=False)
         reset.clicked.connect(self.reset_client)
         tcp_grid.addWidget(reset, 4,0, 1,1)
         
@@ -487,7 +483,7 @@ class daq_window(QMainWindow):
                 self.reset_graph()
             x.inds = slice(x.i0, x.i1+1)
             x.size = x.i1 - x.i0
-        except (IndexError, ValueError) as e: pass # logger.error("Couldn't update slice.\n"+str(e))
+        except (IndexError, ValueError) as e: pass # error("Couldn't update slice.\n"+str(e))
 
     #### TCP functions ####
     
@@ -513,12 +509,13 @@ class daq_window(QMainWindow):
         
     def reset_client(self, toggle=True):
         """Stop the TCP client thread then restart it."""
-        self.tcp.close()
-        for i in range(100): # wait til it's stopped
-            if not self.tcp.isRunning():
-                break
-            else: time.sleep(0.001)
-        self.tcp.start() # restart
+        if toggle: 
+            self.sender().setText('Start TCP client')
+            self.tcp.close()
+        else: 
+            self.sender().setText('Stop TCP client')
+            self.tcp.reset_stop()
+            self.tcp.start() # restart
         
     def respond(self, msg=''):
         """Interpret a TCP message. For setting properties, the syntax is:
@@ -548,7 +545,7 @@ class daq_window(QMainWindow):
                 x = self.dc.slices[0]
                 self.tcp.add_message(self.stats['n'], str(x.stats[list(x.stats.keys())[0]]['mean'][-1]))
             except Exception as e:
-                logger.error("Couldn't send measurement.\n"+str(e))
+                error("Couldn't send measurement.\n"+str(e))
     
     #### acquisition functions #### 
 
@@ -596,7 +593,7 @@ class daq_window(QMainWindow):
             self.slaves[self.slaveind].stop = False
             self.slaves[self.slaveind].start()
         except (IndexError, ZeroDivisionError) as e:
-            logger.error('Could not start slave %s:\n'%self.slaveind+str(e))
+            error('Could not start slave %s:\n'%self.slaveind+str(e))
             
     def next_slave(self):
         """Advance the slave index to measure the next one once an acquisition
@@ -616,7 +613,7 @@ class daq_window(QMainWindow):
                     if ch in self.slaves[self.slaveind].channels:
                         l.setData(t, data[0])
                 except Exception as e:
-                    logger.error('DAQ trace could not be plotted.\n'+str(e))
+                    error('DAQ trace could not be plotted.\n'+str(e))
                 self.fadelines[j].show()
                 l.show()
                 self.trace_legend.items[j][0].show()
@@ -637,7 +634,7 @@ class daq_window(QMainWindow):
                 try:
                     self.fadelines[j].setData(l.xData, l.yData)
                 except Exception as e:
-                    logger.error('DAQ trace could not be plotted.\n'+str(e))
+                    error('DAQ trace could not be plotted.\n'+str(e))
                 self.fadelines[j].show()
             else:
                 self.fadelines[j].hide()
@@ -720,9 +717,9 @@ class daq_window(QMainWindow):
                         f.write(key+'='+channel_str(val)+'\n')
                     else:
                         f.write(key+'='+str(val)+'\n')
-            logger.info('DAQ config saved to '+self.stats['config_file'])
+            info('DAQ config saved to '+self.stats['config_file'])
         except Exception as e: 
-            logger.error('DAQ settings could not be saved to config file.\n'+str(e))
+            error('DAQ settings could not be saved to config file.\n'+str(e))
 
     def load_config(self, file_name='daqconfig.dat'):
         """Load the acquisition settings from the config file."""
@@ -735,16 +732,16 @@ class daq_window(QMainWindow):
                         try:
                             self.stats[key] = self.types[key](val)
                         except KeyError as e:
-                            logger.warning('Failed to load DAQ default config line: '+line+'\n'+str(e))
+                            warning('Failed to load DAQ default config line: '+line+'\n'+str(e))
             self.set_table() # make sure the updates are displayed
             self.set_n(self.stats['n'])
             self.set_save_dir(self.stats['save_dir'])
             self.set_trace_file(self.stats['trace_file'])
             self.set_graph_file(self.stats['graph_file'])
             self.dc.channels = list(self.stats['channels'].keys())
-            logger.info('DAQ config loaded from '+self.stats['config_file'])
+            info('DAQ config loaded from '+self.stats['config_file'])
         except FileNotFoundError as e: 
-            logger.warning('DAQ settings could not find the config file.\n'+str(e))
+            warning('DAQ settings could not find the config file.\n'+str(e))
 
     def save_trace(self, file_name=''):
         """Save the data currently displayed on the trace to a csv file."""
@@ -768,9 +765,9 @@ class daq_window(QMainWindow):
             out_arr = np.array(data).T
             try:
                 np.savetxt(file_name, out_arr, fmt='%s', delimiter=',', header=header)
-                logger.info('DAQ trace saved to '+file_name)
+                info('DAQ trace saved to '+file_name)
             except (PermissionError, FileNotFoundError) as e:
-                logger.error('DAQ controller denied permission to save file: \n'+str(e))
+                error('DAQ controller denied permission to save file: \n'+str(e))
 
     def load_trace(self, file_name=''):
         """Load data for the current trace from a csv file."""
@@ -814,7 +811,7 @@ class daq_window(QMainWindow):
             self.dc.save(file_name, list(self.stats.keys()), 
                 list(map(str, self.stats.values()))[:-1]
                  + [channel_str(self.stats['channels'])])
-            logger.info('DAQ graph saved to '+file_name)
+            info('DAQ graph saved to '+file_name)
         
     def closeEvent(self, event):
         """Before closing, try to save the config settings to file."""

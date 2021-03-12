@@ -17,10 +17,9 @@ try:
     from PyQt4.QtCore import pyqtSignal
 except ImportError:
     from PyQt5.QtCore import pyqtSignal
-sys.path.append('..')
+if '..' not in sys.path: sys.path.append('..')
 from mythread import PyDexThread
-import logging
-logger = logging.getLogger(__name__)
+from strtypes import error, warning, info
 
 def checkdir(text):
     """Shorthand for extracting a directory from the config file"""
@@ -80,7 +79,7 @@ class event_handler(PyDexThread):
             self.image_storage_path = self.check_path(self.image_storage_path, datepath)
             self.results_path = self.check_path(self.results_path, datepath)
             # self.sequences_path = self.check_path(self.sequences_path, datepath)
-        else: logger.warning('Image saver could not load paths from config file: '+config_file)
+        else: warning('Image saver could not load paths from config file: '+config_file)
 
     def check_path(self, path, datepath):
         """Check if Python has permission to write to the given directory, path.
@@ -89,7 +88,7 @@ class event_handler(PyDexThread):
             os.makedirs(path + datepath, exist_ok=True) # requies version > 3.2
             return path + datepath
         except PermissionError as e: 
-            logger.warning('Image saver could not create directory: '+
+            warning('Image saver could not create directory: '+
                 path +'\nUsing current directory instead\n'+str(e))
             os.makedirs('.' + datepath, exist_ok=True)
             return '.' + datepath

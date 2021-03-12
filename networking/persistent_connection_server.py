@@ -19,8 +19,9 @@ try:
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
     from PyQt5.QtWidgets import QApplication 
-import logging
-logger = logging.getLogger(__name__)
+import sys
+if '..' not in sys.path: sys.path.append('..')
+from strtypes import error, warning, info
     
 TCPENUM = { # enum for DExTer's producer-consumer loop cases
 'Initialise': 0,
@@ -92,7 +93,7 @@ class PyServer(QThread):
             self.__s.bind((host, port))
             self.__s.listen(0) # only one connection at a time
         except OSError as e: 
-            logger.error('Server address %s, %s'%(host, port) +
+            error('Server address %s, %s'%(host, port) +
                 ' already in use.\n'+str(e))
         
     def add_message(self, enum, text, encoding="mbcs"):
@@ -148,7 +149,7 @@ class PyServer(QThread):
                         conn.sendall(message) # send text
                     except (ConnectionResetError, ConnectionAbortedError) as e:
                         self.msg_queue.insert(0, [enum, mes_len, message]) # check this doesn't infinitely add the message back
-                        logger.error('Python server: client terminated connection before message was sent.' +
+                        error('Python server: client terminated connection before message was sent.' +
                             ' Re-inserting message at front of queue.\n'+str(e))
                     self.ts['sent'].append(time.time() - self.ts['connect'][-1])
                     try:
@@ -158,7 +159,7 @@ class PyServer(QThread):
                         buffer_size = int.from_bytes(conn.recv(4), 'big')
                         self.textin.emit(str(conn.recv(buffer_size), encoding))
                     except (ConnectionResetError, ConnectionAbortedError) as e:
-                        logger.error('Python server: client terminated connection before receive.\n'+str(e))
+                        error('Python server: client terminated connection before receive.\n'+str(e))
                     self.ts['received'].append(time.time() - self.ts['connect'][-1] - self.ts['sent'][-1])
                     self.ts['disconnect'].append(time.time())
                 except IndexError: pass # there was no message to send

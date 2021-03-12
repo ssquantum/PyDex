@@ -11,8 +11,10 @@ import os
 import time
 import numpy as np
 import win32event
-import logging
-logger = logging.getLogger(__name__)
+import sys
+if '.' not in sys.path: sys.path.append('.')
+if '..' not in sys.path: sys.path.append('..')
+from strtypes import error, warning, info
 from AndorFunctions import Andor, ERROR_CODE, Sensitivity, ReadNoise
 
 try:
@@ -66,10 +68,10 @@ class camera(QThread):
                     # self.StabiliseTemperature()
                     self.initialised = 3 # fully initialised
             else:
-                logger.error("Andor SDK requires Windows 64 bit")
+                error("Andor SDK requires Windows 64 bit")
         except Exception as e:
             self.initialised = 0
-            logger.warning('Andor EMCCD not initialised.\n'+str(e))
+            warning('Andor EMCCD not initialised.\n'+str(e))
             
     def CameraConnect(self):
         """Connect to camera and check which one it is.
@@ -185,7 +187,7 @@ class camera(QThread):
         except IndexError as e:
             self.pag = 4.50
             self.Nr  = 8.8
-            logger.warning('Invalid camera acquisition settings: '+
+            warning('Invalid camera acquisition settings: '+
                 'PAG '+str(preampgain)+', hsspeed '+str(hsspeed)+'\n'+str(e))
         self.AF.ROI = ROI 
         errors.append(ERROR_CODE[self.AF.SetReadMode(readmode)])
@@ -205,13 +207,13 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.AF.GetAcquisitionTimings()])
         self.BufferSize = self.AF.GetSizeOfCircularBuffer()
         if abs(expTime - self.AF.exposure)/expTime > 0.01:
-            logger.warning("Tried to set exposure time %.3g s"%expTime + 
+            warning("Tried to set exposure time %.3g s"%expTime + 
                 " but acquisition settings require min. exposure time " +
                 "%.3g s."%self.AF.exposure)
         self.AF.verbosity = verbosity
         check_success = [e != 'DRV_SUCCESS' for e in errors]
         if any(check_success):
-            logger.warning("Didn't get DRV_SUCCESS for setting " + 
+            warning("Didn't get DRV_SUCCESS for setting " + 
                 str(check_success.index(True)))
         self.SettingsChanged.emit(self.emg, self.pag, self.Nr, True)
         return check_success
@@ -226,7 +228,7 @@ class camera(QThread):
             with open(config_file, 'r') as config_file:
                 config_data = config_file.read().split("\n")
         except FileNotFoundError:
-            logger.warning("Andor camera config.dat file not found. "+
+            warning("Andor camera config.dat file not found. "+
                 "Applying default settings.")
             self.ApplySettings()
             return [1]
@@ -254,7 +256,7 @@ class camera(QThread):
         except IndexError as e:
             self.pag = 4.50
             self.Nr  = 8.8
-            logger.warning('Invalid camera acquisition settings: '+
+            warning('Invalid camera acquisition settings: '+
                 'PAG '+str(cvals[6])+', hsspeed '+str(cvals[4])+'\n'+str(e))
         errors.append(ERROR_CODE[self.AF.SetEMCCDGain(cvals[7])])
         self.emg = cvals[7]
@@ -274,14 +276,14 @@ class camera(QThread):
         errors.append(ERROR_CODE[self.AF.GetAcquisitionTimings()])
         self.BufferSize = self.AF.GetSizeOfCircularBuffer()
         if abs(cvals[20] - self.AF.exposure)/cvals[20] > 0.01:
-            logger.warning("Tried to set exposure time %.3g s"%cvals[20] + 
+            warning("Tried to set exposure time %.3g s"%cvals[20] + 
                 " but acquisition settings require min. exposure time " +
                 "%.3g s."%self.AF.exposure)
         self.AF.verbosity = bool(cvals[21])
         self.AF.kscans = 1
         check_success = [e != 'DRV_SUCCESS' for e in errors]
         if any(check_success):
-            logger.warning("Didn't get DRV_SUCCESS for setting " + 
+            warning("Didn't get DRV_SUCCESS for setting " + 
                 str(check_success.index(True)))
         self.SettingsChanged.emit(self.emg, self.pag, self.Nr, True)
         return check_success
@@ -384,7 +386,7 @@ class camera(QThread):
         istart, iend = self.AF.GetNumberNewImages()
         if iend > istart:
             if iend >= self.BufferSize:
-                logger.warning("While emptying camera buffer: The camera buffer "
+                warning("While emptying camera buffer: The camera buffer "
                     "was full, some images may have been overwritten")
             return self.AF.GetImages(istart, iend, self.AF.ROIwidth,
                                             self.AF.ROIheight)

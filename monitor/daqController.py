@@ -10,6 +10,8 @@ We use the python module: https://nidaqmx-python.readthedocs.io
 """
 import os
 import sys
+if '.' not in sys.path: sys.path.append('.')
+if '..' not in sys.path: sys.path.append('..')
 import time 
 import nidaqmx
 import nidaqmx.constants as const
@@ -24,11 +26,7 @@ try:
 except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
     from PyQt5.QtWidgets import QApplication
-import logging
-logger = logging.getLogger(__name__)
-sys.path.append('.')
-sys.path.append('..')
-from strtypes import strlist, BOOL
+from strtypes import strlist, BOOL, error, warning, info
 from mythread import reset_slot
 
 class worker(QThread):
@@ -126,7 +124,7 @@ class worker(QThread):
                             time.sleep(0.01) # wait here until stop = True
                 except Exception as e: 
                     if not "Some or all of the samples requested have not yet been acquired" in str(e): 
-                        logger.error("DAQ task setup failed\n"+str(e))
+                        error("DAQ task setup failed\n"+str(e))
             elif 'ai' in self.trig_chan: # fudged analogue trigger
                 with nidaqmx.Task() as self.task:
                     for v, chan in zip(self.vranges, self.channels):
@@ -146,7 +144,7 @@ class worker(QThread):
                             if np.size(np.shape(data)) == 1:
                                 data = [data] # if there's only one channel, still make it a 2D array
                             self.acquired.emit(np.array(data))
-        except Exception as e: logger.error("DAQ acquisition stopped.\n"+str(e))
+        except Exception as e: error("DAQ acquisition stopped.\n"+str(e))
 
     def analogue_acquisition(self):
         """Take a single acquisition on the specified channels."""
@@ -163,7 +161,7 @@ class worker(QThread):
                 if np.size(np.shape(data)) == 1:
                     data = [data] # if there's only one channel, still make it a 2D array
                 self.acquired.emit(np.array(data))
-        except Exception as e: logger.error("DAQ read failed\n"+str(e))
+        except Exception as e: error("DAQ read failed\n"+str(e))
 
     def digital_acquisition(self, devport="Dev2/port0/line"):
         """Read in data from all of the digital input channels"""                                                                                                 
@@ -189,7 +187,7 @@ class worker(QThread):
                 writer.write_many_sample(data)
                 # task.wait_until_done() # blocks until the task has finished
                 # task.stop() # end the task properly
-        except Exception as e: logger.error("DAQ AO write failed.\n"+str(e))
+        except Exception as e: error("DAQ AO write failed.\n"+str(e))
             
     def digital_out(self, channel, data):
         """Write teh data provided to the digital output channel. Note that the 
@@ -213,7 +211,7 @@ class worker(QThread):
                 func(data) # write data to output channel
                 # task.wait_until_done() # blocks until the task has finished
                 # task.stop() # end the task properly
-        except Exception as e: logger.error("DAQ DO write failed.\n"+str(e))
+        except Exception as e: error("DAQ DO write failed.\n"+str(e))
         
     def counter_out(self, channel, high_time, low_time):
         """Start a continuous counter output channel which is high for high_time
@@ -225,5 +223,5 @@ class worker(QThread):
                 task.cfg_implicit_timing(const.AcquisitionType.CONTINUOUS)
                 task.start()
                 task.write(nidaqmx.types.CtrTime(high_time=high_time, low_time=low_time))
-        except Exception as e: logger.error("DAQ CO write failed.\n"+str(e))
+        except Exception as e: error("DAQ CO write failed.\n"+str(e))
         

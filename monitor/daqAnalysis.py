@@ -8,8 +8,8 @@ Stefan Spence 01/06/20
 import os
 import re
 import sys
-sys.path.append('.')
-sys.path.append('..')
+if '.' not in sys.path: sys.path.append('.')
+if '..' not in sys.path: sys.path.append('..')
 import time
 import numpy as np
 try:
@@ -17,10 +17,9 @@ try:
 except ImportError:
     from PyQt5.QtCore import pyqtSignal, QThread
 from collections import OrderedDict
-from strtypes import strlist, listlist, BOOL
+from strtypes import strlist, listlist, BOOL, error, warning, info
 from networking.client import simple_msg
-import logging
-logger = logging.getLogger(__name__)
+import sys
 
 def channel_stats(text):
     """Convert a string list of channel settings into an 
@@ -75,9 +74,9 @@ class daqSlice:
                         msg = self.blurbstr%len(datastr) + datastr
                         _ = simple_msg('129.234.190.191', 8086, msg)
                     except Exception as e:
-                        logger.error("DAQ analysis failed to send results to influxdb\n"+str(e))
+                        error("DAQ analysis failed to send results to influxdb\n"+str(e))
                 except IndexError as e:
-                    logger.error('Data wrong shape to take slice at %s.\n'%i + str(e))
+                    error('Data wrong shape to take slice at %s.\n'%i + str(e))
             else: # just to keep them all the same length
                 self.stats[chan]['mean'].append(np.nan) 
                 self.stats[chan]['stdv'].append(np.nan)
@@ -181,4 +180,4 @@ class daqCollection(QThread):
                 s.stats.keys()] + [self.times]).T
             np.savetxt(file_name, out_arr, delimiter=',', fmt='%s', header=header)
         except PermissionError as e:
-            logger.error('DAQ Analysis denied permission to save file: \n'+str(e))
+            error('DAQ Analysis denied permission to save file: \n'+str(e))

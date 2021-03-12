@@ -27,8 +27,8 @@ except ImportError:
         QFileDialog, QComboBox, QMessageBox, QLineEdit, QGridLayout, 
         QApplication, QPushButton, QAction, QMainWindow, QWidget,
         QLabel, QTabWidget, QInputDialog)
-import logging
-logger = logging.getLogger(__name__)
+if '..' not in sys.path: sys.path.append('..')
+from strtypes import error, warning, info
 import imageHandler as ih # process images to build up a histogram
 import histoHandler as hh # collect data from histograms together
 import fitCurve as fc   # custom class to get best fit parameters using curve_fit
@@ -602,7 +602,7 @@ class main_window(QMainWindow):
                 self.stat_labels[key].setText(str(self.histo_handler.temp_vals[key]))
             self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
             if len(self.image_handler.stats['Counts']) > 50 and not any(self.image_handler.stats['Atom detected'][-50:]):
-                logger.warning('Zero atoms detected in the last 50 shots of analysis '
+                warning('Zero atoms detected in the last 50 shots of analysis '
                     +self.name+' '+self.multirun+' histogram %s.'%self.histo_handler.temp_vals['File ID']) 
             bf = self.histo_handler.bf # short hand
             if bf and bf.bffunc and type(bf.ps)!=type(None): # plot the curve on the histogram
@@ -740,7 +740,7 @@ class main_window(QMainWindow):
                 vmax = int(self.vmax_edit.text())
             self.im_hist.setLevels(vmin, vmax)
         except ValueError as e:
-            logger.error('Cannot plot image. Probably CCD saturated.\n'+str(e))
+            error('Cannot plot image. Probably CCD saturated.\n'+str(e))
 
     def update_plot(self, im, include=True):
         """Receive the event image and whether it's valid emitted from the 
@@ -836,7 +836,7 @@ class main_window(QMainWindow):
                     '\nAnalysis has flagged image %s as potentially mislabelled'%(
                         self.image_handler.stats['File ID'][next(i for i, x in enumerate(
                             self.image_handler.stats['Include']) if not x)])
-                logger.warning(warnmsg)
+                warning(warnmsg)
             # include most recent histogram stats as the top two lines of the header
             self.image_handler.save(save_file_name,
                          meta_head=list(self.histo_handler.temp_vals.keys()),
@@ -923,7 +923,7 @@ class main_window(QMainWindow):
                     self.recent_label.setText( # only updates at end of loop
                         'Just processed: '+os.path.basename(file_name)) 
                 except Exception as e: # probably file size was wrong
-                    logger.warning("Failed to load image file: "+file_name+'\n'+str(e)) 
+                    warning("Failed to load image file: "+file_name+'\n'+str(e)) 
             self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
             self.histo_handler.process(self.image_handler, self.stat_labels['User variable'].text(), 
                         fix_thresh=self.thresh_toggle.isChecked(), method='quick')

@@ -11,7 +11,8 @@ import sys
 import logging
 import os
 import copy
-logger = logging.getLogger(__name__)
+if '..' not in sys.path: sys.path.append('..')
+from strtypes import error, warning, info
 
 #### #### dictionary of indexes in tree #### ####
 tdict = { # i: time step, j: channel
@@ -98,7 +99,7 @@ class translate:
             with open(fname, 'w+') as f:
                 f.write(etree.tostring(self.seq_tree, encoding='cp1252', method='html').decode('cp1252'))
         except (FileNotFoundError, OSError) as e: 
-            logger.error('Translator could not save sequence:\n'+str(e))
+            error('Translator could not save sequence:\n'+str(e))
             
     def write_to_str(self):
         """Store the current sequence in the dictionary
@@ -108,7 +109,7 @@ class translate:
             txt = etree.tostring(self.seq_tree, encoding='cp1252', method='html').decode('cp1252')
             self.seq_txt = txt[txt.index('<Cluster>'):].replace('</LVData>', '')
         except TypeError as e:
-            logger.error('Translator could not write sequence to str\n'+str(e))
+            error('Translator could not write sequence to str\n'+str(e))
             self.seq_txt = ''
         return self.seq_txt
 
@@ -133,7 +134,7 @@ class translate:
             self.write_to_str()
         except (FileNotFoundError, OSError, IndexError) as e: 
             self.seq_tree = root
-            logger.error('Translator could not load sequence:\n'+str(e))
+            error('Translator could not load sequence:\n'+str(e))
 
     def load_xml_str(self, text=""):
         """Load a sequence as a dictionary from an xml string."""
@@ -146,7 +147,7 @@ class translate:
             self.write_to_str()
         except (lxml.etree.XMLSyntaxError) as e: 
             self.seq_tree = root
-            logger.error('Translator could not load sequence:\n'+str(e))
+            error('Translator could not load sequence:\n'+str(e))
     
     def copy(self):
         """Create a copy of this translate object"""
