@@ -7,6 +7,7 @@ Stefan Spence 27.06.20
 import time
 import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
+os.system("color") # allows error/warning/info messages to print in colour
 import sys
 from collections import OrderedDict
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer

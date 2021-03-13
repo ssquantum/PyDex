@@ -30,9 +30,11 @@ except ImportError:
         QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QScrollArea)
 from translator import translate
 from multirunEditor import multirun_widget
+import logging
+logger = logging.getLogger(__name__)
 sys.path.append('.')
 sys.path.append('..')
-from strtypes import BOOL, error, warning, info
+from strtypes import BOOL
 
 def fmt(val, p):
     """Reformat the string so that it is displayed better.
@@ -99,9 +101,8 @@ class Previewer(QMainWindow):
         save = QAction('Save Sequence', self) 
         save.triggered.connect(self.save_seq_file)
         seq_menu.addAction(save)
-        show = QAction('Display Sequence', self) 
-        show.triggered.connect(self.set_sequence)
-        seq_menu.addAction(show)
+        self.display_toggle = QAction('Display Sequence', self, checkable=True, checked=True) 
+        seq_menu.addAction(self.display_toggle)
 
         #### tab for previewing sequences ####
         preview_tab = QWidget()
@@ -254,9 +255,11 @@ class Previewer(QMainWindow):
         if fname:
             try:
                 self.tr.load_xml(fname)
-                self.reset_UI()
-                # self.set_sequence()
-            except TypeError as e: error("Tried to load invalid sequence")
+                if self.display_toggle.isChecked(): 
+                    self.reset_UI()
+                    self.set_sequence()
+                else: self.mr.reset_sequence(self.tr)
+            except TypeError as e: logger.error("Tried to load invalid sequence")
 
     def save_seq_file(self, fname=''):
         """Save the current sequence to an xml file."""

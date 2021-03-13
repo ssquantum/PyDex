@@ -733,6 +733,7 @@ class main_window(QMainWindow):
         event_im: [image (np.ndarray), include? (bool)]"""
         try:
             self.im_canvas.setImage(im)
+            h = self.im_canvas.getHistogram()
             vmin, vmax = np.min(im), np.max(im)
             if self.vmin_edit.text():
                 vmin = int(self.vmin_edit.text())
@@ -947,8 +948,7 @@ class main_window(QMainWindow):
         except:
             imid = '0'
         default_range = ''
-        image_storage_path = self.image_storage_path + '\%s\%s\%s'%(
-                self.date[3],self.date[2],self.date[0])  
+        image_storage_path = self.image_storage_path #+ '\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])
         date = self.date[0]+self.date[1]+self.date[3]
         if self.image_handler.ind > 0: # defualt load all files in folder
             default_range = '0 - ' + str(self.image_handler.ind)

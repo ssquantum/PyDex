@@ -8,6 +8,7 @@ https://documentation.help/NI-DAQmx-Key-Concepts/documentation.pdf
 We use the python module: https://nidaqmx-python.readthedocs.io
 """
 import os
+os.system("color") # allows error/warning/info messages to print in colour
 import re
 import sys
 import time 

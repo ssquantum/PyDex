@@ -9,6 +9,7 @@ Stefan Spence 30/08/19
     sequence, and displaying results.
 """
 import os
+os.system("color") # allows error/warning/info messages to print in colour
 import sys
 import time
 import copy

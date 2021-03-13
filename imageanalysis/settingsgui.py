@@ -596,7 +596,7 @@ class settings_window(QMainWindow):
             if not success:                   # if fit fails, use peak search
                 mw.display_fit(fit_method='quick')
                 mw.display_fit(fit_method='quick')
-                warning('\nMultirun run %s fitting failed. '%n +
+                warning('Multirun run %s fitting failed. '%n +
                     'Histogram data in '+ measure_prefix+'\\'+mw.name + 
                     str(hist_id) + '.csv')
             # append histogram stats to measure log file:

@@ -43,5 +43,5 @@ def error(msg=''):
     print('\t' + msg + '\n', '\033[m')
 
 def info(msg=''):
-    print('\033[34m' + '####\tINFO\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))
+    print('\033[36m' + '####\tINFO\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))
     print('\t' + msg + '\n', '\033[m')
