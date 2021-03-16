@@ -119,6 +119,11 @@ class Ui_MainWindow(object):
         self.POW = 0
         self.AMW = 1
 
+        # Amplitude limit
+        self.Alim = 0.5
+        self.dbl_validator = QtGui.QDoubleValidator(0,self.Alim,6)
+        self.dbl_validator.fixup = self.dbl_fixup
+        
         #RAM playblack options
         self.RAM_enable = 0
         self.RAM_playback_dest = np.array([0,0])
@@ -135,6 +140,16 @@ class Ui_MainWindow(object):
         #Matched_latency_en = 2
         #Data_assembler_hold = 1
         #Parallel_en = 0
+    
+    def dbl_fixup(self, txt=''):
+        """Correct the text input to match the valid range."""
+        try: val = float(txt)
+        except ValueError: pass
+        if val < self.dbl_validator.bottom():
+            return str(self.dbl_validator.bottom())
+        elif val > self.dbl_validator.top():
+            return str(self.dbl_validator.top())
+        else: return txt
 
     def respond(self, cmd=None):
         """Respond to the command sent by TCP message to the client.
@@ -182,6 +197,7 @@ class Ui_MainWindow(object):
                         self.Programme_DDS_RAM_func()
                     prv_port = port
             self.Display_func('Set parameters %s'%str([val for i, val in enumerate(value_list) if success[i]]))
+            self.applyAmpValidators()
         elif 'set_mode' in cmd:
             if value in self.mode_options:
                 self.mode = value
@@ -197,8 +213,6 @@ class Ui_MainWindow(object):
                 elif 'RAM' in self.mode: 
                     self.OSK_man.setChecked(False)
                 self.Display_func('Changed to %s.'%value)
-        elif 'load_single_tone_profile' in cmd:
-            self.Display_func('Oops! Loading single tone profiles is not yet supported.')
         elif 'load_RAM_playback' in cmd:
             self.file_open_DDS_RAM_func(value)
         elif 'set_RAM_data_type' in cmd:
@@ -235,6 +249,7 @@ class Ui_MainWindow(object):
                     for key, val in zip(['Freq', 'Phase', 'Amp'], [freq, phase, amp]):
                         label = self.centralwidget.findChild(QtWidgets.QLineEdit, key+'_P%s'%i)
                         label.setText('%s'%val)
+                self.applyAmpValidators()
         except Exception as e:
             self.Display_func('Could not load STP from %s\n'%fname+str(e))
 
@@ -267,6 +282,25 @@ class Ui_MainWindow(object):
         """If the aux Amp parameter is changed, reload the RAM 
         data saved on the DDS when it's next programmed."""
         self.load_DDS_ram = False
+
+    def applyAmpValidators(self):
+        """Apply a validator to the text inputs on the amplitude
+        in order to limit the output."""
+        self.dbl_validator.setTop(self.Alim)
+        # for the STPs
+        for x in map(lambda y: getattr(self, y), ['Amp_P%s'%i for i in range(8)]):
+            x.setText(self.dbl_fixup(x.text())) # limit allowed amplitude
+        # for the RAM playback
+        self.Amp_aux.setText(self.dbl_fixup(self.Amp_aux.text()))
+        # for the DRG: only want a validator if in amp mode.
+        if self.DRG_amp_cntrl.isChecked():
+            self.Sweep_start.setText(self.dbl_fixup(self.Sweep_start.text()))
+            self.Sweep_end.setText(self.dbl_fixup(self.Sweep_end.text()))
+        
+    def set_amp_lim(self):
+        """Set validators on inputs that define amplitudes"""
+        self.Alim = float(self.Amp_lim.text()) if self.Amp_lim.text() else 0.5
+        self.applyAmpValidators()
 
     def setupUi_coms(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -329,7 +363,7 @@ class Ui_MainWindow(object):
         self.PyDexTCP.clicked.connect(self.Pydex_tcp_reset)
 
         self.GB_Aux = QtWidgets.QGroupBox(self.Coms)
-        self.GB_Aux.setGeometry(QtCore.QRect(540, 10, 270, 150))
+        self.GB_Aux.setGeometry(QtCore.QRect(540, 10, 270, 200))
         self.GB_Aux.setAutoFillBackground(True)
         self.GB_Aux.setObjectName("GB_Aux")
         self.Freq_aux = QtWidgets.QLineEdit(self.GB_Aux)
@@ -360,11 +394,21 @@ class Ui_MainWindow(object):
         self.Amp_aux.setGeometry(QtCore.QRect(70, 100, 151, 21))
         self.Amp_aux.setObjectName("Amp_aux")
         self.Amp_aux.editingFinished.connect(self.reload_RAM) # reload data if this parameter is changed
+        self.Amp_aux.editingFinished.connect(lambda: self.Amp_aux.setText(self.dbl_fixup(self.Amp_aux.text())))
+        self.label_ALIMunits = QtWidgets.QLabel(self.GB_Aux)
+        self.label_ALIMunits.setGeometry(QtCore.QRect(230, 160, 25, 16))
+        self.label_ALIMunits.setObjectName("label_ALIMunits")
+        self.label_ALIM = QtWidgets.QLabel(self.GB_Aux)
+        self.label_ALIM.setGeometry(QtCore.QRect(10, 160, 65, 16))
+        self.label_ALIM.setObjectName("label_ALIM")
+        self.Amp_lim = QtWidgets.QLineEdit(self.GB_Aux)
+        self.Amp_lim.setGeometry(QtCore.QRect(70, 160, 151, 21))
+        self.Amp_lim.setObjectName("Amp_lim")
+        self.Amp_lim.editingFinished.connect(self.set_amp_lim) # reset validators on amp inputs
+        
         self.tabWidget.addTab(self.Coms, "")
         self.Single_tone = QtWidgets.QWidget()
         self.Single_tone.setObjectName("Single_tone")
-
-
 
         self.tabWidget.addTab(self.Coms, "")
         self.setupUi_stp(MainWindow)
@@ -409,6 +453,7 @@ class Ui_MainWindow(object):
         self.Amp_P0 = QtWidgets.QLineEdit(self.GB_P0)
         self.Amp_P0.setGeometry(QtCore.QRect(70, 100, 151, 21))
         self.Amp_P0.setObjectName("Amp_P0")
+        self.Amp_P0.editingFinished.connect(lambda: self.Amp_P0.setText(self.dbl_fixup(self.Amp_P0.text())))
 
         self.label_6 = QtWidgets.QLabel(self.GB_P0)
         self.label_6.setGeometry(QtCore.QRect(10, 100, 61, 16))
@@ -447,6 +492,7 @@ class Ui_MainWindow(object):
         self.Amp_P1 = QtWidgets.QLineEdit(self.GB_P1)
         self.Amp_P1.setGeometry(QtCore.QRect(70, 100, 151, 21))
         self.Amp_P1.setObjectName("Amp_P1")
+        self.Amp_P1.editingFinished.connect(lambda: self.Amp_P1.setText(self.dbl_fixup(self.Amp_P1.text())))
 
         self.label_30 = QtWidgets.QLabel(self.GB_P1)
         self.label_30.setGeometry(QtCore.QRect(10, 100, 61, 16))
@@ -485,6 +531,7 @@ class Ui_MainWindow(object):
         self.Amp_P2 = QtWidgets.QLineEdit(self.GB_P2)
         self.Amp_P2.setGeometry(QtCore.QRect(70, 100, 151, 21))
         self.Amp_P2.setObjectName("Amp_P2")
+        self.Amp_P2.editingFinished.connect(lambda: self.Amp_P2.setText(self.dbl_fixup(self.Amp_P2.text())))
 
         self.label_40 = QtWidgets.QLabel(self.GB_P2)
         self.label_40.setGeometry(QtCore.QRect(10, 100, 61, 16))
@@ -524,6 +571,7 @@ class Ui_MainWindow(object):
         self.Amp_P3 = QtWidgets.QLineEdit(self.GB_P3)
         self.Amp_P3.setGeometry(QtCore.QRect(70, 100, 151, 21))
         self.Amp_P3.setObjectName("Amp_P3")
+        self.Amp_P3.editingFinished.connect(lambda: self.Amp_P3.setText(self.dbl_fixup(self.Amp_P3.text())))
 
         self.label_45 = QtWidgets.QLabel(self.GB_P3)
         self.label_45.setGeometry(QtCore.QRect(10, 100, 61, 16))
@@ -563,6 +611,7 @@ class Ui_MainWindow(object):
         self.Amp_P4 = QtWidgets.QLineEdit(self.GB_P4)
         self.Amp_P4.setGeometry(QtCore.QRect(70, 100, 151, 21))
         self.Amp_P4.setObjectName("Amp_P4")
+        self.Amp_P4.editingFinished.connect(lambda: self.Amp_P4.setText(self.dbl_fixup(self.Amp_P4.text())))
 
         self.label_50 = QtWidgets.QLabel(self.GB_P4)
         self.label_50.setGeometry(QtCore.QRect(10, 100, 61, 16))
@@ -600,6 +649,7 @@ class Ui_MainWindow(object):
         self.Amp_P5 = QtWidgets.QLineEdit(self.GB_P5)
         self.Amp_P5.setGeometry(QtCore.QRect(70, 100, 151, 21))
         self.Amp_P5.setObjectName("Amp_P5")
+        self.Amp_P5.editingFinished.connect(lambda: self.Amp_P5.setText(self.dbl_fixup(self.Amp_P5.text())))
 
         self.label_55 = QtWidgets.QLabel(self.GB_P5)
         self.label_55.setGeometry(QtCore.QRect(10, 100, 61, 16))
@@ -638,6 +688,7 @@ class Ui_MainWindow(object):
         self.Amp_P6 = QtWidgets.QLineEdit(self.GB_P6)
         self.Amp_P6.setGeometry(QtCore.QRect(70, 100, 151, 21))
         self.Amp_P6.setObjectName("Amp_P6")
+        self.Amp_P6.editingFinished.connect(lambda: self.Amp_P6.setText(self.dbl_fixup(self.Amp_P6.text())))
 
         self.label_60 = QtWidgets.QLabel(self.GB_P6)
         self.label_60.setGeometry(QtCore.QRect(10, 100, 61, 16))
@@ -676,6 +727,7 @@ class Ui_MainWindow(object):
         self.Amp_P7 = QtWidgets.QLineEdit(self.GB_P7)
         self.Amp_P7.setGeometry(QtCore.QRect(70, 100, 151, 21))
         self.Amp_P7.setObjectName("Amp_P7")
+        self.Amp_P7.editingFinished.connect(lambda: self.Amp_P7.setText(self.dbl_fixup(self.Amp_P7.text())))
 
         self.label_65 = QtWidgets.QLabel(self.GB_P7)
         self.label_65.setGeometry(QtCore.QRect(10, 100, 61, 16))
@@ -1330,6 +1382,7 @@ class Ui_MainWindow(object):
         self.Sweep_start = QtWidgets.QLineEdit(self.GB_Sweep_params)
         self.Sweep_start.setGeometry(QtCore.QRect(120, 20, 151, 21))
         self.Sweep_start.setObjectName("Sweep_start")
+        self.Sweep_start.editingFinished.connect(self.applyAmpValidators)
 
         self.label_10 = QtWidgets.QLabel(self.GB_Sweep_params)
         self.label_10.setGeometry(QtCore.QRect(10, 20, 61, 16))
@@ -1342,6 +1395,7 @@ class Ui_MainWindow(object):
         self.Sweep_end = QtWidgets.QLineEdit(self.GB_Sweep_params)
         self.Sweep_end.setGeometry(QtCore.QRect(120, 50, 151, 21))
         self.Sweep_end.setObjectName("Sweep_end")
+        self.Sweep_end.editingFinished.connect(self.applyAmpValidators)
 
         self.Pos_step = QtWidgets.QLineEdit(self.GB_Sweep_params)
         self.Pos_step.setGeometry(QtCore.QRect(120, 80, 151, 21))
@@ -1387,6 +1441,7 @@ class Ui_MainWindow(object):
         self.setupUi_FPGA(MainWindow)
 
         self.Amp_scl_STP.setChecked(True) # default mode amplitude scaling
+        self.applyAmpValidators() # put limits on amp inputs
 
     def setupUi_FPGA(self, MainWindow):
         self.FPGA_playback = QtWidgets.QWidget()
@@ -1613,6 +1668,9 @@ class Ui_MainWindow(object):
         self.Amp_aux.setText(_translate("MainWindow", "1.00"))
         self.Debug.setText(_translate("MainWindow", "Debug"))
         self.PyDexTCP.setText(_translate("MainWindow", "Reset PyDex TCP"))
+        self.label_ALIMunits.setText(_translate("MainWindow", "0-1"))
+        self.label_ALIM.setText(_translate("MainWindow", "Amp lim"))
+        self.Amp_lim.setText(_translate("MainWindow", "0.5"))
 
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Coms), _translate("MainWindow", "Communication"))
         self.GB_P0.setTitle(_translate("MainWindow", "000 Profile 0"))
@@ -2015,6 +2073,8 @@ class Ui_MainWindow(object):
                 self.Display_func('Modulation type selection error. Check RAM and ramp generator.')
         else:
             self.Display_func(button.text())
+        
+        self.applyAmpValidators() # set limit on Amp if in Amp mode
 
     def update_values_func(self):
         try:

@@ -382,12 +382,12 @@ class multirun_widget(QWidget):
         """Use the text in the index slice line edit to select time steps"""
         try:
             self.chan_choices['Time step name'].clearSelection()
-            for i in range(*map(int, self.index_slice.text().split('(')[-1].replace(')','').split(','))):
+            for i in eval(self.index_slice.text()):
                 try:
                     self.chan_choices['Time step name'].item(i).setSelected(True)
                 except AttributeError: pass # index out of range
             self.save_chan_selection()
-        except (TypeError, ValueError) as e: 
+        except (TypeError, ValueError, NameError) as e: 
             warning('Invalid selection command for multirun timesteps "'+self.index_slice.text()+'".\n'+str(e))
         
     def add_column_to_array(self):
