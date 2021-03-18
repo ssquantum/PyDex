@@ -38,6 +38,11 @@ if os.path.exists(SavePrefix) == False:
 ALTERA = 2**14
 XILINX = 2**16
 
+class CustomComboBox(QtWidgets.QComboBox):
+    popupRequest = QtCore.pyqtSignal()
+    def showPopup(self): # override to add in signal
+        self.popupRequest.emit()
+        super(CustomComboBox, self).showPopup()
 
 class Ui_MainWindow(object):
     mode_options = ['single tone', 'RAM', 'single tone + ramp', 'RAM + ramp', 'FPGA'] # allowed modes of operation
@@ -302,6 +307,14 @@ class Ui_MainWindow(object):
         self.Alim = float(self.Amp_lim.text()) if self.Amp_lim.text() else 0.5
         self.applyAmpValidators()
 
+    def PortSetup(self):
+        """Display the list of available COM ports in the combobox"""
+        self.COM_no.clear()
+        ports = self.Get_serial_ports_func()
+        self.COM_no.addItem('--')
+        for jc in range(len(ports)):
+            self.COM_no.addItem(ports[jc])
+        
     def setupUi_coms(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(837, 600)
@@ -325,15 +338,12 @@ class Ui_MainWindow(object):
         self.label_147.setObjectName("label_147")
 
         ### COM port number ###
-        self.COM_no = QtWidgets.QComboBox(self.Coms)
+        self.COM_no = CustomComboBox(self.Coms)
         self.COM_no.setGeometry(QtCore.QRect(108, 21, 91, 41))
         self.COM_no.setObjectName("COM_no")
-        ports = self.Get_serial_ports_func()
         self.COM_no.addItem('--')
-        for jc in range(len(ports)):
-            self.COM_no.addItem(ports[jc])
-        #self.COM_no.activated[str].connect(self.PortConfig)
-
+        self.COM_no.popupRequest.connect(self.PortSetup)
+        
         self.label_148 = QtWidgets.QLabel(self.Coms)
         self.label_148.setGeometry(QtCore.QRect(10, 30, 91, 16))
         self.label_148.setObjectName("label_148")
@@ -1954,6 +1964,7 @@ class Ui_MainWindow(object):
 
                     self.Display_func('Opened port sucessfully')
                     self.connected = True
+                    self.debug_func(25)
                     time.sleep(0.05)
 
                 except:
@@ -2186,51 +2197,51 @@ class Ui_MainWindow(object):
             self.update_DRG_values_func()
             self.DGR_register_func()
 
-        cfr1_old = self.CFR1.copy()
-        cfr2_old = self.CFR2.copy()
+        # cfr1_old = self.CFR1.copy()
+        # cfr2_old = self.CFR2.copy()
 
         #Send any changes to the registers to the DDS
         self.CFR1_register_loader()
         self.CFR2_register_loader()
 
         #Update the control registers if there has been a chnage
-        if all(cfr1_old == self.CFR1) == False:
-            pack = ['{0:02x}'.format(23), '0'] # Second element is for the check sum
-            Sum = int(pack[0], 16)
+        # if all(cfr1_old == self.CFR1) == False:
+        pack = ['{0:02x}'.format(23), '0'] # Second element is for the check sum
+        Sum = int(pack[0], 16)
 
-            for ic in range(4):
-                a = np.packbits(self.CFR1[8*ic: 8*(ic+1)])[0]
-                pack.append('{0:02x}'.format(a))
-                Sum += int(pack[ic + 2], 16)
+        for ic in range(4):
+            a = np.packbits(self.CFR1[8*ic: 8*(ic+1)])[0]
+            pack.append('{0:02x}'.format(a))
+            Sum += int(pack[ic + 2], 16)
 
-            sum_check = '{:0{width}x}'.format(int(np.binary_repr(np.invert(np.array([Sum], dtype = np.uint8))[0] + 1),2), width=2)
+        sum_check = '{:0{width}x}'.format(int(np.binary_repr(np.invert(np.array([Sum], dtype = np.uint8))[0] + 1),2), width=2)
 
-            if sum_check == '100':
-                sum_check = '00'
-                # sum_check = '{0:02x}'.format(sum_check)
-            pack[1] = sum_check
-            if self.connected:
-                self.Send_serial_func(pack)
+        if sum_check == '100':
+            sum_check = '00'
+            # sum_check = '{0:02x}'.format(sum_check)
+        pack[1] = sum_check
+        if self.connected:
+            self.Send_serial_func(pack)
 
         ### CFR2
 
-        if all(cfr2_old == self.CFR2) == False:
-            pack = ['{0:02x}'.format(1), '0']
-            Sum = int(pack[0], 16)
+        # if all(cfr2_old == self.CFR2) == False:
+        pack = ['{0:02x}'.format(1), '0']
+        Sum = int(pack[0], 16)
 
-            for ic in range(4):
-                a = np.packbits(self.CFR2[8*ic: 8*(ic+1)])[0]
-                pack.append('{0:02x}'.format(a))
-                Sum += int(pack[ic + 2], 16)
+        for ic in range(4):
+            a = np.packbits(self.CFR2[8*ic: 8*(ic+1)])[0]
+            pack.append('{0:02x}'.format(a))
+            Sum += int(pack[ic + 2], 16)
 
-            sum_check = '{:0{width}x}'.format(int(np.binary_repr(np.invert(np.array([Sum], dtype = np.uint8))[0] + 1),2), width=2)
+        sum_check = '{:0{width}x}'.format(int(np.binary_repr(np.invert(np.array([Sum], dtype = np.uint8))[0] + 1),2), width=2)
 
-            if sum_check == '100':
-                sum_check = '00'
-                # sum_check = '{0:02x}'.format(sum_check)
-            pack[1] = sum_check
-            if self.connected:
-                self.Send_serial_func(pack)
+        if sum_check == '100':
+            sum_check = '00'
+            # sum_check = '{0:02x}'.format(sum_check)
+        pack[1] = sum_check
+        if self.connected:
+            self.Send_serial_func(pack)
 
         #Encode the parameters and send to the PSoC
         self.profile_register_func()
@@ -2932,7 +2943,7 @@ class Ui_MainWindow(object):
         """Convert a positive integer num into an m-bit bit vector"""
         return np.array(list(np.binary_repr(num).zfill(m))).astype(np.int8)
 
-    def debug_func(self):
+    def debug_func(self, value=24):
         """Requests the PSoC to debug the DDS registers"""
         pack = ['{0:02x}'.format(24), '0'] # Second element is for the check sum
         Sum = int(pack[0], 16)

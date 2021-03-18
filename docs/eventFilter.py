@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QObject, QEvent
+from PyQt5.QtCore import QThread, QObject, QEvent, pyqtSignal
 
 d = {}
 for key, item in QEvent.__dict__.items():
@@ -20,20 +20,20 @@ app = QApplication.instance()
 if app is None:
     app = QApplication([])
 
-import sys
-import numpy as np
-sys.path.append(r'C:\Users\qgtx64\DocumentsCDrive\QSUM\PyDex\monitor')
-sys.path.append(r'C:\Users\qgtx64\DocumentsCDrive\QSUM\PyDex\networking')
-sys.path.append(r'C:\Users\qgtx64\DocumentsCDrive\QSUM\PyDex')
-from daqgui import daq_window
-win = daq_window()
-win.show()
+# import sys
+# import numpy as np
+# sys.path.append(r'C:\Users\qgtx64\DocumentsCDrive\QSUM\PyDex\monitor')
+# sys.path.append(r'C:\Users\qgtx64\DocumentsCDrive\QSUM\PyDex\networking')
+# sys.path.append(r'C:\Users\qgtx64\DocumentsCDrive\QSUM\PyDex')
+# from daqgui import daq_window
+# win = daq_window()
+# win.show()
 
-from networker import PyServer
-p = PyServer(port=8622)
-p.start()
+# from networker import PyServer
+# p = PyServer(port=8622)
+# p.start()
 
-# print('\033[32m' + 'hi', '\033[m')
+import time
 class worker(QThread):
     im = pyqtSignal(np.ndarray)
     def __init__(self, n=1000):
@@ -43,4 +43,7 @@ class worker(QThread):
         t = time.time()
         for i in range(self.n): 
             self.im.emit(np.random.normal(800,5,15*15).reshape(15,15))
-        print(time.time() - t)
+            time.sleep(0.2)
+        
+# w = worker()
+# w.im.connect(boss.rn.receive)
