@@ -103,10 +103,9 @@ class reim_window(main_window):
         try:
             int(np.log(self.ih1.thresh)) # don't do anything if threshold is < 1
             atom = np.where(np.array(self.ih1.stats['Counts']) // self.ih1.thresh > 0, True, False)
-            idxs = [i for i, val in enumerate(self.ih2.stats['File ID']) 
-                    if any([val == v for j, v in enumerate(self.ih1.stats['File ID']) if atom[j]])]
+            idxs = np.array(self.ih2)[np.isin(self.ih2.stats['File ID'], np.array(self.ih1.stats['File ID'])[atom])]
             # take the after images when the before images contained atoms
-            t1 = time.time()
+            t1 = time.time() # list comprehension is faster than np array for list length < 1500
             self.image_handler.stats['Mean bg count'] = [self.ih2.stats['Mean bg count'][i] for i in idxs]
             self.image_handler.stats['Bg s.d.']  = [self.ih2.stats['Bg s.d.'][i] for i in idxs]
             self.image_handler.stats['Counts']   = [self.ih2.stats['Counts'][i] for i in idxs]

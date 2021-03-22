@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QThread, QObject, QEvent, pyqtSignal
-
+import time
 d = {}
 for key, item in QEvent.__dict__.items():
     d[item] = key
@@ -11,9 +11,12 @@ for i in range(300):
 class Filter(QObject):
     def __init__(self):
         super().__init__()
+        self.t = time.perf_counter()
     def eventFilter(self, obj, event):
         if event.type() != 1:
-            print(obj.objectName(), d[event.type()], end=' ')
+            t = 1e3*(time.perf_counter() - self.t)
+            print(obj.objectName(), d[event.type()], '\033[31m%.3g'%t if t>10 else '%.3g'%t, end='\033[m | ')
+            self.t = time.perf_counter()
         return False
 
 app = QApplication.instance()
@@ -32,8 +35,7 @@ if app is None:
 # from networker import PyServer
 # p = PyServer(port=8622)
 # p.start()
-
-import time
+import numpy as np
 class worker(QThread):
     im = pyqtSignal(np.ndarray)
     def __init__(self, n=1000):

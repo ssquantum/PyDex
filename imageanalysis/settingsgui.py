@@ -599,6 +599,7 @@ class settings_window(QMainWindow):
                 warning('Multirun run %s fitting failed. '%n +
                     'Histogram data in '+ measure_prefix+'\\'+mw.name + 
                     str(hist_id) + '.csv')
+            mw.update()
             # append histogram stats to measure log file:
             with open(os.path.join(results_path, measure_prefix, 
                     mw.name + measure_prefix + '.dat'), 'a') as f:
