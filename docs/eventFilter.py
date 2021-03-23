@@ -47,5 +47,8 @@ class worker(QThread):
             self.im.emit(np.random.normal(800,5,15*15).reshape(15,15))
             time.sleep(0.2)
         
+# from master import Master
+# boss = Master()
+# boss.show()
 # w = worker()
 # w.im.connect(boss.rn.receive)
