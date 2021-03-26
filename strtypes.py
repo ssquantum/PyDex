@@ -14,7 +14,7 @@ def BOOL(x):
     try: return strtobool(x)
     except (AttributeError, ValueError): return bool(x)
 
-
+# I later realised that eval() can replace these functions
 def strlist(text):
     """Convert a string of a list of strings back into
     a list of strings."""

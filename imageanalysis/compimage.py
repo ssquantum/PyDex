@@ -1,18 +1,16 @@
-"""Single Atom Re-Image Analyser
-Stefan Spence 22/08/19
-For use in a re-imaging sequence.
+"""Single Atom Comp-Image Analyser
+Stefan Spence 23/03/21
+For use in a sequence with several ROIs.
 
- - Create two main.py instances of SAIA to analyse different images 
+ - Create several main.py instances of SAIA to analyse different images 
  in a sequence
- - Display the survival histogram - if there's an atom in the 
- first image, then take the second image.
- - Allow the user to display the two running instances of main.py
+ - Display the survival histogram - if there are atoms in all of the 
+ first images, then take the second images.
 """
 import os
 import sys
 import time
 import numpy as np
-from astropy.stats import binom_conf_interval
 import pyqtgraph as pg    # not as flexible as matplotlib but works a lot better with qt
 # some python packages use PyQt4, some use PyQt5...
 try:
@@ -25,17 +23,10 @@ except ImportError:
 from maingui import main_window, reset_slot
 
 # main GUI window contains all the widgets                
-class reim_window(main_window):
-    """Main GUI window managing two sub-instance of SAIA.
+class compim_window(main_window):
+    """GUI window managing several sub-instances of SAIA.
 
-    The 1st instance responds to the first image, and the 2nd
-    instance responds to the second image produced in a sequence.
-    Use Qt to produce the window where the histogram plot is shown.
-    A simple interface allows the user to close or open the displays from
-    the two instances of SAIA. Separate tabs are made for 
-    settings, the histogram, histogram statistics,
-    displaying images, and plotting histogram statistics.
-    This GUI was produced with help from http://zetcode.com/gui/pyqt5/.
+    
     Keyword arguments:
     signal        -- the pyqtSignal that is used to trigger updates
     imhandlers    -- list of two instances of image_handler analysis classes.

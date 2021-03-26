@@ -50,5 +50,6 @@ class worker(QThread):
 # from master import Master
 # boss = Master()
 # boss.show()
+# boss.rn.im_save.disconnect()
 # w = worker()
 # w.im.connect(boss.rn.receive)

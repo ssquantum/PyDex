@@ -167,10 +167,10 @@ class Master(QMainWindow):
         self.dds_win = DDSComWindow() # display communication with DDS
         self.dds_win.msg[str].connect(lambda msg: self.rn.ddstcp.add_message(self.rn._n, msg))
         self.rn.ddstcp.textin[str].connect(lambda msg: self.dds_win.set_status(' received >> '+msg))
-        # set a timer to update the dates 2s after midnight:
+        # set a timer to update the dates at 5am:
         t0 = time.localtime()
         self.date_reset = 0 # whether the dates are waiting to be reset or not
-        QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
+        QTimer.singleShot((29*3600 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates)
 
     def idle_state(self):
