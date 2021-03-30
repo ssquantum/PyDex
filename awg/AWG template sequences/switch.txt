@@ -74,7 +74,7 @@
                 "freqs_output_[Hz]": "[166000000]",
                 "num_of_samples": 1024,
                 "num_of_traps": 1,
-                "off_time_[us]": 0.1,
+                "off_time_[us]": 100,
                 "segment": 1,
                 "tot_amp_[mV]": 220
             },

@@ -120,7 +120,7 @@ def dataj(data,segVal,chVal,action,duration,*args):
         else:
             print("wrong number of arguments")
             
-    if action ==4: 
+    elif action ==4: 
         if  len(args)==14:
             data["segments"][seg][ch] = {
             'segment'             :segVal,
@@ -170,6 +170,20 @@ def dataj(data,segVal,chVal,action,duration,*args):
             }
         else:
             print('wrong number of arguments')
+
+    if action ==6: 
+        data["segments"][seg][ch] = {
+            'segment'             :segVal,
+            'channel_out'         :chVal,
+            'action_type'         :'dc offset modulate',
+            'action_code'         :'offset',
+            'action_val'          :action,
+            'duration_[ms]'       :duration,
+            'mod_freq_[kHz]'      :args[0],
+            'dc_offset_[mV]'      :args[1],
+            'mod_depth'           :args[2],
+            'num_of_samples'      :args[3]
+            }
            
             
            

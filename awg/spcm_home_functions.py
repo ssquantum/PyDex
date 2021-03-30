@@ -152,7 +152,7 @@ def ampRampAdjuster(freq, optical_power):
 
 def getFrequencies(action,*args):
     
-    if action ==1 or action==3 or action ==4 or action==5:
+    if action ==1 or action>=3:
         if len(args)==7:
             freqs          = args[0]
             numberOfTraps  = args[1]
@@ -672,6 +672,21 @@ def switch(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration=0.1,o
         except ValueError: # if off time = 0
             return 1./282/len(freqs)*0.5*2**16 * np.sum([freq_amp[Y]*np.sin(2.*np.pi*np.arange(numOfSamples)*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
 
+
+def sine_offset(mod_freq=170*10**3,duration = 0.1,dc_offset=100,mod_amp=10,sampleRate = 625*10**6):
+    """
+    mod_freq      : Defined in [kHz]. float value
+    duration      : Defines the duration of the static trap in [MILLIseconds]. The actual duration is handled by the number of loops.
+    dc_offset     : Amplitude [mV] to modulate around
+    mod_amp       : Defines the global amplitude of the sine waves, fraction of DC offset
+    sampleRate    : Defines the sample rate by which the data will read [in Hz].
+    """
+    memBytes = round(sampleRate * (duration*10**-3)/1024) #number of bytes as a multiple of kB
+    if memBytes <1:
+        memBytes =1
+    numOfSamples = int(memBytes*1024) # number of samples    
+    t = 2.*np.pi*np.arange(numOfSamples)/sampleRate
+    return dc_offset/282.*0.5*2**16 * (1 + mod_amp*np.sin(t*mod_freq))
 
 #Using ideas from the following:
 #https://towardsdatascience.com/reshaping-numpy-arrays-in-python-a-step-by-step-pictorial-tutorial-aed5f471cf0b

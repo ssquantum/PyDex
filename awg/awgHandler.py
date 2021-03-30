@@ -555,8 +555,6 @@ class AWG:
             
         if flag==0:
             
-          
-            
             spcm_dwSetParam_i32(AWG.hCard, SPC_SEQMODE_WRITESEGMENT,self.segment)
             spcm_dwSetParam_i32(AWG.hCard, SPC_SEQMODE_SEGMENTSIZE, self.numOfSamples)
 
@@ -662,11 +660,10 @@ class AWG:
         ######
         # Allows users to use either numbers or strings to denote action type used.
         ##########################
-        actionNames = {'static':1,'moving':2,'ramp'  :3,'ampMod':4, 'switch':5}
+        actionNames = {'static':1,'moving':2,'ramp'  :3,'ampMod':4, 'switch':5, 'offset':6}
         
         if action in actionNames.keys():
             action = actionNames[action]
-        
         
         if segment > self.num_segment -1:
             sys.stdout.write("The card has been segmented into {0:d} parts.\n".format(self.num_segment))
@@ -700,7 +697,7 @@ class AWG:
             self.staticDuration[self.segment] = duration           # Writes down the requested duration for a static trap in a dictionary (__init__)
             self.duration = self.statDur
             
-        elif action == 5:
+        elif action > 4:
             self.duration = duration
         
         elif action == 4 :
@@ -807,7 +804,7 @@ class AWG:
                         self.f1 = MEGA(170)
                         flag =1
                     
-                if 0 <= tot_amp <= 282:
+                if 0 <= tot_amp <= self.max_output:
                     self.tot_amp = tot_amp
                 else:
                     sys.stdout.write("Chosen amplitude will damage the spectrum analyser. Set to 50mV")
@@ -958,7 +955,7 @@ class AWG:
                     sys.stdout.write("Hybridicity parameter must lie between 0 (Min Jerk) and 1 (linear)")
                     flag =1
                     
-                if 2<= tot_amp<= 282:
+                if 0<= tot_amp<= self.max_output:
                     self.tot_amp = tot_amp
                 else:
                     self.tot_amp = 120
@@ -1094,7 +1091,7 @@ class AWG:
                         self.f1 = MEGA(170)
                         flag =1
                 
-                if 2<= tot_amp<= 282:
+                if 0<= tot_amp<= self.max_output:
                     self.tot_amp = tot_amp
                 else:
                     self.tot_amp = 120
@@ -1236,7 +1233,7 @@ class AWG:
                         self.f1 = MEGA(170)
                         flag =1
                     
-                if 0 <= tot_amp <= 282:
+                if 0 <= tot_amp <= self.max_output:
                     self.tot_amp = tot_amp
                 else:
                     sys.stdout.write("Chosen amplitude will damage the spectrum analyser.")
@@ -1395,7 +1392,7 @@ class AWG:
                         self.f1 = MEGA(170)
                         flag =1
                     
-                if 0 <= tot_amp <= 282:
+                if 0 <= tot_amp <= self.max_output:
                     self.tot_amp = tot_amp
                 else:
                     sys.stdout.write("Chosen amplitude will damage the spectrum analyser. Set to 50mV")
@@ -1452,8 +1449,37 @@ class AWG:
                 sys.stdout.write("Failed to create data for switch.\n")
                 flag =1
         
+        #####################################################################
+        # MODULATION WITH DC OFFSET - ACTION 6
+        #####################################################################
+        
+        elif action == 6:
+            if len(args)==3:
+            
+                f1         = typeChecker(args[0])
+                dc_offset  = typeChecker(args[1])
+                mod_amp    = typeChecker(args[2])
+                
+                self.f1 = KILO(f1)
+                    
+                if 0 <= mod_amp+dc_offset <= self.max_output:
+                    self.tot_amp = mod_amp
+                else:
+                    sys.stdout.write("Chosen amplitude will damage the spectrum analyser. Set to 50mV")
+                    self.tot_amp = 50
+                
+                ##############
+                #  Generate the Data
+                #########################
+                outData = sine_offset(self.f1,self.duration,dc_offset,self.tot_amp,self.sample_rate.value)            # Generates the requested data
+                dataj(self.filedata,self.segment,channel,action,duration,f1,dc_offset,self.tot_amp,self.numOfSamples)                # Stores information in the filedata variable, to be written when card initialises. 
+                
+            else: 
+                sys.stdout.write("Failed to create data for dc offset modulate function.\n")
+                flag =1
+        
         else:
-            sys.stdout.write("Action value not recognised.\n")
+            sys.stdout.write("Action value not recognised.\n"+', '.join(map(str, [segment,channel, action])))
             flag =1
                       
         ######################################################################
@@ -1632,16 +1658,18 @@ class AWG:
             sys.stdout.write("\n Card was not initialiased due to unresolved issues in segments {}\n".format(y))
             sys.stdout.write("\n Card was not initialiased due to unresolved issues in steps {}\n".format(yStep))
             
-    loadOrder ={1:('segment','channel_out','action_val','duration_[ms]','freqs_input_[MHz]','num_of_traps',\
+    loadOrder ={1:('segment','channel_out','action_val','duration_[ms]','freqs_input_[MHz]','num_of_traps',
                     'distance_[um]','tot_amp_[mV]','freq_amp','freq_phase_[deg]','freq_adjust','amp_adjust'),
-                    2:('segment','channel_out','action_val','duration_[ms]','start_freq_[MHz]','end_freq_[MHz]',"hybridicity",\
+                    2:('segment','channel_out','action_val','duration_[ms]','start_freq_[MHz]','end_freq_[MHz]',"hybridicity",
                     "tot_amp_[mV]","start_amp","end_amp","freq_phase_[deg]","freq_adjust","amp_adjust"),
-                    3:('segment','channel_out','action_val','duration_[ms]','freqs_input_[MHz]','num_of_traps','distance_[um]',\
+                    3:('segment','channel_out','action_val','duration_[ms]','freqs_input_[MHz]','num_of_traps','distance_[um]',
                     'tot_amp_[mV]','start_amp','end_amp','freq_phase_[deg]','freq_adjust','amp_adjust'),
-                    4:('segment','channel_out','action_val','duration_[ms]','freqs_input_[MHz]','num_of_traps',\
+                    4:('segment','channel_out','action_val','duration_[ms]','freqs_input_[MHz]','num_of_traps',
                     'distance_[um]','tot_amp_[mV]','freq_amp','mod_freq_[kHz]','mod_depth','freq_phase_[deg]','freq_adjust','amp_adjust'),
-                    5:('segment','channel_out','action_val','duration_[ms]','off_time_[us]','freqs_input_[MHz]','num_of_traps',\
-                    'distance_[um]','tot_amp_[mV]','freq_amp','freq_phase_[deg]','freq_adjust','amp_adjust')}
+                    5:('segment','channel_out','action_val','duration_[ms]','off_time_[us]','freqs_input_[MHz]','num_of_traps',
+                    'distance_[um]','tot_amp_[mV]','freq_amp','freq_phase_[deg]','freq_adjust','amp_adjust'),
+                    6:('segment','channel_out','action_val','duration_[ms]','mod_freq_[kHz]',
+                    'dc_offset_[mV]','mod_depth')}
     
     stepOrder = ("step_value","segment_value","num_of_loops","next_step","condition")
     
@@ -1956,16 +1984,16 @@ if __name__ == "__main__":
     Vincent 14/9/2020 
     """
     
-    data01 = t.dataGen(0,ch1,'static',1,[140],1,9, 220,[1],[0],False,True)
-    data02 = t.dataGen(0,ch2,'static',1,[140],1,9, 220,[1],[0],False,True)
-    t.setSegment(0,data01, data02)
-    t.setStep(0,0,1,0,1)   
+    # data01 = t.dataGen(0,ch1,'static',1,[166],1,9, 50,[1],[0],False,True)
+    # data02 = t.dataGen(0,ch2,'static',1,[166],1,9, 50,[1],[0],False,True)
+    # t.setSegment(0,data01, data02)
+    # t.setStep(0,0,1,0,1)   
     
     
-    data11 = t.dataGen(1,ch1,'ampMod',50,[166],1,9, 220,[1],20,0.05,[0],False,False)      #seg1, channel 1
-    data12 = t.dataGen(1,ch2,'ampMod',50,[166],1,9, 220,[1],20,0.05,[0],False,False)      #seg1, channel 2
-    t.setSegment(1,data11,data12)
-    t.setStep(1,1,1,0,2) 
+    # data11 = t.dataGen(1,ch1,'ampMod',50,[166],1,9, 220,[1],20,0.05,[0],False,False)      #seg1, channel 1
+    # data12 = t.dataGen(1,ch2,'ampMod',50,[166],1,9, 220,[1],20,0.05,[0],False,False)      #seg1, channel 2
+    # t.setSegment(1,data11,data12)
+    # t.setStep(1,1,1,0,2) 
     
 #      
 #     data11 = t.dataGen(1,ch1,'moving',10,[195],[163.6],1, 220,[1],[1],[0],False,False)
@@ -1984,40 +2012,7 @@ if __name__ == "__main__":
 #     t.setStep(3,3,1,0,2)
 # 
 #     
-    
-    # data11 = t.dataGen(1,ch1,'ramp',5,[166, 167],2, 9, 220,[1,0],[1,1],[0,0],False,False)
-    # data12 = t.dataGen(1,ch2,'ramp',5,[166, 167],2, 9, 220,[1,0],[1,1],[0,0],False,False)
-    # t.setSegment(1,data11, data12)
-    # t.setStep(1,1,1,2,2)
-    # 
-    # 
-    # data21 = t.dataGen(2,ch1,'moving',5,[166, 167],[166, 190],1, 220,[1,1],[1,1],[0,0],False,False)
-    # data22 = t.dataGen(2,ch2,'moving',5,[166, 167],[166, 190],1, 220,[1,1],[1,1],[0,0],False,False)
-    # t.setSegment(2,data21, data22)
-    # t.setStep(2,2,1,3,2)
-    # 
-    # 
-    # data31 = t.dataGen(3,ch1,'static',100,[166, 190],2,9, 220,[1,1],[0,0],False,False)
-    # data32 = t.dataGen(3,ch2,'static',100,[166, 190],2,9, 220,[1,1],[0,0],False,False)
-    # t.setSegment(3,data31, data32)
-    # t.setStep(3,3,1,0,2) 
-    # 
-    # t.setStep(3,3,1,0,2)
-
-
-  #  t.start(True)
-    # 
-    # data11A = t.dataGen(1,ch1,'moving',5,[166],[135],1, 220,[1],[1],[0],False,False)
-    # data12A = t.dataGen(1,ch2,'moving',5,[166],[135],1, 220,[1],[1],[0],False,False)
-    # 
-    # 
-    # data21B = t.dataGen(2,ch1,'moving',5,[135],[166],1, 220,[1],[1],[0],False,False)
-    # data22B = t.dataGen(2,ch2,'moving',5,[135],[166],1, 220,[1],[1],[0],False,False)
-    # 
-    # data11 = np.append(data11A,data21B)
-    # data12 = np.append(data12A,data22B)
-    # t.setSegment(1,data11, data12)
-    # t.setStep(1,1,5,0,2)
+    #  t.start(True)
     
     # 
     # ### STATIC/RAMP
@@ -2039,4 +2034,15 @@ if __name__ == "__main__":
     # t.setSegment(1,data01, data02)
     # t.setStep(1,1,1,0,2)   
     # t.saveData(r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\test amp_adjust\switch.txt')
+    # t.start()
+    #### DC offset modulate
+    # data01 = t.dataGen(0,0,'offset',1,166,0, 0)
+    # data02 = t.dataGen(0,1,'offset',1,166,150, 0)
+    # t.setSegment(0,data01, data02)
+    # t.setStep(0,0,1,1,1)  
+    # data01 = t.dataGen(1,0,'offset',50,166,0, 0)
+    # data02 = t.dataGen(1,1,'offset',50,166,150, 0.1)
+    # t.setSegment(1,data01, data02)
+    # t.setStep(1,1,1,0,2)   
+    # t.saveData(r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\test amp_adjust\modulate_dc_offset.txt')
     # t.start()

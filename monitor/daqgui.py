@@ -711,14 +711,21 @@ class daq_window(QMainWindow):
         """Save the current acquisition settings to the config file."""
         self.stats['config_file'] = file_name if file_name else self.try_browse(
                 'Save Config File', 'dat (*.dat);;all (*)', QFileDialog.getSaveFileName)
+        # make sure to save all of the channels
+        save_stats = self.stats.copy()
+        statstr = "[[" # dictionary of channel names and properties
+        for i in range(self.channels.rowCount()):
+            statstr += ', '.join([self.channels.cellWidget(i,j).text() 
+                for j in range(self.channels.columnCount())]) + '],['
+        save_stats['channels'] = channel_stats(statstr[:-2] + ']')
         try:
-            with open(self.stats['config_file'], 'w+') as f:
-                for key, val in self.stats.items():
+            with open(save_stats['config_file'], 'w+') as f:
+                for key, val in save_stats.items():
                     if key == 'channels':
                         f.write(key+'='+channel_str(val)+'\n')
                     else:
                         f.write(key+'='+str(val)+'\n')
-            info('DAQ config saved to '+self.stats['config_file'])
+            info('DAQ config saved to '+save_stats['config_file'])
         except Exception as e: 
             error('DAQ settings could not be saved to config file.\n'+str(e))
 

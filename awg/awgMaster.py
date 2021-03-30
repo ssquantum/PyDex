@@ -7,8 +7,8 @@ Stefan Spence 27.06.20
 import time
 import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
-os.system("color") # allows error/warning/info messages to print in colour
 import sys
+sys.path.append('..')
 from collections import OrderedDict
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
@@ -17,9 +17,10 @@ from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget,
     QTabWidget, QAction, QMainWindow, QLabel, QInputDialog, QGridLayout,
     QMessageBox, QLineEdit, QFileDialog, QComboBox, QActionGroup, QMenu,
     QVBoxLayout, QTextBrowser)
-if '.' not in sys.path: sys.path.append('.')
-if '..' not in sys.path: sys.path.append('..')
-from strtypes import error, warning, info
+import logging
+import logerrs
+logerrs.setup_log()
+logger = logging.getLogger(__name__)
 from awgHandler import AWG
 from pyspcm import spcm_dwGetParam_i32, byref, int32
 import fileWriter as fw
@@ -111,24 +112,24 @@ class awg_window(QMainWindow):
                 self.set_status('File loaded from '+path)
             except Exception as e:
                 self.set_status('Failed to load AWG data from '+cmd.split('=')[1])
-                error('Failed to load AWG data from '+cmd.split('=')[1]+'\n'+str(e))
+                logger.error('Failed to load AWG data from '+cmd.split('=')[1]+'\n'+str(e))
         elif 'save' in cmd:
             try: 
                 path = cmd.split('=')[1]
                 self.awg.saveData(path)
                 self.set_status('File saved to '+path)
             except Exception as e:
-                error('Failed to save AWG data to '+cmd.split('=')[1]+'\n'+str(e))
+                logger.error('Failed to save AWG data to '+cmd.split('=')[1]+'\n'+str(e))
         elif 'reset_server' in cmd:
             self.reset_tcp()
             # if self.server.isRunning(): status = 'Server running.'
             # else: status = 'Server stopped.'
-            if self.client.isRunning(): status += 'Client running.'
+            if self.client.isRunning(): status = 'Client running.'
             else: status = 'Client stopped.'
             self.set_status(status)
         elif 'send_trigger' in cmd:
             # self.server.add_message(0, 'Trigger sent to DExTer.\n'+'0'*1600)
-            self.status('Triggering DExTer not yet supported.')
+            self.set_status('Triggering DExTer not yet supported.')
         elif 'start_awg' in cmd:
             self.awg.start()
             if spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[3], byref(int32(0))) == 0:
@@ -145,17 +146,17 @@ class awg_window(QMainWindow):
                 self.set_status('Set data: '+cmd.split('=')[1])
                 self.t_load = time.time() - t
             except Exception as e:
-                error('Failed to set AWG data: '+cmd.split('=')[1]+'\n'+str(e))
+                logger.error('Failed to set AWG data: '+cmd.split('=')[1]+'\n'+str(e))
         elif 'set_step' in cmd:
             try:
                 self.awg.setStep(*eval(cmd.split('=')[1]))
                 self.set_status('Set step: '+cmd.split('=')[1])
             except Exception as e:
-                error('Failed to set AWG step: '+cmd.split('=')[1]+'\n'+str(e))
+                logger.error('Failed to set AWG step: '+cmd.split('=')[1]+'\n'+str(e))
         elif 'reset_awg' in cmd:
             self.renewAWG(cmd)
         elif 'get_times' in cmd:
-            info("Data transfer time: %.4g s"%self.t_load)
+            logger.info("Data transfer time: %.4g s"%self.t_load)
         else:
             self.set_status('Command not recognised.')
         self.edit.setText('') # reset cmd edit
@@ -165,7 +166,7 @@ class awg_window(QMainWindow):
             eval(cmd.split('=')[1])
         except Exception as e:
             self.set_status('Invalid renew command: '+cmd)
-            error('Could not renew AWG.\n'+str(e))
+            logger.error('Could not renew AWG.\n'+str(e))
             return 0
         self.awg.restart()
         self.awg.newCard()
