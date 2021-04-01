@@ -26,73 +26,69 @@ from maingui import main_window, reset_slot
 class compim_window(main_window):
     """GUI window managing several sub-instances of SAIA.
 
-    
+    If an image in set [hists1] contains atoms, use the corresponding image from
+    the after histograms. Compare the histograms to find joint recapture.
     Keyword arguments:
     signal        -- the pyqtSignal that is used to trigger updates
-    imhandlers    -- list of two instances of image_handler analysis classes.
-    histhandlers  -- list of two instances of histo_handler analysis classes
+    befores       -- list of image_handler stats dictionaries from before histograms.
+    afters        -- list of image_handler stats dictionaries from before histograms.
     results_path  -- directory to save log file and results to.
     im_store_path -- the directory where images are saved.
     name          -- an ID for this window, prepended to saved files.
     """
-    def __init__(self, signal, imhandlers=[], histhandlers=[], results_path='.', 
+    def __init__(self, signal, befores=[], afters=[], results_path='.', 
             im_store_path='.', name=''):
         self.event_im = signal # uses the signal from a SAIA instance
         super().__init__(results_path=results_path, 
                         im_store_path=im_store_path, name=name)
-        self.ih1, self.ih2 = imhandlers # used to get histogram data
-        self.hh1, self.hh2 = histhandlers # get histogram fitting and stats
+        self.hists1 = imhandlers # before histograms, select which images to include
+        self.hists2 = imhandlers # after histograms, calculate survival probability
         self.adjust_UI() # adjust widgets from main_window
         
     def adjust_UI(self):
         """Edit the widgets created by main_window"""
-        # self.hist_canvas.setTitle("Histogram of CCD counts")
-        self.setWindowTitle(self.name+' - Re-Image Analyser - ')
+        self.setWindowTitle(self.name+' - Comp-Image Analyser - ')
 
-        # change font size
-        font = QFont()
-        font.setPixelSize(14)
-
-        #### edit histogram tab: display all image handlers ####
+        #### edit settings tab: choose from list of image handlers ####
+        settings_grid = self.tabs.widget(0).layout()
+        # remove the ROI / EMCCD info which is redundant
+        settings_grid.removeWidget()
+        # list widget to choose before images
+        # list widget to choose after images
+        
+        #### edit histogram tab: 
         hist_grid = self.tabs.widget(1).layout()
-        hist_grid.removeWidget(self.hist_canvas)
-        self.hist_canvas.setTitle("Recapture")
-        self.hist1 = pg.PlotWidget()
-        self.hist1.setTitle("Before")
-        self.hist2 = pg.PlotWidget()
-        self.hist2.setTitle("After")
-        for hist in [self.hist1, self.hist2]:
-            hist.getAxis('bottom').tickFont = font
-            hist.getAxis('left').tickFont = font
-        hist_grid.addWidget(self.hist1, 1,0, 3,8)
-        hist_grid.addWidget(self.hist2, 4,0, 3,8)
-        hist_grid.addWidget(self.hist_canvas, 7,0, 3,8)
+        self.hist_canvas # make lines for each after histogram
+        
 
         #### edit stats tab: display all histogram statistics ####
 
         stat_grid = self.tabs.widget(2).layout()
-        for i, text in enumerate(['Histogram: ', 'Recapture', 'Before', 'After']):
-            label = QLabel(text, self)
-            stat_grid.addWidget(label, 1+len(self.histo_handler.stats.keys()),i, 1,1)
-        self.hist1_stats = {}  # dictionary of stat labels for hist1
-        self.hist2_stats = {}  # dictionary of stat labels for hist2
-        # get the statistics from the histogram handler
-        for i, labels in enumerate([self.hist1_stats, self.hist2_stats]):
-            for j, label_text in enumerate(self.histo_handler.stats.keys()):
-                labels[label_text] = QLabel('', self) # value
-                stat_grid.addWidget(labels[label_text], 1+j,2+i, 1,1)
-
+        
         # take the threshold from the second image handler
         self.thresh_toggle.setChecked(True)
 
 
     #### #### canvas functions #### ####
 
-    def get_histogram(self):
+    def get_histogram(self, befores, afters):
         """Take the histogram from the 'after' images where the 'before' images
         contained an atom."""
         try:
-            int(np.log(self.ih1.thresh)) # don't do anything if threshold is < 1
+            s = befores.pop(0)
+            ids = set(s['File ID'][np.where(s['Atom detected'] > 0, True, False)])
+            for s in befores: # find the file IDs that have atoms in all before histograms
+                ids = ids & set(s['File ID'][np.where(s['Atom detected'] > 0, True, False)])
+
+            total = len(ids)
+            atoms = set()
+            full = atoms & set() # intersection
+            atoms * atoms
+            some = (atoms ^ set()) | () # in one but not the other
+            atoms + atoms > 0 & < len(afters)
+            none = (1 - atoms) * (1 - atoms)
+
+
             # make it more thread safe: take a copy of dictionaries at the start 
             s1 = self.ih1.stats.copy() 
             s2 = self.ih2.stats.copy()
@@ -100,23 +96,15 @@ class compim_window(main_window):
             idxs = np.arange(len(s2['File ID']))[np.isin(s2['File ID'], np.array(s1['File ID'])[atom])]
             # take the after images when the before images contained atoms
             t1 = time.time() # list comprehension is faster than np array for list length < 1500
-            self.image_handler.stats['Mean bg count'] = [s2['Mean bg count'][i] for i in idxs]
-            self.image_handler.stats['Bg s.d.']  = [s2['Bg s.d.'][i] for i in idxs]
-            self.image_handler.stats['Counts']   = [s2['Counts'][i] for i in idxs]
-            self.image_handler.stats['File ID']  = [s2['File ID'][i] for i in idxs]
-            self.image_handler.stats['ROI centre count'] = [s2['ROI centre count'][i] for i in idxs]
-            self.image_handler.stats['Max xpos'] = [s2['Max xpos'][i] for i in idxs]
-            self.image_handler.stats['Max ypos'] = [s2['Max ypos'][i] for i in idxs]
-            self.image_handler.ind = np.size(self.image_handler.stats['Counts'])
-            self.image_handler.stats['Atom detected'] = [s2['Atom detected'][i] for i in idxs]
-            self.image_handler.stats['Include']  = [s2['Include'][i] for i in idxs]
-            self.image_handler.thresh = int(self.thresh_edit.text()) if self.thresh_edit.text() else self.ih2.thresh
             t2 = time.time()
             self.int_time = t2 - t1
         except (ValueError, OverflowError, IndexError): t2 = 0 # invalid threshold, don't process
         return t2
 
     #### #### Overridden display functions #### ####
+
+    def request_data(self):
+        """
 
     def display_fit(self, toggle=True, fit_method='quick'):
         """Plot the best fit calculated by histo_handler.process
@@ -181,17 +169,9 @@ class compim_window(main_window):
 
     def check_reset(self):
         """Ask the user if they would like to reset the current data stored"""
-        reply = QMessageBox.question(self, 'Confirm Data Replacement',
-            "Do you want to discard the current data?", 
-            QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.Cancel)
-        if reply == QMessageBox.Cancel:
-            return 0
-        elif reply == QMessageBox.Yes:
-            for hh in [self.histo_handler, self.hh1, self.hh2]:
-                hh.bf = None
-            for ih in [self.image_handler, self.ih1, self.ih2]:
-                ih.reset_arrays() # gets rid of old data
-        return 1
+        reply = QMessageBox.information(self, 'Confirm Data Replacement',
+            "This window does not support this action.")
+        return 0
 
     def load_from_csv(self, trigger=None):
         """Prompt the user to select a csv file to load histogram data from.

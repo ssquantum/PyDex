@@ -286,7 +286,7 @@ class Ui_MainWindow(object):
     def reload_RAM(self):
         """If the aux Amp parameter is changed, reload the RAM 
         data saved on the DDS when it's next programmed."""
-        self.load_DDS_ram = False
+        self.load_DDS_ram = True
 
     def applyAmpValidators(self):
         """Apply a validator to the text inputs on the amplitude
@@ -2635,7 +2635,7 @@ class Ui_MainWindow(object):
                 self.Start_Address[ic] = 1022
 
             if self.End_Address[ic] >= 1024:
-                self.Display_func("Adjusting start address of profile " + str(ic))
+                self.Display_func("Adjusting end address of profile " + str(ic))
                 self.End_Address[ic] = 1023
 
             #Prevent start > end address
