@@ -130,6 +130,7 @@ class multirun_widget(QWidget):
         'num_of_samples','duration_loop_[ms]','number_of_cycles']
         self.dds_args = ['Freq', 'Phase', 'Amp', 'Start_add', 'End_add', 'Step_rate', 'Sweep_start', 
         'Sweep_end', 'Pos_step', 'Neg_step' 'Pos_step_rate', 'Neg_step_rate']
+        self.COM = ['RB1A', 'RB2', 'RB3', 'RB4', 'RB1B'] # DDS COM port connections
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
         self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
@@ -512,7 +513,7 @@ class multirun_widget(QWidget):
             self.chan_choices['Analogue channel'].addItems(self.awg_args)
         elif newtype == 'DDS port : profile':
             self.chan_choices['Time step name'].clear()
-            self.chan_choices['Time step name'].addItems(['COM%s : P%s'%(i,j) for i in range(4,8) for j in range(8)])
+            self.chan_choices['Time step name'].addItems(['COM%s : P%s - '%(i+7,j)+self.COM[i] for i in range(5) for j in range(8)])
             reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)
             self.chan_choices['Analogue type'].clear()
             self.chan_choices['Analogue type'].addItems(['DDS Parameter'])

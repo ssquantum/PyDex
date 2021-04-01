@@ -11,6 +11,7 @@ import glob
 import datetime
 import pickle
 import numpy as np
+from collections import OrderedDict
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -50,32 +51,32 @@ class Ui_MainWindow(object):
     amp_options = ['fixed amp', 'manual on/off', 'amp scaling']
 
     RAM_functions = ['Linear', 'Gaussian', 'Minimum Jerk', 'Exponential', 'Logarithmic']
-    RAM_data_type = {'RAM Frequency' : np.array([0,0]),
-                        'RAM Phase' : np.array([0,1]),
-                        'RAM Amplitude' : np.array([1,0]),
-                        'RAM Polar' : np.array([1,1])}
+    RAM_data_type = OrderedDict([('RAM Frequency', np.array([0,0])),
+                        ('RAM Phase', np.array([0,1])),
+                        ('RAM Amplitude', np.array([1,0])),
+                        ('RAM Polar', np.array([1,1]))])
 
-    RAM_controls = {"Disable" : np.array([0,0,0,0]),
-                    "Burst. Profiles 0 - 1" : np.array([0,0,0,1]),
-                    "Burst. Profiles 0 - 2" : np.array([0,0,1,0]),
-                    "Burst. Profiles 0 - 3": np.array([0,0,1,1]),
-                    "Burst. Profiles 0 - 4": np.array([0,1,0,0]),
-                    "Burst. Profiles 0 - 5": np.array([0,1,0,1]),
-                    "Burst. Profiles 0 - 6": np.array([0,1,1,0]),
-                    "Burst. Profiles 0 - 7": np.array([0,1,1,1]),
-                    "Continuous. Profiles 0 - 1": np.array([1,0,0,0]),
-                    "Continuous. Profiles 0 - 2": np.array([1,0,0,1]),
-                    "Continuous. Profiles 0 - 3": np.array([1,0,1,0]),
-                    "Continuous. Profiles 0 - 4": np.array([1,0,1,1]),
-                    "Continuous. Profiles 0 - 5": np.array([1,1,0,0]),
-                    "Continuous. Profiles 0 - 6": np.array([1,1,0,1]),
-                    "Continuous. Profiles 0 - 7": np.array([1,1,1,1])}
+    RAM_controls = OrderedDict([("Disable", np.array([0,0,0,0])),
+                    ("Burst. Profiles 0 - 1", np.array([0,0,0,1])),
+                    ("Burst. Profiles 0 - 2", np.array([0,0,1,0])),
+                    ("Burst. Profiles 0 - 3", np.array([0,0,1,1])),
+                    ("Burst. Profiles 0 - 4", np.array([0,1,0,0])),
+                    ("Burst. Profiles 0 - 5", np.array([0,1,0,1])),
+                    ("Burst. Profiles 0 - 6", np.array([0,1,1,0])),
+                    ("Burst. Profiles 0 - 7", np.array([0,1,1,1])),
+                    ("Continuous. Profiles 0 - 1", np.array([1,0,0,0])),
+                    ("Continuous. Profiles 0 - 2", np.array([1,0,0,1])),
+                    ("Continuous. Profiles 0 - 3", np.array([1,0,1,0])),
+                    ("Continuous. Profiles 0 - 4", np.array([1,0,1,1])),
+                    ("Continuous. Profiles 0 - 5", np.array([1,1,0,0])),
+                    ("Continuous. Profiles 0 - 6", np.array([1,1,0,1])),
+                    ("Continuous. Profiles 0 - 7", np.array([1,1,1,1]))])
 
-    RAM_profile_mode = {"Direct" : np.array([0,0,0]),
-                        "Ramp-up" : np.array([0,0,1]),
-                        "Bidirectional ramp" : np.array([0,1,0]),
-                        "Continuous bidirectional ramp" : np.array([0,1,1]),
-                        "Continuous recirculate" : np.array([1,0,0])}
+    RAM_profile_mode = OrderedDict([("Direct", np.array([0,0,0])),
+                        ("Ramp-up", np.array([0,0,1])),
+                        ("Bidirectional ramp", np.array([0,1,0])),
+                        ("Continuous bidirectional ramp", np.array([0,1,1])),
+                        ("Continuous recirculate", np.array([1,0,0]))])
 
     DRG_modes = ['DRG Frequency', 'DRG Phase', 'DRG Amplitude']
 
