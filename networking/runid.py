@@ -190,7 +190,7 @@ class runnum(QThread):
             elif 'DDS' in self.seq.mr.mr_param['Type'][col] and module == 'DDS':
                 try: # argument: value
                     n = self.seq.mr.mr_param['Time step name'][col][0] # index of chosen DDS COM port, profile
-                    msg += '["COM%s", "P%s", "%s", %s],'%((n//8)+4, n%8, 
+                    msg += '["COM%s", "P%s", "%s", %s],'%((n//8)+7, n%8, 
                         self.seq.mr.dds_args[self.seq.mr.mr_param['Analogue channel'][col][0]], 
                         self.seq.mr.mr_vals[v][col])
                 except Exception as e: error('Invalid DDS parameter at (%s, %s)\n'%(v,col)+str(e))
