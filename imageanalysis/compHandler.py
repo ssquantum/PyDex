@@ -11,38 +11,33 @@ from analysis import Analysis, BOOL
 class comp_handler(Analysis):
     """Manage statistics from several histograms.
     
-    Append histogram statistics to a list. These are defined in
-    an ordered dictionary so that they can each be individually managed
-    and the labels retain the insertion order (to keep the values next to their
-    errors). A second dictionary allows for temporarily storing values.
-    Inherits reset_arrays, load, and save functions from Analysis.
+    Append histogram statistics to a list. This analysis
+    calculates generic survival probabilities starting
+    with an arbitrary number of atoms: natoms.
     """
-    def __init__(self):
+    def __init__(self, natoms=1):
         super().__init__()
         # histogram statistics and variables for plotting:
         self.types = OrderedDict([('File ID', int),
         ('User variable', float),
-        ('Total', int), 
-        ('None', int), 
-        ('Some', int),
-        ('All', int),
-        ('Permutations', eval),
+        ('Files included', int), 
+        *zip(['Loading probability %s'%i for i in range(natoms)], [float]*natoms),
+        *zip(['%s survive'%i for i in range(natoms)], [float]*natoms),
+        ('01 cases', float),
+        ('10 cases', float)
         ('Include', BOOL)])
         self.stats = OrderedDict([(key, []) for key in self.types.keys()])
         # variables that won't be saved for plotting:
         self.temp_vals = OrderedDict([(key,0) for key in self.stats.keys()])
 
+        self.natom = natoms # number of histograms being analysed
         self.xvals = [] # variables to plot on the x axis
         self.yvals = [] # variables to plot on the y axis
         
-    def sort_dict(self, lead='User variable'):
-        """Sort the arrays in stats dict such that they are all ordered 
-        with the item given by lead ascending.
-        Keyword arguments:
-        lead -- a key in the stats that defines the item to sort by."""
-        idxs = np.argsort(self.stats[lead])
-        for key in self.stats.keys():
-            self.stats[key] = [self.stats[key][i] for i in idxs]
+    def single(self, before, after, user_var, include=True):
+        """Simple survival probability if there's only 1 ROI"""
+        ids = before['File ID'][np.where(before['Atom detected'] > 0, True, False)]
+
 
     def process(self, befores, afters, user_var, include=True):
         """Calculate the statistics from the current histograms.
@@ -69,7 +64,8 @@ class comp_handler(Analysis):
             none = none & set(s['File ID'][np.where(s['Atom detected'][ids] == 0, True, False)])
 
         some = some - full
-        self.temp_vals['Total'] = len(ids)
+        n = len(ids)
+        self.temp_vals['Total'] = n
         self.temp_vals['User variable'] = self.types['User variable'](user_var) if user_var else 0.0
         self.temp_vals['None'] = len(none)
         self.temp_vals['Some'] = len(some)

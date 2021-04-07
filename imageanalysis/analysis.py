@@ -48,6 +48,15 @@ class Analysis(QThread):
             self.stats[key] = []
         self.ind = 0   
         self.bf  = None
+
+    def sort_dict(self, lead='User variable'):
+        """Sort the arrays in stats dict such that they are all ordered 
+        with the item given by lead ascending.
+        Keyword arguments:
+        lead -- a key in the stats that defines the item to sort by."""
+        idxs = np.argsort(self.stats[lead])
+        for key in self.stats.keys():
+            self.stats[key] = [self.stats[key][i] for i in idxs]
         
     def process(self, data, *args, **kwargs):
         """React to a single instance of incoming data.

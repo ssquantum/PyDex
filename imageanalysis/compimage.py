@@ -36,6 +36,9 @@ class compim_window(main_window):
     im_store_path -- the directory where images are saved.
     name          -- an ID for this window, prepended to saved files.
     """
+    request = pyqtSignal(str) # send request for new data
+    data = pyqtSignal(list)   # receive new data
+
     def __init__(self, signal, befores=[], afters=[], results_path='.', 
             im_store_path='.', name=''):
         self.event_im = signal # uses the signal from a SAIA instance
@@ -53,14 +56,16 @@ class compim_window(main_window):
         settings_grid = self.tabs.widget(0).layout()
         # remove the ROI / EMCCD info which is redundant
         settings_grid.removeWidget()
-        # list widget to choose before images
-        # list widget to choose after images
+        # combobox widgets to choose before ROI/images
+        # button to add extra ROI/images widget
+        # combobox widgets to choose after ROI/images
         
         #### edit histogram tab: 
         hist_grid = self.tabs.widget(1).layout()
-        self.hist_canvas # make lines for each after histogram
+        menubar = self.menuBar() # menu selects which histogram to display
+        self.hist_canvas 
         
-
+        
         #### edit stats tab: display all histogram statistics ####
 
         stat_grid = self.tabs.widget(2).layout()

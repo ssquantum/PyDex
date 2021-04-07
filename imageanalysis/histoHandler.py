@@ -65,15 +65,6 @@ class histo_handler(Analysis):
         self.dg  = 2.0 if self.emg > 1 else 1.0 # multiplicative noise factor
         self.bf = None
         
-    def sort_dict(self, lead='User variable'):
-        """Sort the arrays in stats dict such that they are all ordered 
-        with the item given by lead ascending.
-        Keyword arguments:
-        lead -- a key in the stats that defines the item to sort by."""
-        idxs = np.argsort(self.stats[lead])
-        for key in self.stats.keys():
-            self.stats[key] = [self.stats[key][i] for i in idxs]
-
     def process(self, ih, user_var, fix_thresh=False, method='quick', include=True):
         """Calculate the statistics from the current histogram.
         Keyword arguments:

@@ -70,7 +70,7 @@ for i in range(8):
                         g = etree.SubElement(f, '{http://www.ni.com/LVData}I32')
 for e in root.iter():
     e.text = '0'
-
+root[1][4][1].text = 'PyDex default empty sequence'
 
 #### #### Convert xml <-> element tree #### ####
 
@@ -159,3 +159,23 @@ class translate:
         t.seq_tree = copy.deepcopy(self.seq_tree) # need deep copy of dict because values are mutable
         # t.write_to_str()
         return t
+
+    def get_esc(self):
+        """Return the experimental sequence cluster etree"""
+        return self.seq_tree[1][3]
+
+    def get_evl(self):
+        """Return the event list etree"""
+        return self.seq_tree[1][2]
+
+    def get_routine_description(self):
+        return self.seq_tree[1][5][1].text
+
+    def get_routine_name(self):
+        return self.seq_tree[1][4][1].text
+    
+    def set_routine_description(self, txt):
+        self.seq_tree[1][5][1].text = txt
+
+    def set_routine_name(self, txt):
+        self.seq_tree[1][4][1].text = txt

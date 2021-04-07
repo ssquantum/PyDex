@@ -85,8 +85,8 @@ class Previewer(QMainWindow):
         self.setCentralWidget(self.centre_widget)
         
         try:
-            num_e = len(self.tr.seq_tree[1][2]) - 2    # 'Event list array in'
-            num_s = len(self.tr.seq_tree[1][3][2]) - 2 # 'Sequence header top'
+            num_e = len(self.tr.get_evl()) - 2    # 'Event list array in'
+            num_s = len(self.tr.get_esc()[2]) - 2 # 'Sequence header top'
         except TypeError:
             num_e = 1
             num_s = 1
@@ -222,8 +222,8 @@ class Previewer(QMainWindow):
     def reset_UI(self):
         """After loading in a new sequence, adjust the UI
         so that the tables have the right number of rows and columns. """
-        num_e = len(self.tr.seq_tree[1][2]) - 2    # 'Event list array in'
-        num_s = len(self.tr.seq_tree[1][3][2]) - 2 # 'Sequence header top'
+        num_e = len(self.tr.get_evl()) - 2    # 'Event list array in'
+        num_s = len(self.tr.get_esc()[2]) - 2 # 'Sequence header top'
         for table, rows, cols, dig in [[self.e_list, 4, num_e, 0], [self.head_top, 14, num_s, 0],
             [self.fd_chans, self.tr.nfd, num_s, 1], [self.fa_chans, self.tr.nfa, num_s*2, 0],
             [self.head_mid, 14, num_s, 0], [self.sd_chans, self.tr.nsd, num_s, 1],
@@ -270,11 +270,10 @@ class Previewer(QMainWindow):
 
     def set_sequence(self):
         """Fill the labels with the values from the sequence"""
-        seq = self.tr.seq_tree[1]
-        self.routine_name.setText(seq[4][1].text) # 'Routine name in'
-        self.routine_desc.setText(seq[4][1].text) # 'Routine description in'
-        ela = seq[2][2:] # 'Event list array in'
-        esc = seq[3][2:] # 'Experimental sequence cluster in'
+        self.routine_name.setText(self.tr.get_routine_name()) # 'Routine name in'
+        self.routine_desc.setText(self.tr.get_routine_description()) # 'Routine description in'
+        ela = self.tr.get_evl()[2:] # 'Event list array in'
+        esc = self.tr.get_esc()[2:] # 'Experimental sequence cluster in'
         num_s = len(esc[0]) - 2 # number of steps
         self.fd_chans.setVerticalHeaderLabels([esc[2][i+2][2][1].text + # Fast digital
             ': ' + esc[2][i+2][3][1].text for i in range(len(esc[2])-2)])

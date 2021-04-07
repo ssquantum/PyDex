@@ -39,6 +39,27 @@ if os.path.exists(SavePrefix) == False:
 ALTERA = 2**14
 XILINX = 2**16
 
+###############################################################################
+# power calibration accounting for AOM nonlinearity
+from scipy.interpolate import interp1d
+try:
+    cal = np.loadtxt('dds/power_calibration.csv', delimiter=',').T
+    p100 = interp1d(cal[1], cal[0], fill_value='extrapolate')
+    p110 = interp1d(cal[2], cal[0], fill_value='extrapolate')
+    alim = 1.0
+except OSError as e:
+    print('\033[31m' + '####\tERROR\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))
+    print('\tCould not load power calibration file:\n' + str(e) + '\n', '\033[m')
+    p100 = interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
+    p110 = p100
+    alim = 0.5
+
+def powercal(amp, freq):
+    """Recalibrate the amplitude to account for AOM nonlinearity"""
+    if freq > 105:
+        return p110(amp)
+    else: return p100(amp)
+
 class CustomComboBox(QtWidgets.QComboBox):
     popupRequest = QtCore.pyqtSignal()
     def showPopup(self): # override to add in signal
@@ -126,7 +147,7 @@ class Ui_MainWindow(object):
         self.AMW = 1
 
         # Amplitude limit
-        self.Alim = 0.5
+        self.Alim = alim
         self.dbl_validator = QtGui.QDoubleValidator(0,self.Alim,6)
         self.dbl_validator.fixup = self.dbl_fixup
         
@@ -1681,7 +1702,7 @@ class Ui_MainWindow(object):
         self.PyDexTCP.setText(_translate("MainWindow", "Reset PyDex TCP"))
         self.label_ALIMunits.setText(_translate("MainWindow", "0-1"))
         self.label_ALIM.setText(_translate("MainWindow", "Amp lim"))
-        self.Amp_lim.setText(_translate("MainWindow", "0.5"))
+        self.Amp_lim.setText(_translate("MainWindow", str(alim)))
 
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Coms), _translate("MainWindow", "Communication"))
         self.GB_P0.setTitle(_translate("MainWindow", "000 Profile 0"))
@@ -2107,7 +2128,7 @@ class Ui_MainWindow(object):
             self.amp[5] = abs(float(self.Amp_P5.text()))
             self.amp[6] = abs(float(self.Amp_P6.text()))
             self.amp[7] = abs(float(self.Amp_P7.text()))
-
+            
             self.tht[0] = abs(float(self.Phase_P0.text()))
             self.tht[1] = abs(float(self.Phase_P1.text()))
             self.tht[2] = abs(float(self.Phase_P2.text()))
@@ -2151,7 +2172,6 @@ class Ui_MainWindow(object):
             self.POW = abs(float(self.Phase_aux.text()))
             self.FTW = abs(float(self.Freq_aux.text()))
             self.AMW = abs(float(self.Amp_aux.text())%1)
-
 
         except:
             self.Display_func('Please make sure you use a real, positive number.')
@@ -2363,8 +2383,8 @@ class Ui_MainWindow(object):
                 data[ind_high] = 2**16 - 1
                 ind = 16
 
-            elif ID == 2:
-                data = np.around((2**14 *(np.absolute(self.RAM_modulation_data[0,:])/ np.amax(self.RAM_modulation_data[0, :]))*self.AMW), decimals = 0)
+            elif ID == 2: # modulating amplitude
+                data = np.around(2**14 *powercal(np.absolute(self.RAM_modulation_data[0,:])/ np.amax(self.RAM_modulation_data[0, :])*self.AMW, self.FTW), decimals = 0)
                 ind_high = np.where(data >= 2**14)[0]
                 data[ind_high] = 2**14- 1
                 ind = 14
@@ -2570,7 +2590,7 @@ class Ui_MainWindow(object):
                     self.Display_func("Aliasing is likely to occur. Limiting frequency to 400 MHz.")
                     f = 2**31
 
-                a = int(np.around(2**14 * abs(self.amp[ic]), decimals = 0))
+                a = int(np.around(2**14 * abs(powercal(self.amp[ic], self.fout[ic])), decimals = 0)) # power calibration
                 if a == 2**14:
                     a =2**14 -1
                 if a > 2**14:

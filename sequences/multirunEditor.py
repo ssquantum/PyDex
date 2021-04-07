@@ -55,7 +55,7 @@ class sequenceSaver(QThread):
         if self.savedir:
             for i in range(len(self.mr_vals)):
                 self.app.processEvents()  # avoids GUI lag but slows this task down
-                esc = self.mrtr.seq_tree[1][3] # shorthand
+                esc = self.mrtr.get_esc() # shorthand for experimental sequence cluster
                 num_s = len(esc[2]) - 2 # number of steps
                 try:
                     for col in range(len(self.mr_vals[i])): # edit the sequence
@@ -73,8 +73,8 @@ class sequenceSaver(QThread):
                                         else:
                                             esc[11][t + c*num_s + 3][3][1].text = str(val)
                         except ValueError: pass
-                    self.mrtr.seq_tree[1][4][1].text = 'Multirun ' + self.mr_param['Variable label'] + \
-                            ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
+                    self.mrtr.set_routine_name('Multirun ' + self.mr_param['Variable label'] + \
+                            ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals)))
                     self.mrtr.write_to_file(os.path.join(self.savedir, self.mr_param['measure_prefix'] + '_' + 
                         str(i + self.mr_param['1st hist ID']) + '.xml'))
                 except IndexError as e:
@@ -209,7 +209,7 @@ class multirun_widget(QWidget):
 
         self.chan_choices = OrderedDict()
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
-        sht = self.tr.seq_tree[1][3][2][2:] # 'Sequence header top'
+        sht = self.tr.get_esc()[2][2:] # 'Sequence header top'
         options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG chan : seg', 
                     'DDS port : profile', 'Other'], 
             list(map(str.__add__, [str(i) for i in range(len(sht))],
@@ -493,7 +493,7 @@ class multirun_widget(QWidget):
     def get_anlg_chans(self, speed):
         """Return a list of name labels for the analogue channels.
         speed -- 'Fast' or 'Slow'"""
-        chans = self.tr.seq_tree[1][3][5 if speed=='Fast' else 10][2:]
+        chans = self.tr.get_esc()[5 if speed=='Fast' else 10][2:]
         return [c[2][1].text + ': ' + c[3][1].text for c in chans]
 
     def change_mr_type(self, newtype):
@@ -501,7 +501,7 @@ class multirun_widget(QWidget):
         newtype[str] -- Time step length: only needs timesteps
                      -- Analogue voltage: also needs channels
                      -- AWG: takes float values but with a list index."""
-        sht = self.tr.seq_tree[1][3][2][2:] # 'Sequence header top'
+        sht = self.tr.get_esc()[2][2:] # 'Sequence header top'
         if newtype == 'AWG chan : seg':
             self.chan_choices['Time step name'].clear()
             self.chan_choices['Time step name'].addItems([str(i)+', '+str(j) for j in range(10) for i in range(4)])
@@ -568,7 +568,7 @@ class multirun_widget(QWidget):
         """Use the values in the multirun array to make the next
         sequence to run in the multirun. Uses saved mr_param not UI"""
         if i == None: i = self.ind # row index
-        esc = self.mrtr.seq_tree[1][3] # shorthand
+        esc = self.mrtr.get_esc() # shorthand
         num_s = len(esc[2]) - 2 # number of steps
         try:
             for col in range(len(self.mr_vals[i])): # edit the sequence
@@ -586,8 +586,8 @@ class multirun_widget(QWidget):
                                 else:
                                     esc[11][t + c*num_s + 3][3][1].text = str(val)
                 except ValueError as e: pass # non-float variable
-            self.mrtr.seq_tree[1][4][1].text = 'Multirun ' + self.mr_param['Variable label'] + \
-                    ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals))
+            self.mrtr.set_routine_name('Multirun ' + self.mr_param['Variable label'] + \
+                    ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals)))
         except IndexError as e:
             error('Multirun failed to edit sequence at ' + self.mr_param['Variable label']
                 + ' = ' + self.mr_vals[i][0] + '\n' + str(e))
@@ -690,6 +690,10 @@ class multirun_widget(QWidget):
             
     def check_mr_params(self, save_results_path='.'):
         """Check that the multirun parameters are valid before adding it to the queue"""
+        if 'PyDex default empty sequence' in self.mrtr.get_routine_name():
+            QMessageBox.warning(self, 'No sequence loaded', 
+                'You must load a sequence before starting a multirun.')
+            return 0
         results_path = os.path.join(save_results_path, self.ui_param['measure_prefix'])
         self.appending = False
         # first check if the measure folder already exists with some files in

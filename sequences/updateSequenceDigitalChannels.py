@@ -21,7 +21,7 @@ t1 = time.time()
 # t.seq_tree[1][tdict.get('Routine name in')][1].text = "My new routine"
 # t.seq_tree[1][tdict.get('Routine description in')][1].text = "An example of editing sequences"
 
-esc = t.seq_tree[1][tdict.get('Experimental sequence cluster in')] # shorthand
+esc = t.get_esc() # shorthand
 num_s = len(esc[tdict.get('Sequence header top')]) - 2 # total number of timesteps
 # change some time step lengths - make sure to keep sequence header top and sequence header middle the same
 

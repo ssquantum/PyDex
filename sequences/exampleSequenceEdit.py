@@ -20,12 +20,12 @@ t = translate()
 t0 = time.time()
 t.load_xml('SequenceFiles\\testing\\0_17 September 2019_09 30 18.xml')
 t1 = time.time()
-t.seq_tree[1][tdict.get('Routine name in')][1].text = "My new routine"
-t.seq_tree[1][tdict.get('Routine description in')][1].text = "An example of editing sequences"
+t.set_routine_name("My new routine")
+t.set_routine_description("An example of editing sequences")
 
 # the event list contains metadata for events.
 # if you remove or add a timestep, make sure to add its index to an event.
-eventlist = t.seq_tree[1][tdict.get('Event list array in')][2:]
+eventlist = t.get_evl()[2:]
 index = 0
 eventlist[index][2][1].text = 'Replaced MOT event' # event name
 new_indices = [0,1] # event indices
@@ -42,7 +42,7 @@ if new_indices:
 eventlist[index][4][1].text = 'C:\\Users\\lab\\Desktop\\DExTer 1.1\\Events\\Cs MOT load.evt' # path
 eventlist[index][5][1].text = '1' # routine specific event?
             
-esc = t.seq_tree[1][tdict.get('Experimental sequence cluster in')] # shorthand
+esc = t.get_esc() # shorthand
 num_s = len(esc[tdict.get('Sequence header top')]) - 2 # total number of timesteps
 for timestep in [0,1]: 
     for position in [2, 9]: # sequence header top or middle
