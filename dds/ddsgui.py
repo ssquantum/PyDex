@@ -7,6 +7,7 @@ import serial
 import time
 import sys
 import os
+os.system("color") # allows error/warning/info messages to print in colour
 import glob
 import datetime
 import pickle
@@ -19,46 +20,6 @@ if '.' not in sys.path: sys.path.append('.')
 if '..' not in sys.path: sys.path.append('..')
 from networking.client import PyClient, reset_slot
 
-################################################################################
-### Set paths here
-home_path = os.getcwd()+'/'
-
-SavePrefix = home_path + "dds/Data_Files/AOM Driver Saved files/"
-
-now = datetime.datetime.now()
-date_str = now.strftime("%d_%m_%Y")
-
-Today_file = SavePrefix + date_str + "/"
-
-if os.path.exists(home_path + "dds/Data_Files/") == False:
-    os.makedirs(home_path + "dds/Data_Files/")
-if os.path.exists(SavePrefix) == False:
-    os.makedirs(SavePrefix)
-
-## FPGA memory size
-ALTERA = 2**14
-XILINX = 2**16
-
-###############################################################################
-# power calibration accounting for AOM nonlinearity
-from scipy.interpolate import interp1d
-try:
-    cal = np.loadtxt('dds/power_calibration.csv', delimiter=',').T
-    p100 = interp1d(cal[1], cal[0], fill_value='extrapolate')
-    p110 = interp1d(cal[2], cal[0], fill_value='extrapolate')
-    alim = 1.0
-except OSError as e:
-    print('\033[31m' + '####\tERROR\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))
-    print('\tCould not load power calibration file:\n' + str(e) + '\n', '\033[m')
-    p100 = interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
-    p110 = p100
-    alim = 0.5
-
-def powercal(amp, freq):
-    """Recalibrate the amplitude to account for AOM nonlinearity"""
-    if freq > 105:
-        return p110(amp)
-    else: return p100(amp)
 
 class CustomComboBox(QtWidgets.QComboBox):
     popupRequest = QtCore.pyqtSignal()
@@ -365,10 +326,26 @@ class Ui_MainWindow(object):
         self.COM_no.setObjectName("COM_no")
         self.COM_no.addItem('--')
         self.COM_no.popupRequest.connect(self.PortSetup)
-        
+                  
         self.label_148 = QtWidgets.QLabel(self.Coms)
         self.label_148.setGeometry(QtCore.QRect(10, 30, 91, 16))
         self.label_148.setObjectName("label_148")
+        
+        self.label_COM7 = QtWidgets.QLabel(self.Coms)
+        self.label_COM7.setGeometry(QtCore.QRect(10, 75, 91, 16))
+        self.label_COM7.setObjectName("label_COM7")
+        self.label_COM8 = QtWidgets.QLabel(self.Coms)
+        self.label_COM8.setGeometry(QtCore.QRect(10, 90, 91, 16))
+        self.label_COM8.setObjectName("label_COM8")
+        self.label_COM9 = QtWidgets.QLabel(self.Coms)
+        self.label_COM9.setGeometry(QtCore.QRect(10, 105, 91, 16))
+        self.label_COM9.setObjectName("label_COM9")
+        self.label_COM10 = QtWidgets.QLabel(self.Coms)
+        self.label_COM10.setGeometry(QtCore.QRect(10, 120, 91, 16))
+        self.label_COM10.setObjectName("label_COM10")
+        self.label_COM11 = QtWidgets.QLabel(self.Coms)
+        self.label_COM11.setGeometry(QtCore.QRect(10, 135, 91, 16))
+        self.label_COM11.setObjectName("label_COM11")
 
         ### Connect device button ###
         self.Connect = QtWidgets.QPushButton(self.Coms)
@@ -1685,6 +1662,11 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.label_147.setText(_translate("MainWindow", "Device messages"))
         self.label_148.setText(_translate("MainWindow", "COM Port number"))
+        self.label_COM7.setText(_translate("MainWindow", "COM7: RB1A"))
+        self.label_COM8.setText(_translate("MainWindow", "COM8: RB2"))
+        self.label_COM9.setText(_translate("MainWindow", "COM9: RB3"))
+        self.label_COM10.setText(_translate("MainWindow", "COM10: RB4"))
+        self.label_COM11.setText(_translate("MainWindow", "COM11: RB1B"))
         self.Connect.setText(_translate("MainWindow", "Connect"))
         self.Disconnect.setText(_translate("MainWindow", "Disconnect"))
 
@@ -3305,6 +3287,47 @@ class Ui_MainWindow(object):
         self.fpga_PROGRAMMER_dia.append(dt_string + '>> \t ' + str(x))
 
 if __name__ == "__main__":
+    ################################################################################
+    ### Set paths here
+    home_path = os.getcwd()+'/'
+    
+    SavePrefix = home_path + "dds/Data_Files/AOM Driver Saved files/"
+    
+    now = datetime.datetime.now()
+    date_str = now.strftime("%d_%m_%Y")
+    
+    Today_file = SavePrefix + date_str + "/"
+    
+    if os.path.exists(home_path + "dds/Data_Files/") == False:
+        os.makedirs(home_path + "dds/Data_Files/")
+    if os.path.exists(SavePrefix) == False:
+        os.makedirs(SavePrefix)
+    
+    ## FPGA memory size
+    ALTERA = 2**14
+    XILINX = 2**16
+    
+    ###############################################################################
+    # power calibration accounting for AOM nonlinearity
+    from scipy.interpolate import interp1d
+    try:
+        cal = np.loadtxt('dds/power_calibration.csv', delimiter=',')
+        cal = np.concatenate(([np.zeros(3)],cal)).T
+        p100 = interp1d(cal[1], cal[0], fill_value='extrapolate')
+        p110 = interp1d(cal[2], cal[0], fill_value='extrapolate')
+        alim = 1.0
+    except OSError as e:
+        print('\033[31m' + '####\tERROR\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))
+        print('\tCould not load power calibration file:\n' + str(e) + '\n', '\033[m')
+        p100 = interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
+        p110 = p100
+        alim = 0.5
+    
+    def powercal(amp, freq):
+        """Recalibrate the amplitude to account for AOM nonlinearity"""
+        if freq > 105:
+            return p110(amp)
+        else: return p100(amp)
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow(port=8624, host='129.234.190.164')

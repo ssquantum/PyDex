@@ -690,7 +690,7 @@ class multirun_widget(QWidget):
             
     def check_mr_params(self, save_results_path='.'):
         """Check that the multirun parameters are valid before adding it to the queue"""
-        if 'PyDex default empty sequence' in self.mrtr.get_routine_name():
+        if 'PyDex default empty sequence' in self.tr.get_routine_name():
             QMessageBox.warning(self, 'No sequence loaded', 
                 'You must load a sequence before starting a multirun.')
             return 0

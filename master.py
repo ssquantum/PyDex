@@ -293,7 +293,7 @@ class Master(QMainWindow):
             self.stats['Date'] = time.strftime("%d,%B,%Y", t0)
             date = self.rn.reset_dates(t0)
             if not hasattr(self.sender(), 'text'): # don't set timer if user pushed button
-                QTimer.singleShot((86402 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
+                QTimer.singleShot((29*3600 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
                     self.reset_dates) # set the next timer to reset dates
             info(time.strftime("Date reset: %d %B %Y", t0))
         else:
