@@ -172,6 +172,7 @@ class Master(QMainWindow):
         self.date_reset = 0 # whether the dates are waiting to be reset or not
         QTimer.singleShot((29*3600 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates)
+            
 
     def idle_state(self):
         """When the master thread is not processing user events, it is in the idle states.
@@ -274,7 +275,8 @@ class Master(QMainWindow):
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
 
-        self.action_button = QPushButton('Go', self, checkable=False)
+        self.action_button = QPushButton('Go (F9)', self, checkable=False)
+        self.action_button.setShortcut('F9')
         self.action_button.clicked[bool].connect(self.start_action)
         self.action_button.resize(self.action_button.sizeHint())
         self.centre_widget.layout.addWidget(self.action_button, 2,1, 1,1)
