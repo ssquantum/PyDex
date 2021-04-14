@@ -101,7 +101,7 @@ class multirun_widget(QWidget):
     multirun_vals = pyqtSignal(np.ndarray) # the array of multirun values
     progress = pyqtSignal(str) # string detailing the progress of the multirun
 
-    def __init__(self, tr, nrows=8, ncols=1, order='ascending'):
+    def __init__(self, tr, nrows=1, ncols=1, order='ascending'):
         super().__init__()
         self.tr = tr # translator for the current sequence
         self.mrtr = tr.copy() # translator for multirun sequence
@@ -123,13 +123,13 @@ class multirun_widget(QWidget):
             ('Analogue channel', [[]]*ncols), ('runs included', [[] for i in range(nrows)]),
             ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'), 
             ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'),
-            ('# omitted', 0), ('# in hist', 100), ('list index', ['0']*ncols)])
+            ('# omitted', 5), ('# in hist', 100), ('list index', ['0']*ncols)])
         self.awg_args = ['duration_[ms]','off_time_[us]','freqs_input_[MHz]','start_freq_[MHz]','end_freq_[MHz]','hybridicity',
         'num_of_traps','distance_[um]','tot_amp_[mV]','dc_offset_[mV]','start_amp','end_amp','start_output_[Hz]','end_output_[Hz]',
         'freq_amp','mod_freq_[kHz]','mod_depth','freq_phase_[deg]','freq_adjust','amp_adjust','freqs_output_[Hz]',
         'num_of_samples','duration_loop_[ms]','number_of_cycles']
         self.dds_args = ['Freq', 'Phase', 'Amp', 'Start_add', 'End_add', 'Step_rate', 'Sweep_start', 
-        'Sweep_end', 'Pos_step', 'Neg_step' 'Pos_step_rate', 'Neg_step_rate']
+        'Sweep_end', 'Pos_step', 'Neg_step', 'Pos_step_rate', 'Neg_step_rate']
         self.COM = ['RB1A', 'RB2', 'RB3', 'RB4', 'RB1B'] # DDS COM port connections
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
@@ -177,7 +177,7 @@ class multirun_widget(QWidget):
         #### table dimensions and ordering ####
         # choose the number of rows = number of multirun steps
         labels = ['# Omit', '# in Histogram', '# Columns', '# Rows']
-        default = ['0', '100', str(self.ncols), str(self.nrows)]
+        default = ['5', '100', str(self.ncols), str(self.nrows)]
         vldtr = [int_validator, nat_validator, nat_validator, nat_validator]
         self.omit_edit, self.nhist_edit, self.cols_edit, self.rows_edit = [
             self.make_label_edit(labels[i], self.grid, [0,2*i, 1,1],

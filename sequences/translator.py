@@ -48,8 +48,8 @@ tdict = { # i: time step, j: channel
     'Sequence header middle':9, 
     'Slow analogue names':10, 
     'Slow analogue array':11,  # ramp: tree[1][3][11][i+j*num_steps+3][2][1].text, voltage: tree[1][3][11][i*32+j*num_steps+3][3][1].text
-'Routine name in':4,           # tree[1][4][1].text
-'Routine description in': 5,
+'Routine description in':4,           # tree[1][4][1].text
+'Routine name in': 5,
 }
 
 #### #### dummy empty sequence #### ####
@@ -162,20 +162,20 @@ class translate:
 
     def get_esc(self):
         """Return the experimental sequence cluster etree"""
-        return self.seq_tree[1][3]
+        return self.seq_tree[1][tdict['Experimental sequence cluster in']]
 
     def get_evl(self):
         """Return the event list etree"""
-        return self.seq_tree[1][2]
+        return self.seq_tree[1][tdict['Event list array in']]
 
     def get_routine_description(self):
-        return self.seq_tree[1][5][1].text
+        return self.seq_tree[1][tdict['Routine description in']][1].text
 
     def get_routine_name(self):
-        return self.seq_tree[1][4][1].text
+        return self.seq_tree[1][tdict['Routine name in']][1].text
     
     def set_routine_description(self, txt):
-        self.seq_tree[1][5][1].text = txt
+        self.seq_tree[1][tdict['Routine description in']][1].text = txt
 
     def set_routine_name(self, txt):
-        self.seq_tree[1][4][1].text = txt
+        self.seq_tree[1][tdict['Routine name in']][1].text = txt

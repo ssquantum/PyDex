@@ -612,7 +612,7 @@ class Master(QMainWindow):
                 # self.rn.seq.tr.load_xml_str(msg) # for some reason LV can't sent strings longer than 2453 ...
                 self.rn.seq.tr.load_xml(self.stats['TempXMLPath'])
                 self.rn.seq.reset_UI()
-                self.rn.seq.set_sequence()
+                if self.rn.seq.display_toggle.isChecked(): self.rn.seq.set_sequence()
                 self.status_label.setText('Sequence has been set from DExTer.')
             except TypeError as e: error("Tried to load invalid sequence.\n"+str(e))
         self.ts['msg end'] = time.time()
