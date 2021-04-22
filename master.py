@@ -246,6 +246,12 @@ class Master(QMainWindow):
         # self.check_rois.setEnabled(False) # not functional yet
         sync_menu.addAction(self.check_rois) 
 
+        self.rearr_rois = QAction('Rearrange ROIs', sync_menu, 
+                checkable=True, checked=False)
+        self.rearr_rois.setChecked(False)
+        self.rearr_rois.toggled[bool].connect(self.set_rearranging)
+        sync_menu.addAction(self.rearr_rois) 
+
         reset_date = QAction('Reset date', sync_menu, checkable=False)
         reset_date.triggered.connect(self.reset_dates)
         sync_menu.addAction(reset_date)
@@ -394,6 +400,13 @@ class Master(QMainWindow):
         """Send a TCP command to the monitor to stop its acquisition."""
         self.mon_win.start_check()
         self.rn.monitor.add_message(self.rn._n, 'stop')
+
+    def set_rearranging(self, toggle=False):
+        """In rearranging mode, the first image is sent to the atom checker"""
+        self.rn.rearranging = toggle
+        reset_slot(self.rn.check.rh.rearrange, self.rn.check.get_rearrange, toggle)
+        reset_slot(self.rn.check.rearr_msg, self.rn.send_rearr_msg, toggle)
+        self.rn.set_m(self.rn.sw._m)
 
     def browse_sequence(self, toggle=True):
         """Open the file browser to search for a sequence file, then insert

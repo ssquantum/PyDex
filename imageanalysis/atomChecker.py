@@ -45,6 +45,7 @@ class atom_window(QMainWindow):
     """
     event_im = pyqtSignal(np.ndarray) # image taken by the camera as np array
     roi_values = pyqtSignal(list) # list of ROIs (x, y, w, h, threshold)
+    rearr_msg  = pyqtSignal(str)  # message to send AWG about rearranging
     
     def __init__(self, last_im_path='.', rois=[(1,1,1,1)], num_plots=4, 
             image_shape=(512,512), name=''):
@@ -81,6 +82,21 @@ class atom_window(QMainWindow):
         make_im = QAction('Make average image', self) # from image files (using file browser)
         make_im.triggered.connect(self.make_ave_im)
         file_menu.addAction(make_im)
+
+        # ROI menu for sending, receiving, and auto-generating ROIs
+        rois_menu = menubar.addMenu('ROIs')
+        self.send_rois_action = QAction('Send ROIs to analysis', self)
+        self.send_rois_action.triggered.connect(self.send_rois)
+        rois_menu.addAction(self.send_rois_action)
+
+        self.recv_rois_action = QAction('Get ROIs from analysis', self)
+        rois_menu.addAction(self.recv_rois_action)
+
+        # get ROI coordinates by fitting to image
+        for i, label in enumerate(['Single ROI', 'Square grid', '2D Gaussian masks']):
+            action = QAction(label, self) 
+            action.triggered.connect(self.make_roi_grid)
+            rois_menu.addAction(action)
 
         pg.setConfigOption('background', 'w') # set graph background default white
         pg.setConfigOption('foreground', 'k') # set graph foreground default black
@@ -129,25 +145,19 @@ class atom_window(QMainWindow):
                 # line edits with ROI x, y, w, h, threshold, auto update threshold
                 for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]): 
                     layout.addWidget(label, (i//k)*3, 7+(i%k)*6+j, 1,1)
+                label = QLabel('Auto-thresh', self)
+                layout.addWidget(label, (i//k)*3, 8+(i%k)*6+j, 1,1)
             except IndexError as e: pass # warning('Atom Checker has more plots than ROIs')
         
         self.display_rois() # put ROIs on the image
 
         #### extra buttons ####
-        # send the ROIs used here to the image analysis settings window
-        self.roi_matching = QPushButton('Send ROIs to analysis', self)
-        self.roi_matching.clicked.connect(self.send_rois)
-        layout.addWidget(self.roi_matching, 2+num_plots//k*3,7, 1,1)
+        
         # the user can trigger the experiment early by pressing this button
         self.trigger_button = QPushButton('Manual trigger experiment', self)
         self.trigger_button.clicked.connect(self.send_trigger)
         layout.addWidget(self.trigger_button, 2+num_plots//k*3,8, 1,1)
-        # get ROI coordinates by fitting to image
-        for i, label in enumerate(['Single ROI', 'Square grid', '2D Gaussian masks']):
-            button = QPushButton(label, self) 
-            button.clicked.connect(self.make_roi_grid)
-            button.resize(button.sizeHint())
-            layout.addWidget(button, 2+num_plots//k*3,9+i, 1,1)
+        
 
         button = QPushButton('Display masks', self) # button to display masks
         button.clicked.connect(self.show_ROI_masks)
@@ -164,6 +174,13 @@ class atom_window(QMainWindow):
         #
         self.setWindowTitle(self.name+' - Atom Checker -')
         self.setWindowIcon(QIcon('docs/atomcheckicon.png'))
+
+    #### #### processing functions #### ####
+
+    def get_rearrange(self, atomstring=''):
+        """Calculate the rearrangement to fill the desired ROIs"""
+        # .... tbc .....
+        self.rearr_msg.emit(atomstring)
 
     #### #### user input functions #### ####
 
@@ -287,7 +304,10 @@ class atom_window(QMainWindow):
         """Empty the lists of counts in the ROIs and update the plots."""
         self.rh.reset_count_lists(range(len(self.rh.ROIs)))
         for p in self.plots:
-            for l in p['counts']: l.setData([1])
+            try:
+                for l in p['counts']: l.setData([1])
+            except TypeError:
+                p['counts'].setData([1])
 
     def update_im(self, im):
         """Display the image in the image canvas."""

@@ -83,6 +83,7 @@ class main_window(QMainWindow):
                 im_handler=None, hist_handler=None, edit_ROI=False):
         super().__init__()
         self.name = name  # name is displayed in the window title
+        self.setObjectName(name)
         self.image_handler = im_handler if im_handler else ih.image_handler() # class to process images
         self.histo_handler = hist_handler if hist_handler else hh.histo_handler() # class to process histograms
         self.multirun = '' # whether currently doing a multirun or not

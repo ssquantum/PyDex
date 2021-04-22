@@ -12,33 +12,36 @@ class comp_handler(Analysis):
     """Manage statistics from several histograms.
     
     Append histogram statistics to a list. This analysis
-    calculates generic survival probabilities starting
-    with an arbitrary number of atoms: natoms.
+    calculates generic survival probabilities.
+    nhists   -- # of histograms being analysed
+    names    -- str labels for each histogram
+    inp_cond -- input condition for each histogram (atom present?)
+    out_cond -- output condition for each histogram (atom survived?)
     """
-    def __init__(self, natoms=1):
+    def __init__(self, nhists=1, names=[''], inp_cond=[True], out_cond=[True]):
         super().__init__()
+        self.nhist = nhists # number of histograms being analysed
+        self.names = names  # names of histograms
+        self.c0 = inp_cond  # input conditions (atom present?)
+        self.c1 = out_cond  # output conditions (atom survived?)
         # histogram statistics and variables for plotting:
         self.types = OrderedDict([('File ID', int),
         ('User variable', float),
-        ('Files included', int), 
-        *zip(['Loading probability %s'%i for i in range(natoms)], [float]*natoms),
-        *zip(['%s survive'%i for i in range(natoms)], [float]*natoms),
+        ('Number of images processed', int), 
+        *zip(['Loading probability %s'%self.names[i] for i in range(nhists)], [float]*nhists),
+        *zip(['Survival probability %s'%self.names[i] for i in range(nhists)], [float]*nhists),
+        *zip(['%s survival probability'%i for i in range(nhists)], [float]*nhists),
+        ('Condition met', float),
         ('01 cases', float),
-        ('10 cases', float)
+        ('10 cases', float),
         ('Include', BOOL)])
         self.stats = OrderedDict([(key, []) for key in self.types.keys()])
         # variables that won't be saved for plotting:
         self.temp_vals = OrderedDict([(key,0) for key in self.stats.keys()])
 
-        self.natom = natoms # number of histograms being analysed
         self.xvals = [] # variables to plot on the x axis
         self.yvals = [] # variables to plot on the y axis
         
-    def single(self, before, after, user_var, include=True):
-        """Simple survival probability if there's only 1 ROI"""
-        ids = before['File ID'][np.where(before['Atom detected'] > 0, True, False)]
-
-
     def process(self, befores, afters, user_var, include=True):
         """Calculate the statistics from the current histograms.
         Keyword arguments:
@@ -47,32 +50,31 @@ class comp_handler(Analysis):
         user_var: the user variable associated with this calculation
         include: whether to include the values in further analysis.
         """
-        o = befores.pop(0)
-        ids = set(o['File ID'][np.where(o['Atom detected'] > 0, True, False)])
-        for s in befores: # find the file IDs that have atoms in all before histograms
-            ids = ids & set(s['File ID'][np.where(s['Atom detected'] > 0, True, False)])
+        for i, s in befores: # find the file IDs that have atoms in all before histograms
+            t = self.c0[i]
+            if i == 0:
+                ids = set(np.array(s['File ID'])[np.where(np.array(s['Atom detected']) > 0, t, not t])
+            else: 
+                ids = ids & set(np.array(s['File ID'])[np.where(s['Atom detected'] > 0, t, not t)])
+            self.temp_vals['Loading probability %s'%self.names[i]] = (np.array(s['Atom detected']) > 0).sum() / len(s['Atom detected'])
+        
+        ids = np.array(list(ids))
+        self.temp_vals['Number of images processed'] = len(ids)
+        survive = np.empty((len(afters), len(ids)))
+        condition = np.empty((len(afters), len(ids)))
 
-        o = afters.pop(0)
-        atoms = set(o['File ID'][np.where(o['Atom detected'][ids] > 0, True, False)])
-        full = atoms
-        some = atoms
-        none = set(o['File ID'][np.where(o['Atom detected'][ids] == 0, True, False)])
-        for s in afters:
-            full = atoms & set(s['File ID'][np.where(s['Atom detected'][ids] > 0, True, False)])
-            # one but not the other: atoms ^ set()
-            some = atoms | set(s['File ID'][np.where(s['Atom detected'][ids] > 0, True, False)])
-            none = none & set(s['File ID'][np.where(s['Atom detected'][ids] == 0, True, False)])
+        for i, s in afters: # 
+            t = int(self.c1[i])
+            afterids = np.array(s['File ID'])[np.array(s['Atom detected']) > 0]
+            survive[i] = np.isin(ids, afterids).astype(int)
+            self.temp_vals['Survival probability %s'%self.names[i]] = (survive[i].sum() / len(afterids)
+            condids = np.array(s['File ID'])[np.where(np.array(s['Atom detected']) > 0, t, 1-t)]
+            cond = set()
+            condition[i] = np.isin(ids, condids).astype(int)
 
-        some = some - full
-        n = len(ids)
-        self.temp_vals['Total'] = n
+        natoms = list(survive.sum(axis=0))
+        for i in range(self.nhists):
+            self.temp_vals['%s survival probability'%i] = natoms.count(i) / len(natoms)
+
         self.temp_vals['User variable'] = self.types['User variable'](user_var) if user_var else 0.0
-        self.temp_vals['None'] = len(none)
-        self.temp_vals['Some'] = len(some)
-        self.temp_vals['All']  = len(full)
-        ol = set(o['File ID'][np.where(o['Atom detected'][ids] == 0, True, False)]
-            ) & set(s['File ID'][np.where(s['Atom detected'][ids] > 0, True, False)])
-        lo = set(o['File ID'][np.where(o['Atom detected'][ids] > 0, True, False)]
-            ) & set(s['File ID'][np.where(s['Atom detected'][ids] == 0, True, False)])
-        self.temp_vals['Permutations'] = [len(ol), len(lo)]
         self.temp_vals['Include'] = include

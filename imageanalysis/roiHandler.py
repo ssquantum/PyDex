@@ -155,12 +155,12 @@ class ROI(QWidget):
     def thresh(self):
         """Automatically choose a threshold based on the counts"""
         try: 
-            thresh = threshold_minimum(np.array(self.c), 25)
+            thresh = threshold_minimum(np.array(self.c[:self.i]), 25)
             int(np.log(thresh)) # ValueError if thresh <= 0 
             self.t = int(thresh)
         except (ValueError, RuntimeError, OverflowError): 
             try:
-                self.t = int(0.5*(max(self.c) + min(self.c)))
+                self.t = int(0.5*(max(self.c) + min(self.c[:self.i])))
                 int(np.log(self.t)) # ValueError if thresh <= 0 
             except (ValueError, TypeError, OverflowError):
                 self.t = 1
@@ -186,6 +186,7 @@ class roi_handler(QWidget):
     rois     -- list of ROI (xc,yc,wwidth,height)
     im_shape -- dimensions of the image in pixels"""
     trigger = pyqtSignal(int)
+    rearrange = pyqtSignal(str)
 
     def __init__(self, rois=[(1,1,1,1,1)], im_shape=(512,512)):
         super().__init__()
@@ -220,12 +221,15 @@ class roi_handler(QWidget):
 
     def process(self, im, include=True):
         """Add the integrated counts in each ROI to their lists.
-        Return success = 1 if all ROIs have an atom, otherwise 0"""
+        emit success = 1 if all ROIs have an atom
+        emit a string of which ROIs are occupied, e.g. '0110'"""
         success = 1
+        atomstring = ''
         for r in self.ROIs:
             try:
                 counts = np.sum(im * r.mask) - self.bias
                 success = 1 if abs(counts) // r.t and success else 0
+                atomstring += str(int(abs(counts) > r.t))
                 r.c[r.i%1000] = counts
                 r.i += 1
             except ValueError as e:
@@ -235,6 +239,7 @@ class roi_handler(QWidget):
             1 // (1 - success) # ZeroDivisionError if success = 1
         except ZeroDivisionError: 
             self.trigger.emit(success) # only emit if successful
+        self.rearrange.emit(atomstring)
         
     def set_pic_size(self, im_name):
         """Set the pic size by looking at the number of columns in a file

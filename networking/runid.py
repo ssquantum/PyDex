@@ -44,6 +44,7 @@ class runnum(QThread):
         self._m = m # # images per run
         self._k = k # # images received
         self.multirun = False # status of whether in multirun or not
+        self.rearranging = False # whether the first image is being used for rearrangement.
         self.cam = camra # Andor camera control
         self.cam.AcquireEnd.connect(self.receive) # receive the most recent image
         self.sv = saver  # image saver
@@ -56,10 +57,10 @@ class runnum(QThread):
         self.cam.SettingsChanged.connect(self.sw.CCD_stat_edit)
         self.cam.ROIChanged.connect(self.sw.cam_pic_size_changed) # triggers pic_size_text_edit()
         self.check = check  # atom checker for ROIs, trigger experiment
-        self.check.rh.shape = (self.sw.stats['pic_width'], self.sw.stats['pic_height'])
         self.check.nrois_edit.setText(str(len(self.sw.stats['ROIs'])))
         self.cam.ROIChanged.connect(self.check.rh.cam_pic_size_changed)
-        self.check.rh.resize_rois(self.sw.stats['ROIs'])
+        self.check.recv_rois_action.triggered.connect(self.get_rois_from_analysis)
+        self.get_rois_from_analysis()
         self.sw.bias_changed.connect(self.check.rh.set_bias)
         self.check.roi_values.connect(self.sw.set_rois)
         self.seq = seq   # sequence editor
@@ -107,18 +108,22 @@ class runnum(QThread):
             self._m = int(newm)
         elif newm == 0:
             self._m = 2
+        if self.rearranging: self._m += 1
 
     def receive(self, im=0):
         """Update the Dexter file number in all associated modules,
         then send the image array to be saved and analysed."""
         self.sv.dfn = str(self._n) # Dexter file number
         imn = self._k % self._m # ID number of image in sequence
+        if self.rearranging: imn -= 1 # for rearranging, the 1st image doesn't go to analysis
         self.sv.imn = str(imn) 
         self.im_save.emit(im)
-        for i in self.sw.find(imn): # find the histograms that use this image
-            self.sw.mw[i].image_handler.fid = self._n
-            # (array, False if too many images were taken or if we're checking for atoms)
-            self.sw.mw[i].event_im.emit(im, self._k < self._m and not self.check.checking)
+        if imn < 0:
+            self.check.event_im.emit(im)
+        else:
+            for i in self.sw.find(imn): # find the histograms that use this image
+                self.sw.mw[i].image_handler.fid = self._n
+                self.sw.mw[i].event_im.emit(im, self._k < self._m and not self.check.checking)
         self._k += 1 # another image was taken
 
     def unsync_receive(self, im=0):
@@ -136,12 +141,16 @@ class runnum(QThread):
         then send the image array to be saved and analysed."""
         self.sv.dfn = str(self._n) # Dexter file number
         imn = self._k % self._m # ID number of image in sequence
+        if self.rearranging: imn -= 1 # for rearranging, the 1st image doesn't go to analysis
         self.sv.imn = str(imn) 
         self.im_save.emit(im)
-        if self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) >= self.seq.mr.mr_param['# omitted']:
-            for i in self.sw.find(imn):
-                self.sw.mw[i].image_handler.fid = self._n
-                self.sw.mw[i].event_im.emit(im, self._k < self._m and not self.check.checking)
+        if imn < 0:
+            self.check.event_im.emit(im)
+        else:
+            if self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) >= self.seq.mr.mr_param['# omitted']:
+                for i in self.sw.find(imn):
+                    self.sw.mw[i].image_handler.fid = self._n
+                    self.sw.mw[i].event_im.emit(im, self._k < self._m and not self.check.checking)
         self._k += 1 # another image was taken
 
     def check_receive(self, im=0):
@@ -157,6 +166,14 @@ class runnum(QThread):
         return ' '.join([date[0]] + date[2:])
     
     #### atom checker ####
+
+    def get_rois_from_analysis(self):
+        self.check.rh.cam_pic_size_changed(self.sw.stats['pic_width'], self.sw.stats['pic_height'])
+        self.check.rh.resize_rois(self.sw.stats['ROIs'])
+
+    def send_rearr_msg(self, msg=''):
+        """Send the command to the AWG for rearranging traps"""
+        self.awgtcp.priority_messages([(self._n, msg)])
 
     def atomcheck_go(self, toggle=True):
         """Disconnect camera images from analysis, start the camera
@@ -324,7 +341,7 @@ class runnum(QThread):
         next run is being sent, so the histogram is saved, fitted, and reset
         based on the run number +1."""
         self.monitor.add_message(self._n, 'update run number')
-        if self._k != self._m and self.seq.mr.ind > 1:
+        if self._k != self._m - int(self.rearranging) and self.seq.mr.ind > 1:
             warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
         self._k = 0
         r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # repeat
