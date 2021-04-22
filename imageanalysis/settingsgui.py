@@ -58,6 +58,7 @@ class settings_window(QMainWindow):
             ('bias',697), ('image_path', im_store_path), ('results_path', results_path),
             ('last_image', ''), ('window_pos', [550, 20, 10, 200, 600, 400]),
             ('num_images',2), ('num_saia',2), ('num_reim',1)])
+        self.send_data = False
         self.load_settings(fname=config_file) # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.results_path = results_path if results_path else self.stats['results_path'] # used for saving results
@@ -606,7 +607,7 @@ class settings_window(QMainWindow):
                 f.write(','.join(list(map(str, mw.histo_handler.temp_vals.values()))) + '\n')
         # save and reset the histograms, make sure to do reimage windows first!
         for mw in self.rw[:len(self.rw_inds)] + self.mw[:self._a]: 
-            self.send_results(measure_prefix, hist_id, mw)
+            if self.send_data: self.send_results(measure_prefix, hist_id, mw)
             mw.save_hist_data(save_file_name=os.path.join(results_path, measure_prefix, 
                     mw.name + str(hist_id) + '.csv'), confirm=False) # save histogram
             mw.image_handler.reset_arrays() # clear histogram

@@ -240,6 +240,11 @@ class Master(QMainWindow):
         self.sync_toggle.toggled.connect(self.sync_mode)
         sync_menu.addAction(self.sync_toggle)
 
+        self.send_data = QAction('Send data to influxdb', sync_menu, 
+            checkable=True, checked=False)
+        self.send_data.toggled[bool].connect(self.set_inflxdb_toggle)
+        sync_menu.addAction(self.send_data)
+
         self.check_rois = QAction('Trigger on atoms loaded', sync_menu, 
                 checkable=True, checked=False)
         self.check_rois.setChecked(False)
@@ -551,6 +556,10 @@ class Master(QMainWindow):
         number of images per sequence is received."""
         reset_slot(self.rn.cam.AcquireEnd, self.rn.receive, toggle) 
         reset_slot(self.rn.cam.AcquireEnd, self.rn.unsync_receive, not toggle)
+
+    def set_inflxdb_toggle(self, toggle=False):
+        """Whether to send data to influxdb database"""
+        self.rn.sw.send_data = toggle
                 
     def wait_for_cam(self, timeout=10):
         """Wait (timeout / 10) ms, periodically checking whether the camera

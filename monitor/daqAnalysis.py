@@ -57,7 +57,7 @@ class daqSlice:
         self.blurbstr += "Content-Length: %s\n\n"
         self.datastr = 'Experiment,SOURCE=DAQmonitor,name="%s",channel0="%s" '%(name, list(self.channels.keys())[0])
                 
-    def process(self, data, ind):
+    def process(self, data, ind, send_data=False):
         """Apply the slice to the given data, extract the mean and std dev.
         Note that the data must have shape to match the expected # channels.
         data -- measured voltages [[measurement] * # channels].
@@ -68,13 +68,14 @@ class daqSlice:
                     row = data[0] # i if multiple channels are being measured simultaneously
                     self.stats[chan]['mean'].append(np.mean(row[self.inds]))
                     self.stats[chan]['stdv'].append(np.std(row[self.inds], ddof=1))
-                    try: # send results via TCP to influxdb
-                        datastr = self.datastr + "mean_V=%.6f,stdv_V=%.6f "%(self.stats[chan]['mean'][-1], self.stats[chan]['stdv'][-1])
-                        datastr += str(int(time.time()*1e9)) + '\n'
-                        msg = self.blurbstr%len(datastr) + datastr
-                        _ = simple_msg('129.234.190.191', 8086, msg)
-                    except Exception as e:
-                        error("DAQ analysis failed to send results to influxdb\n"+str(e))
+                    if send_data:
+                        try: # send results via TCP to influxdb
+                            datastr = self.datastr + "mean_V=%.6f,stdv_V=%.6f "%(self.stats[chan]['mean'][-1], self.stats[chan]['stdv'][-1])
+                            datastr += str(int(time.time()*1e9)) + '\n'
+                            msg = self.blurbstr%len(datastr) + datastr
+                            _ = simple_msg('129.234.190.191', 8086, msg)
+                        except Exception as e:
+                            error("DAQ analysis failed to send results to influxdb\n"+str(e))
                 except IndexError as e:
                     error('Data wrong shape to take slice at %s.\n'%i + str(e))
             else: # just to keep them all the same length
@@ -118,12 +119,12 @@ class daqCollection(QThread):
         self.slices.append(daqSlice(name, start, end, channels))
         self.reset_arrays() # make sure they're the same length
         
-    def process(self, data, n, ind):
+    def process(self, data, n, ind, send_data=False):
         """Send the data to all of the slices. It must have the right shape."""
         self.runs.append(n)
         self.times.append(time.time())
         for s in self.slices:
-            s.process(data, ind)
+            s.process(data, ind, send_data)
         self.ind += 1
             
     def load(self, file_name):

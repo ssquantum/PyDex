@@ -328,6 +328,9 @@ class daq_window(QMainWindow):
         self.unsync_toggle = QPushButton('Unsync run number', checkable=True, checked=False)
         tcp_grid.addWidget(self.unsync_toggle, 4,1,1,1)
 
+        self.send_data = QPushButton('Send data to influxdb', checkable=True, checked=False)
+        tcp_grid.addWidget(self.send_data, 5,0,1,1)
+
 
         #### Title and icon ####
         self.setWindowTitle('- NI DAQ Controller -')
@@ -671,7 +674,7 @@ class daq_window(QMainWindow):
         if np.size(data):
             if self.unsync_toggle.isChecked():
                 self.set_n(self.stats['n'] + 1)
-            self.dc.process(data, self.stats['n'], self.slaveind)
+            self.dc.process(data, self.stats['n'], self.slaveind, self.send_data.isChecked())
         for s in self.dc.slices:
             for chan, val in s.stats.items():
                 self.mean_graph.lines[s.name+'/'+chan].setData(self.dc.runs, val['mean'])
