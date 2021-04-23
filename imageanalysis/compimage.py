@@ -21,6 +21,7 @@ except ImportError:
     from PyQt5.QtGui import QFont
     from PyQt5.QtWidgets import QLabel, QMessageBox
 from maingui import main_window, reset_slot
+from compHandler import comp_handler
 
 # main GUI window contains all the widgets                
 class compim_window(main_window):
@@ -30,8 +31,8 @@ class compim_window(main_window):
     the after histograms. Compare the histograms to find joint recapture.
     Keyword arguments:
     signal        -- the pyqtSignal that is used to trigger updates
-    befores       -- list of image_handler stats dictionaries from before histograms.
-    afters        -- list of image_handler stats dictionaries from before histograms.
+    befores       -- list of image_handler from before histograms.
+    afters        -- list of image_handler from after histograms.
     results_path  -- directory to save log file and results to.
     im_store_path -- the directory where images are saved.
     name          -- an ID for this window, prepended to saved files.
@@ -39,13 +40,16 @@ class compim_window(main_window):
     request = pyqtSignal(str) # send request for new data
     data = pyqtSignal(list)   # receive new data
 
-    def __init__(self, signal, befores=[], afters=[], results_path='.', 
+    def __init__(self, signal, befores=[], afters=[], names=[], results_path='.', 
             im_store_path='.', name=''):
         self.event_im = signal # uses the signal from a SAIA instance
         super().__init__(results_path=results_path, 
                         im_store_path=im_store_path, name=name)
-        self.hists1 = imhandlers # before histograms, select which images to include
-        self.hists2 = imhandlers # after histograms, calculate survival probability
+        self.hists1 = befores # before histograms, select which images to include
+        self.hists2 = afters  # after histograms, calculate survival probability
+        self.nhist = len(befores) # number of histograms being compared
+        self.names = names # string IDs for the histograms
+        self.comp_handler = comp_handler(nhist, names=names, inp_cond=[1]*nhist, out_cond=[1]*nhist)
         self.adjust_UI() # adjust widgets from main_window
         
     def adjust_UI(self):
@@ -54,8 +58,19 @@ class compim_window(main_window):
 
         #### edit settings tab: choose from list of image handlers ####
         settings_grid = self.tabs.widget(0).layout()
-        # remove the ROI / EMCCD info which is redundant
-        settings_grid.removeWidget()
+        # remove the settings which are redundant
+        for i in reversed(range(settings_grid.count())):
+            if i > 2:
+                widget = settings_grid.itemAt(i).widget()
+                settings_grid.removeWidget(widget)
+                widget.setParent(None)
+
+        self.before_choice = []
+        self.before_cond   = []
+        self.after_choice  = []
+        self.after_cond    = []
+        self.set_combo_boxes(settings_grid)
+        
         # combobox widgets to choose before ROI/images
         # button to add extra ROI/images widget
         # combobox widgets to choose after ROI/images
@@ -75,6 +90,24 @@ class compim_window(main_window):
 
 
     #### #### canvas functions #### ####
+
+    def set_combo_boxes(self, layout):
+        """Make the right number of combo boxes to choose histograms from"""
+        for i in range(min(self.nhist, len(self.after_cond))): # update current widgets
+            
+        for i in range(len(self.after_cond), self.nhist):
+            for j, x in enumerate([self.before_choice, self.after_choice]):
+                widget = QComboBox(self)
+                widget.addItems(self.names)
+                widget.activated[str].connect() 
+                layout.addWidget(1+j*2,i,1,1)
+                x.append(widget)
+            for j, x in enumerate([self.before_cond, self.after_cond]):
+                widget = QCheckBox(self)
+                widget.stateChanged[int].connect()
+                layout.addWidget(2+j*2,i,1,1)
+                x.append(widget)
+
 
     def get_histogram(self, befores, afters):
         """Take the histogram from the 'after' images where the 'before' images

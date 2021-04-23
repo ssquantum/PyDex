@@ -199,17 +199,19 @@ class runnum(QThread):
         for col in range(len(self.seq.mr.mr_param['Type'])):
             if 'AWG' in self.seq.mr.mr_param['Type'][col] and module == 'AWG':
                 try: # argument: value
-                    n = self.seq.mr.mr_param['Time step name'][col][0] # index of chosen AWG channel, segment 
-                    msg += '[%s, %s, "%s", %s, %s],'%(n%4, n//4, 
-                        self.seq.mr.awg_args[self.seq.mr.mr_param['Analogue channel'][col][0]], 
-                        self.seq.mr.mr_vals[v][col], self.seq.mr.mr_param['list index'][col])
+                    for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen AWG channel, segment 
+                        for m in self.seq.mr.mr_param['Analogue channel'][col]:
+                            msg += '[%s, %s, "%s", %s, %s],'%(n%4, n//4, 
+                                self.seq.mr.awg_args[m], self.seq.mr.mr_vals[v][col], 
+                                self.seq.mr.mr_param['list index'][col])
                 except Exception as e: error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
             elif 'DDS' in self.seq.mr.mr_param['Type'][col] and module == 'DDS':
                 try: # argument: value
-                    n = self.seq.mr.mr_param['Time step name'][col][0] # index of chosen DDS COM port, profile
-                    msg += '["COM%s", "P%s", "%s", %s],'%((n//8)+7, n%8, 
-                        self.seq.mr.dds_args[self.seq.mr.mr_param['Analogue channel'][col][0]], 
-                        self.seq.mr.mr_vals[v][col])
+                    for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen DDS COM port, profile
+                        for m in self.seq.mr.mr_param['Analogue channel'][col]:
+                            msg += '["COM%s", "P%s", "%s", %s],'%((n//8)+7, n%8, # we use COM7 - COM11
+                                self.seq.mr.dds_args[m], 
+                                self.seq.mr.mr_vals[v][col])
                 except Exception as e: error('Invalid DDS parameter at (%s, %s)\n'%(v,col)+str(e))
         if col > -1: msg = msg[:-1] + ']'
         else: msg += ']'
