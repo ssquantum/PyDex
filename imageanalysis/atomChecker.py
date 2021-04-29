@@ -51,6 +51,7 @@ class atom_window(QMainWindow):
             image_shape=(512,512), name=''):
         super().__init__()
         self.name = name
+        self.setObjectName(name)
         self.last_im_path = last_im_path
         self.rh = roi_handler(rois, image_shape)
         self.init_UI(num_plots) # adjust widgets from main_window

@@ -85,6 +85,7 @@ class main_window(QMainWindow):
         self.name = name  # name is displayed in the window title
         self.setObjectName(name)
         self.image_handler = im_handler if im_handler else ih.image_handler() # class to process images
+        self.image_handler.name = name
         self.histo_handler = hist_handler if hist_handler else hh.histo_handler() # class to process histograms
         self.multirun = '' # whether currently doing a multirun or not
         pg.setConfigOption('background', 'w') # set graph background default white

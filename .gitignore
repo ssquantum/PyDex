@@ -1,8 +1,13 @@
 # ignore the following directories
-2020/
+20*/
 imageanalysis/2020/
 __pycache__/
 .*/__pycache__/
+"awg/AWG template sequence/temp/"
+"awg/AWG template sequence/overlapping_tweezers/"
+"awg/AWG template sequence/test amp_adjust/"
+awg/AWG_power_calibration/
+.vscode/
 
 # ignore the following files
 state
@@ -10,4 +15,3 @@ log.txt
 log.txt*
 *.pyc
 *.pyo
-.vscode/

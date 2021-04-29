@@ -150,7 +150,12 @@ class Ui_MainWindow(object):
             [[port1,profile1,key1,val1],[port2,profile2,key2,val2],...]"""
 
         value = cmd.split('=')[1] 
-        
+
+        if any(x in cmd for x in['Freq', 'Phase', 'Amp']):
+            self.mode = 'single tone'
+        elif any(x in cmd for x in['Start_add', 'End_add', 'Step_rate']):
+            self.mode = 'RAM'
+                
         if 'set_data' in cmd:
             try:
                 value_list = eval(value) # nested list of parameters to change

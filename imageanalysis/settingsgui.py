@@ -30,6 +30,7 @@ if '..' not in sys.path: sys.path.append('..')
 from strtypes import intstrlist, listlist, error, warning, info
 from maingui import main_window, reset_slot, int_validator, double_validator, nat_validator
 from reimage import reim_window # analysis for survival probability
+from compimage import compim_window
 from roiHandler import ROI
 from networking.client import simple_msg
 
@@ -53,11 +54,12 @@ class settings_window(QMainWindow):
         super().__init__()
         self.types = OrderedDict([('pic_width',int), ('pic_height',int), ('ROIs',listlist), 
             ('bias', int), ('image_path', str), ('results_path', str), ('last_image', str),
-            ('window_pos',intstrlist), ('num_images',int), ('num_saia',int), ('num_reim',int)])
+            ('window_pos',intstrlist), ('num_images',int), ('num_saia',int), ('num_reim',int),
+            ('num_coim', int)])
         self.stats = OrderedDict([('pic_width',512), ('pic_height',512), ('ROIs',[[1,1,1,1,1]]), 
             ('bias',697), ('image_path', im_store_path), ('results_path', results_path),
             ('last_image', ''), ('window_pos', [550, 20, 10, 200, 600, 400]),
-            ('num_images',2), ('num_saia',2), ('num_reim',1)])
+            ('num_images',2), ('num_saia',2), ('num_reim',1), ('num_coim', 0)])
         self.send_data = False
         self.load_settings(fname=config_file) # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
@@ -69,8 +71,8 @@ class settings_window(QMainWindow):
         if len(self.stats['ROIs']) < self._a // self._m: # make the correct number of ROIs
             for i in range(len(self.stats['ROIs']), self._a // self._m):
                 self.stats['ROIs'].append([1,1,1,1,1])
-        self.mw = [main_window(results_path, im_store_path, 
-            'ROI' + str(i//self._m) + '.Im' + str(i%self._m) + '.') for i in range(self._a)] # saia instances
+        self.mw_names = ['ROI' + str(i//self._m) + '.Im' + str(i%self._m) + '.' for i in range(self._a)]
+        self.mw = [main_window(results_path, im_store_path, self.mw_names[i]) for i in range(self._a)] # saia instances
         self.mw_inds = [i%self._m for i in range(self._a)] # the index of the image in the sequence to use 
         self.rw = [] # re-image analysis instances
         self.rw_inds = [] # which saia instances are used for the re-image instances
@@ -80,6 +82,9 @@ class settings_window(QMainWindow):
                 [self.mw[2*i].histo_handler, self.mw[2*i+1].histo_handler],
                 results_path, im_store_path, 'ROI'+str(i)+'_Re_') for i in range(self.stats['num_reim'])]
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(self.stats['num_reim'])]
+        self.cw = [compim_window(self.mw[i].event_im, self.mw_names, befores=[], afters=[], results_path=results_path, 
+            im_store_path=im_store_path, name='Comp%s'%i) for i in range(self.stats['num_coim'])] # comparison image analyser instances
+        for cw in self.cw: reset_slot(self.cw.request, self.attach_coim_handlers, True)
         self.rois = []  # list to hold ROI objects
         self.init_UI()  # make the widgets
         # make sure the analysis windows have the default settings:
@@ -91,7 +96,7 @@ class settings_window(QMainWindow):
     def reset_dates(self, date):
         """Reset the dates in all of the saia instances"""
         self.date = date
-        for mw in self.mw + self.rw:
+        for mw in self.mw + self.rw + self.cw:
             mw.date = date
             mw.image_storage_path = os.path.join(self.image_storage_path, 
                 date[3], date[2], date[0])
@@ -232,6 +237,23 @@ class settings_window(QMainWindow):
         # self.reim_edit.setText('; '.join(map(str, self.rw_inds))) # default # 'Histogram indices for re-imaging: '
         # self.reim_edit.setValidator(semico_validator)
 
+        coim_label = QLabel('# comparison analysers', self)
+        settings_grid.addWidget(coim_label, 3,2, 1,1)
+        self.coim_edit = QLineEdit(str(self.stats['num_coim']), self)
+        settings_grid.addWidget(self.coim_edit, 3,3, 1,1)
+        self.coim_edit.setValidator(int_validator)
+        
+        # user sets threshold for all analyses
+        self.thresh_toggle = QPushButton('User Threshold: ', self)
+        self.thresh_toggle.setCheckable(True)
+        self.thresh_toggle.clicked.connect(self.set_thresh)
+        settings_grid.addWidget(self.thresh_toggle, 3,0, 1,1)
+        # user inputs threshold
+        self.thresh_edit = QLineEdit(self)
+        settings_grid.addWidget(self.thresh_edit, 3,1, 1,1)
+        self.thresh_edit.textChanged.connect(self.set_thresh)
+        self.thresh_edit.setValidator(int_validator)
+        
         # get user to set the image size in pixels
         self.pic_width_edit = QLineEdit(self)
         self.pic_height_edit = QLineEdit(self)
@@ -240,22 +262,11 @@ class settings_window(QMainWindow):
             button = QPushButton(label[0], self)
             button.clicked.connect(self.load_im_size) # load image size from image
             button.resize(button.sizeHint())
-            settings_grid.addWidget(button, 3,2*i, 1,1)
-            settings_grid.addWidget(label[1], 3,2*i+1, 1,1)
+            settings_grid.addWidget(button, 4,2*i, 1,1)
+            settings_grid.addWidget(label[1], 4,2*i+1, 1,1)
             label[1].textChanged.connect(self.pic_size_text_edit)
             label[1].setText(str(self.stats[label[2]])) # default
             label[1].setValidator(nat_validator)
-        
-        # user sets threshold for all analyses
-        self.thresh_toggle = QPushButton('User Threshold: ', self)
-        self.thresh_toggle.setCheckable(True)
-        self.thresh_toggle.clicked.connect(self.set_thresh)
-        settings_grid.addWidget(self.thresh_toggle, 4,0, 1,1)
-        # user inputs threshold
-        self.thresh_edit = QLineEdit(self)
-        settings_grid.addWidget(self.thresh_edit, 4,1, 1,1)
-        self.thresh_edit.textChanged.connect(self.set_thresh)
-        self.thresh_edit.setValidator(int_validator)
         
         # EMCCD bias offset
         bias_offset_label = QLabel('EMCCD bias offset: ', self)
@@ -338,7 +349,7 @@ class settings_window(QMainWindow):
 
     def set_thresh(self, arg=''):
         """Sets the threshold in all of the analyser windows."""
-        for mw in self.mw + self.rw:
+        for mw in self.mw + self.rw + self.cw:
             if self.thresh_edit.text():
                 mw.thresh_edit.setText(self.thresh_edit.text())
             mw.thresh_toggle.setChecked(self.thresh_toggle.isChecked())
@@ -353,7 +364,7 @@ class settings_window(QMainWindow):
             self.stats['pic_height'] = int(height)
             for roi in self.rois:
                 roi.s = (int(width), int(height))
-            for mw in self.mw + self.rw:
+            for mw in self.mw + self.rw + self.cw:
                 mw.pic_width_edit.setText(width)
                 mw.pic_height_edit.setText(height)
                 mw.pic_size_label.setText('('+width+', '+height+')')
@@ -372,7 +383,7 @@ class settings_window(QMainWindow):
     def set_user_var(self, text=''):
         """Update the user variable across all of the image analysers"""
         if self.var_edit.text():
-            for mw in self.mw + self.rw:
+            for mw in self.mw + self.rw + self.cw:
                 mw.var_edit.setText(self.var_edit.text())
                 mw.set_user_var()
 
@@ -569,6 +580,12 @@ class settings_window(QMainWindow):
             mw.set_bins()
             for i in range(len(self.fit_methods)):
                 mw.fit_methods[i].setChecked(self.fit_methods[i].isChecked())
+
+    def attach_coim_handlers(self, name, blist, alist):
+        """Give access to the relevant histograms to the comparison analyser"""
+        cw = self.cw[int(name.replace('Comp',''))]
+        cw.reset_handlers([self.mw[self.mw_names.index(x)].image_handler for x in blist],
+            [self.mw[self.mw_names.index(x)].image_handler for x in alist])
                 
     #### #### multirun functions #### ####
     
@@ -603,13 +620,13 @@ class settings_window(QMainWindow):
             mw.update()
             # append histogram stats to measure log file:
             with open(os.path.join(results_path, measure_prefix, 
-                    mw.name + measure_prefix + '.dat'), 'a') as f:
+                    mw.objectName() + measure_prefix + '.dat'), 'a') as f:
                 f.write(','.join(list(map(str, mw.histo_handler.temp_vals.values()))) + '\n')
         # save and reset the histograms, make sure to do reimage windows first!
         for mw in self.rw[:len(self.rw_inds)] + self.mw[:self._a]: 
             if self.send_data: self.send_results(measure_prefix, hist_id, mw)
             mw.save_hist_data(save_file_name=os.path.join(results_path, measure_prefix, 
-                    mw.name + str(hist_id) + '.csv'), confirm=False) # save histogram
+                    mw.objectName() + str(hist_id) + '.csv'), confirm=False) # save histogram
             mw.image_handler.reset_arrays() # clear histogram
             
     def send_results(self, measure_prefix, hist_id, mw):
@@ -617,7 +634,7 @@ class settings_window(QMainWindow):
         measure_prefix -- label for the subdirectory results are saved in
         hist_id        -- unique ID for histogram
         mw             -- imageanalysis window storing results"""
-        datastr = 'Experiment,SOURCE=imageanalysis,name="%s" measure=%s,'%(mw.name, measure_prefix)
+        datastr = 'Experiment,SOURCE=imageanalysis,name="%s" measure=%s,'%(mw.objectName(), measure_prefix)
         datastr +=','.join(['%s=%s'%(key.replace(' ', '_'), val) for key, val in mw.histo_handler.temp_vals.items()
             if mw.histo_handler.types[key] != str]) 
         datastr += ' ' + str(int(time.time()*1e9)) + '\n'
@@ -646,7 +663,7 @@ class settings_window(QMainWindow):
             if not appending: mw.clear_varplot() # keep the previous data if this multirun is to be appended
             mw.multirun = measure_prefix
             log_file_path = os.path.join(results_path, 
-                mw.name + measure_prefix + '.dat')
+                mw.objectName() + measure_prefix + '.dat')
             if not os.path.isfile(log_file_path):# start measure file, stores plot data
                 mw.save_varplot(save_file_name=log_file_path, confirm=False) 
 
@@ -762,7 +779,7 @@ class settings_window(QMainWindow):
                 self.rw[i].display_fit(fit_method='check action')
                 if 'Save' in action:
                     self.rw[i].save_hist_data(
-                        save_file_name=os.path.join(fdir, self.rw[i].name + fname), 
+                        save_file_name=os.path.join(fdir, self.rw[i].objectName() + fname), 
                         confirm=False)
                 if 'Reset' in action:
                     self.rw[i].image_handler.reset_arrays() 
@@ -773,7 +790,7 @@ class settings_window(QMainWindow):
             for i in range(self._a): # then can save and reset main windows
                 if 'Save' in action:
                     self.mw[i].save_hist_data(
-                        save_file_name=os.path.join(fdir, self.mw[i].name + fname), 
+                        save_file_name=os.path.join(fdir, self.mw[i].objectName() + fname), 
                         confirm=False)
                 if 'Reset' in action:
                     self.mw[i].image_handler.reset_arrays() 
@@ -802,7 +819,7 @@ class settings_window(QMainWindow):
         if reply == QMessageBox.Cancel:
             return 0
         elif reply == QMessageBox.Yes:
-            for mw in self.mw + self.rw:
+            for mw in self.mw + self.rw + self.cw:
                 mw.image_handler.reset_arrays() # gets rid of old data
         return 1
 
@@ -846,6 +863,10 @@ class settings_window(QMainWindow):
             self.rw[i].resize(w, h)
             self.rw[i].setGeometry(rwx+i*2*w//len(self.rw_inds), rwy, w, h)
             self.rw[i].show()
+        for i in range(len(self.cw)):
+            self.cw[i].resize(w, h)
+            self.cw[i].setGeometry(rwx+i*2*w//len(self.rw_inds), mwy, w, h)
+            self.cw[i].show()
 
     def im_inds_validator(self, text=''):
         """The validator on the 'Image indices for analysers' line edit
@@ -857,6 +878,7 @@ class settings_window(QMainWindow):
             self.stats['num_images'] = up + 1
             self.stats['num_saia'] = a
             self.stats['num_reim'] = int(self.reim_edit.text())
+            self.stats['num_coim'] = int(self.coim_edit.text())
             if up < 10: # defines which image index is allowed
                 regstr = '[0-%s]'%up
             elif up < 100: 
@@ -878,7 +900,7 @@ class settings_window(QMainWindow):
             error('Invalid analysis settings.\n'+str(e))
             return 0
         
-        for mw in self.mw + self.rw:
+        for mw in self.mw + self.rw + self.cw:
             mw.image_handler.reset_arrays()
             mw.histo_handler.reset_arrays()
             mw.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ")
@@ -901,6 +923,7 @@ class settings_window(QMainWindow):
         for mw in self.mw[self._a:]:
             mw.deleteLater() # remove unused windows
         self.mw = self.mw[:self._a]
+        self.mw_names = ['ROI' + str(i//self._m) + '.Im' + str(i%self._m) + '.' for i in range(self._a)]
         self.create_rois() # display ROIs on image
         self.reset_table() # display (xc, yc, size) of ROIs in table
 
@@ -956,6 +979,21 @@ class settings_window(QMainWindow):
         for rw in self.rw[len(self.rw_inds):]:
             rw.deleteLater() # remove unused windows
         self.rw = self.rw[:len(self.rw_inds)]
+
+        cn = int(self.coim_edit.text())
+        try:
+            for i in range(len(self.cw), cn): # add new re-image instances as required
+                self.cw.append(compim_window(self.mw[i].event_im, self.mw_names, 
+                    [], [], self.results_path, self.image_storage_path, name='Comp%s'%i))
+                reset_slot(self.cw[i].request, self.attach_coim_handlers, True)
+        except IndexError as e:
+            warning('Could not create comparison analysers %s.\n'%len(self.cw)+str(e))
+        for cw in self.cw[cn:]:
+            cw.deleteLater() # remove unused windows
+        self.cw = self.cw[:cn]
+        for cw in self.cw:
+            cw.names = self.mw_names
+            cw.set_combo_boxes()
             
         self.pic_size_text_edit()
         self.set_thresh()
@@ -978,7 +1016,7 @@ class settings_window(QMainWindow):
         if reply == QMessageBox.Yes or reply == QMessageBox.No:
             if reply == QMessageBox.Yes:
                 self.save_hist_data()   # save current state
-            for mw in self.mw + self.rw: mw.close()
+            for mw in self.mw + self.rw + self.cw: mw.close()
             event.accept()
         else:
             event.ignore()        
