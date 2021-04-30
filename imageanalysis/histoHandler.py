@@ -178,9 +178,8 @@ class histo_handler(Analysis):
 
             # store the calculated histogram statistics as temp
             self.temp_vals['File ID'] = int(self.ind)
-            file_list = [x for x in ih.stats['File ID'] if str(x)]
-            self.temp_vals['Start file #'] = min(map(int, file_list))
-            self.temp_vals['End file #'] = max(map(int, file_list))
+            self.temp_vals['Start file #'] = min(ih.stats['File ID'])
+            self.temp_vals['End file #'] = max(ih.stats['File ID'])
             self.temp_vals['ROI xc ; yc ; size'] = ' ; '.join(list(map(str, [ih.xc, ih.yc, ih.roi_size])))
             self.temp_vals['User variable'] = self.types['User variable'](user_var) if user_var else 0.0
             self.temp_vals['Number of images processed'] = ih.ind

@@ -105,7 +105,7 @@ class image_handler(Analysis):
         # sum of counts in the ROI of the image gives the signal
         self.stats['Counts'].append(np.sum(self.im_vals)) 
         # file ID number should be updated externally before each event
-        self.stats['File ID'].append(str(self.fid))  
+        self.stats['File ID'].append(self.fid)
         # the pixel value at the centre of the ROI
         try:
             self.stats['ROI centre count'].append(full_im[self.xc, self.yc])

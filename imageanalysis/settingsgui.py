@@ -84,7 +84,7 @@ class settings_window(QMainWindow):
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(self.stats['num_reim'])]
         self.cw = [compim_window(self.mw[i].event_im, self.mw_names, befores=[], afters=[], results_path=results_path, 
             im_store_path=im_store_path, name='Comp%s'%i) for i in range(self.stats['num_coim'])] # comparison image analyser instances
-        for cw in self.cw: reset_slot(self.cw.request, self.attach_coim_handlers, True)
+        for cw in self.cw: reset_slot(cw.request, self.attach_coim_handlers, True)
         self.rois = []  # list to hold ROI objects
         self.init_UI()  # make the widgets
         # make sure the analysis windows have the default settings:

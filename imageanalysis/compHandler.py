@@ -88,11 +88,11 @@ class comp_handler(Analysis):
         for i, s in enumerate(self.afters): 
             name = s.name
             s = s.stats
-            t = int(self.c1[i])
             afterids = np.array(s['File ID'])[np.array(s['Atom detected']) > 0]
-            survive[i] = np.isin(ids, afterids).astype(bool)
+            survive[i] = np.isin(ids, afterids)
             self.temp_vals['Survival probability %s'%name] = survive[i].sum() / len(afterids)
-            condition = condition & set(np.array(s['File ID'])[np.where(np.array(s['Atom detected']) > 0, t, 1-t)])
+            if not self.c1[i]: afterids = np.array(s['File ID'])[np.array(s['Atom detected']) <= 0]
+            condition = condition & set(ids[np.isin(ids, afterids)])
 
         for i, x in enumerate(survive):
             self.hist_ids['%s survival'%self.afters[i].name] = ids[x]
@@ -101,8 +101,8 @@ class comp_handler(Analysis):
         self.hist_ids['Condition met'] = np.array(list(condition))
         natoms = survive.sum(axis=0)
         for i in range(self.nhists+1):
-            self.hist_ids['%s atom survival'%i] = ids[natoms == i]
-            self.temp_vals['%s atom survival probability'%i] = len(self.hist_ids['%s atom survival'%i]) / len(natoms)
+            self.hist_ids['%s atom'%i] = ids[natoms == i]
+            self.temp_vals['%s atom survival probability'%i] = len(self.hist_ids['%s atom'%i]) / len(natoms)
 
         self.temp_vals['User variable'] = self.types['User variable'](user_var) if user_var else 0.0
         self.temp_vals['Include'] = include

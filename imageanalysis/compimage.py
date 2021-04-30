@@ -149,6 +149,10 @@ class compim_window(main_window):
         add_to_plot.clicked[bool].connect(self.add_stats_to_plot)
         stat_grid.addWidget(add_to_plot, i+3,2, 1,1)
 
+        for x in self.plot_labels[:2]:
+            x.clear()
+            x.addItems(list(self.histo_handler.stats.keys())) 
+
     def set_logic(self):
         self.histo_handler.c0 = [int(x.isChecked()) for x in self.before_cond]
         self.histo_handler.c1 = [int(x.isChecked()) for x in self.after_cond]
@@ -196,7 +200,7 @@ class compim_window(main_window):
         self.hist_choice.clear()
         self.hist_choice.addItems([x.name for x in self.histo_handler.afters])
         self.hist_type.clear()
-        self.hist_type.addItems(['Survival', 'Condition met'] + ['%s atom'%i for i in range(self.nhist)])
+        self.hist_type.addItems(['Survival', 'Condition met'] + ['%s atom'%i for i in range(self.nhist+1)])
         self.reset_stat_labels()
         
     
@@ -210,7 +214,7 @@ class compim_window(main_window):
             hist_type = self.hist_type.currentText()
             if 'Survival' in hist_type:
                 hist_type = names[ind] + ' survival'
-            incl = np.isin(ids, self.histo_handler.hist_ids[hist_type])
+            incl = np.isin(self.histo_handler.afters[ind].stats['File ID'], self.histo_handler.hist_ids[hist_type])
             for key in self.image_handler.stats.keys():
                 self.image_handler.stats[key] = list(np.array(self.histo_handler.afters[ind].stats[key])[incl])
             self.image_handler.ind = self.histo_handler.afters[ind].ind
@@ -239,20 +243,12 @@ class compim_window(main_window):
     def update_plot(self, im, include=True):
         """Same as update_plot_only."""
         t2 = self.get_histogram()
-        # display the name of the most recent file
-        if self.image_handler.ind > 1:
-            self.recent_label.setText('Just processed image '
-                        + str(self.image_handler.stats['File ID'][-1]))
         self.plot_current_hist(self.image_handler.histogram, self.hist_canvas) # update the displayed plot
         self.plot_time = time.time() - t2
 
     def update_plot_only(self, im, include=True):
         """Show the histogram on the canvas."""
         t2 = self.get_histogram()
-        # display the name of the most recent file
-        if self.image_handler.ind > 1:
-            self.recent_label.setText('Just processed image '
-                        + str(self.image_handler.stats['File ID'][-1]))
         self.plot_current_hist(self.image_handler.histogram, self.hist_canvas) # update the displayed plot
         self.plot_time = time.time() - t2
 
