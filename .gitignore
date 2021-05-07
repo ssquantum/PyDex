@@ -1,10 +1,10 @@
 # ignore the following directories
-20*/
-imageanalysis/2020/
-__pycache__/
+20*\
+imageanalysis\20*
+__pycache__\
 .*/__pycache__/
-"awg/AWG template sequence/"
-awg/AWG_power_calibration/
+"awg\AWG template sequence"
+awg\AWG_power_calibration
 .vscode/
 
 # ignore the following files
