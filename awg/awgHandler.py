@@ -1132,7 +1132,7 @@ class AWG:
                     flag = 1
               
                 if type(aAdjust) == bool:
-                    self.aAdjust = fAdjust
+                    self.aAdjust = aAdjust
                 else:
                     self.aAdjust = True
                     sys.stdout.write("Amplitude Adjustment receives a boolean True/False")
@@ -1984,36 +1984,68 @@ if __name__ == "__main__":
     Vincent 14/9/2020 
     """
     
-    # data01 = t.dataGen(0,ch1,'static',1,[166],1,9, 50,[1],[0],False,True)
-    # data02 = t.dataGen(0,ch2,'static',1,[166],1,9, 50,[1],[0],False,True)
-    # t.setSegment(0,data01, data02)
-    # t.setStep(0,0,1,0,1)   
+    # 2 traps
+    data01 = t.dataGen(0,ch1,'static',1,[180, 150],1,9, 220,[0.6,0.6],[0,0],False,True)
+    data02 = t.dataGen(0,ch2,'static',1,[180, 150],1,9, 220,[0.5,0.5],[0,90],False,True)
+    t.setSegment(0,data01, data02)
+    t.setStep(0,0,1,3,1)   
+    
+    data11 = t.dataGen(1,ch1,'moving',1,[180, 150],[153, 150],1, 220,[0.6,0.6],[0.6,0.6],[0,90],False,True)
+    data12 = t.dataGen(1,ch2,'moving',1,[180, 150],[153, 150],1, 220,[0.6,0.6],[0.6,0.6],[0,90],False,True)
+    t.setSegment(1,data11, data12)
+    t.setStep(1,1,1,2,2)
+
+    data21 = t.dataGen(2,ch1,'ramp',5,[153, 150],1,9,220,[0.6,0.6],[0.6, 0],[0,90],False,True)  
+    data22 = t.dataGen(2,ch2,'ramp',5,[153, 150],1,9,220,[0.5, 0.5],[0.5, 0],[0,90],False,True)  
+    t.setSegment(2,data21, data22)
+    t.setStep(2,2,1,3,2)
+
+    data31 = t.dataGen(3,ch1,'switch',1,5,[180, 150],1,9, 220,[0.6, 0],[0,90],False,True)
+    data32 = t.dataGen(3,ch2,'switch',1,5,[180, 150],1,9, 220,[0.5, 0],[0,90],False,True)
+    t.setSegment(3,data31, data32)
+    t.setStep(3,3,1,0,2)
+    
+    data41 = t.dataGen(4,ch1,'static',100,[153, 150],1,9, 220,[0.6,0],[0,90],False,True)
+    data42 = t.dataGen(4,ch2,'static',100,[153, 150],1,9, 220,[0.5,0],[0,90],False,True)
+    t.setSegment(4,data41, data42)
+    t.setStep(4,4,1,0,2)    
+    
+    t.start(True)
+    
+#     # 1 trap
+#     data01 = t.dataGen(0,ch1,'static',1,[180],1,9, 220,[0.5],[0],False,True)
+#     data02 = t.dataGen(0,ch2,'static',1,[180],1,9, 220,[0.5],[0],False,True)
+#     t.setSegment(0,data01, data02)
+#     t.setStep(0,0,1,2,1)   
+#     
+#     data11 = t.dataGen(1,ch1,'moving',1,[180, 150],[150,150],1, 220,[0.5,0.5],[0.5,0.5],[0,0],False,True)
+#     data12 = t.dataGen(1,ch2,'moving',1,[180, 150],[150,150],1, 220,[0.5,0.5],[0.5,0.5],[0,0],False,True)
+#     t.setSegment(1,data11, data12)
+#     t.setStep(1,1,1,2,2)
+# 
+#     data21 = t.dataGen(2,ch1,'ramp',5,[180],1,9,220,[0.5],[0],[0],False,True)  
+#     data22 = t.dataGen(2,ch2,'ramp',5,[180],1,9,220,[0.5],[0],[0],False,True)  
+#     t.setSegment(2,data21, data22)
+#     t.setStep(2,2,1,4,2)
+# 
+#     data31 = t.dataGen(3,ch1,'switch',1,5,[150,150],1,9, 220,[0.5, 0],[0,0],False,True)
+#     data32 = t.dataGen(3,ch2,'switch',1,5,[150,150],1,9, 220,[0.5, 0],[0,0],False,True)
+#     t.setSegment(3,data31, data32)
+#     t.setStep(3,3,1,0,2)
+#     
+#     data41 = t.dataGen(4,ch1,'static',10,[180],1,9, 220,[0],[0],False,True)
+#     data42 = t.dataGen(4,ch2,'static',10,[180],1,9, 220,[0],[0],False,True)
+#     t.setSegment(4,data41, data42)
+#     t.setStep(4,4,1,0,2)    
+#     
+#     t.start(True)
     
     
     # data11 = t.dataGen(1,ch1,'ampMod',50,[166],1,9, 220,[1],20,0.05,[0],False,False)      #seg1, channel 1
     # data12 = t.dataGen(1,ch2,'ampMod',50,[166],1,9, 220,[1],20,0.05,[0],False,False)      #seg1, channel 2
     # t.setSegment(1,data11,data12)
     # t.setStep(1,1,1,0,2) 
-    
-#      
-#     data11 = t.dataGen(1,ch1,'moving',10,[195],[163.6],1, 220,[1],[1],[0],False,False)
-#     data12 = t.dataGen(1,ch2,'moving',10,[195],[163.6],1, 220,[1],[1],[0],False,False)
-#     t.setSegment(1,data11, data12)
-#     t.setStep(1,1,1,2,2)
-# 
-#     data21 = t.dataGen(2,ch1,'static',35,[163.6],1,9, 220,[1],[0],False,False)
-#     data22 = t.dataGen(2,ch2,'static',35,[163.6],1,9, 220,[1],[0],False,False)
-#     t.setSegment(2,data21, data22)
-#     t.setStep(2,2,1,3,2) 
-#      
-#     data31 = t.dataGen(3,ch1,'moving',10,[163.6],[195],1, 220,[1],[1],[0],False,False)
-#     data32 = t.dataGen(3,ch2,'moving',10,[163.6],[195],1, 220,[1],[1],[0],False,False)
-#     t.setSegment(3,data31, data32)
-#     t.setStep(3,3,1,0,2)
-# 
-#     
-    #  t.start(True)
-    
+        
     # 
     # ### STATIC/RAMP
     # # action/freq/num of traps/distance/duration/freq Adjust/sample rate/umPerMhz

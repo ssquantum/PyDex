@@ -133,9 +133,9 @@ def ampAdjuster(freq, optical_power):
         i = np.argmin([abs(float(p) - optical_power) for p in contour_dict.keys()]) 
         key = list(contour_dict.keys())[i]
         y = np.array(contour_dict[key]['Calibration'](freq), ndmin=1) # return amplitude in mV to keep constant optical power
-        if (np.size(y)==1 and y>220) or any(y > 220):
-            print('WARNING: power calibration overflow: required power is > 220mV')
-            y[y>220] = 220
+        if (np.size(y)==1 and y>280) or any(y > 280):
+            print('WARNING: power calibration overflow: required power is > 280mV')
+            y[y>280] = 280
         return y
     
 def ampRampAdjuster(freq, optical_power):
@@ -144,9 +144,9 @@ def ampRampAdjuster(freq, optical_power):
     i = np.argmin([abs(float(f) - freq) for f in DE_RF_dict.keys()]) 
     key = list(DE_RF_dict.keys())[i]
     y = np.array(DE_RF_dict[key]['Calibration'](optical_power)) # return amplitude in mV
-    if (np.size(y)==1 and y>220) or any(y > 220):
-        print('WARNING: power calibration overflow: required power is > 220mV')
-        y[y>220] = 220
+    if (np.size(y)==1 and y>280) or any(y > 280):
+        print('WARNING: power calibration overflow: required power is > 280mV')
+        y[y>280] = 280
     y[y<0] = 0
     return y
 
@@ -309,56 +309,61 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
         endAmp = [1]*l
         print("Number of set ending amplitudes do not match number of frequencies. All ending amplitudes have been set to max (1).")
     
-    amp_ramp = np.array([(1.*startAmp[Y] + (1.*endAmp[Y] - 1.*startAmp[Y])*t/numOfSamples) for Y in range(l)])
     if len(freq_phase) != l:
         freq_phase = [0]*l
         print("Number of set phases do no match the number of frequencies. All individual phases have been set to 0. ")
-            
+
     #########
     # Generate the data 
     ##########################   
-   # t is now defined further up, after numberOfSamples
+    if amp_adjust:
+        amp_ramp = np.array([ampAdjuster(sfreq[Y]*1e-6 + hybridJerk(t, 1e-6*rfreq[Y], numOfSamples, a), startAmp[Y]) for Y in range(l)])
+        s = np.sum(amp_ramp, axis=0)
+        if any(s > 280):
+            print('WARNING: multiple traps power overflow: total required power is > 280mV, is:'+str(np.around(np.sum(s)))+'mV')
+            amp_ramp = np.ones(l)/l*tot_amp
+    else: # nmt amp adjust
+        if np.sum(tot_amp*startAmp) > 280:
+            print('WARNING: startAmp power overflow: total required power is > 280mV, is:'+str(np.sum(tot_amp*startAmp))+'mV')
+            startAmp = np.ones(l) / l
+        if np.sum(tot_amp*endAmp) > 280:
+            print('WARNING: startAmp power overflow: total required power is > 280mV, is:'+str(np.sum(tot_amp*endAmp))+'mV')
+            endAmp = np.ones(l) / l
     
-    if(a==1) and not amp_adjust: # Linear sweep
-        y = 1.*tot_amp/282/len(startFreq)*0.5*2**16 *np.sum([\
-        amp_ramp[Y]*\
-        np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t+0.5*(rfreq[Y])/sampleRate/numOfSamples*t**2)+freq_phase[Y])\
-        for Y in range(l)],axis=0) 
-            
-    elif amp_adjust and all(startAmp[i]-endAmp[i]<0.01 for i in range(l)) and a==1:
+        amp_ramp = tot_amp*np.array([(1.*startAmp[Y] + (1.*endAmp[Y] - 1.*startAmp[Y])*t/numOfSamples) for Y in range(l)])
+    
+    if all(startAmp[i]-endAmp[i]<0.01 for i in range(l)) and a==1:
         # not ramping amplitude, just sweeping frequency linearly
-        y = 1./282/len(startFreq) *0.5*2**16 *np.sum([
-            ampAdjuster(sfreq[Y]*1e-6 + 1e-6*rfreq[Y]/numOfSamples*t, startAmp[Y]) * 
+        y = 1./282 *0.5*2**16 *np.sum([amp_ramp[Y]* 
             np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + 0.5*(rfreq[Y])/sampleRate/numOfSamples*t**2) 
             + freq_phase[Y]) for Y in range(l)], axis=0)
 
-    elif amp_adjust and all(startAmp[i]-endAmp[i]<0.01 for i in range(l)):
+    elif all(startAmp[i]-endAmp[i]<0.01 for i in range(l)):
         # not ramping amplitude, just sweeping frequency
-        y = 1./282/len(startFreq)*0.5*2**16 *np.sum([
-            ampAdjuster(sfreq[Y]*1e-6 + hybridJerk(t, rfreq[Y]*1e-6, numOfSamples, a), startAmp[Y]) * 
-            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + chirp(t, rfreq[Y]/sampleRate, numOfSamples, a)) 
+        y = 1./282*0.5*2**16  *np.sum([amp_ramp[Y]* 
+            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + np.cumsum(hybridJerk(t, rfreq[Y]/sampleRate, numOfSamples, a))) # np.cumsum is integral of hybridjerk
             + freq_phase[Y]) for Y in range(l)], axis=0)
 
     elif amp_adjust:
         # take samples across the diffraction efficiency curve and then interpolate
         idxs = np.linspace(0, len(t)-1, 100).astype(int)
-        amp_ramp_adjusted = [interpolate.interp1d(t[idxs], 
-                [ampAdjuster(sfreq[Y]*1e-6 + hybridJerk(t[i], rfreq[Y]*1e-6, numOfSamples, a), amp_ramp[Y][i])
-                    for i in idxs], kind='linear')
-            for Y in range(l)]
+        amp_ramp_adjusted = []
+        for Y in range(l):
+            traj = hybridJerk(idxs, rfreq[Y]*1e-6, numOfSamples, a)
+            amp_ramp_adjusted.append(interpolate.interp1d(idxs, 
+                np.concatenate([ampAdjuster(sfreq[Y]*1e-6 + traj[i], amp_ramp[Y][i]/tot_amp)
+                    for i in range(100)]), kind='linear'))
 
-        y = 1./282/len(startFreq)*0.5*2**16 *np.sum([
+        y = 1./282*0.5*2**16 *np.sum([
             amp_ramp_adjusted[Y](t) * 
-            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + chirp(t, rfreq[Y]/sampleRate, numOfSamples, a)) 
+            np.sin(2*math.pi*(sfreq[Y]/sampleRate*t + np.cumsum(hybridJerk(t, rfreq[Y]/sampleRate, numOfSamples, a)))
             + freq_phase[Y]) for Y in range(l)], axis=0) 
             
     else: # Hybrid/Minimum jerk
-        
-        y  = 1.*tot_amp/282/len(startFreq)*0.5*2**16 *np.sum([\
-        amp_ramp[Y]*\
-        np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t +\
-        chirp(1.*t,1.*(rfreq[Y])/sampleRate,1.*numOfSamples,1.*a)) \
-        +freq_phase[Y]) for Y in range(l)],axis=0)
+        y  = 1./282*0.5*2**16 *np.sum([amp_ramp[Y]*
+            np.sin(2.*math.pi*(1.*sfreq[Y]/sampleRate*t +\
+            np.cumsum(hybridJerk(1.*t,1.*(rfreq[Y])/sampleRate,1.*numOfSamples,1.*a))) \
+            +freq_phase[Y]) for Y in range(l)],axis=0)
 
     return y  
 
@@ -430,12 +435,12 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1
     t = np.arange(numOfSamples)
     if ampAdjust ==True:
         amps = [ampAdjuster(freqs[Y]*10**-6,freq_amp[Y]) for Y in range(numberOfTraps)]
-        if sum(amps) > 220:
-            print('WARNING: multiple traps power overflow: total required power is > 220mV')
+        if sum(amps) > 280:
+            print('WARNING: multiple traps power overflow: total required power is > 280mV, is :'+str(np.around(sum(amps)))+'mV')
             return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
         else:
             return 1./282*0.5*2**16*np.sum([amps[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
-    else:
+    else:  ### should static trap divide by number of traps?
         return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     
 
@@ -518,7 +523,7 @@ def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=22
     ##########################   
     t =np.arange(numOfSamples)
     if ampAdjust:
-        y = 1./282/len(freqs)*0.5*2**16*\
+        y = 1./282*0.5*2**16*\
             np.sum([ampRampAdjuster(adjFreqs[Y]*1e-6, np.linspace(startAmp[Y], endAmp[Y], numOfSamples)) * 
                 np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     else:
@@ -586,7 +591,7 @@ def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duratio
     if ampAdjust:
         if (np.size(mod_amp)==1 and mod_amp>1) or any(mod_amp > 1):
             print('WARNING: power calibration overflow: cannot exceed freq_amp > 1')
-        return 1./282/len(freqs)*0.5*2**16*np.sum([
+        return 1./282*0.5*2**16*np.sum([
             ampRampAdjuster(freqs[Y]*10**-6, freq_amp[Y]*(1 + mod_amp)
             )*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360.) for Y in range(numberOfTraps)],axis=0)
     else:
@@ -662,7 +667,7 @@ def switch(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration=0.1,o
     t1 = np.arange(int((1-duty*0.5)*numOfSamples), numOfSamples) # final on period
     if ampAdjust ==True:
         try:
-            return 1./282/len(freqs)*0.5*2**16 * np.concatenate((
+            return 1./282*0.5*2**16 * np.concatenate((
                 np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y])*np.sin(2.*np.pi*t0*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0),
                 np.zeros(numOfSamples - len(t0) - len(t1)),
                 np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y])*np.sin(2.*np.pi*t1*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)))

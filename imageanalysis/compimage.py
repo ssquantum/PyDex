@@ -170,6 +170,8 @@ class compim_window(main_window):
                 x[i].clear()
                 x[i].addItems(self.names)
                 x[i].show()
+            for x in [self.before_cond, self.after_cond]:
+                x[i].show()
             
         for i in range(len(self.after_cond), self.nhist): # add new widgets
             for j, x in enumerate([self.before_choice, self.after_choice]):
@@ -227,8 +229,8 @@ class compim_window(main_window):
     def request_update(self):
         """Take the values from the comboboxes and ask the settings window 
         to send the appropriate image_handlers"""
-        self.request.emit(self.objectName(), [x.currentText() for x in self.before_choice], 
-            [x.currentText() for x in self.after_choice])
+        self.request.emit(self.objectName(), [x.currentText() for x in self.before_choice if x.isVisible()], 
+            [x.currentText() for x in self.after_choice if x.isVisible()])
 
     #### #### Overridden display functions #### ####
 

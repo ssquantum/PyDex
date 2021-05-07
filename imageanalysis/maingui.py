@@ -588,7 +588,7 @@ class main_window(QMainWindow):
             try:
                 self.image_handler.thresh = float(self.thresh_edit.text())
                 self.stat_labels['Threshold'].setText(str(int(self.image_handler.thresh)))
-            except ValueError: pass # user switched toggle before inputing text
+            except (KeyError, ValueError): pass # user switched toggle before inputing text
             self.plot_current_hist(self.image_handler.histogram, self.hist_canvas) # doesn't update thresh
         else:
             self.plot_current_hist(self.image_handler.hist_and_thresh, self.hist_canvas) # updates thresh

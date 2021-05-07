@@ -1,0 +1,259 @@
+{
+    "calibration": {
+        "calibration_file": "calFile_06.10.2020.txt",
+        "saved_in": "Z:\\Tweezer\\Experimental\\Setup and characterisation\\Settings and calibrations\\tweezer calibrations\\AWG calibrations\\"
+    },
+    "properties": {
+        "card_settings": {
+            "active_channels": "[0, 1]",
+            "bytes_per_channel": 2,
+            "max_output_mV": 282,
+            "maximum_samples": 134217728,
+            "numOfChannels": 2,
+            "num_of_segments": 16,
+            "sample_rate_Hz": 625000000,
+            "start_step": 0,
+            "static_duration_ms": 0.0016384,
+            "trig_level0_main": 2500,
+            "trig_level1_aux": 0,
+            "trig_mode": 1
+        }
+    },
+    "segments": {
+        "segment_0": {
+            "channel_0": {
+                "action_code": "static",
+                "action_type": "static trap",
+                "action_val": 1,
+                "amp_adjust": "True",
+                "channel_out": 0,
+                "distance_[um]": 9,
+                "duration_[ms]": 1,
+                "freq_adjust": "False",
+                "freq_amp": "[0.6, 0.6]",
+                "freq_phase_[deg]": "[0, 0]",
+                "freqs_input_[MHz]": "[180, 150]",
+                "freqs_output_[Hz]": "[180000000 150000000]",
+                "num_of_samples": 1024,
+                "num_of_traps": 2,
+                "segment": 0,
+                "tot_amp_[mV]": 220
+            },
+            "channel_1": {
+                "action_code": "static",
+                "action_type": "static trap",
+                "action_val": 1,
+                "amp_adjust": "True",
+                "channel_out": 1,
+                "distance_[um]": 9,
+                "duration_[ms]": 1,
+                "freq_adjust": "False",
+                "freq_amp": "[0.5, 0.5]",
+                "freq_phase_[deg]": "[0, 90]",
+                "freqs_input_[MHz]": "[180, 150]",
+                "freqs_output_[Hz]": "[180000000 150000000]",
+                "num_of_samples": 1024,
+                "num_of_traps": 2,
+                "segment": 0,
+                "tot_amp_[mV]": 220
+            }
+        },
+        "segment_1": {
+            "channel_0": {
+                "action_code": "moving",
+                "action_type": "moving trap",
+                "action_val": 2,
+                "amp_adjust": "True",
+                "channel_out": 0,
+                "duration_[ms]": 5,
+                "end_amp": "[0.6, 0.6]",
+                "end_freq_[MHz]": "[152, 150]",
+                "end_output_[Hz]": "[153000000, 150000000]",
+                "freq_adjust": "False",
+                "freq_phase_[deg]": "[0, 90]",
+                "hybridicity": 0,
+                "num_of_samples": 624640,
+                "segment": 1,
+                "start_amp": "[0.6, 0.6]",
+                "start_freq_[MHz]": "[180, 150]",
+                "start_output_[Hz]": "[180000000, 150000000]",
+                "tot_amp_[mV]": 220
+            },
+            "channel_1": {
+                "action_code": "moving",
+                "action_type": "moving trap",
+                "action_val": 2,
+                "amp_adjust": "True",
+                "channel_out": 1,
+                "duration_[ms]": 5,
+                "end_amp": "[0.6, 0.6]",
+                "end_freq_[MHz]": "[153, 150]",
+                "end_output_[Hz]": "[153000000, 150000000]",
+                "freq_adjust": "False",
+                "freq_phase_[deg]": "[0, 90]",
+                "hybridicity": 0,
+                "num_of_samples": 624640,
+                "segment": 1,
+                "start_amp": "[0.6, 0.6]",
+                "start_freq_[MHz]": "[180, 150]",
+                "start_output_[Hz]": "[180000000, 150000000]",
+                "tot_amp_[mV]": 220
+            }
+        },
+        "segment_2": {
+            "channel_0": {
+                "action_code": "ramp",
+                "action_type": "amp ramping trap",
+                "action_val": 3,
+                "amp_adjust": "True",
+                "channel_out": 0,
+                "distance_[um]": 9,
+                "duration_[ms]": 5,
+                "end_amp": "[0.6, 0]",
+                "freq_adjust": "False",
+                "freq_phase_[deg]": "[0, 90]",
+                "freqs_input_[MHz]": "[152, 150]",
+                "freqs_output_[Hz]": "[153000000 150000000]",
+                "num_of_samples": 3125248,
+                "num_of_traps": 2,
+                "segment": 2,
+                "start_amp": "[0.6, 0.6]",
+                "tot_amp_[mV]": 220
+            },
+            "channel_1": {
+                "action_code": "ramp",
+                "action_type": "amp ramping trap",
+                "action_val": 3,
+                "amp_adjust": "True",
+                "channel_out": 1,
+                "distance_[um]": 9,
+                "duration_[ms]": 5,
+                "end_amp": "[0.5, 0]",
+                "freq_adjust": "False",
+                "freq_phase_[deg]": "[0, 90]",
+                "freqs_input_[MHz]": "[152, 150]",
+                "freqs_output_[Hz]": "[153000000 150000000]",
+                "num_of_samples": 3125248,
+                "num_of_traps": 2,
+                "segment": 2,
+                "start_amp": "[0.5, 0.5]",
+                "tot_amp_[mV]": 220
+            }
+        },
+        "segment_3": {
+            "channel_0": {
+                "action_code": "switch",
+                "action_type": "static trap drop",
+                "action_val": 5,
+                "amp_adjust": "True",
+                "channel_out": 0,
+                "distance_[um]": 9,
+                "duration_[ms]": 1,
+                "freq_adjust": "False",
+                "freq_amp": "[0.6, 0]",
+                "freq_phase_[deg]": "[0, 90]",
+                "freqs_input_[MHz]": "[152, 150]",
+                "freqs_output_[Hz]": "[153000000 150000000]",
+                "num_of_samples": 624640,
+                "num_of_traps": 2,
+                "off_time_[us]": 40,
+                "segment": 3,
+                "tot_amp_[mV]": 220
+            },
+            "channel_1": {
+                "action_code": "switch",
+                "action_type": "static trap drop",
+                "action_val": 5,
+                "amp_adjust": "True",
+                "channel_out": 1,
+                "distance_[um]": 9,
+                "duration_[ms]": 1,
+                "freq_adjust": "False",
+                "freq_amp": "[0.5, 0]",
+                "freq_phase_[deg]": "[0, 90]",
+                "freqs_input_[MHz]": "[152, 150]",
+                "freqs_output_[Hz]": "[153000000 150000000]",
+                "num_of_samples": 624640,
+                "num_of_traps": 2,
+                "off_time_[us]": 40,
+                "segment": 3,
+                "tot_amp_[mV]": 220
+            }
+        },
+        "segment_4": {
+            "channel_0": {
+                "action_code": "static",
+                "action_type": "static trap",
+                "action_val": 1,
+                "amp_adjust": "True",
+                "channel_out": 0,
+                "distance_[um]": 9,
+                "duration_[ms]": 100,
+                "freq_adjust": "False",
+                "freq_amp": "[0.6, 0]",
+                "freq_phase_[deg]": "[0, 90]",
+                "freqs_input_[MHz]": "[152, 150]",
+                "freqs_output_[Hz]": "[153000000 150000000]",
+                "num_of_samples": 1024,
+                "num_of_traps": 2,
+                "segment": 4,
+                "tot_amp_[mV]": 220
+            },
+            "channel_1": {
+                "action_code": "static",
+                "action_type": "static trap",
+                "action_val": 1,
+                "amp_adjust": "True",
+                "channel_out": 1,
+                "distance_[um]": 9,
+                "duration_[ms]": 100,
+                "freq_adjust": "False",
+                "freq_amp": "[0.5, 0]",
+                "freq_phase_[deg]": "[0, 90]",
+                "freqs_input_[MHz]": "[152, 150]",
+                "freqs_output_[Hz]": "[153000000 150000000]",
+                "num_of_samples": 1024,
+                "num_of_traps": 2,
+                "segment": 4,
+                "tot_amp_[mV]": 220
+            }
+        }
+    },
+    "steps": {
+        "step_0": {
+            "condition": 1,
+            "next_step": 1,
+            "num_of_loops": 610,
+            "segment_value": 0,
+            "step_value": 0
+        },
+        "step_1": {
+            "condition": 2,
+            "next_step": 2,
+            "num_of_loops": 1,
+            "segment_value": 1,
+            "step_value": 1
+        },
+        "step_2": {
+            "condition": 2,
+            "next_step": 3,
+            "num_of_loops": 1,
+            "segment_value": 2,
+            "step_value": 2
+        },
+        "step_3": {
+            "condition": 2,
+            "next_step": 4,
+            "num_of_loops": 1,
+            "segment_value": 3,
+            "step_value": 3
+        },
+        "step_4": {
+            "condition": 2,
+            "next_step": 0,
+            "num_of_loops": 6103,
+            "segment_value": 4,
+            "step_value": 4
+        }
+    }
+}

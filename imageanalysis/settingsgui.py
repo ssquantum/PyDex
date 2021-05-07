@@ -349,7 +349,7 @@ class settings_window(QMainWindow):
 
     def set_thresh(self, arg=''):
         """Sets the threshold in all of the analyser windows."""
-        for mw in self.mw + self.rw + self.cw:
+        for mw in self.mw + self.rw:
             if self.thresh_edit.text():
                 mw.thresh_edit.setText(self.thresh_edit.text())
             mw.thresh_toggle.setChecked(self.thresh_toggle.isChecked())
