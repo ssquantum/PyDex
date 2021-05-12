@@ -201,7 +201,7 @@ class runnum(QThread):
                 try: # argument: value
                     for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen AWG channel, segment 
                         for m in self.seq.mr.mr_param['Analogue channel'][col]:
-                            msg += '[%s, %s, "%s", %s, %s],'%(n%4, n//4, 
+                            msg += '[%s, %s, "%s", %s, %s],'%(n%2, n//2, 
                                 self.seq.mr.awg_args[m], self.seq.mr.mr_vals[v][col], 
                                 self.seq.mr.mr_param['list index'][col])
                 except Exception as e: error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))

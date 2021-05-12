@@ -1985,61 +1985,68 @@ if __name__ == "__main__":
     """
     
     # 2 traps
-    data01 = t.dataGen(0,ch1,'static',1,[180, 150],1,9, 220,[0.6,0.6],[0,0],False,True)
-    data02 = t.dataGen(0,ch2,'static',1,[180, 150],1,9, 220,[0.5,0.5],[0,90],False,True)
+    data01 = t.dataGen(0,ch1,'static',1,[160, 150],1,9, 220,[0.583,0.6],[0,90],False,True)
+    data02 = t.dataGen(0,ch2,'static',1,[180, 150],1,9, 220,[0.583,0.5],[0,90],False,True)
     t.setSegment(0,data01, data02)
-    t.setStep(0,0,1,3,1)   
+    t.setStep(0,0,1,0,1)   
     
-    data11 = t.dataGen(1,ch1,'moving',1,[180, 150],[153, 150],1, 220,[0.6,0.6],[0.6,0.6],[0,90],False,True)
-    data12 = t.dataGen(1,ch2,'moving',1,[180, 150],[153, 150],1, 220,[0.6,0.6],[0.6,0.6],[0,90],False,True)
+    data11 = t.dataGen(1,ch1,'moving',150,[160, 150],[180, 150],0, 220,[0.583,0.6],[0.583,0.6],[0,90],False,True)
+    data12 = t.dataGen(1,ch2,'moving',150,[180, 150],[180, 150],0, 220,[0.6,0.6],[0.6,0.6],[0,90],False,True)
     t.setSegment(1,data11, data12)
     t.setStep(1,1,1,2,2)
-
-    data21 = t.dataGen(2,ch1,'ramp',5,[153, 150],1,9,220,[0.6,0.6],[0.6, 0],[0,90],False,True)  
-    data22 = t.dataGen(2,ch2,'ramp',5,[153, 150],1,9,220,[0.5, 0.5],[0.5, 0],[0,90],False,True)  
-    t.setSegment(2,data21, data22)
-    t.setStep(2,2,1,3,2)
-
-    data31 = t.dataGen(3,ch1,'switch',1,5,[180, 150],1,9, 220,[0.6, 0],[0,90],False,True)
-    data32 = t.dataGen(3,ch2,'switch',1,5,[180, 150],1,9, 220,[0.5, 0],[0,90],False,True)
-    t.setSegment(3,data31, data32)
-    t.setStep(3,3,1,0,2)
-    
-    data41 = t.dataGen(4,ch1,'static',100,[153, 150],1,9, 220,[0.6,0],[0,90],False,True)
-    data42 = t.dataGen(4,ch2,'static',100,[153, 150],1,9, 220,[0.5,0],[0,90],False,True)
-    t.setSegment(4,data41, data42)
-    t.setStep(4,4,1,0,2)    
-    
-    t.start(True)
-    
-#     # 1 trap
-#     data01 = t.dataGen(0,ch1,'static',1,[180],1,9, 220,[0.5],[0],False,True)
-#     data02 = t.dataGen(0,ch2,'static',1,[180],1,9, 220,[0.5],[0],False,True)
-#     t.setSegment(0,data01, data02)
-#     t.setStep(0,0,1,2,1)   
-#     
-#     data11 = t.dataGen(1,ch1,'moving',1,[180, 150],[150,150],1, 220,[0.5,0.5],[0.5,0.5],[0,0],False,True)
-#     data12 = t.dataGen(1,ch2,'moving',1,[180, 150],[150,150],1, 220,[0.5,0.5],[0.5,0.5],[0,0],False,True)
-#     t.setSegment(1,data11, data12)
-#     t.setStep(1,1,1,2,2)
 # 
-#     data21 = t.dataGen(2,ch1,'ramp',5,[180],1,9,220,[0.5],[0],[0],False,True)  
-#     data22 = t.dataGen(2,ch2,'ramp',5,[180],1,9,220,[0.5],[0],[0],False,True)  
+#     data21 = t.dataGen(2,ch1,'ramp',5,[153, 150],1,9,220,[0.6,0.6],[0.6, 0],[0,90],False,True)  
+#     data22 = t.dataGen(2,ch2,'ramp',5,[153, 150],1,9,220,[0.5, 0.5],[0.5, 0],[0,90],False,True)  
 #     t.setSegment(2,data21, data22)
-#     t.setStep(2,2,1,4,2)
+#     t.setStep(2,2,1,3,2)
 # 
-#     data31 = t.dataGen(3,ch1,'switch',1,5,[150,150],1,9, 220,[0.5, 0],[0,0],False,True)
-#     data32 = t.dataGen(3,ch2,'switch',1,5,[150,150],1,9, 220,[0.5, 0],[0,0],False,True)
+#     data31 = t.dataGen(3,ch1,'switch',1,5,[180, 150],1,9, 220,[0.6, 0],[0,90],False,True)
+#     data32 = t.dataGen(3,ch2,'switch',1,5,[180, 150],1,9, 220,[0.5, 0],[0,90],False,True)
 #     t.setSegment(3,data31, data32)
 #     t.setStep(3,3,1,0,2)
 #     
-#     data41 = t.dataGen(4,ch1,'static',10,[180],1,9, 220,[0],[0],False,True)
-#     data42 = t.dataGen(4,ch2,'static',10,[180],1,9, 220,[0],[0],False,True)
-#     t.setSegment(4,data41, data42)
-#     t.setStep(4,4,1,0,2)    
+    data21 = t.dataGen(2,ch1,'static',100,[180, 150],1,9, 220,[0.583,0.6],[0,90],False,True)
+    data22 = t.dataGen(2,ch2,'static',100,[180, 150],1,9, 220,[0.5,0.6],[0,90],False,True)
+    t.setSegment(2,data21, data22)
+    t.setStep(2,2,1,0,2)    
+#     
+    t.start(True)
+#     
+#     # 1 trap
+#     # def setStep(self,stepNum,segNum,loopNum,nextStep, stepCondition ):
+#     data01 = t.dataGen(0,ch1,'static',1,[180],1,9, 220,[1],[0],False,True)
+#     data02 = t.dataGen(0,ch2,'static',1,[180],1,9, 220,[1],[0],False,True)
+#     t.setSegment(0,data01, data02)
+#       
+#     
+#     data11 = t.dataGen(1,ch1,'moving',1,[180],[150],1, 220,[1],[1],[0],False,True)
+#     data12 = t.dataGen(1,ch2,'moving',1,[180],[150],1, 220,[1],[1],[0],False,True)
+#     t.setSegment(1,data11, data12)
+# 
+# 
+#     data21 = t.dataGen(2,ch1,'moving',1,[150],[180],1, 220,[1],[1],[0],False,True)
+#     data22 = t.dataGen(2,ch2,'moving',1,[150],[180],1, 220,[1],[1],[0],False,True)
+#     t.setSegment(2,data21, data22)
+#     
+#     t.setStep(0,0,1,1,1)  # set step 0: 1 static trap
+#     
+#     nsweep = 49  # number of sweeps there and back
+#     j = 1
+#     for i in range(nsweep):
+#         #print(j)
+#         t.setStep(j,1,1,j+1,2)   # sweep there
+#         j+=1
+#         t.setStep(j,2,1,j+1,2)   # sweep back
+#         j+=1
+# 
+#     t.setStep(j,1,1,j+1,2)  
+#     j+=1
+#     t.setStep(j,2,1,0,2)         # after final sweep back go back to static trap
+# 
+# 
 #     
 #     t.start(True)
-    
+#     
     
     # data11 = t.dataGen(1,ch1,'ampMod',50,[166],1,9, 220,[1],20,0.05,[0],False,False)      #seg1, channel 1
     # data12 = t.dataGen(1,ch2,'ampMod',50,[166],1,9, 220,[1],20,0.05,[0],False,False)      #seg1, channel 2

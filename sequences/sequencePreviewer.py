@@ -102,6 +102,7 @@ class Previewer(QMainWindow):
         save.triggered.connect(self.save_seq_file)
         seq_menu.addAction(save)
         self.display_toggle = QAction('Display Sequence', self, checkable=True, checked=True) 
+        self.display_toggle.triggered.connect(self.redisplay_sequence)
         seq_menu.addAction(self.display_toggle)
 
         #### tab for previewing sequences ####
@@ -234,6 +235,11 @@ class Previewer(QMainWindow):
         
         self.mr.reset_sequence(self.tr)
         
+    def redisplay_sequence(self):
+        if self.display_toggle.isChecked(): 
+            self.reset_UI()
+            self.set_sequence()
+        
     def try_browse(self, title='Select a File', file_type='all (*)', 
                 open_func=QFileDialog.getOpenFileName):
         """Open a file dialog and retrieve a file name from the browser.
@@ -270,59 +276,61 @@ class Previewer(QMainWindow):
 
     def set_sequence(self):
         """Fill the labels with the values from the sequence"""
-        self.routine_name.setText(self.tr.get_routine_name()) # 'Routine name in'
-        self.routine_desc.setText(self.tr.get_routine_description()) # 'Routine description in'
-        ela = self.tr.get_evl()[2:] # 'Event list array in'
-        esc = self.tr.get_esc()[2:] # 'Experimental sequence cluster in'
-        num_s = len(esc[0]) - 2 # number of steps
-        self.fd_chans.setVerticalHeaderLabels([esc[2][i+2][2][1].text + # Fast digital
-            ': ' + esc[2][i+2][3][1].text for i in range(len(esc[2])-2)])
-        self.fa_chans.setVerticalHeaderLabels([esc[3][i+2][2][1].text + # Fast analogue
-            ': ' + esc[3][i+2][3][1].text for i in range(len(esc[3])-2)])
-        self.sd_chans.setVerticalHeaderLabels([esc[6][i+2][2][1].text + # Slow digital
-            ': ' + esc[6][i+2][3][1].text for i in range(len(esc[6])-2)])
-        self.sa_chans.setVerticalHeaderLabels([esc[8][i+2][2][1].text + # Slow analogue
-            ': ' + esc[8][i+2][3][1].text for i in range(len(esc[8])-2)])
-        for i in range(len(ela)):
-            self.e_list.item(0, i).setText(ela[i][2][1].text) # 'Event name'
-            self.e_list.item(1, i).setText(ela[i][5][1].text) # 'Routine specific event?'
-            self.e_list.item(2, i).setText(','.join([x[1].text for x in ela[i][3].iter(tag='{http://www.ni.com/LVData}I32')])) # 'Event indices'
-            self.e_list.item(3, i).setText(ela[i][4][1].text) # 'Event path'
-        for i in range(num_s): # 'Sequence header top'
-            for j in range(14):
-                if j == 0: # event name
-                    self.head_top.item(j, i).setText(esc[0][i+2][j+2][1].text)  # top
-                    self.head_mid.item(j, i).setText(esc[7][i+2][j+2][1].text)  # middle
-                if j == 1: # time step length
-                    self.head_top.item(j, i).setText(fmt(esc[0][i+2][j+2][1].text, self.p)) # to 'p' s.f.
-                    self.head_mid.item(j, i).setText(fmt(esc[7][i+2][j+2][1].text, self.p))
-                elif j == 2: # analogue voltage
-                    self.head_top.item(j, i).setText(fmt(esc[0][i+2][4][j][1].text, self.p))
-                    self.head_mid.item(j, i).setText(fmt(esc[7][i+2][4][j][1].text, self.p))
-                elif j > 2 and j < 8: # trigger and GPIB details
-                    self.head_top.item(j, i).setText(esc[0][i+2][4+j//6][j%6+2*(j//6)][1].text)
-                    self.head_mid.item(j, i).setText(esc[7][i+2][4+j//6][j%6+2*(j//6)][1].text)
-                elif j == 11: # time step unit
-                    self.head_top.item(j, i).setText(esc[0][i+2][9][int(esc[0][i+2][9][-1].text)+1].text)
-                    self.head_mid.item(j, i).setText(esc[7][i+2][9][int(esc[0][i+2][9][-1].text)+1].text)
-                elif j > 7:
-                    self.head_top.item(j, i).setText(esc[0][i+2][j-2][1].text)  # top
-                    self.head_mid.item(j, i).setText(esc[7][i+2][j-2][1].text)  # middle
-                
-            self.fd_chans.setHorizontalHeaderLabels([h[6][1].text for h in esc[0][2:]]) # time step names
-            for j in range(self.tr.nfd): # fast digital channels
-                self.fd_chans.item(j, i).setBackground(Qt.green if BOOL(esc[1][i + j*num_s + 3][1].text) else Qt.red)
-            self.fa_chans.setHorizontalHeaderLabels([h[6][1].text for h in esc[0][2:] for j in range(2)]) # time step names
-            for j in range(self.tr.nfa): # fast analogue channels
-                self.fa_chans.item(j, 2*i).setText(fmt(esc[4][i + j*num_s + 3][3][1].text, self.p))
-                self.fa_chans.item(j, 2*i+1).setText('Ramp' if BOOL(esc[4][i + j*num_s + 3][2][1].text) else '')
-            self.sd_chans.setHorizontalHeaderLabels([h[6][1].text for h in esc[7][2:]]) # time step names
-            for j in range(self.tr.nsd): # slow digital channels
-                self.sd_chans.item(j, i).setBackground(Qt.green if BOOL(esc[5][i + j*num_s + 3][1].text) else Qt.red)
-            self.sa_chans.setHorizontalHeaderLabels([h[6][1].text for h in esc[7][2:] for j in range(2)]) # time step names
-            for j in range(self.tr.nsa):
-                self.sa_chans.item(j, 2*i).setText(fmt(esc[9][i + j*num_s + 3][3][1].text, self.p))
-                self.sa_chans.item(j, 2*i+1).setText('Ramp' if BOOL(esc[9][i + j*num_s + 3][2][1].text) else '')
+        self.routine_name.setText(self.tr.get_routine_name()) # 'Routine name'
+        self.routine_desc.setText(self.tr.get_routine_description()) # 'Routine description'
+        try:
+            ela = self.tr.get_evl()[2:] # 'Event list array in'
+            esc = self.tr.get_esc()[2:] # 'Experimental sequence cluster in'
+            num_s = len(esc[0]) - 2 # number of steps
+            self.fd_chans.setVerticalHeaderLabels([esc[2][i+2][2][1].text + # Fast digital
+                ': ' + esc[2][i+2][3][1].text for i in range(len(esc[2])-2)])
+            self.fa_chans.setVerticalHeaderLabels([esc[3][i+2][2][1].text + # Fast analogue
+                ': ' + esc[3][i+2][3][1].text for i in range(len(esc[3])-2)])
+            self.sd_chans.setVerticalHeaderLabels([esc[6][i+2][2][1].text + # Slow digital
+                ': ' + esc[6][i+2][3][1].text for i in range(len(esc[6])-2)])
+            self.sa_chans.setVerticalHeaderLabels([esc[8][i+2][2][1].text + # Slow analogue
+                ': ' + esc[8][i+2][3][1].text for i in range(len(esc[8])-2)])
+            for i in range(len(ela)):
+                self.e_list.item(0, i).setText(ela[i][2][1].text) # 'Event name'
+                self.e_list.item(1, i).setText(ela[i][5][1].text) # 'Routine specific event?'
+                self.e_list.item(2, i).setText(','.join([x[1].text for x in ela[i][3].iter(tag='{http://www.ni.com/LVData}I32')])) # 'Event indices'
+                self.e_list.item(3, i).setText(ela[i][4][1].text) # 'Event path'
+            for i in range(num_s): # 'Sequence header top'
+                for j in range(14):
+                    if j == 0: # event name
+                        self.head_top.item(j, i).setText(esc[0][i+2][j+2][1].text)  # top
+                        self.head_mid.item(j, i).setText(esc[7][i+2][j+2][1].text)  # middle
+                    if j == 1: # time step length
+                        self.head_top.item(j, i).setText(fmt(esc[0][i+2][j+2][1].text, self.p)) # to 'p' s.f.
+                        self.head_mid.item(j, i).setText(fmt(esc[7][i+2][j+2][1].text, self.p))
+                    elif j == 2: # analogue voltage
+                        self.head_top.item(j, i).setText(fmt(esc[0][i+2][4][j][1].text, self.p))
+                        self.head_mid.item(j, i).setText(fmt(esc[7][i+2][4][j][1].text, self.p))
+                    elif j > 2 and j < 8: # trigger and GPIB details
+                        self.head_top.item(j, i).setText(esc[0][i+2][4+j//6][j%6+2*(j//6)][1].text)
+                        self.head_mid.item(j, i).setText(esc[7][i+2][4+j//6][j%6+2*(j//6)][1].text)
+                    elif j == 11: # time step unit
+                        self.head_top.item(j, i).setText(esc[0][i+2][9][int(esc[0][i+2][9][-1].text)+1].text)
+                        self.head_mid.item(j, i).setText(esc[7][i+2][9][int(esc[0][i+2][9][-1].text)+1].text)
+                    elif j > 7:
+                        self.head_top.item(j, i).setText(esc[0][i+2][j-2][1].text)  # top
+                        self.head_mid.item(j, i).setText(esc[7][i+2][j-2][1].text)  # middle
+                    
+                self.fd_chans.setHorizontalHeaderLabels([h[6][1].text for h in esc[0][2:]]) # time step names
+                for j in range(self.tr.nfd): # fast digital channels
+                    self.fd_chans.item(j, i).setBackground(Qt.green if BOOL(esc[1][i + j*num_s + 3][1].text) else Qt.red)
+                self.fa_chans.setHorizontalHeaderLabels([h[6][1].text for h in esc[0][2:] for j in range(2)]) # time step names
+                for j in range(self.tr.nfa): # fast analogue channels
+                    self.fa_chans.item(j, 2*i).setText(fmt(esc[4][i + j*num_s + 3][3][1].text, self.p))
+                    self.fa_chans.item(j, 2*i+1).setText('Ramp' if BOOL(esc[4][i + j*num_s + 3][2][1].text) else '')
+                self.sd_chans.setHorizontalHeaderLabels([h[6][1].text for h in esc[7][2:]]) # time step names
+                for j in range(self.tr.nsd): # slow digital channels
+                    self.sd_chans.item(j, i).setBackground(Qt.green if BOOL(esc[5][i + j*num_s + 3][1].text) else Qt.red)
+                self.sa_chans.setHorizontalHeaderLabels([h[6][1].text for h in esc[7][2:] for j in range(2)]) # time step names
+                for j in range(self.tr.nsa):
+                    self.sa_chans.item(j, 2*i).setText(fmt(esc[9][i + j*num_s + 3][3][1].text, self.p))
+                    self.sa_chans.item(j, 2*i+1).setText('Ramp' if BOOL(esc[9][i + j*num_s + 3][2][1].text) else '')
+        except IndexError as e: logger.error('Could not display sequence.\n'+str(e))
 
 
     def choose_multirun_dir(self):

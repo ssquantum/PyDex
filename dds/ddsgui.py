@@ -3437,8 +3437,10 @@ if __name__ == "__main__":
     try:
         cal = np.loadtxt('dds/power_calibration.csv', delimiter=',')
         cal = np.concatenate(([np.zeros(3)],cal)).T
-        p100 = interp1d(cal[1], cal[0], fill_value='extrapolate')
-        p110 = interp1d(cal[2], cal[0], fill_value='extrapolate')
+        # p100 = interp1d(cal[1], cal[0], fill_value='extrapolate')
+        # p110 = interp1d(cal[2], cal[0], fill_value='extrapolate')
+        p100 = interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
+        p110 = p100
         alim = 1.0
     except OSError as e:
         print('\033[31m' + '####\tERROR\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))

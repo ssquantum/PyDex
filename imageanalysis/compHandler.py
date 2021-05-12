@@ -41,7 +41,7 @@ class comp_handler(Analysis):
         self.temp_vals = OrderedDict([(key,0) for key in self.stats.keys()])
 
         self.hist_ids = OrderedDict([('%s survival'%x.name, []) for x in afters] + 
-            [('%s atom'%i, []) for i in range(nhists)] + 
+            [('%s atom'%i, []) for i in range(nhists+1)] + 
             [('Condition met', [])]) # file IDs to recreate histograms
         self.xvals = [] # variables to plot on the x axis
         self.yvals = [] # variables to plot on the y axis
@@ -65,6 +65,7 @@ class comp_handler(Analysis):
             
         for i, s in enumerate(self.befores): # find the file IDs that have atoms in all before histograms
             name = s.name
+            s.stats['Atom detected'] = [x // s.thresh for x in s.stats['Counts']] # recalculate atom detected
             s = s.stats
             t = int(c0[i])
             # if i == 0:
@@ -87,6 +88,7 @@ class comp_handler(Analysis):
 
         for i, s in enumerate(self.afters): 
             name = s.name
+            s.stats['Atom detected'] = [x // s.thresh for x in s.stats['Counts']] # recalculate atom detected
             s = s.stats
             afterids = np.array(s['File ID'])[np.array(s['Atom detected']) > 0]
             survive[i] = np.isin(ids, afterids)
@@ -97,13 +99,15 @@ class comp_handler(Analysis):
         for i, x in enumerate(survive):
             self.hist_ids['%s survival'%self.afters[i].name] = ids[x]
             
-        self.temp_vals['Condition met'] = len(condition) / len(ids)
-        self.hist_ids['Condition met'] = np.array(list(condition))
-        natoms = survive.sum(axis=0)
-        for i in range(self.nhists+1):
-            self.hist_ids['%s atom'%i] = ids[natoms == i]
-            self.temp_vals['%s atom survival probability'%i] = len(self.hist_ids['%s atom'%i]) / len(natoms)
-
+        try:
+            self.temp_vals['Condition met'] = len(condition) / len(ids)
+            self.hist_ids['Condition met'] = np.array(list(condition))
+            numatoms = survive.sum(axis=0)
+            for i in range(self.nhists+1):
+                self.hist_ids['%s atom'%i] = ids[numatoms == i]
+                self.temp_vals['%s atom survival probability'%i] = len(self.hist_ids['%s atom'%i]) / len(numatoms)
+        except ZeroDivisionError as e: pass
+        
         self.temp_vals['User variable'] = self.types['User variable'](user_var) if user_var else 0.0
         self.temp_vals['Include'] = include
         return 1

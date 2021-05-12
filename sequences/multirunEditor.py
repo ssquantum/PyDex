@@ -504,7 +504,7 @@ class multirun_widget(QWidget):
         sht = self.tr.get_esc()[2][2:] # 'Sequence header top'
         if newtype == 'AWG chan : seg':
             self.chan_choices['Time step name'].clear()
-            self.chan_choices['Time step name'].addItems([str(i)+', '+str(j) for j in range(10) for i in range(4)])
+            self.chan_choices['Time step name'].addItems([str(i)+', '+str(j) for j in range(100) for i in range(2)])
             reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)
             self.chan_choices['Analogue type'].clear()
             self.chan_choices['Analogue type'].addItems(['AWG Parameter'])
@@ -687,6 +687,11 @@ class multirun_widget(QWidget):
             self.omit_edit.setText(nomit)
             self.last_step_run_edit.setText(runstep) # triggers update_last_step
             self.last_step_end_edit.setText(endstep)
+            for i in range(len(header)): # restore values as change_array_size loads defaults
+                if header[i] in self.ui_param:
+                    try:
+                        self.ui_param[header[i]] = self.types[header[i]](params[i])
+                    except ValueError as e: pass
             
     def check_mr_params(self, save_results_path='.'):
         """Check that the multirun parameters are valid before adding it to the queue"""

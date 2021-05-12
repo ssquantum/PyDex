@@ -605,7 +605,7 @@ class settings_window(QMainWindow):
         var            -- the user variable associated with this histogram
         hist_id        -- unique ID for histogram"""
         # get best fit on histograms, doing reimage last since their fits depend on the main hists
-        for mw in self.mw[:self._a] + self.rw[:len(self.rw_inds)]: 
+        for mw in self.mw[:self._a] + self.rw[:len(self.rw_inds)] + self.cw: 
             mw.var_edit.setText(var) # also updates histo_handler temp vals
             mw.set_user_var() # just in case not triggered by the signal
             mw.bins_text_edit(text='reset') # set histogram bins 
@@ -623,7 +623,7 @@ class settings_window(QMainWindow):
                     mw.objectName() + measure_prefix + '.dat'), 'a') as f:
                 f.write(','.join(list(map(str, mw.histo_handler.temp_vals.values()))) + '\n')
         # save and reset the histograms, make sure to do reimage windows first!
-        for mw in self.rw[:len(self.rw_inds)] + self.mw[:self._a]: 
+        for mw in self.rw[:len(self.rw_inds)] + self.mw[:self._a] + self.cw: 
             if self.send_data: self.send_results(measure_prefix, hist_id, mw)
             mw.save_hist_data(save_file_name=os.path.join(results_path, measure_prefix, 
                     mw.objectName() + str(hist_id) + '.csv'), confirm=False) # save histogram
