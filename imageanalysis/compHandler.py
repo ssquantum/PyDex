@@ -110,4 +110,5 @@ class comp_handler(Analysis):
         
         self.temp_vals['User variable'] = self.types['User variable'](user_var) if user_var else 0.0
         self.temp_vals['Include'] = include
+        self.temp_vals['File ID'] = int(self.ind)
         return 1

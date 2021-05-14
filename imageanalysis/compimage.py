@@ -16,12 +16,12 @@ import pyqtgraph as pg    # not as flexible as matplotlib but works a lot better
 try:
     from PyQt4.QtCore import pyqtSignal 
     from PyQt4.QtGui import (QFont, QLabel, QMessageBox, QPushButton,
-        QCheckBox, QComboBox, QLineEdit, QIntValidator, QAction)
+        QCheckBox, QComboBox, QLineEdit, QIntValidator, QAction, QFileDialog)
 except ImportError:
     from PyQt5.QtCore import pyqtSignal
     from PyQt5.QtGui import QFont, QIntValidator
     from PyQt5.QtWidgets import (QLabel, QMessageBox, QPushButton,
-        QCheckBox, QComboBox, QLineEdit, QAction)
+        QCheckBox, QComboBox, QLineEdit, QAction, QFileDialog)
 from maingui import main_window, reset_slot
 from compHandler import comp_handler
 
@@ -117,6 +117,9 @@ class compim_window(main_window):
         hist_grid.addWidget(self.hist_choice, 8,0, 1,2)
         self.hist_type = QComboBox(self)
         hist_grid.addWidget(self.hist_type, 8,2, 1,2)
+        replot_hist_button = QPushButton('Update plot', self)
+        replot_hist_button.clicked.connect(self.update_plot)
+        hist_grid.addWidget(replot_hist_button, 8,4, 1,2)
         
         #### edit stats tab: display all histogram statistics ####
         self.reset_stat_labels()
@@ -275,6 +278,7 @@ class compim_window(main_window):
     def load_from_csv(self, trigger=None):
         """Prompt the user to select a csv file to load histogram data from.
         It must have the specific layout that the image_handler saves in."""
+        pass
         # if self.check_reset():
         #     before_fn = self.try_browse(title='Select first histogram', file_type='csv(*.csv);;all (*)')
         #     after_fn = self.try_browse(title='Select second histogram', file_type='csv(*.csv);;all (*)')
@@ -283,6 +287,22 @@ class compim_window(main_window):
         #         header = self.ih2.load(after_fn)
         #         if self.ih1.ind > 0:
         #             self.display_fit(fit_method='quick')
+    
+    def save_varplot(self, save_file_name='', confirm=True):
+        """Save the data in the current plot, which is held in the histoHandler's
+        dictionary and saved in the log file, to a new file."""
+        if not save_file_name:
+            save_file_name = self.try_browse(title='Save File', file_type='dat(*.dat);;all (*)',
+                            open_func=QFileDialog.getSaveFileName)
+        if save_file_name:
+            self.histo_handler.save(save_file_name, meta_head=['Before hists ']+[x.name for x in self.histo_handler.befores],
+                meta_vals=['After hists ']+[x.name for x in self.histo_handler.afters])
+            if confirm:
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Information)
+                msg.setText("Plot data saved to file "+save_file_name)
+                msg.setStandardButtons(QMessageBox.Ok)
+                msg.exec_()
 
     #### #### Overridden user input functions #### ####
 

@@ -83,7 +83,7 @@ class settings_window(QMainWindow):
                 results_path, im_store_path, 'ROI'+str(i)+'_Re_') for i in range(self.stats['num_reim'])]
             self.rw_inds = [str(2*i)+','+str(2*i+1) for i in range(self.stats['num_reim'])]
         self.cw = [compim_window(self.mw[i].event_im, self.mw_names, befores=[], afters=[], results_path=results_path, 
-            im_store_path=im_store_path, name='Comp%s'%i) for i in range(self.stats['num_coim'])] # comparison image analyser instances
+            im_store_path=im_store_path, name='Comp%s.'%i) for i in range(self.stats['num_coim'])] # comparison image analyser instances
         for cw in self.cw: reset_slot(cw.request, self.attach_coim_handlers, True)
         self.rois = []  # list to hold ROI objects
         self.init_UI()  # make the widgets
@@ -583,7 +583,7 @@ class settings_window(QMainWindow):
 
     def attach_coim_handlers(self, name, blist, alist):
         """Give access to the relevant histograms to the comparison analyser"""
-        cw = self.cw[int(name.replace('Comp',''))]
+        cw = self.cw[int(name.replace('Comp','').replace('.',''))]
         cw.reset_handlers([self.mw[self.mw_names.index(x)].image_handler for x in blist],
             [self.mw[self.mw_names.index(x)].image_handler for x in alist])
                 
@@ -656,7 +656,7 @@ class settings_window(QMainWindow):
         measure_prefix -- label identifying this multirun, a folder with this
             name is created within results_path
         appending      -- whether to append results to the varplot"""
-        for mw in self.mw[:self._a] + self.rw[:len(self.rw_inds)]:
+        for mw in self.mw[:self._a] + self.rw[:len(self.rw_inds)] + self.cw:
             mw.image_handler.reset_arrays() # gets rid of old data
             mw.histo_handler.bf = None
             mw.plot_current_hist(mw.image_handler.histogram, mw.hist_canvas)
@@ -984,7 +984,7 @@ class settings_window(QMainWindow):
         try:
             for i in range(len(self.cw), cn): # add new re-image instances as required
                 self.cw.append(compim_window(self.mw[i].event_im, self.mw_names, 
-                    [], [], self.results_path, self.image_storage_path, name='Comp%s'%i))
+                    [], [], self.results_path, self.image_storage_path, name='Comp%s.'%i))
                 reset_slot(self.cw[i].request, self.attach_coim_handlers, True)
         except IndexError as e:
             warning('Could not create comparison analysers %s.\n'%len(self.cw)+str(e))
