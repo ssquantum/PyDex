@@ -136,6 +136,7 @@ class awg_window(QMainWindow):
                 self.set_status('AWG started.')
             else:
                 self.set_status('AWG crashed. Use the reset_awg coommand.')
+                print(spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[3], byref(int32(0))))
         elif 'stop_awg' in cmd:
             self.awg.stop()
             self.set_status('AWG stopped.')
@@ -157,6 +158,45 @@ class awg_window(QMainWindow):
             self.renewAWG(cmd)
         elif 'get_times' in cmd:
             logger.info("Data transfer time: %.4g s"%self.t_load)
+        
+        
+        elif 'rearrange' in cmd:   # recevive occupancy string from Pydex
+            try:
+                self.awg.calculateSteps(cmd.replace('#','').split('=')[1])
+                # self.set_status('Received string = '+cmd.split('=')[1])
+            except Exception as e:
+                logger.error('Failed to calculate steps: '+cmd.split('=')[1]+'\n'+str(e))
+        
+        elif 'init_fs' in cmd:
+            try:
+                self.awg.initial_freqs = [float(i) for i in list(cmd.split('=')[1].split(','))] # convert string to list
+                self.set_status('New initial freqs updated = '+cmd.split('=')[1]+' MHz')
+            except Exception as e:
+                logger.error('Failed to update initial rearr frequencies: '+cmd.split('=')[1]+'\n'+str(e))
+
+        elif 'target_fs' in cmd:
+            try:
+                self.awg.target_freqs = [float(i) for i in list(cmd.split('=')[1].split(','))] # convert string to list
+                self.set_status('New target freqs updated = '+cmd.split('=')[1]+' MHz')
+            except Exception as e:
+                logger.error('Failed to update target rearr frequencies: '+cmd.split('=')[1]+'\n'+str(e)) 
+
+        elif 'calc_rsegs' in cmd:
+            try:
+              #  if len(self.awg.channel_enable)>1:
+                self.renewAWG("chans=[0]")
+                default_seq = r'Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin\20210514\1chan.txt'
+                self.awg.load(default_seq)
+                self.set_status('Calculating moves...')
+                self.awg.calculateAllMoves()
+                self.set_status('Moves uploaded')  # some infor baout n segmetns etc
+                
+            except Exception as e:
+                logger.error('Failed to calculate all rearrangement segments: '+cmd.split('=')[1]+'\n'+str(e))               
+            
+            
+        
+        
         else:
             self.set_status('Command not recognised.')
         self.edit.setText('') # reset cmd edit

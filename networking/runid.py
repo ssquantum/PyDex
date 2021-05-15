@@ -173,7 +173,7 @@ class runnum(QThread):
 
     def send_rearr_msg(self, msg=''):
         """Send the command to the AWG for rearranging traps"""
-        self.awgtcp.priority_messages([(self._n, msg)])
+        self.awgtcp.priority_messages([(self._n, 'rearrange='+msg+'#'*2000)])
 
     def atomcheck_go(self, toggle=True):
         """Disconnect camera images from analysis, start the camera

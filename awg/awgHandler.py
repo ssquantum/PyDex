@@ -10,6 +10,10 @@ import json
 import ctypes
 from timeit import default_timer as timer
 
+# Modules used for rearrangement
+from itertools import combinations   # returns tuple of combinations
+from scipy.special import comb      # calculates value of nCr
+
 
 def statusChecker(N):
    for i in range(N):
@@ -259,7 +263,13 @@ class AWG:
         self.path =  self.dirPath+'\\'+self.ddate
         if not os.path.isdir(self.path):
             os.makedirs(self.path)
-            
+        
+        #self.r = self.rearrange()  # instantiate rearrangement nested class
+        self.movesDict = {}  # dictionary will be populated when segments are calculated
+        
+        self.segmentCounter = 0  # tracks number of segment we're on for purpose of generating rearr_segs
+        self.loadRearrParams()
+
         
         
         
@@ -1865,6 +1875,201 @@ class AWG:
         
     def newCard(self):
         AWG.hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
+
+    ### Rearrangement ###
+# class rearrange():
+#     """Class in the awgHandler script which deals with the rearrangemnt calculations
+#         idea: instantiated by AWG class, and contains all the rearrangment logic 
+#         required. """
+    
+#    def __init__(self, initial_freqs = [170, 180, 190], 
+#                    target_freqs = [150, 200]):
+        
+#         self.movesDict = {}  # dictionary will be populated when segments are calculated
+#         
+#         self.initial_freqs = initial_freqs
+#         self.target_freqs = target_freqs
+# 
+#         self.segmentCounter = 0
+        
+        #self.loadRearrParams()
+    
+    def fstring(self, freqs):
+        """Convert a list [150, 160, 170]~MHz to '012' """
+        idxs = [a for (a, b) in enumerate(freqs)]   
+        return("".join([str(int) for int in idxs]) )
+    
+    def convertBinaryOccupancy(self, occupancyStr = '11010'):
+        """Convert the string of e.g 010101 received from pyDex image analysis to 
+        a string of occupied sites """
+        occupied = ''
+        for i in range(len(occupancyStr)):  # convert string of e.g. '00101' to '13'
+            if occupancyStr[i] == '1': 
+                occupied += str(i)
+                
+        return occupied
+    
+    def calculateAllMoves(self):
+        """Given the initial and target frequencies, calculate all the possible moves
+            from start array to target array"""
+        
+        
+        start_key = self.fstring(self.initial_freqs) # Static array at initial trap freqs 
+        self.createRearrSegment(start_key+'si')
+        
+        end_key = self.fstring(self.target_freqs) # Static array at target trap freqs
+        self.createRearrSegment(end_key+'st')
+
+       # start = timeit.timeit()
+        
+        if len(self.initial_freqs) < len(self.target_freqs):
+            print('WARNING: more target frequencies than initial frequencies! \n '
+                        'Cannot calculate combinations!')
+        
+        else:   # proceed if fewer target traps than initial traps 
+            req_n_segs = comb(len(self.initial_freqs), len(self.target_freqs)) + self.rParam['headroom_segs']
+            self.setNumSegments(req_n_segs)    # n segments: combination of all moves + a few extra for other moves.
+            
+            for x in combinations(start_key, len(self.target_freqs)):
+                self.createRearrSegment(''.join(x)+'m'+''.join(self.fstring(self.target_freqs)))
+           # end = timeit.timeit()
+            #print((end - start)*1000, ' ms')
+        #self.setStartStep(0)#(0, 0, 1, 0, 1)   # then turn it back to triggered so next time it doesn't start.
+    
+       # self.setTrigger(1) # 0 software, 1 ext0
+        #self.setSegDur(0.002)
+
+    def createRearrSegment(self, key):
+        """
+        Pass a key to this function which will:
+            1. Parse the key to determine if static or moving
+            2. Using default inputs from rParams dictionary, generate data
+            3. Call setSegment to upload data to card
+            4. Call setStep 
+        """
+        if 's' in key:
+            if 'si' in key:                # Initial array of static traps
+                fs = self.initial_freqs
+            elif 'st' in key:              # Target array of static traps
+                fs = self.target_freqs
+            
+            data = self.dataGen(self.segmentCounter,
+                                self.rParam['channel'],
+                                'static',                               # action
+                                self.rParam['static_duration_[ms]'],
+                                fs,
+                                1,
+                                9, 
+                                self.rParam['tot_amp_[mV]'],
+                                [0.3]*len(fs),         # tone freq. amps
+                                [0]*len(fs),                      #  tone phases
+                                self.rParam['freq_adjust'],     
+                                self.rParam['amp_adjust'])
+            
+        elif 'm' in key: # Move from initial array to target array of static traps
+            
+            idxs = list(map(int, list(key.partition('m')[0])))
+            f1 = []
+            for idx in idxs:   # get frequencies of occupied starting array sites 
+                f1.append(self.initial_freqs[idx])
+                
+            data = self.dataGen(self.segmentCounter,
+                                self.rParam['channel'],
+                                'moving',
+                                self.rParam['moving_duration_[ms]'],
+                                f1,
+                                self.target_freqs,
+                                self.rParam['hybridicity'],
+                                self.rParam['tot_amp_[mV]'],
+                                [0.3]*len(f1),   # start freq amps divide by n initial traps for consistent trap depth
+                                [0.3]*len(f1),   # end freq amps
+                                [0]*len(f1),   # freq pahses
+                                self.rParam['freq_adjust'],     
+                                self.rParam['amp_adjust'])
+        
+        self.setSegment(self.segmentCounter,data)
+        self.setStep(self.segmentCounter,self.segmentCounter,1,0,1)
+
+        self.movesDict[key] = self.segmentCounter
+        self.segmentCounter += 1
+    
+    def calculateSteps(self, occupancyStr):
+        """Assume the image has been converted to list of 0s and 1s.
+            Convert this to a string of occupancies in the key format established
+            choose the moves to do
+            args:
+                occupancyStr = string of 0's & 1's e.g. '0101010' 
+            """
+        
+        keyStr = self.convertBinaryOccupancy(occupancyStr)
+        
+        if len(occupancyStr) > len(self.initial_freqs):
+            print('WARNING: There are '+str(np.abs(len(occupancyStr)-len(self.initial_freqs)))+' fewer traps than PyDex ROIs')
+            
+        if len(occupancyStr) < len(self.initial_freqs):
+            print('WARNING: There are '+str(np.abs(len(occupancyStr)-len(self.initial_freqs)))+' more traps than PyDex ROIs')
+            
+        
+        if len(keyStr) < len(self.target_freqs):
+            print('WARNING: Insufficient atoms to populate target array!')
+
+        stepKeys =  [''.join(self.fstring(self.initial_freqs))+'si', # n static traps
+                    keyStr[-len(self.target_freqs):]+'m'+''.join(self.fstring(self.target_freqs)), # sweeps m traps 
+                    ''.join(self.fstring(self.target_freqs))+'st'] # m static traps
+        
+        segList = [self.movesDict.get(key) for key in stepKeys]
+       # print(self.initial_freqs)
+       # print(self.target_freqs)
+        
+        if None in segList:
+            print('WARNING: One or more requested rearrangement segments do not exist!')
+            print(stepKeys)
+            print(segList)
+        
+        # setStep(stepNum,segNum,loopNum,nextStep, stepCondition)
+        print(stepKeys)
+        print(segList)
+        
+        
+        # self.setStep(2, segList[2], 1, 0, 1)   # set last step to hold on target freqs until triggered
+        # self.setStep(1, segList[1], 1, 2, 2)   # set moving step to automatically go to last step
+        # self.setStep(0, segList[0], 1, 1, 2)   # THEN set initial step to trigger automatically  so it goes
+        # self.setStep(0, segList[0], 1, 1, 1)   # then turn it back to triggered so next time it doesn't start.
+        self.setStep(0, segList[0], 1, 1, 1) 
+          
+        self.setStep(1, segList[1], 1, 2, 2)   
+        
+        self.setStep(2, segList[2], 1, 0, 1) 
+            
+                    
+    def loadRearrParams(self):
+        """Load rearrangement parameters from a config file, i.e. params like
+        Amp adjust, phases, duration etc. For the moment just set the manually"""    
+        self.rParam={"amp_adjust":True, "freq_adjust":False, "tot_amp_[mV]":280, 
+                     "channel":0, "static_duration_[ms]":1,
+                     "hybridicity":0, "initial_freqs":[190., 170., 150.],   # check this high to low
+                     "target_freqs":[190.],
+                     "headroom_segs":10,"moving_duration_[ms]":1}
+        self.initial_freqs = self.rParam['initial_freqs']
+        self.target_freqs = self.rParam['target_freqs']
+    
+    def printRearrInfo(self):
+        """Help function to display what the rearrangement functions have done to the card"""
+        print('List active channels ='+str(self.channel_enable))
+        print('Number of segments ='+str(self.num_segment))
+        #print('Max duration / segment = '+str(2e9/self.num_segment/self.sample_rate.value*1e3))+' ms'
+        print('Initial frequencies ='+str(self.initial_freqs))
+        print('Target frequencies ='+str(self.target_freqs))
+        print('Segment keys = '+str(self.movesDict))
+         
+    
+
+    
+    
+
+
+        
+
         
 
    
@@ -1990,8 +2195,8 @@ if __name__ == "__main__":
     t.setSegment(0,data01, data02)
     t.setStep(0,0,1,0,1)   
     
-    data11 = t.dataGen(1,ch1,'moving',150,[160, 150],[180, 150],0, 220,[0.583,0.6],[0.583,0.6],[0,90],False,True)
-    data12 = t.dataGen(1,ch2,'moving',150,[180, 150],[180, 150],0, 220,[0.6,0.6],[0.6,0.6],[0,90],False,True)
+    data11 = t.dataGen(1,ch1,'moving',1,[160, 150],[180, 150],0, 220,[0.583,0.6],[0.583,0.6],[0,90],False,True)
+    data12 = t.dataGen(1,ch2,'moving',1,[180, 150],[180, 150],0, 220,[0.6,0.6],[0.6,0.6],[0,90],False,True)
     t.setSegment(1,data11, data12)
     t.setStep(1,1,1,2,2)
 # 
