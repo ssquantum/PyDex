@@ -1,3 +1,4 @@
+# -*- coding: cp1252 -*-
 """PyDex - DDS
 Lewis McArd, Stefan Spence 24.11.20
 
@@ -136,7 +137,7 @@ class Ui_MainWindow(object):
     def dbl_fixup(self, txt=''):
         """Correct the text input to match the valid range."""
         try: val = float(txt)
-        except ValueError: pass
+        except ValueError: return txt
         if val < self.dbl_validator.bottom():
             return str(self.dbl_validator.bottom())
         elif val > self.dbl_validator.top():
@@ -148,8 +149,11 @@ class Ui_MainWindow(object):
         The syntax is:  option=value
         If setting new data, the value syntax is: 
             [[port1,profile1,key1,val1],[port2,profile2,key2,val2],...]"""
-
-        value = cmd.split('=')[1] 
+        try:
+            value = cmd.split('=')[1] 
+        except: 
+            self.Display_func('Command not understood: '+str(cmd))
+            return 0                
 
         if any(x in cmd for x in['Freq', 'Phase', 'Amp']):
             self.mode = 'single tone'
@@ -241,7 +245,11 @@ class Ui_MainWindow(object):
             if all(x == value):
                 return i
         return 0
-                
+    
+    def powercal(self, amp):
+        """Recalibrate the amplitude to account for AOM nonlinearity"""
+        return cals[self.ind](amp)
+                    
     def redisplay_profiles(self):
         """Set the stored STP and RAM profile data into the text labels."""
         for i in range(8):
@@ -2285,10 +2293,14 @@ class Ui_MainWindow(object):
         self.applyAmpValidators() # set limit on Amp if in Amp mode
         
     def set_stp_freq(self):
-        self.fout[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+        try:
+            self.fout[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+        except ValueError: pass
         
     def set_stp_tht(self):
-        self.tht[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+        try:
+            self.tht[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+        except ValueError: pass
         
     def set_stp_amp(self):
         val = self.dbl_fixup(self.mw.sender().text())
@@ -2296,16 +2308,24 @@ class Ui_MainWindow(object):
         self.mw.sender().setText(val)
         
     def set_ram_start(self):
-        self.Start_Address[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+        try:
+            self.Start_Address[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+        except ValueError: pass
         
     def set_ram_end(self):
-        self.End_Address[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+        try:
+            self.End_Address[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+        except ValueError: pass
         
     def set_ram_rate(self):
-        self.Rate[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+        try:
+            self.Rate[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+        except ValueError: pass
         
     def set_ram_mode(self, text):
-        self.RAM_playback_mode[self.ind, self.mw.sender().i, :] = self.RAM_profile_mode.get(text)
+        try:
+            self.RAM_playback_mode[self.ind, self.mw.sender().i, :] = self.RAM_profile_mode.get(text)
+        except ValueError: pass
     
     def update_RAM_values_func(self):
         try:
@@ -2504,7 +2524,7 @@ class Ui_MainWindow(object):
                 ind = 16
 
             elif ID == 2: # modulating amplitude
-                data = np.around(2**14 *powercal(np.absolute(self.RAM_modulation_data[0,:])/ np.amax(self.RAM_modulation_data[0, :])*self.AMW, self.FTW), decimals = 0)
+                data = np.around(2**14 *self.powercal(np.absolute(self.RAM_modulation_data[0,:])/ np.amax(self.RAM_modulation_data[0, :])*self.AMW), decimals = 0)
                 ind_high = np.where(data >= 2**14)[0]
                 data[ind_high] = 2**14- 1
                 ind = 14
@@ -2545,8 +2565,8 @@ class Ui_MainWindow(object):
 #                    time.sleep(0.5)
                     self.Send_serial_func(pack)
                 self.load_DDS_ram = False # Save time and not rewrite the Ram
-        except:
-            self.Display_func("Make sure the RAM data has been loaded")
+        except Exception as e:
+            self.Display_func("Make sure the RAM data has been loaded: "+str(e))
 
 #        time.sleep(5)
         self.profile_RAM_register_func(True)
@@ -2706,7 +2726,7 @@ class Ui_MainWindow(object):
                     self.Display_func("Aliasing is likely to occur. Limiting frequency to 400 MHz.")
                     f = 2**31
 
-                a = int(np.around(2**14 * abs(powercal(amp[ic], fout[ic])), decimals = 0)) # power calibration
+                a = int(np.around(2**14 * abs(self.powercal(amp[ic])), decimals = 0)) # power calibration
                 if a == 2**14:
                     a =2**14 -1
                 if a > 2**14:
@@ -3435,25 +3455,16 @@ if __name__ == "__main__":
     # power calibration accounting for AOM nonlinearity
     from scipy.interpolate import interp1d
     try:
-        cal = np.loadtxt('dds/power_calibration.csv', delimiter=',')
-        cal = np.concatenate(([np.zeros(3)],cal)).T
-        # p100 = interp1d(cal[1], cal[0], fill_value='extrapolate')
-        # p110 = interp1d(cal[2], cal[0], fill_value='extrapolate')
-        p100 = interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
-        p110 = p100
+        cal = np.loadtxt('dds/power_calibration.csv', delimiter=',').T
+        cals = [interp1d(cal[i+1], cal[0], fill_value='extrapolate') for i in range(len(cal)-1)]
         alim = 1.0
     except OSError as e:
         print('\033[31m' + '####\tERROR\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))
         print('\tCould not load power calibration file:\n' + str(e) + '\n', '\033[m')
-        p100 = interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
-        p110 = p100
+        cals = [interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
+                for i in range(5)]
         alim = 0.5
     
-    def powercal(amp, freq):
-        """Recalibrate the amplitude to account for AOM nonlinearity"""
-        if freq > 105:
-            return p110(amp)
-        else: return p100(amp)
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow(port=8624, host='129.234.190.164')

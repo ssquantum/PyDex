@@ -1,0 +1,25 @@
+{
+ "rearr_freq_amps": 0.13,
+ "static_duration_[ms]": 1,
+ "headroom_segs": 10,
+ "amp_adjust": true,
+ "rearrMode": "use_all",
+ "initial_freqs": [
+  190.0,
+  177.5,
+  165.0,
+  152.5,
+  140.0
+ ],
+ "ramp_duration_[ms]": 5,
+ "target_freqs": [
+  190.0
+ ],
+ "channel": 0,
+ "power_ramp": true,
+ "tot_amp_[mV]": 280,
+ "hybridicity": 0,
+ "moving_duration_[ms]": 1,
+ "freq_adjust": false,
+ "final_freq_amp": 0.5
+}

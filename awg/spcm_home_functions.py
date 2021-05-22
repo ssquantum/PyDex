@@ -320,7 +320,7 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
         amp_ramp = np.array([ampAdjuster(sfreq[Y]*1e-6 + hybridJerk(t, 1e-6*rfreq[Y], numOfSamples, a), startAmp[Y]) for Y in range(l)])
         s = np.sum(amp_ramp, axis=0)
         if any(s > 280):
-            print('WARNING: multiple traps power overflow: total required power is > 280mV, is:'+str(np.around(np.sum(s)))+'mV')
+            print('WARNING: multiple moving traps power overflow: total required power is > 280mV, max is:'+str(round(max(s),2))+'mV')
             amp_ramp = np.ones(l)/l*tot_amp
     else: # nmt amp adjust
         if np.sum(tot_amp*startAmp) > 280:
@@ -436,7 +436,7 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1
     if ampAdjust ==True:
         amps = [ampAdjuster(freqs[Y]*10**-6,freq_amp[Y]) for Y in range(numberOfTraps)]
         if sum(amps) > 280:
-            print('WARNING: multiple traps power overflow: total required power is > 280mV, is :'+str(np.around(sum(amps)))+'mV')
+            print('WARNING: multiple static traps power overflow: total required power is > 280mV, is :'+str(np.around(sum(amps)))+'mV')
             return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
         else:
             return 1./282*0.5*2**16*np.sum([amps[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
@@ -471,11 +471,11 @@ def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=22
         
         freqs = np.array(freqs)
         numberOfTraps = len(freqs)
+        
     else:
         separation = distance/umPerMHz *10**6
         freqs = np.linspace(freqs,freqs+numberOfTraps*separation,numberOfTraps, endpoint=False)
     
-
     ##############################
     # Ensure that the startAmp/endAmp/freq_phase all have the correct size.
     ################################################################################

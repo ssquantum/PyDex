@@ -227,7 +227,7 @@ class roi_handler(QWidget):
         atomstring = ''
         for r in self.ROIs:
             try:
-                counts = np.sum(im * r.mask) - self.bias
+                counts = np.sum(im * r.mask) - self.bias * r.w * r.h
                 success = 1 if abs(counts) // r.t and success else 0
                 atomstring += str(int(abs(counts) > r.t))
                 r.c[r.i%1000] = counts

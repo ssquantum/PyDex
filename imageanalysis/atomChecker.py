@@ -47,7 +47,7 @@ class atom_window(QMainWindow):
     roi_values = pyqtSignal(list) # list of ROIs (x, y, w, h, threshold)
     rearr_msg  = pyqtSignal(str)  # message to send AWG about rearranging
     
-    def __init__(self, last_im_path='.', rois=[(1,1,1,1)], num_plots=4, 
+    def __init__(self, last_im_path='.', rois=[(1,1,1,1)], num_plots=9, 
             image_shape=(512,512), name=''):
         super().__init__()
         self.name = name
@@ -83,6 +83,10 @@ class atom_window(QMainWindow):
         make_im = QAction('Make average image', self) # from image files (using file browser)
         make_im.triggered.connect(self.make_ave_im)
         file_menu.addAction(make_im)
+
+        save_hist = QAction('Save Histograms', self)
+        save_hist.triggered.connect(self.save_roi_hists)
+        file_menu.addAction(save_hist)
 
         # ROI menu for sending, receiving, and auto-generating ROIs
         rois_menu = menubar.addMenu('ROIs')
@@ -383,6 +387,32 @@ class atom_window(QMainWindow):
             aveim += im
         self.update_im(aveim / len(im_list))
         return 1
+
+    def save_roi_hists(self, file_name='AtomCheckerHist.csv'):
+        """Save the histogram data from the ROIs"""
+        if not file_name:
+            file_name = self.try_browse(title='Select Files', 
+                file_type='csv(*.csv);;all (*)', 
+                open_func=QFileDialog.getSaveFileName)
+        if file_name:
+            try:
+                out_arr = np.zeros((len(self.rh.ROIs)*2, self.rh.ROIs[0].i))
+                head0 = ''
+                head1 = ''
+                head2 = ''
+                for i, r in enumerate(self.rh.ROIs):
+                    out_arr[2*i] = r.c
+                    out_arr[2*i+1] = np.array(r.atom())
+                    head0 += 'ROI%s LP, ROI%s Thresh, '%(r.id, r.id)
+                    head1 += '%s, %s, '%(r.LP(), r.t)
+                    head2 += 'ROI%s Counts, ROI%s Atom, '%(r.id, r.id)
+                if len(head0):
+                    header = head0[:-2] + '\n' + head1[:-2] + '\n' + head2[:-2]
+                else: header = '.\n.\n.'
+                np.savetxt(file_name, out_arr.T, fmt='%s', delimiter=',', header=header)
+            except (ValueError, IndexError, PermissionError) as e:
+                error("AtomChecker couldn't save file %s\n"%file_name+str(e))
+
 
 ####    ####    ####    #### 
 

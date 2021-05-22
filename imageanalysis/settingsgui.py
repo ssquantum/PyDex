@@ -933,7 +933,8 @@ class settings_window(QMainWindow):
         for i, a in enumerate(ainds):
             try: 
                 self.mw_inds[i] = a
-                self.mw[i].name_edit.setText('ROI' + str(i//self._m) + '.Im' + str(a) + '.')
+                self.mw[i].name_edit.setText(self.mw_names[i])
+                self.mw[i].setObjectName(self.mw_names[i])
             except IndexError as e: 
                 warning('Cannot set image index for image analyser %s.\n'%i+str(e))
 

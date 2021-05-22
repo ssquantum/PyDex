@@ -1,0 +1,18 @@
+{
+"channel": 0,
+"static_duration_[ms]": 1,
+"moving_duration_[ms]": 1,
+"freq_adjust": false,
+"hybridicity": 0,
+"tot_amp_[mV]": 280,
+"amp_adjust": true,
+"target_freqs": [
+190.0
+],
+"headroom_segs": 10,
+"initial_freqs": [
+190.0,
+170.0,
+150.0
+]
+}
