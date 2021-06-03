@@ -1,4 +1,3 @@
-# -*- coding: cp1252 -*-
 """PyDex - DDS
 Lewis McArd, Stefan Spence 24.11.20
 
@@ -8,6 +7,7 @@ import serial
 import time
 import sys
 import os
+import json
 os.system("color") # allows error/warning/info messages to print in colour
 import glob
 import datetime
@@ -65,7 +65,7 @@ class Ui_MainWindow(object):
     
     COMlabels = ['RB1A', 'RB2', 'RB3', 'RB4', 'RB1B']
 
-    def __init__(self, port=8624, host='localhost'):
+    def __init__(self, port=8624, host='localhost', alim=1):
         super(Ui_MainWindow, self).__init__()
 
         self.connected = False
@@ -108,9 +108,9 @@ class Ui_MainWindow(object):
         self.FM_gain_value = np.array([0,0,0,0])
 
         # Auxillary control parameters
-        self.FTW = 110
-        self.POW = 0
-        self.AMW = 1
+        self.FTW = np.ones(5)*110
+        self.POW = np.zeros(5)
+        self.AMW = np.ones(5)
 
         # Amplitude limit
         self.Alim = alim
@@ -121,6 +121,9 @@ class Ui_MainWindow(object):
         self.RAM_enable = 0
         self.RAM_playback_dest = np.array([0,0])
         self.Int_profile_cntrl = np.array([0,0,0,0])
+
+        self.RAM_modulation_data = [[]]*5
+        self.RAM_data_filename = ['']*5
 
         #Register arrays
         self.CFR1 = np.zeros(32, dtype = np.bool_())
@@ -234,6 +237,10 @@ class Ui_MainWindow(object):
             self.save_STP(value)
         elif 'load_STP' in cmd:
             self.load_STP(value)
+        elif 'save_all' in cmd:
+            self.save_all(value)
+        elif 'load_all' in cmd:
+            self.load_all(value)
         elif 'programme' in cmd:
             if 'single tone' in self.mode:
                 self.Programme_STP_func()
@@ -263,7 +270,13 @@ class Ui_MainWindow(object):
                 self.centralwidget.findChild(QtWidgets.QCheckBox, 'ND_P%s'%i).setChecked(bool(self.No_dwell[self.ind,i]))
                 self.centralwidget.findChild(QtWidgets.QCheckBox, 'ZC_P%s'%i).setChecked(bool(self.Zero_crossing[self.ind,i]))
                 self.centralwidget.findChild(QtWidgets.QComboBox, 'Mode_P%s'%i).setCurrentIndex(self.search_dic(self.RAM_profile_mode.values(), self.RAM_playback_mode[self.ind,i]))
-            except Exception as e: print(e) # pass # key could be for ramp
+            except Exception as e: self.Display_func("Couldn't display stored parameter:\n"+str(e)) # key could be for ramp
+        try:
+            self.Phase_aux.setText(str(self.POW[self.ind]))
+            self.Freq_aux.setText(str(self.FTW[self.ind]))
+            self.Amp_aux.setText(str(self.AMW[self.ind]))
+            self.RAM_fname.setText(self.RAM_data_filename[self.ind])
+        except Exception as e: self.Display_func("Couldn't display stored parameter:\n"+str(e))
         
     def load_STP(self, fname=''):
         """Input the values from the STP file into the stored data and line edits."""
@@ -298,6 +311,27 @@ class Ui_MainWindow(object):
                 self.redisplay_profiles()
         except Exception as e:
             self.Display_func('Could not load RAM profiles from %s\n'%fname+str(e))
+
+    def load_all(self, fname=''):
+        """Take STP, RAM and auxiliary parameters from a file."""
+        try:
+            if not fname:
+                fname, _ = QtWidgets.QFileDialog.getOpenFileName(
+                    self.centralwidget, 'Open STP File', '', 'txt(*.txt);;all (*)')
+            if os.path.exists(fname): # if user cancels then fname is empty str
+                with open(fname) as f:
+                    data = json.load(f)
+                for key, val in data.items():
+                    if 'RAM_data_filename' in key:
+                        self.Display_func('RAM data files were: %s'%val)
+#                        self.RAM_data_filename = val
+                    else:
+                        setattr(self, key, np.array(val, dtype=float))
+                self.redisplay_profiles()
+                self.applyAmpValidators()
+                self.Display_func('Loaded parameters from %s'%fname)
+        except Exception as e:
+            self.Display_func('Could not load params from %s\n'%fname+str(e))
             
     def save_data(self, data, fname='', mode='STP'):
         """Save data to a file."""
@@ -305,7 +339,11 @@ class Ui_MainWindow(object):
             if not fname:
                 fname, _ = QtWidgets.QFileDialog.getSaveFileName(
                     self.centralwidget, 'Save File', '', 'txt(*.txt);;all (*)')
-            np.savetxt(fname, data, delimiter = ',')
+            if 'all params' in mode:
+                with open(fname, 'w') as f:
+                    json.dump(data, f)
+            else: np.savetxt(fname, data, delimiter = ',')
+            self.Display_func(mode+' saved to %s'%fname)
         except (OSError, FileNotFoundError, IndexError) as e:
             self.Display_func('Could not save '+mode+' to %s\n'%fname+str(e))
 
@@ -320,7 +358,20 @@ class Ui_MainWindow(object):
                     self.Rate, self.No_dwell, self.Zero_crossing]).reshape(25,8), 
                     self.RAM_playback_mode.reshape(15,8), axis=0)
         self.save_data(data, fname, mode='RAM profiles')
-            
+
+    def save_all(self, fname=''):
+        """Save STP, RAM, and auxiliary parameters to a text file."""
+        try:
+            data = OrderedDict()
+            for key in ['FTW', 'POW', 'AMW']:
+                data[key] = list(getattr(self, key).astype(str))
+            for key in ['fout', 'tht', 'amp', 'Start_Address', 
+                    'End_Address', 'Rate', 'No_dwell', 'Zero_crossing']:
+                data[key] = [list(x) for x in getattr(self, key).astype(str)]
+            data['RAM_playback_mode'] = [[list(y) for y in x] for x in self.RAM_playback_mode.astype(str)]
+            data['RAM_data_filename'] = self.RAM_data_filename
+        except ValueError as e: self.Display_func("Failed to save parameters:\n"+str(e))
+        self.save_data(data, fname, mode='all params')
        
     def enter_ramp_mode(self):
         """When ramp mode checkbox is checked, let pydex know it's in ramp mode"""
@@ -450,6 +501,7 @@ class Ui_MainWindow(object):
         self.Freq_aux = QtWidgets.QLineEdit(self.GB_Aux)
         self.Freq_aux.setGeometry(QtCore.QRect(70, 20, 151, 21))
         self.Freq_aux.setObjectName("Freq_aux")
+        self.Freq_aux.editingFinished.connect(self.update_RAM_values_func)
         self.label_5 = QtWidgets.QLabel(self.GB_Aux)
         self.label_5.setGeometry(QtCore.QRect(10, 20, 65, 16))
         self.label_5.setObjectName("label_5")
@@ -465,6 +517,7 @@ class Ui_MainWindow(object):
         self.Phase_aux = QtWidgets.QLineEdit(self.GB_Aux)
         self.Phase_aux.setGeometry(QtCore.QRect(70, 60, 151, 21))
         self.Phase_aux.setObjectName("Phase_aux")
+        self.Phase_aux.editingFinished.connect(self.update_RAM_values_func)
         self.label_AMWunits = QtWidgets.QLabel(self.GB_Aux)
         self.label_AMWunits.setGeometry(QtCore.QRect(230, 100, 25, 16))
         self.label_AMWunits.setObjectName("label_AMWunits")
@@ -474,19 +527,26 @@ class Ui_MainWindow(object):
         self.Amp_aux = QtWidgets.QLineEdit(self.GB_Aux)
         self.Amp_aux.setGeometry(QtCore.QRect(70, 100, 151, 21))
         self.Amp_aux.setObjectName("Amp_aux")
+        self.Amp_aux.editingFinished.connect(self.update_RAM_values_func)
         self.Amp_aux.editingFinished.connect(self.reload_RAM) # reload data if this parameter is changed
         self.Amp_aux.editingFinished.connect(lambda: self.Amp_aux.setText(self.dbl_fixup(self.Amp_aux.text())))
         self.label_ALIMunits = QtWidgets.QLabel(self.GB_Aux)
-        self.label_ALIMunits.setGeometry(QtCore.QRect(230, 160, 25, 16))
+        self.label_ALIMunits.setGeometry(QtCore.QRect(230, 140, 25, 16))
         self.label_ALIMunits.setObjectName("label_ALIMunits")
         self.label_ALIM = QtWidgets.QLabel(self.GB_Aux)
-        self.label_ALIM.setGeometry(QtCore.QRect(10, 160, 65, 16))
+        self.label_ALIM.setGeometry(QtCore.QRect(10, 140, 65, 16))
         self.label_ALIM.setObjectName("label_ALIM")
         self.Amp_lim = QtWidgets.QLineEdit(self.GB_Aux)
-        self.Amp_lim.setGeometry(QtCore.QRect(70, 160, 151, 21))
+        self.Amp_lim.setGeometry(QtCore.QRect(70, 140, 151, 21))
         self.Amp_lim.setObjectName("Amp_lim")
         self.Amp_lim.editingFinished.connect(self.set_amp_lim) # reset validators on amp inputs
-        
+        self.label_RAMname = QtWidgets.QLabel(self.GB_Aux)
+        self.label_RAMname.setGeometry(QtCore.QRect(10, 180, 65, 16))
+        self.label_RAMname.setObjectName("label_RAMname")
+        self.RAM_fname = QtWidgets.QLabel(self.GB_Aux)
+        self.RAM_fname.setGeometry(QtCore.QRect(70, 180, 151, 16))
+        self.RAM_fname.setObjectName("RAM_fname")
+
         self.tabWidget.addTab(self.Coms, "")
         self.Single_tone = QtWidgets.QWidget()
         self.Single_tone.setObjectName("Single_tone")
@@ -1822,6 +1882,14 @@ class Ui_MainWindow(object):
         self.actionSave_RAM.setObjectName("actionSave_RAM")
         self.actionSave_RAM.triggered.connect(self.save_RAMprofile)
 
+        self.actionSave_all = QtWidgets.QAction(MainWindow)
+        self.actionSave_all.setObjectName("actionSave_all")
+        self.actionSave_all.triggered.connect(self.save_all)
+
+        self.actionLoad_all = QtWidgets.QAction(MainWindow)
+        self.actionLoad_all.setObjectName("actionLoad_all")
+        self.actionLoad_all.triggered.connect(self.load_all)
+
         self.actionLoad_DDS_RAM = QtWidgets.QAction(MainWindow)
         self.actionLoad_DDS_RAM.setObjectName("actionLoad_DDS_RAM")
         self.actionLoad_DDS_RAM.triggered.connect(self.file_open_DDS_RAM_func)
@@ -1839,6 +1907,8 @@ class Ui_MainWindow(object):
         self.menuFile.addAction(self.actionSave_stp)
         self.menuFile.addAction(self.actionLoad_RAM)
         self.menuFile.addAction(self.actionSave_RAM)
+        self.menuFile.addAction(self.actionLoad_all)
+        self.menuFile.addAction(self.actionSave_all)
         self.menuFile.addAction(self.actionLoad_DDS_RAM)
         self.menuFile.addAction(self.actionClose)
 
@@ -1878,7 +1948,9 @@ class Ui_MainWindow(object):
         self.PyDexTCP.setText(_translate("MainWindow", "Reset PyDex TCP"))
         self.label_ALIMunits.setText(_translate("MainWindow", "0-1"))
         self.label_ALIM.setText(_translate("MainWindow", "Amp lim"))
-        self.Amp_lim.setText(_translate("MainWindow", str(alim)))
+        self.label_RAMname.setText(_translate("MainWindow", "RAM file"))
+        self.RAM_fname.setText(_translate("MainWindow", self.RAM_data_filename[self.ind]))
+        self.Amp_lim.setText(_translate("MainWindow", str(self.Alim)))
 
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Coms), _translate("MainWindow", "Communication"))
         self.GB_P0.setTitle(_translate("MainWindow", "000 Profile 0"))
@@ -1962,7 +2034,7 @@ class Ui_MainWindow(object):
         self.GB_ram_P0.setTitle(_translate("MainWindow", "000 Profile 0"))
         self.S_add_P0.setText(_translate("MainWindow", "0"))
         self.label_76.setText(_translate("MainWindow", "Start address"))
-        self.label_78.setText(_translate("MainWindow", "μs"))
+        self.label_78.setText(_translate("MainWindow", "µs"))
         self.label_79.setText(_translate("MainWindow", "End address"))
         self.E_add_P0.setText(_translate("MainWindow", "0"))
         self.SR_P0.setText(_translate("MainWindow", "1"))
@@ -1972,7 +2044,7 @@ class Ui_MainWindow(object):
         self.GB_ram_P1.setTitle(_translate("MainWindow", "100 Profile 1"))
         self.S_add_P1.setText(_translate("MainWindow", "0"))
         self.label_89.setText(_translate("MainWindow", "Start address"))
-        self.label_90.setText(_translate("MainWindow", "μs"))
+        self.label_90.setText(_translate("MainWindow", "µs"))
         self.label_91.setText(_translate("MainWindow", "End address"))
         self.E_add_P1.setText(_translate("MainWindow", "0"))
         self.SR_P1.setText(_translate("MainWindow", "1"))
@@ -1982,7 +2054,7 @@ class Ui_MainWindow(object):
         self.GB_ram_P2.setTitle(_translate("MainWindow", "010 Profile 2"))
         self.S_add_P2.setText(_translate("MainWindow", "0"))
         self.label_97.setText(_translate("MainWindow", "Start address"))
-        self.label_98.setText(_translate("MainWindow", "μs"))
+        self.label_98.setText(_translate("MainWindow", "µs"))
         self.label_99.setText(_translate("MainWindow", "End address"))
         self.E_add_P2.setText(_translate("MainWindow", "0"))
         self.SR_P2.setText(_translate("MainWindow", "1"))
@@ -1992,7 +2064,7 @@ class Ui_MainWindow(object):
         self.GB_ram_P4.setTitle(_translate("MainWindow", "001 Profile 4"))
         self.S_add_P4.setText(_translate("MainWindow", "0"))
         self.label_117.setText(_translate("MainWindow", "Start address"))
-        self.label_118.setText(_translate("MainWindow", "μs"))
+        self.label_118.setText(_translate("MainWindow", "µs"))
         self.label_119.setText(_translate("MainWindow", "End address"))
         self.E_add_P4.setText(_translate("MainWindow", "0"))
         self.SR_P4.setText(_translate("MainWindow", "1"))
@@ -2002,7 +2074,7 @@ class Ui_MainWindow(object):
         self.GB_ram_P3.setTitle(_translate("MainWindow", "110 Profile 3"))
         self.S_add_P3.setText(_translate("MainWindow", "0"))
         self.label_121.setText(_translate("MainWindow", "Start address"))
-        self.label_122.setText(_translate("MainWindow", "μs"))
+        self.label_122.setText(_translate("MainWindow", "µs"))
         self.label_123.setText(_translate("MainWindow", "End address"))
         self.E_add_P3.setText(_translate("MainWindow", "0"))
         self.SR_P3.setText(_translate("MainWindow", "1"))
@@ -2012,7 +2084,7 @@ class Ui_MainWindow(object):
         self.GB_ram_P5.setTitle(_translate("MainWindow", "101 Profile 5"))
         self.S_add_P5.setText(_translate("MainWindow", "0"))
         self.label_125.setText(_translate("MainWindow", "Start address"))
-        self.label_126.setText(_translate("MainWindow", "μs"))
+        self.label_126.setText(_translate("MainWindow", "µs"))
         self.label_127.setText(_translate("MainWindow", "End address"))
         self.E_add_P5.setText(_translate("MainWindow", "0"))
         self.SR_P5.setText(_translate("MainWindow", "1"))
@@ -2022,7 +2094,7 @@ class Ui_MainWindow(object):
         self.GB_ram_P6.setTitle(_translate("MainWindow", "011 Profile 6"))
         self.S_add_P6.setText(_translate("MainWindow", "0"))
         self.label_137.setText(_translate("MainWindow", "Start address"))
-        self.label_138.setText(_translate("MainWindow", "μs"))
+        self.label_138.setText(_translate("MainWindow", "µs"))
         self.label_139.setText(_translate("MainWindow", "End address"))
         self.E_add_P6.setText(_translate("MainWindow", "0"))
         self.SR_P6.setText(_translate("MainWindow", "1"))
@@ -2032,7 +2104,7 @@ class Ui_MainWindow(object):
         self.GB_ram_P7.setTitle(_translate("MainWindow", "111 Profile 7"))
         self.S_add_P7.setText(_translate("MainWindow", "0"))
         self.label_141.setText(_translate("MainWindow", "Start address"))
-        self.label_142.setText(_translate("MainWindow", "μs"))
+        self.label_142.setText(_translate("MainWindow", "µs"))
         self.label_143.setText(_translate("MainWindow", "End address"))
         self.E_add_P7.setText(_translate("MainWindow", "0"))
         self.SR_P7.setText(_translate("MainWindow", "1"))
@@ -2070,8 +2142,8 @@ class Ui_MainWindow(object):
         self.Neg_step_rate.setText(_translate("MainWindow", "1"))
         self.label_16.setText(_translate("MainWindow", "Positive step rate"))
         self.label_17.setText(_translate("MainWindow", "Negative step rate"))
-        self.label_81.setText(_translate("MainWindow", "μs"))
-        self.label_82.setText(_translate("MainWindow", "μs"))
+        self.label_81.setText(_translate("MainWindow", "µs"))
+        self.label_82.setText(_translate("MainWindow", "µs"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Ramp_gen), _translate("MainWindow", "DDS ramp generator"))
 
 
@@ -2105,6 +2177,8 @@ class Ui_MainWindow(object):
         self.actionSave_stp.setText(_translate("MainWindow", "Save singe tone profile"))
         self.actionLoad_RAM.setText(_translate("MainWindow", "Load DDS RAM profile"))
         self.actionSave_RAM.setText(_translate("MainWindow", "Save DDS RAM profile"))
+        self.actionLoad_all.setText(_translate("MainWindow", "Load all parameters"))
+        self.actionSave_all.setText(_translate("MainWindow", "Save all parameters"))
         self.actionLoad_DDS_RAM.setText(_translate("MainWindow", "Load DDS RAM playback"))
         self.actionUser_guide.setText(_translate("MainWindow", "User guide"))
         self.actionClose.setText(_translate("MainWindow", "Close"))
@@ -2329,16 +2403,16 @@ class Ui_MainWindow(object):
     
     def update_RAM_values_func(self):
         try:
-            self.POW = abs(float(self.Phase_aux.text()))
-            self.FTW = abs(float(self.Freq_aux.text()))
-            self.AMW = abs(float(self.Amp_aux.text())%1.0001)
-        except:
-            self.Display_func('Please make sure you use a real, positive number.')
+            self.POW[self.ind] = abs(float(self.Phase_aux.text()))
+            self.FTW[self.ind] = abs(float(self.Freq_aux.text()))
+            self.AMW[self.ind] = abs(float(self.Amp_aux.text())%1.0001)
+        except Exception as e:
+            self.Display_func('Please make sure you use a real, positive number.\n'+str(e))
         try:
             self.RAM_playback_dest = self.RAM_data_type.get(str(self.RAM_data.currentText()))
             self.Int_profile_cntrl = self.RAM_controls.get(str(self.Int_ctrl.currentText()))
-        except:
-            self.Display_func('Error setting additional playback information.')
+        except Exception as e:
+            self.Display_func('Error setting additional playback information.\n'+str(e))
 
     def update_DRG_values_func(self):
         try:
@@ -2451,7 +2525,7 @@ class Ui_MainWindow(object):
         pack = ['{0:02x}'.format(7), '0']
         Sum = int(pack[0], 16)
 
-        data = int(np.around((2**32 *(abs(self.FTW)/1000)), decimals = 0)) #Note AD9910 has a clock frequency of 1 GHz or 1000 MHz
+        data = int(np.around((2**32 *(abs(self.FTW[self.ind])/1000)), decimals = 0)) #Note AD9910 has a clock frequency of 1 GHz or 1000 MHz
         if data >= 2**31:
             data = 2**31
         FTW = self.bin_array(data, 32)
@@ -2474,7 +2548,7 @@ class Ui_MainWindow(object):
         pack = ['{0:02x}'.format(8), '0']
         Sum = int(pack[0], 16)
 
-        data = int(np.around((2**16 *(abs(self.POW)/360)), decimals = 0)) #Note AD9910 has a clock frequency of 1 GHz or 1000 MHz
+        data = int(np.around((2**16 *(abs(self.POW[self.ind])/360)), decimals = 0)) #Note AD9910 has a clock frequency of 1 GHz or 1000 MHz
         if data >= 2**16:
             data = 2**16-1
         POW = self.bin_array(data, 16)
@@ -2499,11 +2573,11 @@ class Ui_MainWindow(object):
             # Make sure that wwe have RAM data loaded
             RAM_data_reg = np.zeros((1024, 32), dtype = np.bool_())
 
-            if len(self.RAM_modulation_data[0,:]) >= 1024:
+            if len(self.RAM_modulation_data[self.ind][0,:]) >= 1024:
                 self.Display_func('Data is too long and will be truncated')
                 end = 1024
             else:
-                end = len(self.RAM_modulation_data[0,:])
+                end = len(self.RAM_modulation_data[self.ind][0,:])
 
 
             NTS = self.RAM_data_type.get(str(self.RAM_data.currentText())) # Do not allow this state
@@ -2512,29 +2586,29 @@ class Ui_MainWindow(object):
             pack = ['{0:02x}'.format(22), '0']
             Sum = int(pack[0], 16)
             if ID == 0: # If the ramp generator is modulating frequency
-                data = np.around((2**32 *(np.absolute(self.RAM_modulation_data[0,:])/1000)), decimals = 0) #Note AD9910 has a clock frequency of 1 GHz or 1000 MHz
+                data = np.around((2**32 *(np.absolute(self.RAM_modulation_data[self.ind][0,:])/1000)), decimals = 0) #Note AD9910 has a clock frequency of 1 GHz or 1000 MHz
                 ind_high = np.where(data >= 2**31)[0]
                 data[ind_high] = 2**31
                 ind = 32
 
             elif ID == 1: # If the ramp generator is modulating phase
-                data = np.around((2**16 *(np.absolute(self.RAM_modulation_data[0,:])/360)), decimals = 0)
+                data = np.around((2**16 *(np.absolute(self.RAM_modulation_data[self.ind][0,:])/360)), decimals = 0)
                 ind_high = np.where(data >= 2**16)[0]
                 data[ind_high] = 2**16 - 1
                 ind = 16
 
             elif ID == 2: # modulating amplitude
-                data = np.around(2**14 *self.powercal(np.absolute(self.RAM_modulation_data[0,:])/ np.amax(self.RAM_modulation_data[0, :])*self.AMW), decimals = 0)
+                data = np.around(2**14 *self.powercal(np.absolute(self.RAM_modulation_data[self.ind][0,:])/ np.amax(self.RAM_modulation_data[self.ind][0, :])*self.AMW[self.ind]), decimals = 0)
                 ind_high = np.where(data >= 2**14)[0]
                 data[ind_high] = 2**14- 1
                 ind = 14
             else:
-                data = np.around((2**16 *(np.absolute(self.RAM_modulation_data[0,:])/360)), decimals = 0)
+                data = np.around((2**16 *(np.absolute(self.RAM_modulation_data[self.ind][0,:])/360)), decimals = 0)
                 ind_high = np.where(data >= 2**16)[0]
                 data[ind_high] = 2**16- 1
                 ind = 16
 
-                data2 = np.around((2**14 *(np.absolute(self.RAM_modulation_data[1,:])/ np.amax(self.RAM_modulation_data[1, :]))), decimals = 0)
+                data2 = np.around((2**14 *(np.absolute(self.RAM_modulation_data[self.ind][1,:])/ np.amax(self.RAM_modulation_data[self.ind][1, :]))), decimals = 0)
                 ind_high = np.where(data >= 2**14)[0]
                 data[ind_high] = 2**14- 1
 
@@ -3072,7 +3146,9 @@ class Ui_MainWindow(object):
                 self.centralwidget, 'Open RAM data file', '', 'csv(*.csv);;all (*)')
 
         try:
-            self.RAM_modulation_data = np.loadtxt(name, delimiter = ',') #file = open(name,'r')
+            self.RAM_modulation_data[self.ind] = np.loadtxt(name, delimiter = ',') 
+            self.RAM_data_filename[self.ind] = os.path.basename(name)
+            self.RAM_fname.setText(self.RAM_data_filename[self.ind])
             self.Display_func("DDS RAM data loaded from: " + name)
             self.load_DDS_ram = True
         except:
@@ -3467,7 +3543,7 @@ if __name__ == "__main__":
     
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_MainWindow(port=8624, host='129.234.190.164')
+    ui = Ui_MainWindow(port=8624, host='129.234.190.164', alim=alim)
     ui.setupUi_coms(MainWindow)
     def closeEvent(event):
         """actions to carry out before closing the window"""

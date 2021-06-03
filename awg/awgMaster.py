@@ -3,6 +3,10 @@ Stefan Spence 27.06.20
  - Import functions and classes to control AWG
  - Give a simple interface for user control
  - Communicate with PyDex and DExTer via TCP
+
+26.05.2020
+ - Rearrangement commands added
+ - AWG now instantiated via rearrangement class imported from rearrangementHandler
 """
 import time
 import os
@@ -26,6 +30,7 @@ from pyspcm import spcm_dwGetParam_i32, byref, int32
 import fileWriter as fw
 from networking.networker import PyServer, reset_slot
 from networking.client import PyClient
+import rearrHandler
 
 ####    ####    ####    ####
 
@@ -49,8 +54,8 @@ class awg_window(QMainWindow):
         self.client = PyClient(host='129.234.190.164', port=8623) # TCP client to mess#age PyDex
         self.client.textin[str].connect(self.respond) # carry out the command in the msg
         self.client.start()
-        self.awg = AWG(AWG_channels) # opens AWG card and initiates
-        self.awg.load(default_seq) # load basic data
+        self.rr = rearrHandler.rearrange(AWG_channels) # opens AWG card via rearr class and initiates
+        self.rr.awg.load(default_seq) # load basic data
         self.idle_state()
 
     def init_UI(self):
@@ -70,14 +75,15 @@ class awg_window(QMainWindow):
             'start_awg         --- manually start the AWG.\n'+
             'stop_awg          --- manually stop the AWG.\n'+
             'reset_awg=[...]   --- create a new AWG instance with channels [ch1, ch2, ...] activated. \n'+
-            '\n'+ 
-            'rearr_on          --- activate rearrangment. If rearr_on=max, uses max rearrangment method. \n'+
-            'rearr_off         --- deactivate rearrangment \n'+
-            'init_fs=...,...   --- set new initial frequencies before rearrangment \n' +
-            'target_fs=...,... --- set new target frequencies after rearrangment \n' +
-            'rearr_freq_amps=  --- set frequency amplitude of rearrangment segements \n'+
-            'update_rsegs      --- calculate & upload new segments with new freqs/amps \n'+
-            'rearrange=01110   --- recieve occupancy of array sites'
+            '\n'+
+            '~~~ Rearrangement Commands ~~~\n'+ 
+            'rearr_on= config_path    --- activate rearrangment. To refresh rearrangement, do rearr_on again \n'+
+            'rearr_off                --- deactivate rearrangment \n'+
+            #'init_fs=...,...   --- set new initial frequencies before rearrangment \n' +
+            #'target_fs=...,... --- set new target frequencies after rearrangment \n' +
+            #'rearr_freq_amps=  --- set frequency amplitude of rearrangment segements \n'+
+            #'update_rsegs      --- calculate & upload new segments with new freqs/amps \n'+
+            'rearrange=01110          --- binary string triggers rearr step calculation'
             )
         self.centre_widget.layout.addWidget(cmd_info, 0,0, 1,1)
         self.status_label = QTextBrowser() #QLabel('Initiating...', self)
@@ -116,9 +122,13 @@ class awg_window(QMainWindow):
             cmd = self.edit.text()
         if 'load' in cmd:
             self.set_status('Loading AWG data...')
-            try: 
-                path = cmd.split('=')[1]
-                self.awg.load(path)
+            try:     
+                path = cmd.split('=')[1].strip('file:///')
+                if self.rr.rearrToggle==True:
+                    self.rr.load(path)   # if rearranging is on, use modified load function redefined in rearr class
+                else:                     
+                    self.rr.awg.load(path) # else use normal load function
+
                 self.set_status('File loaded from '+path)
             except Exception as e:
                 self.set_status('Failed to load AWG data from '+cmd.split('=')[1])
@@ -126,8 +136,12 @@ class awg_window(QMainWindow):
         elif 'save' in cmd:
             try: 
                 path = cmd.split('=')[1]
-                self.awg.saveData(path)
+                self.rr.awg.saveData(path)
                 self.set_status('File saved to '+path)
+                if self.rr.rearrToggle==True:  # if rearranging is on, also save the rearrangement config parameters
+                    self.rr.saveRearrParams(path.rpartition('/')[0])  # saves rearr_config.txt to measure file
+                    self.rr.copyOriginal(path.rpartition('/')[0])     # saves AWGparams_base (the base AWG file without rearr segs)
+                    
             except Exception as e:
                 logger.error('Failed to save AWG data to '+cmd.split('=')[1]+'\n'+str(e))
         elif 'reset_server' in cmd:
@@ -141,89 +155,61 @@ class awg_window(QMainWindow):
             # self.server.add_message(0, 'Trigger sent to DExTer.\n'+'0'*1600)
             self.set_status('Triggering DExTer not yet supported.')
         elif 'start_awg' in cmd:
-            self.awg.start()
+            self.rr.awg.start()
             if spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[3], byref(int32(0))) == 0:
                 self.set_status('AWG started.')
             else:
                 self.set_status('AWG crashed. Use the reset_awg coommand.')
                 print(spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[3], byref(int32(0))))
         elif 'stop_awg' in cmd:
-            self.awg.stop()
+            self.rr.awg.stop()
             self.set_status('AWG stopped.')
-        elif 'set_data' in cmd:
+        elif 'set_data' in cmd:    # need to have functionality that if rearranging is on, add nsegs to segment modified.
             try:
                 t = time.time()
-                self.awg.loadSeg(eval(cmd.split('=')[1]))
+                if self.rr.rearrToggle==True:   # if rearranging, modify cmd to add segment counter to it.
+                    self.rr.rearrLoadSeg(eval(cmd.split('=')[1]))
+                else:
+                    self.rr.awg.loadSeg(eval(cmd.split('=')[1]))  # if no rearranging, do as normal
+    
                 self.set_status('Set data: '+cmd.split('=')[1])
                 self.t_load = time.time() - t
             except Exception as e:
                 logger.error('Failed to set AWG data: '+cmd.split('=')[1]+'\n'+str(e))
-        elif 'set_step' in cmd:
+        elif 'set_step' in cmd:  
             try:
-                self.awg.setStep(*eval(cmd.split('=')[1]))
+                self.rr.awg.setStep(*eval(cmd.split('=')[1]))
                 self.set_status('Set step: '+cmd.split('=')[1])
             except Exception as e:
                 logger.error('Failed to set AWG step: '+cmd.split('=')[1]+'\n'+str(e))
         elif 'reset_awg' in cmd:
             self.renewAWG(cmd)
-        elif 'get_times' in cmd:
+        # elif 'get_times' in cmd:
             logger.info("Data transfer time: %.4g s"%self.t_load)
         
         
         elif 'rearrange' in cmd:   # recevive occupancy string from Pydex
             try:
-                self.awg.calculateSteps(cmd.replace('#','').split('=')[1])
-                self.set_status('Received string = '+cmd.replace('#','').split('=')[1])
+                self.rr.calculateSteps(cmd.replace('#','').split('=')[1])
+               # self.set_status('Received string = '+cmd.replace('#','').split('=')[1])
             except Exception as e:
                 logger.error('Failed to calculate steps: '+cmd.replace('#','').split('=')[1]+'\n'+str(e))
         
-
-        elif 'init_fs' in cmd:    # set new initial frequencies from python terminal
-            try:
-                self.awg.initial_freqs = [float(i) for i in list(cmd.split('=')[1].split(','))] # convert string to list
-                self.set_status('New initial freqs updated = '+cmd.split('=')[1]+' MHz')
-            except Exception as e:
-                logger.error('Failed to update initial rearr frequencies: '+cmd.split('=')[1]+'\n'+str(e))
-
-
-        elif 'target_fs' in cmd:   # set new target frequencies from python terminal
-            try:
-                self.awg.target_freqs = [float(i) for i in list(cmd.split('=')[1].split(','))] # convert string to list
-                self.set_status('New target freqs updated = '+cmd.split('=')[1]+' MHz')
-            except Exception as e:
-                logger.error('Failed to update target rearr frequencies: '+cmd.split('=')[1]+'\n'+str(e)) 
-
-        elif 'rearr_freq_amps' in cmd:  # set frequency amplitude during rearrangment to a specific value.
-            try:    
-                self.awg.setRearrFreqAmps(cmd.split('=')[1])
-                self.set_status('Frequency amplitudes for rearrangment segments set to '+cmd.split('=')[1])
-            except Exception as e:
-                logger.error('Failed to set rearrangement frequency amplitudes to '+cmd.split('=')[1]+'\n'+str(e)) 
-        
-                     
-        # elif 'calc_rsegs' in cmd:
-        #     try:
-        #       #  if len(self.awg.channel_enable)>1:
-        #         self.renewAWG("chans=[0]")
-        #         default_seq = r'Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin\20210514\1chan.txt'
-        #         self.awg.load(default_seq)
-        #         self.set_status('Calculating moves...')
-        #         self.awg.calculateAllMoves()
-        #         self.set_status('Moves uploaded')  # some infor baout n segmetns etc
         elif 'rearr_on' in cmd:
-            try:
-                self.renewAWG("chans=[0]")
-                self.awg.load(r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\rearr_base.txt')    
-                self.awg.rearrToggle = True   # rearrToggle used to determine whether to append segments in a loaded file or not.
+            try:   
+                self.renewAWG('chans=[0]')
+                self.rr.awg.load(r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\rearr_base.txt') # load basic data
+                
+                self.rr.rearrToggle = True   # rearrToggle used to determine whether to append segments in a loaded file or not.
                 if '=' in cmd:
-                    if cmd.partition('=')[2] == 'all':
-                        self.awg.rearrMode = 'use_all'
-                    else: self.awg.rearrMode = 'use_exact'
+                    # if cmd.partition('=')[2] == 'all':
+                    #     self.rr.awg.rearrMode = 'use_all'#
+                    # else: self.rr.awg.rearrMode = 'use_exact'
+                    self.rr.rr_config = cmd.partition('=')[2].strip('file:///')
                 self.set_status('Calculating moves...')
-                self.awg.calculateAllMoves()
-               # self.awg.calculateAllMoves()
+                self.rr.calculateAllMoves()
                 self.set_status('Moves uploaded') 
-                self.awg.start()
+                self.rr.awg.start()
                 if spcm_dwGetParam_i32 (AWG.hCard, AWG.registers[3], byref(int32(0))) == 0:
                     self.set_status('AWG started.')
                 else:
@@ -232,19 +218,45 @@ class awg_window(QMainWindow):
                 
             except Exception as e:
                 logger.error('Failed to calculate all rearrangement segments: '+cmd.split('=')[1]+'\n'+str(e))               
+        
+        elif 'rearr_off' in cmd:
+            self.rr.rearrToggle=False
+            self.set_status('Rearrangement is now off.')
             
-        elif 'rearr_off' in cmd:      # sets rearrToggle to False so that load method works as normal
-            self.awg.rearrToggle = False
-            self.set_status('Rearranging off. Rearr segments will be overwritten \n when AWG.load is called.')    
-            
-        elif 'update_rsegs' in cmd:      # If target / iniital frequencies have been changes, can calc. new segments without renewing AWG.
-            if '=' in cmd:
-                if cmd.partition('=')[2] == 'all':
-                    self.awg.rearrMode = 'use_all'
-                else: self.awg.rearrMode = 'use_exact'
-            self.set_status('Calculating new moves...')
-            self.awg.calculateAllMoves()
-            self.set_status('New moves uploaded')  # some infor baout n segmetns etc            
+#         Commented out because now set in config file, but potentially useful
+#         elif 'init_fs' in cmd:    # set new initial frequencies from python terminal
+#             try:
+#                 self.rr.awg.initial_freqs = [float(i) for i in list(cmd.split('=')[1].split(','))] # convert string to list
+#                 self.set_status('New initial freqs updated = '+cmd.split('=')[1]+' MHz')
+#             except Exception as e:
+#                 logger.error('Failed to update initial rearr frequencies: '+cmd.split('=')[1]+'\n'+str(e))
+# 
+# 
+#         elif 'target_fs' in cmd:   # set new target frequencies from python terminal
+#             try:
+#                 self.rr.awg.target_freqs = [float(i) for i in list(cmd.split('=')[1].split(','))] # convert string to list
+#                 self.set_status('New target freqs updated = '+cmd.split('=')[1]+' MHz')
+#             except Exception as e:
+#                 logger.error('Failed to update target rearr frequencies: '+cmd.split('=')[1]+'\n'+str(e)) 
+# 
+#         elif 'rearr_freq_amps' in cmd:  # set frequency amplitude during rearrangment to a specific value.
+#             try:    
+#                 self.rr.awg.setRearrFreqAmps(cmd.split('=')[1])
+#                 self.set_status('Frequency amplitudes for rearrangment segments set to '+cmd.split('=')[1])
+#             except Exception as e:
+#                 logger.error('Failed to set rearrangement frequency amplitudes to '+cmd.split('=')[1]+'\n'+str(e)) 
+        
+                     
+
+                
+        # elif 'update_rsegs' in cmd:      # If target / iniital frequencies have been changes, can calc. new segments without renewing AWG.
+        #     if '=' in cmd:
+        #         if cmd.partition('=')[2] == 'all':
+        #             self.rr.awg.rearrMode = 'use_all'
+        #         else: self.rr.awg.rearrMode = 'use_exact'
+        #     self.set_status('Calculating new moves...')
+        #     self.rr.calculateAllMoves()
+        #     self.set_status('New moves uploaded')  # some infor baout n segmetns etc            
         
         
         else:
@@ -258,18 +270,18 @@ class awg_window(QMainWindow):
             self.set_status('Invalid renew command: '+cmd)
             logger.error('Could not renew AWG.\n'+str(e))
             return 0
-        self.awg.restart()
-        self.awg.newCard()
-        self.awg = None
-        self.awg = AWG(eval(cmd.split('=')[1]))#
-        self.awg.setNumSegments(8)
+        self.rr.awg.restart()
+        self.rr.awg.newCard()
+        self.rr.awg = None
+        self.rr.awg = AWG(eval(cmd.split('=')[1]))#
+        self.rr.awg.setNumSegments(8)
         # self.awg.setTrigger(0) # 0 software, 1 ext0
-        self.awg.setSegDur(0.002)
+        self.rr.awg.setSegDur(0.002)
         self.set_status('New instance of AWG created.')
         
     def closeEvent(self, event):
         """Safely shut down when the user closes the window."""
-        self.awg.restart()
+        self.rr.awg.restart()
         self.client.close()
         # self.server.close()
         event.accept()        
