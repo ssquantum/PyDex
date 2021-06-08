@@ -2,7 +2,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-from scipy import interpolate
+from scipy.interpolate import interp1d, RectBivariateSpline
 from collections import OrderedDict
 import ctypes
 
@@ -101,7 +101,7 @@ def chirp(t,d,T,a):
 
 
 importPath="Z:\\Tweezer\Experimental\\Setup and characterisation\\Settings and calibrations\\tweezer calibrations\\AWG calibrations\\"
-importFile = "calFile_06.10.2020.txt"
+importFile = "calFile_08.06.2021.txt"
 
 
 with open(importPath+importFile) as json_file:
@@ -111,44 +111,53 @@ with open(importPath+importFile) as json_file:
 contour_dict = OrderedDict(calFile["Power_calibration"]) # for flattening the diffraction efficiency curve: keep constant power as freq is changed
 for key in contour_dict.keys():
     try:
-        contour_dict[key]['Calibration'] = interpolate.interp1d(contour_dict[key]['Frequency (MHz)'], contour_dict[key]['RF Amplitude (mV)'])
+        contour_dict[key]['Calibration'] = interp1d(contour_dict[key]['Frequency (MHz)'], contour_dict[key]['RF Amplitude (mV)'])
     except Exception as e: print(e)
 
 DE_RF_dict = OrderedDict(calFile["DE_RF_calibration"]) # for ramping the amplitude in a linear fashion at a constant freq
 for key in DE_RF_dict.keys():
     try:
-        DE_RF_dict[key]['Calibration'] = interpolate.interp1d(DE_RF_dict[key]['Diffraction Efficiency'], DE_RF_dict[key]['RF Amplitude (mV)'], fill_value='extrapolate')
+        DE_RF_dict[key]['Calibration'] = interp1d(DE_RF_dict[key]['Diffraction Efficiency'], DE_RF_dict[key]['RF Amplitude (mV)'], fill_value='extrapolate')
     except Exception as e: print(e)
 
 
 cal_umPerMHz = calFile["umPerMHz"]
 
 
-def ampAdjuster(freq, optical_power):
+def ampAdjuster1d(freq, optical_power):
     """Find closest optical power in the presaved dictionary of contours, then use interpolation to get the 
     RF amplitude at the given frequency"""
-    if optical_power < 0.01:
-        return np.zeros(np.size(freq)) # there isn't a calibration for 0 power...
-    else:
-        i = np.argmin([abs(float(p) - optical_power) for p in contour_dict.keys()]) 
-        key = list(contour_dict.keys())[i]
-        y = np.array(contour_dict[key]['Calibration'](freq), ndmin=1) # return amplitude in mV to keep constant optical power
-        if (np.size(y)==1 and y>280) or any(y > 280):
-            print('WARNING: power calibration overflow: required power is > 280mV')
-            y[y>280] = 280
-        return y
-    
-def ampRampAdjuster(freq, optical_power):
-    """For the set frequency, interpolate the RF power VS diffraction efficiency curve to return the RF amplitude
-    in mV that outputs the requested diffraction efficiency"""
-    i = np.argmin([abs(float(f) - freq) for f in DE_RF_dict.keys()]) 
-    key = list(DE_RF_dict.keys())[i]
-    y = np.array(DE_RF_dict[key]['Calibration'](optical_power)) # return amplitude in mV
+    i = np.argmin([abs(float(p) - optical_power) for p in contour_dict.keys()]) 
+    key = list(contour_dict.keys())[i]
+    y = np.array(contour_dict[key]['Calibration'](freq), ndmin=1) # return amplitude in mV to keep constant optical power
     if (np.size(y)==1 and y>280) or any(y > 280):
         print('WARNING: power calibration overflow: required power is > 280mV')
         y[y>280] = 280
-    y[y<0] = 0
     return y
+
+fs = np.linspace(135,190,150)
+power = np.linspace(0,1,50)
+mv = np.zeros((len(power), len(fs)))
+for i, p in enumerate(power):
+    try:
+        mv[i] = ampAdjuster1d(fs, p)
+    except Exception as e: print('Warning: could not create power calibration for %s\n'%p+str(e))
+    
+cal2d = RectBivariateSpline(power, fs, mv)
+
+def ampAdjuster2d(freqs, optical_power):
+    """Sort the arguments into ascending order and then put back so that we can 
+    use the 2D calibration"""
+    if np.size(freqs) > 1: # interpolating frequency
+        inds = np.argsort(freqs)
+        f = freqs[inds]
+        return cal2d(optical_power, f)[0][np.argsort(inds)]
+    elif np.size(optical_power) > 1: # interpolating amplitude
+        inds = np.argsort(optical_power)
+        a = optical_power[inds]
+        return cal2d(a, freqs)[:,0][np.argsort(inds)]
+    else:
+        return cal2d(optical_power, freqs)[0]
 
 def getFrequencies(action,*args):
     
@@ -317,7 +326,7 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
     # Generate the data 
     ##########################   
     if amp_adjust:
-        amp_ramp = np.array([ampAdjuster(sfreq[Y]*1e-6 + hybridJerk(t, 1e-6*rfreq[Y], numOfSamples, a), startAmp[Y]) for Y in range(l)])
+        amp_ramp = np.array([ampAdjuster2d(sfreq[Y]*1e-6 + hybridJerk(t, 1e-6*rfreq[Y], numOfSamples, a), startAmp[Y]) for Y in range(l)])
         s = np.sum(amp_ramp, axis=0)
         if any(s > 280):
             print('WARNING: multiple moving traps power overflow: total required power is > 280mV, max is:'+str(round(max(s),2))+'mV')
@@ -350,8 +359,8 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
         amp_ramp_adjusted = []
         for Y in range(l):
             traj = hybridJerk(idxs, rfreq[Y]*1e-6, numOfSamples, a)
-            amp_ramp_adjusted.append(interpolate.interp1d(idxs, 
-                np.concatenate([ampAdjuster(sfreq[Y]*1e-6 + traj[i], amp_ramp[Y][i]/tot_amp)
+            amp_ramp_adjusted.append(interp1d(idxs, 
+                np.concatenate([ampAdjuster2d(sfreq[Y]*1e-6 + traj[i], amp_ramp[Y][i]/tot_amp)
                     for i in range(100)]), kind='linear'))
 
         y = 1./282*0.5*2**16 *np.sum([
@@ -434,7 +443,7 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1
     ########################## 
     t = np.arange(numOfSamples)
     if ampAdjust ==True:
-        amps = [ampAdjuster(freqs[Y]*10**-6,freq_amp[Y]) for Y in range(numberOfTraps)]
+        amps = [ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y]) for Y in range(numberOfTraps)]
         if sum(amps) > 280:
             print('WARNING: multiple static traps power overflow: total required power is > 280mV, is :'+str(np.around(sum(amps)))+'mV')
             return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
@@ -524,7 +533,7 @@ def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=22
     t =np.arange(numOfSamples)
     if ampAdjust:
         y = 1./282*0.5*2**16*\
-            np.sum([ampRampAdjuster(adjFreqs[Y]*1e-6, np.linspace(startAmp[Y], endAmp[Y], numOfSamples)) * 
+            np.sum([ampAdjuster2d(adjFreqs[Y]*1e-6, np.linspace(startAmp[Y], endAmp[Y], numOfSamples)) * 
                 np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     else:
         y = 1.*tot_amp/282/len(freqs)*0.5*2**16*\
@@ -592,7 +601,7 @@ def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duratio
         if (np.size(mod_amp)==1 and mod_amp>1) or any(mod_amp > 1):
             print('WARNING: power calibration overflow: cannot exceed freq_amp > 1')
         return 1./282*0.5*2**16*np.sum([
-            ampRampAdjuster(freqs[Y]*10**-6, freq_amp[Y]*(1 + mod_amp)
+            ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y]*(1 + mod_amp)
             )*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360.) for Y in range(numberOfTraps)],axis=0)
     else:
        return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*(1+mod_amp)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
@@ -668,11 +677,11 @@ def switch(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration=0.1,o
     if ampAdjust ==True:
         try:
             return 1./282*0.5*2**16 * np.concatenate((
-                np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y])*np.sin(2.*np.pi*t0*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0),
+                np.sum([ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y])*np.sin(2.*np.pi*t0*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0),
                 np.zeros(numOfSamples - len(t0) - len(t1)),
-                np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y])*np.sin(2.*np.pi*t1*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)))
+                np.sum([ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y])*np.sin(2.*np.pi*t1*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)))
         except ValueError: # if off time = 0
-            return 1./282/len(freqs)*0.5*2**16 * np.sum([ampAdjuster(freqs[Y]*10**-6,freq_amp[Y])*np.sin(2.*np.pi*np.arange(numOfSamples)*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+            return 1./282/len(freqs)*0.5*2**16 * np.sum([ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y])*np.sin(2.*np.pi*np.arange(numOfSamples)*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     else:
         try: 
             return 1.*tot_amp/282/len(freqs)*0.5*2**16 * np.concatenate((
@@ -698,19 +707,6 @@ def sine_offset(mod_freq=170*10**3,duration = 0.1,dc_offset=100,mod_amp=10,sampl
     t = 2.*np.pi*np.arange(numOfSamples)/sampleRate
     return dc_offset/282.*0.5*2**16 * (1 + mod_amp*np.sin(t*mod_freq))
 
-#Using ideas from the following:
-#https://towardsdatascience.com/reshaping-numpy-arrays-in-python-a-step-by-step-pictorial-tutorial-aed5f471cf0b
-def multiplex_old(*array):
-    """
-    converts a list of arguments in the form of [a,a,a,...], [b,b,b,...],[c,c,c,...]
-    into a multiplexed sequence: [a,b,c,a,b,c,a,b,c,...]
-    """
-    l=len(array)
-    a_stack = np.stack((array[x] for x in range(l)),axis=0)
-    return a_stack.ravel(order="F")
-
-# Based on the following        
-# https://stackoverflow.com/questions/3195660/how-to-use-numpy-array-with-ctypes    
 def multiplex(*array):
     """
     converts a list of arguments in the form of [a,a,a,...], [b,b,b,...],[c,c,c,...]
@@ -721,10 +717,6 @@ def multiplex(*array):
     for x in range(l):
         c[x::l] = array[x]
     return c
-# a1 = np.array([1,3,5])
-# a2 = np.array([2,4,6])
-# a3 = np.array([12,14,16])
-# print(multiplex(a1,a2))
 
 def lenCheck(*args):
     """
@@ -732,11 +724,6 @@ def lenCheck(*args):
     """
 
     return all(len(args[0])==len(args[x]) for x in range(0,len(args)))
-
-# a1 = np.array([1,3,5])
-# a2 = np.array([2,4,6])
-# a3 = np.array([12,14,16])
-# print(lenCheck(a1,a2))
     
 def typeChecker(x):
     """
@@ -749,58 +736,6 @@ def typeChecker(x):
         return x
 
 if __name__ == "__main__":
-    ls = np.array([100e6,150e6,180e6])
-    ls2 = np.array([200e6,170e6,180e6])
-    l2=len(ls)
-    set1 =[ls,ls2,0.12,625e6]
-    set2 =[[1,2,3],[10,8,1],1024,100]
-    var = set1
-   
-    """
-    Standard templates for each of the 'actions'
-    """
-    #template = static(170e6,3,-0.329*5,0.02,220,[1,0,0],[0,0,0],False,False,625*10**6)
-    template   = moving(var[0], var[1],var[2],1,220,[1,0,0],[0,0,0],[0]*l2,False,False,var[3])
-    #template = ramp(np.array([138e6,180e6]),2,-0.329*50,0.2,220,[1,0],[0.5,0],[0,0],False,False,625e6)
-    template2 = ampModulation(170e6,3,-0.329*5,0.02,220,[1,0,0],100e3,0.5,[0,0,0],False,False,625*10**6)
-    
-    """
-    The following lines are for multiplexing data
-    """
-    # a1 = static(var[0][0],1,-0.329*5,var[2],220,[1],[0],False,False,var[3])
-    # a2 = static(var[1][0],1,-0.329*5,var[2],220,[1],[0],False,False,var[3])
-    # am = multiplex(a1,a2)
-    # template  = am[ : :2]
-    # template2 = am[1: :2]
-    
-    r = template
-    r2=template2
-    length = 10000 # len(r)
-    
-    """
-    Basic data plots for static/move/ramp functions
-    """
-    # fig1,axs = plt.subplots(2,1)
-    # axs[0].plot(np.arange(0,length),r[:length])
-    # axs[0].plot(np.arange(0,length),r2[:length])
-    # #axs[0].set_ylim([-0.5*2**16,0.5*2**16])
-    # axs[0].set_xlabel("Number of Samples (First " +str(length)+ ")")
-    # axs[0].set_ylabel("Amplitude , arb")
-    # 
-    # 
-    # 
-    # axs[1].plot(np.arange(0,length),r[-length:])
-    # axs[1].plot(np.arange(0,length),r2[-length:])
-    # #axs[1].set_ylim([-0.5*2**16,0.5*2**16])
-    # axs[1].set_xlabel("Number of Samples (Last " +str(length)+ ")")
-    # axs[1].set_ylabel("Amplitude, arb")
-    # fig1.tight_layout(pad=3.0)
-    # fig1.show()
-    
-    
-    
-    
-    
     """
     FFT plot of the selected action function.
     """
@@ -810,89 +745,6 @@ if __name__ == "__main__":
     #plt.plot(np.fft.fftfreq(len(r), 1/625e6), np.fft.fft(r))
     
     
-    """
-    Plots of the amplitude flattening for the static and ramp functions
-    as well as useful interpolation curves.
-    """
-    
-#     gs=GridSpec(3,2) # 2 rows, 2 columns
-#     fig=plt.figure(figsize=(8,8))
-#     
-#     xint =np.arange(120,220,0.1)
-#     yint = int166(xint) 
-#     
-#     intmVtoDEX =  np.arange(100,280,0.1)      
-#     intmVtoDEY = intmVtoDE(intmVtoDEX)
-# 
-#     ax1=fig.add_subplot(gs[0,:]) # First row, span columns  
-#     ax2=fig.add_subplot(gs[1,0]) # Second row, first column
-#     ax3=fig.add_subplot(gs[1,1]) # Second row, second column
-#     ax4=fig.add_subplot(gs[2,:]) # Third row, span columns 
-#     
-#     ax1.plot(cal166X,cal166Y, linestyle='--', marker='o')
-#     ax1.plot(xint,yint)
-#     ax1.set_xlabel("Frequency, MHz")
-#     ax1.set_ylabel("Relative DE (@166 MHz)")
-#     
-#     ax2.plot(mVs,mVtoDE, linestyle='--', marker='o')
-#     ax2.plot(intmVtoDEX,intmVtoDEY)
-#     ax2.set_xlabel("AWG output ,  mV")
-#     ax2.set_ylabel("DE % (@170 MHz)")
-#     
-#     ax3.plot(mVtoDE,mVs, linestyle='--', marker='o')
-#     ax3.plot(intmVtoDEY,intmVtoDEX)
-#     ax3.set_xlabel("DE % (@170 MHz)")
-#     ax3.set_ylabel("AWG output ,  mV")
-#     
-#     
-#     x2=np.linspace(120,220,1000)
-#     ax4.plot(x2,ampAdjuster(x2,1))
-#     ax4.plot(x2,ampAdjuster(x2,0.9))
-#     ax4.plot(x2,ampAdjuster(x2,0.8))
-#     ax4.plot(x2,ampAdjuster(x2,0.6))
-#     ax4.set_xlabel("Frequency, MHz")
-#     ax4.set_ylabel("Fractional Amplitude (rel. to 166 MHz)")
-# 
-#     fig.tight_layout()
-#     fig.show()
-
-    """
-    Testing the amplitude flattening during a move action.
-    Frequencies spanned are reproduced according to the hybridicity value a.
-    These frquencies are then fed into the amplitude conversion (for a given total amplitude)
-    """
-    #samples = 1000
-    #tvals= np.arange(samples)
-    #startFreq = 120
-    #endFreq =200
-    #d = (endFreq-startFreq)
-    #
-    #
-    #freqChange0 = startFreq+hybridJerk(tvals,d, samples,0) #calculates the frequencies used for a given hybridicity trajectory a=0
-    #freqChange1 = startFreq+hybridJerk(tvals,d, samples,1) #calculates the frequencies used for a given hybridicity trajectory a=1
-    #
-    #ampMove0 = ampAdjuster(freqChange0,1)
-    #ampMove1 = ampAdjuster(freqChange1,1)
-    #
-    #gs=GridSpec(2,1) # 2 rows, 2 columns
-    #fig2=plt.figure(figsize=(6,6))
-    #ax1=fig2.add_subplot(gs[0,:]) # First row, span columns
-    #ax1.plot(tvals,freqChange0, linestyle='--', marker='o')
-    #ax1.plot(tvals,freqChange1, linestyle='--', marker='o')
-    #ax1.set_xlabel("Samples")
-    #ax1.set_ylabel("Frequency, arb")
-    #
-    #
-    #
-    #
-    #ax2 =fig2.add_subplot(gs[1,:]) # First row, span columns
-    #ax2.plot(tvals,ampMove0, linestyle='--', marker='o')
-    #ax2.plot(tvals,ampMove1, linestyle='--', marker='o')
-    #ax2.set_xlabel("Samples")
-    #ax2.set_ylabel("Fractional Amplitude correction")
-    #fig2.tight_layout()
-    #fig2.show()
-
     """
     For timing purposes
     """

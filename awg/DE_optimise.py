@@ -69,7 +69,7 @@ class Optimiser():
         # self.t.start()
         # self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[fset],1,9, amp,[1],[0],False,False))
         # self.t.setStep(0,0,1,0,1)
-        self.t.load(r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\test amp_adjust\swap_static.txt')
+        self.t.load(r'Z:\Tweezer\Experimental\AOD\AWG template sequences\test amp_adjust\swap_static.txt')
         self.t.start()
 
     def respond(self, msg=''):
@@ -149,20 +149,20 @@ if __name__ == "__main__":
         
     o = Optimiser(f0=130, f1=190, nfreqs=61, fset=166, pwr=1, tol=1e-3, sleep=0.3)
     o.t.getParam(3)
+    o.s.textin.disconnect()
     # o.restart()
     
     # from numpy.random import shuffle
-    # fs = np.arange(120, 220)
+    # fs = np.linspace(120, 220, 201)
     # # fs = np.delete(fs, np.array([154, 174, 152, 169, 155, 208, 140, 199, 173, 121, 189, 120])-120)
     # shuffle(fs)
-    # amps = np.linspace(1,230,120)
+    # amps = np.linspace(1,280,50)
     # shuffle(amps)
-    # fdir = r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\111020AWG_power_calibration'
-    # os.mkdir(fdir, exist_ok=True)
-    # o.s.textin.disconnect()
+    # fdir = r'Z:\Tweezer\Experimental\Setup and characterisation\Settings and calibrations\tweezer calibrations\AWG calibrations\07062021AWG_power_calibration'
+    # os.makedirs(fdir, exist_ok=True)
     # o.s.add_message(o.n, fdir+'=save_dir')
     # o.s.add_message(o.n, 'reset graph')
-    # # for f in fs:
+    # for f in fs:
     #     for a in amps:
     #         o.n = int(a)
     #         o.s.add_message(o.n, 'sets n') # sets the amplitude for reference
@@ -171,7 +171,7 @@ if __name__ == "__main__":
     #                         o.t.dataGen(1,1,'static',1,[f],1,9, a,[1],[0],False,False))
     #         # o.t.loadSeg([[0,0,'freqs_input_[MHz]',f,0],[0,0,'tot_amp_[mV]',a,0]])
     #         o.measure()
-    #     o.s.add_message(o.n, '%.3gMHz.csv=graph_file'%f)
+    #     o.s.add_message(o.n, '%.1fMHz.csv=graph_file'%f)
     #     time.sleep(0.01)
     #     o.s.add_message(o.n, 'save graph')
     #     time.sleep(0.01)

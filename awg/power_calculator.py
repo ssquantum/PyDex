@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 sys.path.append(r'Z:\Tweezer\Code\Python 3.5\PyDex\awg')
-from spcm_home_functions import contour_dict, DE_RF_dict, ampAdjuster, ampRampAdjuster
+from spcm_home_functions import contour_dict, DE_RF_dict, ampAdjuster1d, ampAdjuster2d
 
 #### for a given frequency and RF power in, what is the expected output optical power?
 def estimate_optical_power(frequency, RF_power):
@@ -28,13 +28,13 @@ print('Expected output power at %s MHz, %.4g mV: %.4g %%'%(f, rf, p*100))
 
 f = 166 # AWG frequency in MHz
 p = 0.5 # optical power as a fraction of that at 166 MHz, 220mV
-print('Required RF power to get %.3g%% output at %s MHz: %.4g mV'%(p*100, f, ampAdjuster(f, p)))
+print('Required RF power to get %.3g%% output at %s MHz: %.4g mV'%(p*100, f, ampAdjuster1d(f, p)))
 
 ## for multiple frequencies
-freqs = np.linspace(135, 195, 200) # frequency in MHz
+freqs = np.linspace(135, 190, 200) # frequency in MHz
 power = 0.5 # optical power as a fraction of that at 166 MHz, 220mV
 plt.figure(0)
-plt.plot(freqs, ampAdjuster(freqs, power))
+plt.plot(freqs, ampAdjuster1d(freqs, power))
 plt.xlabel('AWG Frequency (MHz)')
 plt.ylabel('RF power (mV) \nrequired for %.3g%% output'%(power*100))
 
@@ -42,7 +42,7 @@ plt.ylabel('RF power (mV) \nrequired for %.3g%% output'%(power*100))
 freq = 166 # frequency in MHz
 powers = np.linspace(0.01,1,200) # optical power as a fraction of that at 166 MHz, 220mV
 plt.figure(1)
-plt.plot(powers*100, ampRampAdjuster(freq, powers))
+plt.plot(powers*100, ampAdjuster2d(powers, freq)[:,0])
 plt.xlabel('Requested Optical Power (%)')
 plt.ylabel('RF power (mV) \nrequired at %s MHz'%(freq))
 
@@ -52,7 +52,7 @@ plt.ylabel('RF power (mV) \nrequired at %s MHz'%(freq))
 # diff = np.zeros((len(freqs), len(powers)))
 # for i, F in enumerate(freqs):
 #     for j, P in enumerate(powers):
-#         diff[i,j] = ampAdjuster(F, P) - ampRampAdjuster(F, P)
+#         diff[i,j] = ampAdjuster1d(F, P) - ampAdjuster2d(P, F)[0]
 # 
 # plt.figure(2)
 # # the amp adjuster uses discrete optical powers, whereas amp ramp uses discrete frequencies
@@ -62,4 +62,4 @@ plt.ylabel('RF power (mV) \nrequired at %s MHz'%(freq))
 # plt.title('Difference in RF power between \ninterpolation functions (mV)')
 # plt.xlabel('Frequency (MHz)')
 # plt.ylabel('Requested Optical Power')
-# plt.show()
+plt.show()

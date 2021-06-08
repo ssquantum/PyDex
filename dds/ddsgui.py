@@ -13,6 +13,7 @@ import glob
 import datetime
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 from collections import OrderedDict
 
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -256,6 +257,17 @@ class Ui_MainWindow(object):
     def powercal(self, amp):
         """Recalibrate the amplitude to account for AOM nonlinearity"""
         return cals[self.ind](amp)
+    
+    def plot_RAM_playback_data(self):
+        """pop-up plot of RAM playback data to check that it's right"""
+        for i in range(len(self.AMW)):
+            try:
+                plt.plot(np.around(2**14 *self.powercal(np.absolute(
+                        self.RAM_modulation_data[i][0,:])/ np.amax(
+                            self.RAM_modulation_data[i][0, :])*self.AMW[i]), decimals = 0),
+                    label=str(i))
+            except IndexError: pass
+        plt.show()
                     
     def redisplay_profiles(self):
         """Set the stored STP and RAM profile data into the text labels."""

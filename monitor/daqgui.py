@@ -851,11 +851,11 @@ def run():
         sys.exit(app.exec_()) # when the window is closed, the python code also stops
             
 if __name__ == "__main__":
-    # app = QApplication.instance()
-    # standalone = app is None # false if there is already an app instance
-    # if standalone: # if there isn't an instance, make one
-    #     app = QApplication(sys.argv)
-    # 
-    # d = daq_window(config_file=r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\DEoptimiseConfig.dat', host='129.234.190.235')
-    # d.show()
-    run()
+    app = QApplication.instance()
+    standalone = app is None # false if there is already an app instance
+    if standalone: # if there isn't an instance, make one
+        app = QApplication(sys.argv)
+    
+    d = daq_window(config_file=r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\DEoptimiseConfig.dat', host='129.234.190.235')
+    d.show()
+    # run()

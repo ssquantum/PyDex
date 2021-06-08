@@ -1,4 +1,4 @@
-n=91
+n=1020
 config_file=Z:/Tweezer/Code/Python 3.5/PyDex/monitor/DEoptimiseConfig.dat
 trace_file=DAQtrace.csv
 graph_file=153MHz.csv
