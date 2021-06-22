@@ -1,23 +1,25 @@
 {
  "static_duration_[ms]":1,
  "hybridicity":0,
- "power_ramp":true,
+ "power_ramp":false,
  "freq_adjust":false,
  "target_freqs":[
-  190.0
+  180.0
  ],
  "amp_adjust":true,
+ "phase_adjust":true,
  "ramp_duration_[ms]":5,
  "channel":0,
  "rearr_freq_amps":0.2,
  "initial_freqs":[
-  190.0,
-  177.5,
-  165.0
+  180.0,
+  167.5,
+  155.0,
+  150
  ],
- "tot_amp_[mV]":280,
- "final_freq_amp":0.5,
+ "tot_amp_[mV]":220,
+ "final_freq_amp":0.2,
  "moving_duration_[ms]":1,
  "headroom_segs":10,
- "rearrMode":"use_exact"
+ "rearrMode":"use_all"
 }

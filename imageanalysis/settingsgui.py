@@ -623,11 +623,14 @@ class settings_window(QMainWindow):
                     mw.objectName() + measure_prefix + '.dat'), 'a') as f:
                 f.write(','.join(list(map(str, mw.histo_handler.temp_vals.values()))) + '\n')
         # save and reset the histograms, make sure to do reimage windows first!
-        for mw in self.rw[:len(self.rw_inds)] + self.mw[:self._a] + self.cw: 
+        for mw in self.rw[:len(self.rw_inds)] + self.mw[:self._a]: 
             if self.send_data: self.send_results(measure_prefix, hist_id, mw)
             mw.save_hist_data(save_file_name=os.path.join(results_path, measure_prefix, 
                     mw.objectName() + str(hist_id) + '.csv'), confirm=False) # save histogram
             mw.image_handler.reset_arrays() # clear histogram
+        for mw in self.cw:
+            if self.send_data: self.send_results(measure_prefix, hist_id, mw)
+            mw.add_stats_to_plot()
             
     def send_results(self, measure_prefix, hist_id, mw):
         """Send a TCP message to influxdb with the data from the most recent measure.

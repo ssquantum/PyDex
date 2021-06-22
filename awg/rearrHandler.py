@@ -1,5 +1,5 @@
 """
-25/05/2021
+25/05/2021 Vincent Brooks
 Moved rearrangement functions to seperate script to keep seperate from AWG base functions (tidier).
 Now awgMaster instantiates rearrangementHandler which instantiates awgHandler.
  - awgHandler behaves as normal. 
@@ -13,7 +13,22 @@ Core rearrangement functions (1D array)
  - calculateSteps     : receives a string of the form 01110 and calculates segments needed to rearrange.
  - load               : modified version of awg.load which is only used if rearrangement is on. Edits the segments 
                         and steps of the loaded file to append to the existing rearrangement steps and segments.
-                    
+
+07/06/2021
+Made key change: load, save and loadSeg functions are redefined depending if rearrToggle == True/False (rearr on/off)
+ - Functions are set in rearrange.set_functions which is called when rearrange Toggle is changed.
+    - This avoid lots of IF statements in other methods, since functions set at top level, makes cleaner, makes faster.
+
+Made change to how moves are calculated: instead of loading all moves to card, now segment data is added to a dictionary
+ which during setRearrSeg is uploaded to the card via awg.setSegment. The reason for this is that setSegment method is fast
+ and doing it this way removes segment limit from card. Also solves trigger synchronisation issue.
+
+
+RVB SUGGESTIONS FOR FUTURE CHANGES:
+ - If you want to add a new type of rearrangement in future, I recommend: 
+      1. Make a method which redefines calculateAllMoves and calculateSteps depending on the type selected (e.g. 1D or 2x1D or 2D)
+         (see the set_functions method for inspiration)
+      2. This will allow you to change the rearrangement logic, while keeping the existing methods + functionality.                     
 
 """
 
@@ -36,14 +51,25 @@ class rearrange():
         # Rearrangement variables
         
         self.awg = AWG(AWG_channels) # opens AWG card and initiates
-
+        
+        self.activate_rearr(False)
         
         self.movesDict = {}           # dictionary will be populated when segments are calculated
         self.segmentCounter = 0       # Rearranging: increments by 1 each time calculateAllMoves uploaded a new segment
-        self.rr_config = r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\rearr_config.txt'  # default location of rearrange config file
-        self.loadRearrParams()        # Load rearrangment parameters from a config file
-        self.rearrToggle = False      # Toggle rearrangement on or off: important for appending loaded metadata file to rearr segments
+        self.rr_config = r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\rearr_config_files\rearr_config.txt'  # default location of rearrange config file
+        self.loadRearrParams()        # Load rearrangment parameters from a config file   
         self.lastRearrStep = 0        # Tells AWG what segment to go to at end of rearrangement
+        self.OGfile = None
+    
+    def activate_rearr(self, toggle = False):
+        """Turn rearranging ON or OFF. Calls set_functions whenever rearrToggle is changed so that there 
+           is no mixup.
+           Args: 
+               - toggle: True or False.
+        """
+        self.rearrToggle = toggle
+        self.set_functions()
+        
     
     def calculateAllMoves(self):
         """Given the initial and target frequencies, calculate all the possible moves
@@ -60,79 +86,65 @@ class rearrange():
             
             
             """
-        
+        t0 = time.time()
         # reinitialise values
         self.segmentCounter = 0 # RESET the segment counter when recalculating segments
         self.movesDict={}
         self.loadRearrParams()
         self.lastRearrStep=0
         
+        req_n_segs = self.rParam['headroom_segs']   #  Add 10 to required num of rearr segs for appending auxilliary moves afterwards
+        self.awg.setNumSegments(req_n_segs)
+        start_key = self.fstring(self.initial_freqs) # Static array at initial trap freqs 
+        self.createRearrSegment(start_key+'si', seg=0)
+
         # rearrMode = use_exact: rearrangement only occurs if AT LEAST the target number of atoms is loaded
         if self.rearrMode == 'use_exact':
-            req_n_segs = comb(len(self.initial_freqs), len(self.target_freqs)) + self.rParam['headroom_segs'] + 3  # +3 for static initial, target & ramping array
-            self.awg.setNumSegments(req_n_segs)    # n segments: combination of all moves + a few extra for other moves.
-            
-            start_key = self.fstring(self.initial_freqs) # Static array at initial trap freqs 
-            self.createRearrSegment(start_key+'si')
             
             end_key = self.fstring(self.target_freqs) # Static array at target trap freqs
-            self.createRearrSegment(end_key+'st')
+            if self.rParam['power_ramp'] == False:
+                self.createRearrSegment(end_key+'st', seg=2)
+                self.segmentCounter = 3
             if self.rParam['power_ramp'] == True:
-                self.createRearrSegment(end_key+'r')   # ramp target sites up to a freq_amp value.
+                self.createRearrSegment(end_key+'r', seg=2)   # ramp target sites up to a freq_amp value.
+                self.createRearrSegment(end_key+'st', seg=3)
+                self.segmentCounter = 4
         
             if len(self.initial_freqs) < len(self.target_freqs):
                 print('WARNING: more target frequencies than initial frequencies! \n '
                             'Moves not calculated.')
             
             else:   # proceed if fewer target traps than initial traps 
-                for x in combinations(start_key, len(self.target_freqs)):
-                    self.createRearrSegment(''.join(x)+'m'+''.join(self.fstring(self.target_freqs)))
-            self.r_setStep(0,0,1,0,1)
-          #  print("TODO: self.filedata['steps'] = ")
-            
+                for m in range(len(self.target_freqs)):  # loop over m means we can deal with cases nLoaded < nTarget
+                    for x in combinations(start_key, len(self.target_freqs)-m):
+                        nloaded="".join(x)
+                        self.createRearrSegment(nloaded+'m'+''.join(self.fstring(self.target_freqs[:len(nloaded)])), seg=1) # dont supply seg arg here so that data is not set
+            #self.r_setStep(0,0,1,0,1)
             
         # rearrMode = use_all: ANY atom which is loaded will be rearranged to make as large a complete array as possible.
         elif self.rearrMode == 'use_all':
-            start_key = self.fstring(self.initial_freqs) # Static array at initial trap freqs 
-            
-            # calculate number of segments required:
-            req_n_segs = self.rParam['headroom_segs']   #  Add 10 to required num of rearr segs for appending auxilliary moves afterwards
-            for j in range(len(start_key)):                          # Loop goes through number of sites loaded, e.g. 3/5, 4/5 etc
-                nloaded = len(start_key)-j                            # and move combinations for each are added to req. num segments.
-                req_n_segs += comb(len(start_key), nloaded) + 1   # +1 for target static array +1 for target ramping array
-                if self.rParam['power_ramp']==True:
-                    req_n_segs+=1
-            self.awg.setNumSegments(req_n_segs)
-            
-            self.createRearrSegment(start_key+'si')
             
             # Generate each segment
             for j in range(len(start_key)):
                 nloaded = len(start_key)-j   
-                end_key = self.fstring(self.target_freqs[:j+1])  # Creat segemtn: static array at target trap freqs
+                end_key = self.fstring([1]*nloaded)  # Creat segment: static array at target trap freqs
                 
-                self.createRearrSegment(end_key+'st')  # if 5 sites, there's 5 possible end static arrays: 1,2,3,4, or 5 traps
-                
-                if self.rParam['power_ramp'] == True:
-                    self.createRearrSegment(end_key+'r')   # ramp end trap amplitudes up to a new frequency amplitude. 
+                self.createRearrSegment(end_key+'st', seg=2)
+                self.segmentCounter = 3
                 
                 for x in combinations(start_key, nloaded):   #  for each of the possible number of traps being loaded
-                    self.createRearrSegment(''.join(x)+'m'+''.join(self.fstring([1]*nloaded)))
-            self.r_setStep(0,0,1,0,1)
-          #  print("TODO: self.filedata['steps'] = ")
+                    self.createRearrSegment(''.join(x)+'m'+''.join(self.fstring([1]*nloaded)),seg=1)
             
-        self.calculateSteps('1'*len(self.initial_freqs))   #  after calcualting all moves, run calculateSteps to avoid errors.
-            
-    def createRearrSegment(self, key):
+        self.setBaseRearrangeSteps()    # Once all moves calculated, set the base segments which are constant during rearrangement
+
+        t1 = time.time()
+        print('All move data calculated in '+str(round(t1-t0,3))+' seconds.')                        
+    def createRearrSegment(self, key, seg=None):
         """
         Pass a key to this function which will:
             1. Parse the key to determine if static or moving or ramping
             2. Using default inputs from rParams dictionary, generate data
-            3. Call setSegment to upload data to card for that segment
-            4. Call setStep 
-            5. Increment segment counter and append to movesDict dictionary
-        By tying setSegment to the segmentCounter / moveDict in this function,
-        you can't accidentally miss a segment index or overwrite it.
+            3. Assign the data to movesDict with the given key. 
         
         Args:
             key - of the form:
@@ -141,17 +153,26 @@ class rearrange():
                         - 0134m012 (moving, from initial array (sites 0134) -> target array (sites01)
                         - 012r   (power ramping, use target array freqs)               
         """
-        
+        if seg == None:  # specify the exact segment in the card, else it will default to 1 (the rearranging moving seg is 1)
+            seg = 1
         # STATIC TRAP
         if 's' in key:
             fa = self.rearr_freq_amp
             if 'si' in key:                # Initial array of static traps
                 f1 = self.flist(key.partition('s')[0], self.initial_freqs)
             elif 'st' in key:              # Target array of static traps
-                f1 = self.flist(key.partition('s')[0], self.target_freqs)
+                if self.rearrMode =='use_exact':
+                    f1 = self.flist(key.partition('s')[0], self.target_freqs)
+                elif self.rearrMode == 'use_all':
+                    f1 = self.flist(key.partition('s')[0], self.initial_freqs)
+                    
                 if self.rParam['power_ramp']==True:
                     fa = self.rParam['final_freq_amp']
-            data = self.awg.dataGen(self.segmentCounter,
+            if self.rParam['phase_adjust'] == True:
+                phase = self.phase_adjust(len(f1))
+            else:
+                phase = [0]*len(f1)
+            data = self.awg.dataGen(seg,
                                 self.rParam['channel'],
                                 'static',                               # action
                                 self.rParam['static_duration_[ms]'],
@@ -159,14 +180,19 @@ class rearrange():
                                 1,9, # pointless legacy arguments 
                                 self.rParam['tot_amp_[mV]'],
                                 [fa]*len(f1),         # tone freq. amps
-                                [0]*len(f1),                      #  tone phases
+                                phase,                      #  tone phases
                                 self.rParam['freq_adjust'],     
                                 self.rParam['amp_adjust'])
         # MOVING TRAP    
         elif 'm' in key: # Move from initial array to target array of static traps
             f1 = self.flist(key.partition('m')[0], self.initial_freqs) 
-            f2 = self.flist(key.partition('m')[2], self.target_freqs)
-            data = self.awg.dataGen(self.segmentCounter,
+            if self.rearrMode == 'use_exact':
+                f2 = self.flist(key.partition('m')[2], self.target_freqs)
+                fa = self.rearr_freq_amp
+            elif self.rearrMode == 'use_all':
+                f2 = self.flist(key.partition('m')[2], self.initial_freqs)
+                
+            data = self.awg.dataGen(seg,
                                 self.rParam['channel'],
                                 'moving',
                                 self.rParam['moving_duration_[ms]'],
@@ -186,7 +212,7 @@ class rearrange():
                 ffa = 1/len(f2)                              # else it will go to the value you have specified.
             else:
                 ffa = self.rParam['final_freq_amp']
-            data = self.awg.dataGen(self.segmentCounter,
+            data = self.awg.dataGen(seg,
                                 self.rParam['channel'],
                                 'ramp',
                                 self.rParam['ramp_duration_[ms]'],
@@ -199,86 +225,84 @@ class rearrange():
                                 self.rParam['freq_adjust'],     
                                 self.rParam['amp_adjust'])
         
-        self.awg.setSegment(self.segmentCounter,data)
-        
-        self.movesDict[key] = self.segmentCounter
-        print(self.segmentCounter)
-        self.segmentCounter += 1
+        # self.awg.setSegment(self.segmentCounter,data)
+        # self.movesDict[key] = self.segmentCounter
+        self. movesDict[key] = data   # List of data saves to movesDict, can be inserted to setSegment during rearrangement.
+        if seg is not None or 1:   # If you have specified the segment argument, it will set segment (used ininitial setup of rearr)
+            self.awg.setSegment(seg, data) # because of garbage awgHandler code, need to call setSegment immediately after datagen
     
-    #   def setStep(self,stepNum,segNum,loopNum,nextStep, stepCondition ):
     def r_setStep(self, *args):
         """Calls the AWG set step function and also updates the filedata dictionary.
-        Args same as setStep. """
+        Args same as setStep. 
+        # NOTE this function might actually be unecessary... (regular setStep might already update filedata dictionary)
+        """
         self.awg.setStep(*args)
         #keys = ['step_value','segment_value','num_of_loops','next_step','condition'] # order arguments correctly
         for i in range(len(self.awg.stepOrder)):
             self.awg.filedata['steps']['step_'+str(args[0])][self.awg.stepOrder[i]]=args[i]
 
-    def calculateSteps(self, occupancyStr):
-        """Assume the image has been converted to list of 0s and 1s.
-            Convert this to a string of occupancies in the key format established
-            choose the moves to do
-            args:
-                occupancyStr = string of 0's & 1's e.g. '0101010' 
-                
-            """
-        t1 = time.time()
+    def setBaseRearrangeSteps(self):
+        """ Set the steps to follow during the rearrangement (only segment 1 will be changed during routine)
+        """
+
+        # Setting the steps:  (probably a cleaner way to do this)
+        
+        self.r_setStep(0, 0, 1, 1, 1)   # Static traps until TTL received  
+        self.r_setStep(1, 1, 1, 2, 2)   # Moving traps for fixed duration, automatically moves to next step 
+            
+        if self.rParam['power_ramp']==False:  
+            self.r_setStep(2, 2, 1, self.lastRearrStep, 1)  # Static traps on at target site until triggered.
+        elif self.rParam['power_ramp'] == True: 
+            self.r_setStep(2, 2, 1, 3, 2) 
+            self.r_setStep(3, 3, 1, self.lastRearrStep, 1)  # Static traps on at target site until triggered.
+        
+        
+
+    def setRearrSeg(self, occupancyStr):
+        """Calculate the  rearrangement step required. 
+           Args: 
+               - occupancyStr = string of 0's & 1's e.g. '0101010' 
+           
+            Basically then converts this to a key, which is used to look in movesDict for the correct
+            data, which is then sent to card via awg.setSegment.
+        
+        """
+
+
         keyStr = self.convertBinaryOccupancy(occupancyStr)
         
-        # Warnings to flag a mismatch in number of PyDex atomchecker ROIs compared to number of active tweezer tones 
-        if len(occupancyStr) > len(self.initial_freqs):
-            print('WARNING: There are '+str(np.abs(len(occupancyStr)-len(self.initial_freqs)))+' fewer traps than PyDex ROIs')
-            
-        if len(occupancyStr) < len(self.initial_freqs):
-            print('WARNING: There are '+str(np.abs(len(occupancyStr)-len(self.initial_freqs)))+' more traps than PyDex ROIs')
-            
-        if self.rearrMode == 'use_exact':# Only use cases where AT LEAST the target number of atoms was loaded into the initial array.
-            stepKeys =  [''.join(self.fstring(self.initial_freqs))+'si', # n static traps
-                        keyStr[-len(self.target_freqs):]+'m'+''.join(self.fstring(self.target_freqs)), # sweeps to fixed # target traps
-                        ''.join(self.fstring(self.target_freqs))+'st'] # fixed # of static traps
-                        
-            if self.rParam['power_ramp'] == True:
-                stepKeys.insert(-1, ''.join(self.fstring(self.target_freqs))+'r')
-       
-        elif self.rearrMode == 'use_all':
-            stepKeys =  [''.join(self.fstring(self.initial_freqs))+'si', # initial number of static traps
-                        keyStr+'m'+''.join(self.fstring([1]*len(keyStr))), # number of targets depends on number loaded
-                        ''.join(self.fstring([1]*len(keyStr)))+'st'] # number of target static traps depends on number loaded
-            if self.rParam['power_ramp'] == True:
-                stepKeys.insert(-1, ''.join(self.fstring([1]*len(keyStr)))+'r')
-     
-        segList = [self.movesDict.get(key) for key in stepKeys]
-        if self.rearrMode == 'use_exact' and len(keyStr) < len(self.target_freqs): 
-            segList=[0,0,0]
-       
-        if None in segList:  # Warning should occur if number of ROIs mismatched so that a segment was not made.
-            print('WARNING: One or more requested rearrangement segments do not exist!')
-            print(stepKeys)
-            print(segList)
+        if len(keyStr)<len(self.target_freqs):
+            keyStr = self.convertBinaryOccupancy('1'*len(self.initial_freqs))
+            moveKey = keyStr[-len(self.target_freqs):]+'m'+''.join(self.fstring(self.target_freqs))
+            segData = self.movesDict[moveKey]
+            self.awg.setSegment(1,segData, verbosity=False) 
         
-        if len(keyStr) == 0:   # If no atoms loaded do nothing.
-            self.r_setStep(0, 0, 1, 0, 1)
-           # print("TODO: self.filedata['steps'] = ")
+        else:    
+            # WARNINGS to notify you there's a user error in setting # ROIs.
+            if len(occupancyStr) > len(self.initial_freqs):
+                print('WARNING: There are '+str(np.abs(len(occupancyStr)-len(self.initial_freqs)))+' fewer traps than PyDex ROIs')
+                print(occupancyStr, self.initial_freqs)
+                
+            if len(occupancyStr) < len(self.initial_freqs):
+                print('WARNING: There are '+str(np.abs(len(occupancyStr)-len(self.initial_freqs)))+' more traps than PyDex ROIs')
             
+            if self.rearrMode == 'use_exact':
+                moveKey = keyStr[-len(self.target_freqs):]+'m'+''.join(self.fstring(self.target_freqs))
+            
+            elif self.rearrMode == 'use_all':
+                moveKey = keyStr + 'm'+''.join(self.fstring([1]*len(keyStr)))
+            
+            segData = self.movesDict[moveKey]      # Find the relevant segment data in movesDict and
+
+           
         
-        else:
-            if self.lastRearrStep == 0:
-                trig = 1
-            else:
-                trig = 1#2
-            
-            self.r_setStep(0, segList[0], 1, 1, 1)   # Static traps until TTL received  
-            self.r_setStep(1, segList[1], 1, 2, 2)   # Moving traps for fixed duration, automatically moves to next step 
-            
-            if self.rParam['power_ramp']==False:  
-                self.r_setStep(2, segList[2], 1, self.lastRearrStep, trig)  # Static traps on at target site until triggered.
-            elif self.rParam['power_ramp'] == True: 
-                self.r_setStep(2, segList[2], 1, 3, 2) 
-                self.r_setStep(3, segList[3], 1, self.lastRearrStep, trig)  # Static traps on at target site until triggered.
-            
-           # print("TODO: self.filedata['steps'] = ")
-        t2=time.time()
-       #print('steps calculated in ', t2-t1)
+            self.awg.setSegment(1,segData, verbosity=False)        # segment 1 is always the move segment (0 static, 1 move, 2 static //OR// 2 ramp, 3 static)
+
+
+        
+        
+
+    
                 
                 
     
@@ -288,32 +312,32 @@ class rearrange():
         """Load rearrangement parameters from a config file, i.e. params like
         Amp adjust, phases, duration etc. For the moment just set the manually"""    
         # self.rParam={"amp_adjust":True, 
-        #              "freq_adjust":False, 
-        #              "tot_amp_[mV]":280, 
-        #              "channel":0, 
-        #              "static_duration_[ms]":1, "moving_duration_[ms]":1, "ramp_duration_[ms]":5,
-        #              "hybridicity":0, 
-        #              "initial_freqs":[190.,177.5,165.,152.5,140.], 
-        #              "target_freqs":[190.],
-        #              "headroom_segs":10, 
-        #              "rearrMode":"use_all",
-        #              "rearr_freq_amps":0.13,  # If default, rearr freq amps are 1/(n traps). else they are float
-        #              "power_ramp":True,
-        #              "final_freq_amp": 0.5,
-        #              }
+        #               "freq_adjust":False, 
+        #               "tot_amp_[mV]":280, 
+        #               "channel":0, 
+        #               "static_duration_[ms]":1, "moving_duration_[ms]":1, "ramp_duration_[ms]":5,
+        #               "hybridicity":0, 
+        #               "initial_freqs":[190.,177.5,165.,152.5,140.], 
+        #               "target_freqs":[190.],
+        #               "headroom_segs":10, 
+        #               "rearrMode":"use_all",
+        #               "rearr_freq_amps":0.13,  # If default, rearr freq amps are 1/(n traps). else they are float
+        #               "power_ramp":True,
+        #               "final_freq_amp": 0.5,
+        #               "phase_adjust" : False,
+        #               }
         
         with open(self.rr_config) as json_file:
             self.rParam = json.load(json_file)
-        
         self.rearrMode = self.rParam["rearrMode"]
         self.initial_freqs = self.rParam['initial_freqs']
         self.target_freqs = self.rParam['target_freqs']
         self.setRearrFreqAmps(self.rParam['rearr_freq_amps'])       # Initialises frequency amplitudes during rearrangment to default 1/len(initial_freqs)
-        #self.saveRearrParams()
+       # self.saveRearrParams()
 
-    def saveRearrParams(self, savedir= r'Z:\Tweezer\Code\Python 3.5\PyDex\awg'):
+    def saveRearrParams(self, savedir= r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\rearr_config_files'):
         """Save the rearrangement parameters used to a metadata file. """
-        with open(savedir+'/rearr_config.txt', 'w') as fp:
+        with open(savedir+r'\rearr_config_11.06.2021.txt', 'w') as fp:
             json.dump(self.rParam, fp, indent=1, separators=(',',':'))
     
     def printRearrInfo(self):
@@ -331,7 +355,7 @@ class rearrange():
         print('  - Max duration / segment = ', 4e9/(2*self.awg.num_segment*self.awg.sample_rate.value*len(self.awg.channel_enable))*1e3,' ms')
         print('  - Initial frequencies = '+str(self.initial_freqs))
         print('  - Target frequencies = '+str(self.target_freqs))
-        print('  - Segment keys = '+str(self.movesDict))
+        #print('  - Segment keys = '+str(self.movesDict))
         print('  - Rearranging freq_amps are = ', self.rearr_freq_amp)
         print('')
          
@@ -347,33 +371,21 @@ class rearrange():
         else:
             self.rearr_freq_amp = float(value)    
 
-    def dummySetStep(self):
-        """function for testing - effectively runs calculateSteps"""
-        print(self.rParam['power_ramp'])
-       # print("TODO: self.filedata['steps'] = ")
-        if self.rParam['power_ramp'] == True:
-            self.r_setStep(0, 0, 1, 1, 1)   # Static traps until TTL received  
-            self.r_setStep(1, 3, 1, 2, 2)   # Moving traps for fixed duration, automatically moves to next step   
-            self.r_setStep(2, 2, 1, 3, 2) 
-            self.r_setStep(3, 1, 1, 4, 1)  # Static traps on at target site until triggered.
-        else:
-            self.r_setStep(0, 0, 1, 1, 1)   # Static traps until TTL received  
-            self.r_setStep(1, 3, 1, 2, 2)   # Moving traps for fixed duration, automatically moves to next step   
-            self.r_setStep(2, 1, 1, 3, 1)  # Static traps on at target site until triggered.
 
-    def load(self,file_dir='Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin\\20200819\\20200819_165335.txt'):
+    def rearr_load(self,file_dir='Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin\\20200819\\20200819_165335.txt'):
         
         """
         A method that receives as a single input a metadata file as generated by the self.save() method.
         It assumes no user input other than the full path to the file, so no checks are performed.
         Potential errors will be flagged as the dataGen and setSegment methods
         
-        Rearrangment: this is a modified version of the load function. If rearrangment is active, 
+        Rearrangment: this is a modified version of the load function copied for awgHandler. If rearrangment is active, 
         loaded files segments will be appended to rearrangmeent segments & re-indexed
         Steps will be reindexed to start after rearrangement is complete.
         """
         
-        self.OGfile = file_dir    #  save the file directory when we load so that we can copy the untampered file
+        if self.OGfile is None:
+            self.OGfile = file_dir    #  save the file directory when we load so that we can copy the untampered file
         
         with open(file_dir) as json_file:
             filedata = json.load(json_file)   # rearr: this and following used to be self.filedata, but that i think was wrong.
@@ -423,17 +435,25 @@ class rearrange():
                 self.lastRearrStep = 3
             else:
                 self.lastRearrStep = 4
+            self.setBaseRearrangeSteps()   # Call this again to reset the base card segments, (to update lastRearrStep)
             stepArguments[0] += self.lastRearrStep         # reindex step number starting from last rearrange step.
             stepArguments[1] = i + self.segmentCounter      # reindex segments starting from last segment 
             if stepArguments[3] != 0:                      # reindex NEXT step number starting from last rearrange step
                 stepArguments[3] += self.lastRearrStep     # unless next step is 0
             stepArguments[4]=2 # set all trigs to 2
+            if i ==stepNumber-1: 
+                stepArguments[4]=1 # last trigger should be 1
+
             self.awg.setStep(*stepArguments)   
         
-        self.calculateSteps('1'*len(self.initial_freqs))   #  after load, run calculateSteps to set triggers correctly.
+        #self.calculateSteps('1'*len(self.initial_freqs))   #  after load, run calculateSteps to set triggers correctly.
 
+    def printMovesDict(self):
+        for key in self.movesDict:
+            #if 'ru' in key:
+            print(key) 
     
-    def rearrLoadSeg(self, cmd):
+    def rearr_loadSeg(self, cmd):
         """If rearrangement is active, and we're multirunning, we need to reindex the multirun set_data commands starting
            from segment counter so that we change the right steps.
            
@@ -447,14 +467,24 @@ class rearrange():
         #set_data=[[0,1,"freqs_input_[MHz]",160.0,0]]
         for i in range(len(cmd)):
                cmd[i][1] += self.segmentCounter
-        print(cmd)
         self.awg.loadSeg(cmd)
+    
+    def rearr_saveData(self, path):
+        """If rearranging is ON, replace awgHandler.save method with THIS method.
+            - We no longer save the curent filedata, instead a COPY of the original file loaded in. 
+        """
+        # print('rearr_save_data')
+        # print(path)
+        # print(path.rpartition('\\')[0])
+        self.saveRearrParams(path.rpartition('\\')[0])  # saves rearr_config.txt to measure file
+        if self.OGfile is not None:  # avoid error if you haven't loaded in a file after rearranging.
+            self.copyOriginal(path)     # saves AWGparams_base (the base AWG file without rearr segs)
 
     
     def copyOriginal(self, save_path):
         """This function serves to COPY the loaded in file, which gets saved to the relevant Measure folder. 
            It copies the unmodified AWGparam file and saves it (to avoid saving all the rearrangement steps too)"""
-        shutil.copy(self.OGfile, save_path+'/AWGparam_base.txt')
+        shutil.copy(self.OGfile, save_path)
            
     def fstring(self, freqs):
         """Convert a list [150, 160, 170]~MHz to '012' """
@@ -486,8 +516,52 @@ class rearrange():
             occupied += '0'
         
         return occupied
+
+    def set_functions(self):
+        """
+        Depending if rearrangement is on or off, redefine certain functions to behave differently.      
+        By setting the function as soon as rearrangement is ON/OFF, avoids lots of IF statements in other
+        functions which is cleaner and makes faster.
+        """
+        if self.rearrToggle == False:  # If rearrangement is OFF
+           # self.load = self.awg.load
+            self.loadSeg = self.awg.loadSeg
+            self.save = self.awg.saveData
+       
+        elif self.rearrToggle == True: # If rearrangement is ON
+           # self.load = self.rearr_load
+            self.loadSeg = self.rearr_loadSeg
+            self.save = self.rearr_saveData
+    
+    def phase_adjust(self, N):
+        """Analytic expression (Schroeder paper) to adjust phases to give a lower crest factor
+           - Args = N : number of traps 
+           Returns array of phases in degrees """
+        phi = np.zeros(N)
+        for i in range(N):
+            phi[i] = -np.pi/2-np.pi*(i+1)**2/N
+        phi = phi /np.pi * 180
+        return(phi)
          
                                     
 if __name__ == "__main__":
-    r = rearrange()        
+    r = rearrange()   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+     
         

@@ -7,6 +7,7 @@ a class to compare histograms
 import numpy as np
 from collections import OrderedDict
 from analysis import Analysis, BOOL
+from astropy.stats import binom_conf_interval
 
 class comp_handler(Analysis):
     """Manage statistics from several histograms.
@@ -33,8 +34,11 @@ class comp_handler(Analysis):
         ('Number of images processed', int), 
         *zip(['Loading probability %s'%x.name for x in befores], [float]*nhists),
         *zip(['Survival probability %s'%x.name for x in afters], [float]*nhists),
+        *zip(['Error in Survival probability %s'%x.name for x in afters], [float]*nhists),
         *zip(['%s atom survival probability'%i for i in range(nhists+1)], [float]*(nhists+1)),
+        *zip(['Error in %s atom survival probability'%i for i in range(nhists+1)], [float]*(nhists+1)),
         ('Condition met', float),
+        ('Error in Condition met', float),
         ('Include', BOOL)])
         self.stats = OrderedDict([(key, []) for key in self.types.keys()])
         # variables that won't be saved for plotting:
@@ -45,6 +49,14 @@ class comp_handler(Analysis):
             [('Condition met', [])]) # file IDs to recreate histograms
         self.xvals = [] # variables to plot on the x axis
         self.yvals = [] # variables to plot on the y axis
+
+    def conf(self, success, total):
+        """Return the Binomial confidence at 1 sigma"""
+        sp = success / total
+        conf = binom_conf_interval(success, total, interval='jeffreys')
+        uperr = conf[1] - sp # 1 sigma confidence above mean
+        loerr = sp - conf[0] # 1 sigma confidence below mean
+        return sp, uperr, loerr, 0.5*(uperr+loerr)
         
     def process(self, user_var, natoms=-1, include=True):
         """Calculate the statistics from the current histograms.
@@ -92,7 +104,9 @@ class comp_handler(Analysis):
             s = s.stats
             afterids = np.array(s['File ID'])[np.array(s['Atom detected']) > 0]
             survive[i] = np.isin(ids, afterids)
-            self.temp_vals['Survival probability %s'%name] = survive[i].sum() / len(afterids)
+            sp, _, _, err = self.conf(survive[i].sum(), len(ids))
+            self.temp_vals['Survival probability %s'%name] = sp
+            self.temp_vals['Error in Survival probability %s'%name] = err
             if not self.c1[i]: afterids = np.array(s['File ID'])[np.array(s['Atom detected']) <= 0]
             condition = condition & set(ids[np.isin(ids, afterids)])
 
@@ -100,12 +114,16 @@ class comp_handler(Analysis):
             self.hist_ids['%s survival'%self.afters[i].name] = ids[x]
             
         try:
-            self.temp_vals['Condition met'] = len(condition) / len(ids)
+            sp, _, _, err = self.conf(len(condition), len(ids))
+            self.temp_vals['Condition met'] = sp
+            self.temp_vals['Error in Condition met'] = err
             self.hist_ids['Condition met'] = np.array(list(condition))
             numatoms = survive.sum(axis=0)
             for i in range(self.nhists+1):
                 self.hist_ids['%s atom'%i] = ids[numatoms == i]
-                self.temp_vals['%s atom survival probability'%i] = len(self.hist_ids['%s atom'%i]) / len(numatoms)
+                sp, _, _, err = self.conf(len(self.hist_ids['%s atom'%i]), len(numatoms))
+                self.temp_vals['%s atom survival probability'%i] = sp
+                self.temp_vals['Error in %s atom survival probability'%i] = err
         except ZeroDivisionError as e: pass
         
         self.temp_vals['User variable'] = self.types['User variable'](user_var) if user_var else 0.0

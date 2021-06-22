@@ -119,6 +119,7 @@ class compim_window(main_window):
         hist_grid.addWidget(self.hist_type, 8,2, 1,2)
         replot_hist_button = QPushButton('Update plot', self)
         replot_hist_button.clicked.connect(self.update_plot)
+        replot_hist_button.clicked.connect(self.display_fit)
         hist_grid.addWidget(replot_hist_button, 8,4, 1,2)
         
         #### edit stats tab: display all histogram statistics ####

@@ -3545,6 +3545,8 @@ if __name__ == "__main__":
     try:
         cal = np.loadtxt('dds/power_calibration.csv', delimiter=',').T
         cals = [interp1d(cal[i+1], cal[0], fill_value='extrapolate') for i in range(len(cal)-1)]
+#        cals = [interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
+#                for i in range(5)]
         alim = 1.0
     except OSError as e:
         print('\033[31m' + '####\tERROR\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))

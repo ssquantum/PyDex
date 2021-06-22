@@ -51,8 +51,8 @@ bool_validator = QIntValidator(0,1)   # boolean, 0=False, 1=True
 
 def channel_stats(text):
     """Convert a string list of channel settings into an 
-    ordered dictionary: "[['Dev2/ai0', '', '1.0', '0.0', '0', '0', '0']]"
-    -> OrderedDict([('Dev2/ai0', {'label':'', 'offset':1.0,
+    ordered dictionary: "[['Dev4/ai0', '', '1.0', '0.0', '0', '0', '0']]"
+    -> OrderedDict([('Dev4/ai0', {'label':'', 'offset':1.0,
         'range':0, 'acquire':0, 'plot':0})])
     """
     d = OrderedDict()
@@ -98,9 +98,9 @@ class daq_window(QMainWindow):
             ('Trigger Edge', str), ('channels',channel_stats)])
         self.stats = OrderedDict([('n', n), ('config_file', config_file), ('trace_file', 'DAQtrace.csv'), 
             ('graph_file', 'DAQgraph.csv'),('save_dir', '.'), ('Sample Rate (kS/s)', rate), 
-            ('Duration (ms)', dt), ('Trigger Channel', 'Dev2/ai1'), # /Dev2/PFI0
+            ('Duration (ms)', dt), ('Trigger Channel', 'Dev4/ai1'), # /Dev4/PFI0
             ('Trigger Level (V)', 1.0), ('Trigger Edge', 'rising'), 
-            ('channels', channel_stats("[['Dev2/ai0', '0', '1.0', '0.0', '5', '1', '1']]"))])
+            ('channels', channel_stats("[['Dev4/ai0', '0', '1.0', '0.0', '5', '1', '1']]"))])
         self.trigger_toggle = True       # whether to trigger acquisition or just take a measurement
         self.slaveind = 0 # index of the current slave in the list
         self.slaves = [worker(self.stats['Sample Rate (kS/s)']*1e3, self.stats['Duration (ms)']/1e3, self.stats['Trigger Channel'], 
@@ -187,7 +187,7 @@ class daq_window(QMainWindow):
         settings_grid.addWidget(self.channels, 2,0, 1,1) 
         validators = [None, double_validator, double_validator, None, bool_validator, bool_validator]
         for i in range(8):
-            chan = 'Dev2/ai'+str(i)  # name of virtual channel
+            chan = 'Dev4/ai'+str(i)  # name of virtual channel
             table_item = QLabel(chan)
             self.channels.setCellWidget(i,0, table_item)
             if chan in self.stats['channels']: # load values from previous
@@ -369,10 +369,10 @@ class daq_window(QMainWindow):
         self.n_samples = int(self.stats['Duration (ms)'] * self.stats['Sample Rate (kS/s)'])
         # check the trigger channel is valid
         trig_chan = self.settings.cellWidget(0,2).text() 
-        if 'Dev2/PFI' in trig_chan or 'Dev2/ai' in trig_chan:
+        if 'Dev4/PFI' in trig_chan or 'Dev4/ai' in trig_chan:
             self.stats['Trigger Channel'] = trig_chan
         else: 
-            self.stats['Trigger Channel'] = 'Dev2/ai0'
+            self.stats['Trigger Channel'] = 'Dev4/ai0'
         self.settings.cellWidget(0,2).setText(str(self.stats['Trigger Channel']))
         self.stats['Trigger Level (V)'] = float(self.settings.cellWidget(0,3).text())
         self.stats['Trigger Edge'] = self.settings.cellWidget(0,4).text()
@@ -851,11 +851,11 @@ def run():
         sys.exit(app.exec_()) # when the window is closed, the python code also stops
             
 if __name__ == "__main__":
-    app = QApplication.instance()
-    standalone = app is None # false if there is already an app instance
-    if standalone: # if there isn't an instance, make one
-        app = QApplication(sys.argv)
-    
-    d = daq_window(config_file=r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\DEoptimiseConfig.dat', host='129.234.190.235')
-    d.show()
-    # run()
+    # app = QApplication.instance()
+    # standalone = app is None # false if there is already an app instance
+    # if standalone: # if there isn't an instance, make one
+    #     app = QApplication(sys.argv)
+    # 
+    # d = daq_window(config_file=r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\DEoptimiseConfig.dat', host='129.234.190.235')
+    # d.show()
+    run()

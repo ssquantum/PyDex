@@ -95,7 +95,16 @@ class atom_window(QMainWindow):
         rois_menu.addAction(self.send_rois_action)
 
         self.recv_rois_action = QAction('Get ROIs from analysis', self)
-        rois_menu.addAction(self.recv_rois_action)
+        rois_menu.addAction(self.recv_rois_action) # connected by runid.py
+
+        save_rois_action = QAction('Save ROIs to file', self)
+        save_rois_action.triggered.connect(self.save_rois)
+        rois_menu.addAction(save_rois_action)
+
+        load_rois_action = QAction('Load ROIs from file', self)
+        load_rois_action.triggered.connect(self.load_rois)
+        rois_menu.addAction(load_rois_action)
+
 
         # get ROI coordinates by fitting to image
         for i, label in enumerate(['Single ROI', 'Square grid', '2D Gaussian masks']):
@@ -391,7 +400,7 @@ class atom_window(QMainWindow):
     def save_roi_hists(self, file_name='AtomCheckerHist.csv'):
         """Save the histogram data from the ROIs"""
         if not file_name:
-            file_name = self.try_browse(title='Select Files', 
+            file_name = self.try_browse(title='Select File', 
                 file_type='csv(*.csv);;all (*)', 
                 open_func=QFileDialog.getSaveFileName)
         if file_name:
@@ -412,6 +421,34 @@ class atom_window(QMainWindow):
                 np.savetxt(file_name, out_arr.T, fmt='%s', delimiter=',', header=header)
             except (ValueError, IndexError, PermissionError) as e:
                 error("AtomChecker couldn't save file %s\n"%file_name+str(e))
+
+    def save_rois(self, file_name=''):
+        """Save the coordinates and thresholds of the ROIs"""
+        if not file_name:
+            file_name = self.try_browse(title='Select File', file_type='txt(*.txt);;all (*)', 
+                open_func=QFileDialog.getSaveFileName)
+        if file_name:
+            try:
+                ROIlist = [[int(x.text()) for x in list(r.edits.values())+[r.threshedit]] for r in self.rh.ROIs]
+                with open(file_name, 'w+') as f:
+                    f.write(str(ROIlist))
+            except (ValueError, IndexError, PermissionError) as e:
+                error("AtomChecker couldn't save file %s\n"%file_name+str(e))     
+
+    def load_rois(self, file_name=''):
+        """Load the coordinates and thresholds of the ROIs"""
+        if not file_name:
+            file_name = self.try_browse(title='Select File', file_type='txt(*.txt);;all (*)', 
+                open_func=QFileDialog.getOpenFileName)
+        if file_name:
+            try:
+                with open(file_name, 'r') as f:
+                    ROIlist = eval(f.readline())
+                self.rh.create_rois(len(ROIlist))
+                self.rh.resize_rois(ROIlist)
+                self.display_rois()
+            except (ValueError, IndexError, PermissionError) as e:
+                error("AtomChecker couldn't save file %s\n"%file_name+str(e))     
 
 
 ####    ####    ####    #### 

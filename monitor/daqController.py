@@ -46,9 +46,9 @@ class worker(QThread):
     acquired = pyqtSignal(np.ndarray) # acquired data
     vrs = [0.2, 1.0, 5.0, 10.0] # allowed voltage ranges
 
-    def __init__(self, rate, duration, trigger_chan='Dev2/ai0', 
+    def __init__(self, rate, duration, trigger_chan='Dev4/ai0', 
             trigger_lvl=1.0, trigger_edge='rising', 
-            channels=['Dev2/ai0'], ranges=[5]):
+            channels=['Dev4/ai0'], ranges=[5]):
         super().__init__()
         self.stop = False # Used to ensure only 1 data aquisition per pulse
         self.sample_rate = rate 
@@ -104,11 +104,11 @@ class worker(QThread):
                             c.ai_rng_high = v # set voltage range
                             c.ai_rng_low = -v
                         self.task.timing.cfg_samp_clk_timing(self.sample_rate, 
-                            source='/Dev2/Ctr0InternalOutput',
+                            source='/Dev4/Ctr0InternalOutput',
                             sample_mode=const.AcquisitionType.CONTINUOUS, 
                             samps_per_chan=self.n_samples*10, # buffer size must be multiple of n_samples and at least > 10x
                             active_edge=self.edge) # set sample rate and number of samples
-                        ctr.co_channels.add_co_pulse_chan_freq('/Dev2/ctr0',  # add a counter for triggering
+                        ctr.co_channels.add_co_pulse_chan_freq('/Dev4/ctr0',  # add a counter for triggering
                             freq=self.sample_rate, idle_state=const.Level.LOW)
                         ctr.timing.cfg_implicit_timing(sample_mode=const.AcquisitionType.FINITE, 
                             samps_per_chan=self.n_samples) # clock counter emits a pulse of n_samples when triggered
@@ -163,7 +163,7 @@ class worker(QThread):
                 self.acquired.emit(np.array(data))
         except Exception as e: error("DAQ read failed\n"+str(e))
 
-    def digital_acquisition(self, devport="Dev2/port0/line"):
+    def digital_acquisition(self, devport="Dev4/port0/line"):
         """Read in data from all of the digital input channels"""                                                                                                 
         with nidaqmx.Task() as task:
             for i in range(4): task.di_channels.add_di_chan(devport+str(i))
@@ -174,7 +174,7 @@ class worker(QThread):
             
     def analogue_awg_out(self, channel, data, sample_rate, n_samples, acq_type=const.AcquisitionType.FINITE):
         """Write the data provided to the analogue output channel.
-        channel     -- channel name, e.g. 'Dev2/ao0'
+        channel     -- channel name, e.g. 'Dev4/ao0'
         data        -- numpy array of the data to write to the channel
         sample_rate -- the rate at which to take samples from the data
         n_samples   -- the number of samples to write. If n_samples > size(data) it will loop over the data
@@ -192,7 +192,7 @@ class worker(QThread):
     def digital_out(self, channel, data):
         """Write teh data provided to the digital output channel. Note that the 
         DO channels only support on-demand writing, they can't use clock timing.
-        channel -- channel name, e.g. Dev2/port1/line0
+        channel -- channel name, e.g. Dev4/port1/line0
         data    -- numpy array of the data to write, with the appropriate type."""
         try:
             with nidaqmx.Task() as task:

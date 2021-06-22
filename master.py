@@ -497,7 +497,7 @@ class Master(QMainWindow):
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':
-                if 'multirun' in self.status_label.text():
+                if 'multirun' in self.status_label.text() or self.rn.multirun:
                     self.rn.multirun_go(False, stillrunning=True)
             elif action_text == 'Cancel multirun':
                 if 'multirun' in self.status_label.text() or self.rn.multirun:

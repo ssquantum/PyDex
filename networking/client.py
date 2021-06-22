@@ -38,8 +38,9 @@ class PyClient(QThread):
     dxnum = pyqtSignal(str) # received run number, synchronised with DExTer
     stop  = False           # toggle whether to stop listening
     
-    def __init__(self, host='localhost', port=8089):
+    def __init__(self, host='localhost', port=8089, name=''):
         super().__init__()
+        self._name = name
         self.server_address = (host, port)
         self.__mq = [] # message queue
         self.app = QApplication.instance()
@@ -91,7 +92,7 @@ class PyClient(QThread):
                     try:
                         dxn, bytesize, msg = self.__mq.pop(0)
                     except IndexError as e: 
-                        error('Server msg queue was emptied before msg could be sent.\n'+str(e))
+                        error('Server %s msg queue was emptied before msg could be sent.\n'%self._name+str(e))
                 sock.sendall(dxn)
                 sock.sendall(bytesize)
                 sock.sendall(msg)
@@ -100,7 +101,7 @@ class PyClient(QThread):
             except (ConnectionRefusedError, TimeoutError) as e:
                 pass
             except (ConnectionResetError, ConnectionAbortedError) as e:
-                error('Python client: server cancelled connection.\n'+str(e))
+                error('Python client %s: server cancelled connection.\n'%self._name+str(e))
                 
     def check_stop(self):
         """Check if the thread has been told to stop"""

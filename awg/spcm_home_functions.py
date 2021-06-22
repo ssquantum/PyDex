@@ -15,6 +15,25 @@ import os
 ## Currently this code does not do interpolation
 ## for the moving trap. Just static and ramp.
 ##################################################
+def RMS(signal):
+    """Calculate the RMS of a signal"""
+    rms = np.sqrt(np.sum(signal**2)/np.abs(len(signal)))
+    #print(rms)
+    return(rms)
+
+def checkWaveformAmp(y):
+    """ Function checks if waveform exceeds 280mV and warns user. Doesn't modify waveform. 
+        Waveform is clipped to max value set in AWG hardware by awgHandler.setMaxOutput.
+        The amplitude in BITS is up to 2^16/2 = 32768, corresponding to tot_amp set elsewhere.
+    """
+    y=y/((2**16)/2)*282
+    peak = max([abs(max(y)), abs(min(y))])
+    rms = RMS(y)
+    if peak > 300 or rms > 200 :
+        print('CLIP WARNING:')
+        print('  Wave amp is '+str(round(peak, 1))+'/280 mV')
+        print('   and RMS is '+str(round(rms, 1))+'/200 mV')
+    str(round(peak, 1))
 
 def adjuster (requested_freq,samplerate,memSamples):
     """
@@ -322,14 +341,14 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
         freq_phase = [0]*l
         print("Number of set phases do no match the number of frequencies. All individual phases have been set to 0. ")
 
-    #########
+    ##########################
     # Generate the data 
     ##########################   
     if amp_adjust:
         amp_ramp = np.array([ampAdjuster2d(sfreq[Y]*1e-6 + hybridJerk(t, 1e-6*rfreq[Y], numOfSamples, a), startAmp[Y]) for Y in range(l)])
         s = np.sum(amp_ramp, axis=0)
         if any(s > 280):
-            print('WARNING: multiple moving traps power overflow: total required power is > 280mV, max is:'+str(round(max(s),2))+'mV')
+            print('WARNING: multiple moving traps power overflow: total required power is > 280mV, max is: '+str(round(max(s),2))+'mV')
             amp_ramp = np.ones(l)/l*tot_amp
     else: # nmt amp adjust
         if np.sum(tot_amp*startAmp) > 280:
@@ -444,15 +463,19 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1
     t = np.arange(numOfSamples)
     if ampAdjust ==True:
         amps = [ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y]) for Y in range(numberOfTraps)]
-        if sum(amps) > 280:
-            print('WARNING: multiple static traps power overflow: total required power is > 280mV, is :'+str(np.around(sum(amps)))+'mV')
-            return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
-        else:
-            return 1./282*0.5*2**16*np.sum([amps[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
-    else:  ### should static trap divide by number of traps?
-        return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
-    
+        y = 1./282*0.5*2**16*np.sum([amps[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+        checkWaveformAmp(y)
+        # check that the waveform RMS doesn't exceed 200 or the peak amp doesnt exceed 300mV.
+        if max(abs(y*282/(0.5*2**16))) > 300 or RMS(y*282/(0.5*2**16))>200:
+            print('WARNING: RMS voltage is = '+str(round(RMS(y)*282/(0.5*2**16), 1))+'mV and amplitude is = '+str(round(max(abs(y))*282/(0.5*2**16),1))+' mV')
+            print(' ### Freq amps have been set to '+str(round(1/len(freqs),3)))
+            y =  1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
 
+    else:  ### should static trap divide by number of traps?
+        y = 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+    
+    #checkWaveformAmp(y)
+    return(y)
 
 def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz):
     """

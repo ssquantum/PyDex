@@ -76,24 +76,35 @@ class PyServer(QThread):
     stop   = False           # toggle whether to stop listening
     connected = False        # whether a TCP connection is currently active
     
-    def __init__(self, host='localhost', port=8089):
+    def __init__(self, host='localhost', port=8089, name=''):
         super().__init__()
+        self._name = name
         self.server_address = (host, port)
         self.__mq = []
+        self.__lock  = False # message queue is locked
         self.ts = {label:[time.time()] for label in ['start', 'connect', 'waiting', 
             'sent', 'received', 'disconnect']}
         self.app = QApplication.instance() # the main application that's running
-        
+
+    def lockq(self):
+        """Lock the msg queue and add to reserve instead."""
+        self.__lock = True
+
+    def unlockq(self):
+        """Unlock the msg queue and add all the msgs from reserve"""
+        self.__lock = False
+
     def add_message(self, enum, text, encoding="mbcs"):
         """Append a message to the queue that will be sent by TCP connection.
         enum - (int) corresponding to the enum for DExTer's producer-
                 consumer loop.
         text - (str) the message to send.
         enum and message length are sent as unsigned long int (4 bytes)."""
-        self.__mq.append([struct.pack("!L", int(enum)), # enum 
+        if not self.__lock:
+            self.__mq.append([struct.pack("!L", int(enum)), # enum 
                                 struct.pack("!L", len(bytes(text, encoding))), # msg length 
                                 bytes(text, encoding)]) # message
-
+       
     def priority_messages(self, message_list, encoding="mbcs"):
         """Add messages to the start of the message queue.
         message_list - list of [enum (int), text(str)] pairs."""
@@ -110,6 +121,7 @@ class PyServer(QThread):
         """Remove all of the messages from the queue."""
         reset_slot(self.textin, self.clear_queue, False) # only trigger clear_queue once
         self.__mq = []
+        self.unlockq()
 
     def run(self, encoding="mbcs"):
         """Keeps a socket open that waits for new connections. For each new
@@ -129,7 +141,7 @@ class PyServer(QThread):
                 # start the socket that waits for connections
                 s.listen(0) # only allow one connection at a time
             except OSError as e:
-                error('Failed to start server at address: ' + 
+                error('Failed to start server %s at address: '%self._name + 
                     ', '.join(map(str, self.server_address)) + '\n' + str(e))
                 reset_slot(self.finished, self.reset_stop)
                 self.stop = True # stop the thread running
@@ -151,7 +163,7 @@ class PyServer(QThread):
                                 conn.sendall(message) # send text
                             except (ConnectionResetError, ConnectionAbortedError) as e:
                                 self.__mq.insert(0, [enum, mes_len, message]) # check this doesn't infinitely add the message back
-                                error('Python server: client terminated connection before message was sent.' +
+                                error('Python server %s: client terminated connection before message was sent.'%self._name +
                                     ' Re-inserting message at front of queue.\n'+str(e))
                             self.ts['sent'].append(time.time() - self.ts['connect'][-1])
                             try:
@@ -161,11 +173,11 @@ class PyServer(QThread):
                                 buffer_size = int.from_bytes(conn.recv(4), 'big')
                                 self.textin.emit(str(conn.recv(buffer_size), encoding))
                             except (ConnectionResetError, ConnectionAbortedError) as e:
-                                error('Python server: client terminated connection before receive.\n'+str(e))
+                                error('Python server %s: client terminated connection before receive.\n'%self._name+str(e))
                             self.ts['received'].append(time.time() - self.ts['connect'][-1] - self.ts['sent'][-1])
                             self.ts['disconnect'].append(time.time())
                         except IndexError as e: 
-                            error('Server msg queue was emptied before msg could be sent.\n'+str(e))
+                            error('Server %s msg queue was emptied before msg could be sent.\n'%self._name+str(e))
                     self.connected = False
                         
     def save_times(self):

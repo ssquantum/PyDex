@@ -9,7 +9,7 @@ import time
 import json
 import ctypes
 from timeit import default_timer as timer
-
+import numpy as np
 
 
 def statusChecker(N):
@@ -513,10 +513,12 @@ class AWG:
             for x in options:
                 sys.stdout.write("{}: {}\n".format(x,options[x]))
         
-    def setSegment(self,segment,*args):
+    def setSegment(self,segment, *args, verbosity=True):
         """
         This method is responsible for sending the data to the card to be played.
         If the method receives multiple datasets it will multiplex them as necessary.
+        
+        Verbosity determines if console prints out data. True by default, but want False for rearrangement
         """
         flag =0
                
@@ -525,7 +527,6 @@ class AWG:
             flag =1
         else:
             self.segment = segment
-            
         
         if len(args) == self.lSetChannels.value:
             """
@@ -627,7 +628,7 @@ class AWG:
                 
             end = timer()
             
-            print('casting the data into the card:',end-start)
+            #print('casting the data into the card:',end-start)
         
         self.flag[self.segment] = flag
         if flag==0:
@@ -637,9 +638,9 @@ class AWG:
             ###
             spcm_dwDefTransfer_i64 (AWG.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), pvBuffer, uint64 (0), qwBufferSize)
             spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
-            
-            sys.stdout.write("... segment number {0:d} has been transferred to board memory\n".format(segment))
-            sys.stdout.write(".................................................................\n")
+            if verbosity == True:
+                sys.stdout.write("... segment number {0:d} has been transferred to board memory\n".format(segment))
+                sys.stdout.write(".................................................................\n")
             
         
         else:
@@ -1691,7 +1692,6 @@ class AWG:
         Potential errors will be flagged as the dataGen and setSegment methods
         """
         self.stop()                                      
-        
         with open(file_dir) as json_file:
             self.filedata = json.load(json_file)
         
@@ -1736,7 +1736,9 @@ class AWG:
         for i in range(stepNumber):
             
             stepArguments = [lsteps['step_'+str(i)][x] for x in AWG.stepOrder]
-            self.setStep(*stepArguments)    
+            self.setStep(*stepArguments)   
+        
+        self.start()    
     
 
     def loadSeg(self,listChanges):
@@ -1754,7 +1756,7 @@ class AWG:
         
         Slightly different name-space wrt to the load() method to avoid confusion. 
         """
-        self.stop() 
+       # self.stop() 
         
         flag =0  
         durCounter = 0
@@ -1835,7 +1837,7 @@ class AWG:
                 stepArguments = [self.filedata['steps']['step_'+str(i)][x] for x in AWG.stepOrder]
                 self.setStep(*stepArguments)   
                 
-            self.start()     
+          #  self.start()     
     
     def stop(self):
         spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
@@ -1846,6 +1848,12 @@ class AWG:
         
     def newCard(self):
         AWG.hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
+    
+    def statusChecker(self):
+        """Get card status"""
+        test = int64(0)
+        spcm_dwGetParam_i64(AWG.hCard,SPC_SEQMODE_STATUS,byref(test))
+        print('AWG is currently running segment : ' + str(test.value))
 
    
         
@@ -1856,7 +1864,7 @@ if __name__ == "__main__":
     
     ch1 = 0 #first channel to be used.
     ch2 = 1 #second channel to be used.
-    t = AWG([ch1])
+    t = AWG([ch1,ch2])
     
     t.setNumSegments(12)
     print(t.num_segment)
@@ -1967,33 +1975,44 @@ if __name__ == "__main__":
     Vincent 14/9/2020 
     """
     
-    f1 = [185, 150]
-    f2 = [185, 184]
-    fa_bal = 0.4965
+#     def phase_adjust(N):
+#         phi = np.zeros(N)
+#         for i in range(N):
+#             phi[i] = -np.pi/2-np.pi*(i+1)**2/N
+#         phi = phi /np.pi * 180
+#         return(phi)
+#     
+#     f1 = [185, 150]
+#     f2 = [185, 184]
+#     fa_bal = 0.4965
+#     
+#     fs = np.linspace(225, 135, 10)
+#     
+#     data01 = t.dataGen(0,ch1,'static',1,fs,1,9, 280,[0.15]*len(fs),phase_adjust(len(fs)),False,True)
+#     data02 = t.dataGen(0,ch2,'static',1,fs,1,9, 280,[0.15]*len(fs),phase_adjust(len(fs)),False,True)
+# 
+#     t.setSegment(0,data01, data02)
+#     t.setStep(0,0,1,0,2)
     
-    data01 = t.dataGen(0,ch1,'static',1,f1,1,9, 280,[0.5, fa_bal],[0,0],False,False)
-    t.setSegment(0,data01)
-    t.setStep(0,0,1,1,1)
-    
-    data11 = t.dataGen(1,ch1,'moving',2,f1,f2,0, 280,[0.5, fa_bal],[0.5, fa_bal],[0,0],False,False)
-    t.setSegment(1,data11)
-    t.setStep(1,1,1,2,2)
-    
-    data21 = t.dataGen(2,ch1,'ramp',2,f2,1,9,280,[0.5, fa_bal],[0.5,0.0],[0,0],False,False)  
-    t.setSegment(2,data21)
-    t.setStep(2,2,1,3,2)      
-
-    data31 = t.dataGen(3,ch1,'static', 5,f2,1,9, 280,[0.5, 0],[0, 0],False,False)
-    t.setSegment(2,data31)
-    t.setStep(3,3,1,4,2)
-    
-    data41 = t.dataGen(4,ch1,'ramp',2,f2,1,9,280,[0.5, 0.0],[0.5,fa_bal],[0,0],False,False)  
-    t.setSegment(4,data41)
-    t.setStep(4,4,1,5,2)     
-    
-    data51 = t.dataGen(5,ch1,'moving',2,f2,f1,0, 280,[0.5,fa_bal],[0.5,fa_bal],[0,0],False,False)
-    t.setSegment(5,data51)
-    t.setStep(5,5,1,0,2)
+#     data11 = t.dataGen(1,ch1,'moving',2,f1,f2,0, 280,[0.5, fa_bal],[0.5, fa_bal],[0,0],False,False)
+#     t.setSegment(1,data11)
+#     t.setStep(1,1,1,2,2)
+#     
+#     data21 = t.dataGen(2,ch1,'ramp',2,f2,1,9,280,[0.5, fa_bal],[0.5,0.0],[0,0],False,False)  
+#     t.setSegment(2,data21)
+#     t.setStep(2,2,1,3,2)      
+# 
+#     data31 = t.dataGen(3,ch1,'static', 5,f2,1,9, 280,[0.5, 0],[0, 0],False,False)
+#     t.setSegment(2,data31)
+#     t.setStep(3,3,1,4,2)
+#     
+#     data41 = t.dataGen(4,ch1,'ramp',2,f2,1,9,280,[0.5, 0.0],[0.5,fa_bal],[0,0],False,False)  
+#     t.setSegment(4,data41)
+#     t.setStep(4,4,1,5,2)     
+#     
+#     data51 = t.dataGen(5,ch1,'moving',2,f2,f1,0, 280,[0.5,fa_bal],[0.5,fa_bal],[0,0],False,False)
+#     t.setSegment(5,data51)
+#     t.setStep(5,5,1,0,2)
 
     # data61 = t.dataGen(6,ch1,'static',1,f1,1,9, 280,[0.5, 0.4975],[0,0],False,True)
     # t.setSegment(6,data61)
@@ -2033,7 +2052,18 @@ if __name__ == "__main__":
     # data22 = t.dataGen(2,ch2,'static',100,[180, 150],1,9, 220,[0.5,0.6],[0,90],False,True)
     # t.setSegment(2,data21, data22)
     # t.setStep(2,2,1,0,2)    
-#     
+#       #### DC offset modulate
+    
+    data00 = t.dataGen(0,0,'offset',1,94,0, 0)
+    data10 = t.dataGen(0,1,'offset',1,94,280, 0)
+    t.setSegment(0,data00,data10)
+    t.setStep(0,0,1,1,1)  
+    
+    data01 = t.dataGen(1,0,'offset',50,94,0, 0)
+    data11 = t.dataGen(1,1,'offset',50,94,280, 0.1)
+    t.setSegment(1,data01,data11)
+    t.setStep(1,1,1,0,2) 
+    
     t.start(True)
 #     
 #     # 1 trap
