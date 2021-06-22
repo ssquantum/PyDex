@@ -214,7 +214,8 @@ class runnum(QThread):
                 try: # argument: value
                     for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen DDS COM port, profile
                         for m in self.seq.mr.mr_param['Analogue channel'][col]:
-                            msg += '["COM%s", "P%s", "%s", %s],'%((n//8)+7, n%8, # we use COM7 - COM11
+                            port = '"P%s"'%(n%9) if (n%9)<8 else '"aux"'
+                            msg += '["COM%s", '%((n//9)+7)+port+', "%s", %s],'%(# we use COM7 - COM11
                                 self.seq.mr.dds_args[m], 
                                 self.seq.mr.mr_vals[v][col])
                 except Exception as e: error('Invalid DDS parameter at (%s, %s)\n'%(v,col)+str(e))

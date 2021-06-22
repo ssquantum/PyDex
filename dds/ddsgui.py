@@ -159,9 +159,9 @@ class Ui_MainWindow(object):
             self.Display_func('Command not understood: '+str(cmd))
             return 0                
 
-        if any(x in cmd for x in['Freq', 'Phase', 'Amp']):
+        if any(x in cmd for x in['Freq', 'Phase', 'Amp']) and 'aux' not in cmd:
             self.mode = 'single tone'
-        elif any(x in cmd for x in['Start_add', 'End_add', 'Step_rate']):
+        elif any(x in cmd for x in['Start_add', 'End_add', 'Step_rate', 'aux']):
             self.mode = 'RAM'
                 
         if 'set_data' in cmd:
@@ -173,14 +173,31 @@ class Ui_MainWindow(object):
             prv_port = '' # keep track of which port we're communicating on
             success = [0 for i in range(len(value_list))]
             for i, (port, profile, key, val) in enumerate(value_list):
-                # Set parameters. All the keys are unique.
-                if any(x in self.mode for x in ['single tone', 'RAM']):
-                    try: 
-                        label = self.centralwidget.findChild(QtWidgets.QLineEdit, key+'_'+profile)
-                        label.setText('%s'%val)
-                        label.editingFinished.emit()
-                        success[i] = 1
-                    except Exception as e: print(e) # pass # key could be for ramp
+                # Set parameters. 
+                try:
+                    if 'Freq' in key and 'aux' not in profile:
+                        self.fout[int(port.replace('COM',''))-7, int(profile[1])] = float(val)
+                    elif 'Phase' in key and 'aux' not in profile:
+                        self.tht[int(port.replace('COM',''))-7, int(profile[1])] = float(val)
+                    elif 'Amp' in key and 'aux' not in profile:
+                        self.amp[int(port.replace('COM',''))-7, int(profile[1])] = float(val)
+                    elif 'Start_add' in key:
+                        self.Start_Address[int(port.replace('COM',''))-7, int(profile[1])] = float(val)
+                    elif 'End_add' in key:
+                        self.End_Address[int(port.replace('COM',''))-7, int(profile[1])] = float(val)
+                    elif 'Step_rate' in key:
+                        self.Rate[int(port.replace('COM',''))-7, int(profile[1])] = float(val)
+                    elif 'Freq' in key and 'aux' in profile:
+                        self.FTW[int(port.replace('COM',''))-7] = float(val)
+                    elif 'Phase' in key and 'aux' in profile:
+                        self.POW[int(port.replace('COM',''))-7] = float(val)
+                    elif 'Amp' in key and 'aux' in profile:
+                        self.AMW[int(port.replace('COM',''))-7] = float(val)
+                        self.load_DDS_ram = True
+                    else: raise Exception('Tried to set invalid parameter')
+                    success[i] = 1
+                except Exception as e: print(e) # pass # key could be for ramp
+                    
                 if 'ramp' in self.mode:
                     try:
                         label = self.centralwidget.findChild(QtWidgets.QLineEdit, key)
@@ -203,6 +220,7 @@ class Ui_MainWindow(object):
                     elif 'RAM' in self.mode:
                         self.Programme_DDS_RAM_func()
                     prv_port = port
+            self.redisplay_profiles()
             self.Display_func('Set parameters %s'%str([val for i, val in enumerate(value_list) if success[i]]))
         elif 'set_mode' in cmd:
             if value in self.mode_options:
@@ -266,7 +284,7 @@ class Ui_MainWindow(object):
                         self.RAM_modulation_data[i][0,:])/ np.amax(
                             self.RAM_modulation_data[i][0, :])*self.AMW[i]), decimals = 0),
                     label=str(i))
-            except IndexError: pass
+            except (IndexError, TypeError): pass
         plt.show()
                     
     def redisplay_profiles(self):
@@ -2524,7 +2542,7 @@ class Ui_MainWindow(object):
 
 
         #Get the values in the text boxes
-        self.update_RAM_values_func()
+        #self.update_RAM_values_func()
         if self.DGR_params[0] == 1:
             self.update_DRG_values_func()
             self.DGR_register_func()
