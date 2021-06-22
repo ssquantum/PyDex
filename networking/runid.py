@@ -84,6 +84,8 @@ class runnum(QThread):
         self.ddstcp.start()
         self.seqtcp = PyServer(host='', port=8625, name='BareDExTer') # Sequence viewer in seperate instance of LabVIEW
         self.seqtcp.start()
+        self.slmtcp = PyServer(host='', port=8627, name='SLM') # Sequence viewer in seperate instance of LabVIEW
+        self.slmtcp.start()
         self.client = PyClient(host='129.234.190.235', port=8626, name='AWG recv') # incoming from AWG
         self.client.start()
         self.client.textin.connect(self.add_mr_msgs)
@@ -92,7 +94,7 @@ class runnum(QThread):
         """Check if the server is running. If it is, don't do anything, unless 
         force=True, then stop and restart the server. If the server isn't 
         running, then start it."""
-        for server in [self.server, self.trigger, self.monitor, self.awgtcp, self.ddstcp, self.seqtcp]:
+        for server in [self.server, self.trigger, self.monitor, self.awgtcp, self.ddstcp, self.slmtcp, self.seqtcp]:
             if server.isRunning():
                 if force:
                     server.close()
@@ -198,7 +200,7 @@ class runnum(QThread):
     #### multirun ####
 
     def get_params(self, v, module='AWG'):
-        """Reformat the multirun paramaters into a string to be sent to the AWG or DDS"""
+        """Reformat the multirun paramaters into a string to be sent to the AWG, DDS, or SLM"""
         msg = module+' set_data=['
         col = -1  # in case the for loop doesn't execute
         for col in range(len(self.seq.mr.mr_param['Type'])):
@@ -219,6 +221,14 @@ class runnum(QThread):
                                 self.seq.mr.dds_args[m], 
                                 self.seq.mr.mr_vals[v][col])
                 except Exception as e: error('Invalid DDS parameter at (%s, %s)\n'%(v,col)+str(e))
+            elif 'SLM' in self.seq.mr.mr_param['Type'][col] and module == 'SLM':
+                try: # argument: value
+                    for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen SLM hologram
+                        for m in self.seq.mr.mr_param['Analogue channel'][col]:
+                            msg += '[%s,"%s",%s],'%(n, # [holo index, parameter, value]
+                                self.seq.mr.slm_args[m], 
+                                self.seq.mr.mr_vals[v][col])
+                except Exception as e: error('Invalid SLM parameter at (%s, %s)\n'%(v,col)+str(e))
         if col > -1: msg = msg[:-1] + ']'
         else: msg += ']'
         return msg
@@ -267,10 +277,12 @@ class runnum(QThread):
             # insert TCP messages at the front of the queue: once the multirun starts don't interrupt it.
             repeats = self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']
             # list of TCP messages for the whole multirun
-            # save AWG and DDS params
+            # save AWG, DDS, and SLM params
             self.awgtcp.priority_messages([[self._n, 'save='+os.path.join(results_path,'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.ddstcp.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDSparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
+            self.slmtcp.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'SLMparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             mr_queue = []
+            print('make msg')
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
                 if any('AWG' in x for x in self.seq.mr.mr_param['Type']): # send AWG parameters by TCP
                     awgmsg = self.get_params(v, 'AWG')
@@ -278,8 +290,14 @@ class runnum(QThread):
                 if any('DDS' in x for x in self.seq.mr.mr_param['Type']): # send DDS parameters by TCP
                     ddsmsg = self.get_params(v, 'DDS')
                 else: ddsmsg = ''
+                if any('SLM' in x for x in self.seq.mr.mr_param['Type']): # send SLM parameters by TCP
+                    slmmsg = self.get_params(v, 'SLM')
+                else: slmmsg = ''
+                print('made msg')
+                print(slmmsg)
                 mr_queue += [[TCPENUM['TCP read'], awgmsg+'||||||||'+'0'*2000], # set AWG parameters
-                    [TCPENUM['TCP read'], ddsmsg+'||||||||'+'0'*2000], # set AWG parameters
+                    [TCPENUM['TCP read'], ddsmsg+'||||||||'+'0'*2000], # set DDS parameters
+                    [TCPENUM['TCP read'], slmmsg+'||||||||'+'0'*2000], # set SLM parameters
                     [TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step run']+'0'*2000],
                     [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]],
                     [TCPENUM['TCP read'], 'pause for AWG'+'0'*2000 if awgmsg else '0'*2000]] + [
