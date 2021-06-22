@@ -130,6 +130,7 @@ class multirun_widget(QWidget):
         'num_of_samples','duration_loop_[ms]','number_of_cycles']
         self.dds_args = ['Freq', 'Phase', 'Amp', 'Start_add', 'End_add', 'Step_rate', 'Sweep_start', 
         'Sweep_end', 'Pos_step', 'Neg_step', 'Pos_step_rate', 'Neg_step_rate']
+        self.slm_args = ['f','period','angle','radius']
         self.COM = ['RB1A', 'RB2', 'RB3', 'RB4', 'RB1B'] # DDS COM port connections
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
@@ -211,7 +212,7 @@ class multirun_widget(QWidget):
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
         sht = self.tr.get_esc()[2][2:] # 'Sequence header top'
         options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG chan : seg', 
-                    'DDS port : profile', 'Other'], 
+                    'DDS port : profile', 'SLM holograms','Other'], 
             list(map(str.__add__, [str(i) for i in range(len(sht))],
                     [': '+hc[6][1].text for hc in sht])), # time step names
             ['Fast analogue', 'Slow analogue'],
@@ -522,9 +523,19 @@ class multirun_widget(QWidget):
             self.chan_choices['Analogue channel'].setEnabled(True)
             self.chan_choices['Analogue channel'].clear()
             self.chan_choices['Analogue channel'].addItems(self.dds_args)
+        elif newtype == 'SLM holograms':
+            self.chan_choices['Time step name'].clear()
+            slmoptions = ['Hologram %s'%(i) for i in range(9)]
+            self.chan_choices['Time step name'].addItems(slmoptions)
+            reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)
+            self.chan_choices['Analogue type'].clear()
+            self.chan_choices['Analogue type'].addItems(['Hologram Parameter'])
+            self.chan_choices['Analogue channel'].setEnabled(True)
+            self.chan_choices['Analogue channel'].clear()
+            self.chan_choices['Analogue channel'].addItems(self.slm_args)
         else:
             if  any(self.chan_choices['Analogue type'].currentText()==x for x in 
-                        ['AWG Parameter', 'DDS Parameter']):
+                        ['AWG Parameter', 'DDS Parameter','Hologram Parameter']):
                 self.chan_choices['Analogue type'].clear()
                 self.chan_choices['Analogue type'].addItems(['Fast analogue', 'Slow analogue'])
                 self.chan_choices['Analogue type'].currentTextChanged[str].connect(self.change_mr_anlg_type)

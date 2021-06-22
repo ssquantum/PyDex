@@ -631,6 +631,9 @@ class Master(QMainWindow):
             self.rn.awgtcp.priority_messages([(self.rn._n, msg.replace('AWG ', '').split('||||||||')[0])])
         elif 'DDS ' in msg[:10]: # send command to DDS to set new data
             self.rn.ddstcp.priority_messages([(self.rn._n, msg.replace('DDS ', '').split('||||||||')[0])])
+        elif 'SLM ' in msg[:10]: # send command to SLM to set new data
+            print(msg)
+            self.rn.slmtcp.priority_messages([(self.rn._n, msg.replace('SLM ', '').split('||||||||')[0])])
         elif 'LVData' in msg: 
             try:
                 # self.rn.seq.tr.load_xml_str(msg) # for some reason LV can't sent strings longer than 2453 ...
