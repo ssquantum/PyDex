@@ -119,12 +119,12 @@ class Master(QMainWindow):
     def __init__(self, state_config='.\\state', image_analysis=settings_window):
         super().__init__()
         self.types = OrderedDict([('File#',int), ('Date',str), ('CameraConfig',str), 
-            ('SaveConfig',str), ('MasterGeometry',intstrlist), ('AnalysisGeometry',intstrlist), 
+            ('SaveConfig',str), ('AnalysisConfig',str), ('MasterGeometry',intstrlist), ('AnalysisGeometry',intstrlist), 
             ('SequencesGeometry',intstrlist), ('TempXMLPath', str)])
         self.stats = OrderedDict([('File#', 0), ('Date', time.strftime("%d,%B,%Y")), 
             ('CameraConfig', '.\\andorcamera\\Standard modes\\ExExposure_config.dat'), 
-            ('SaveConfig', '.\\config\\config.dat'), ('MasterGeometry', [10, 10, 500, 150]), 
-            ('AnalysisGeometry', [1400, 400, 600, 500]), 
+            ('SaveConfig', '.\\config\\config.dat'), ('AnalysisConfig', '.\\imageanalysis\\default.config'), 
+            ('MasterGeometry', [10, 10, 500, 150]), ('AnalysisGeometry', [1400, 400, 600, 500]), 
             ('SequencesGeometry', [20, 100, 1000, 800]), 
             ('TempXMLPath', r'X:\\Sequence Log\\temp.xml')])
         self.camera_pause = 0 # time in seconds to wait for camera to start acquisition.
@@ -179,9 +179,13 @@ class Master(QMainWindow):
         The status label is also used as an indicator for DExTer's current state."""
         self.status_label.setText('Idle')
 
-    def restore_state(self, file_name='./state'):
+    def restore_state(self, file_name=''):
         """Use the data stored in the given file to restore the file # for
         synchronisation if it is the same day, and use the same config files."""
+        if not file_name:
+            try:
+                file_name, _ = QFileDialog.getSaveFileName(self, 'Load the PyDex Master State', '', 'all (*)')
+            except OSError: return 0
         try:
             with open(file_name, 'r') as f:
                 for line in f:
@@ -193,9 +197,31 @@ class Master(QMainWindow):
                             warning('Failed to load PyDex state line: '+line+'\n'+str(e))
         except FileNotFoundError as e: 
             warning('PyDex master settings could not find the state file.\n'+str(e))
-        if self.stats['Date'] == time.strftime("%d,%B,%Y"): # restore file number
+        d = self.stats['Date']
+        self.apply_state()
+        if d == time.strftime("%d,%B,%Y"): # restore file number
             return self.stats['File#'] # [Py]DExTer file number
         else: return 0
+
+    def apply_state(self):
+        """Reset the date, camera config, image analysis config, and geometries"""
+        try:
+            self.reset_dates() # date
+            if self.rn.cam.initialised > 2: # camera
+                if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
+                    self.rn.cam.AF.AbortAcquisition()
+                check = self.rn.cam.ApplySettingsFromConfig(self.stats['CameraConfig'])
+                if not any(check):
+                    self.status_label.setText('Camera settings config: '+text)
+                    self.stats['CameraConfig'] = text
+                else:
+                    self.status_label.setText('Failed to update camera settings.')
+            else: self.reset_camera(self.stats['CameraConfig'])
+            self.rn.sv.reset_dates(self.stats['SaveConfig']) # image saver
+            self.rn.sw.load_settings(self.stats['AnalysisConfig'])
+        except AttributeError: pass # haven't made runid yet 
+        except Exception as e: print('Master could not set state:\n'+str(e))
+            
         
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
             default_text='', validator=False):
@@ -223,7 +249,15 @@ class Master(QMainWindow):
         
         #### menubar at top gives options ####
         menubar = self.menuBar()
- 
+
+        state_menu = menubar.addMenu('Config')
+        load_state = QAction('Load state', state_menu, checkable=False)
+        load_state.triggered.connect(self.restore_state)
+        state_menu.addAction(load_state)
+        save_state = QAction('Save state', state_menu, checkable=False)
+        save_state.triggered.connect(self.save_state)
+        state_menu.addAction(save_state)
+
         show_windows = menubar.addMenu('Windows')
         menu_items = []
         for window_title in ['Image Analyser', 'Camera Status', 
@@ -695,10 +729,21 @@ class Master(QMainWindow):
                 mw.image_handler.reset_arrays()
                 mw.histo_handler.reset_arrays()
 
-    def save_state(self, file_name='./state'):
+    def save_state(self, file_name='', sett_name='./imageanalysis/default.config'):
         """Save the file number and date and config file paths so that they
         can be loaded again when the program is next started."""
+        if not file_name:
+            try:
+                file_name, _ = QFileDialog.getSaveFileName(self, 'Save the PyDex Master State', '', 'all (*)')
+                sett_name, _ = QFileDialog.getSaveFileName(self, 'Save the Image Analysis Settings', '', 'all (*)')
+            except OSError: return ''
+        if not file_name: file_name = './state' # in case user cancels
+        if not sett_name: sett_name = './imageanalysis/default.config'
         self.stats['File#'] = self.rn._n
+        self.rn.sw.save_settings(sett_name)
+        for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
+            ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:
+            self.stats[key] = [g.x(), g.y(), g.width(), g.height()]
         with open(file_name, 'w+') as f:
             for key, val in self.stats.items():
                 f.write(key+'='+str(val)+'\n')
@@ -715,15 +760,11 @@ class Master(QMainWindow):
                 self.rn.cam.SafeShutdown()
             except Exception as e: warning('camera safe shutdown failed.\n'+str(e))
             # self.rn.check.send_rois() # give ROIs from atom checker to image analysis
-            self.rn.sw.save_settings()
-            for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
-                ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:
-                self.stats[key] = [g.x(), g.y(), g.width(), g.height()]
             for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, 
                     self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp, 
                     self.rn.check, self.mon_win, self.dds_win]:
                 obj.close()
-            self.save_state()
+            self.save_state('./state')
             event.accept()
         
 ####    ####    ####    #### 
