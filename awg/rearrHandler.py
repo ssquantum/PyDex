@@ -60,6 +60,7 @@ class rearrange():
         self.loadRearrParams()        # Load rearrangment parameters from a config file   
         self.lastRearrStep = 0        # Tells AWG what segment to go to at end of rearrangement
         self.OGfile = None
+        self.set_functions()
     
     def activate_rearr(self, toggle = False):
         """Turn rearranging ON or OFF. Calls set_functions whenever rearrToggle is changed so that there 
@@ -271,11 +272,12 @@ class rearrange():
 
         keyStr = self.convertBinaryOccupancy(occupancyStr)
         
-        if len(keyStr)<len(self.target_freqs):
-            keyStr = self.convertBinaryOccupancy('1'*len(self.initial_freqs))
-            moveKey = keyStr[-len(self.target_freqs):]+'m'+''.join(self.fstring(self.target_freqs))
+        if len(keyStr)<len(self.target_freqs) and self.rearrMode=='use_exact':
+            moveKey = keyStr+'m'+''.join(self.fstring(keyStr))
             segData = self.movesDict[moveKey]
             self.awg.setSegment(1,segData, verbosity=False) 
+            
+            
         
         else:    
             # WARNINGS to notify you there's a user error in setting # ROIs.
@@ -288,15 +290,22 @@ class rearrange():
             
             if self.rearrMode == 'use_exact':
                 moveKey = keyStr[-len(self.target_freqs):]+'m'+''.join(self.fstring(self.target_freqs))
+                segData = self.movesDict[moveKey]      # Find the relevant segment data in movesDict and
+                self.awg.setSegment(1,segData, verbosity=False)        # segment 1 is always the move segment (0 static, 1 move, 2 static //OR// 2 ramp, 3 static)
+                
             
             elif self.rearrMode == 'use_all':
                 moveKey = keyStr + 'm'+''.join(self.fstring([1]*len(keyStr)))
-            
-            segData = self.movesDict[moveKey]      # Find the relevant segment data in movesDict and
+                segData = self.movesDict[moveKey]      # Find the relevant segment data in movesDict and
+                self.awg.setSegment(1,segData, verbosity=False)        # segment 1 is always the move segment (0 static, 1 move, 2 static //OR// 2 ramp, 3 static)
+                
+                endKey = self.fstring(['1']*len(keyStr)) +'st'
+                segData = self.movesDict[endKey]
+                self.awg.setSegment(2,segData, verbosity=False)        # segment 1 is always the move segment (0 static, 1 move, 2 static //OR// 2 ramp, 3 static)
+
 
            
         
-            self.awg.setSegment(1,segData, verbosity=False)        # segment 1 is always the move segment (0 static, 1 move, 2 static //OR// 2 ramp, 3 static)
 
 
         
@@ -335,11 +344,7 @@ class rearrange():
         self.setRearrFreqAmps(self.rParam['rearr_freq_amps'])       # Initialises frequency amplitudes during rearrangment to default 1/len(initial_freqs)
        # self.saveRearrParams()
 
-    def saveRearrParams(self, savedir= r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\rearr_config_files'):
-        """Save the rearrangement parameters used to a metadata file. """
-        with open(savedir+r'\rearr_config_11.06.2021.txt', 'w') as fp:
-            json.dump(self.rParam, fp, indent=1, separators=(',',':'))
-    
+
     def printRearrInfo(self):
         """Print out the current status of the card, after changes have been applied by rearrangement functions."""
         if self.rearrToggle == True:
@@ -426,21 +431,20 @@ class rearrange():
             # If rearranging on, then index loaded segments starting from index of last rearr segment to avoid overwriting.
             self.awg.setSegment(i+self.segmentCounter,*tempData)    
 
-            
+        if self.rParam['power_ramp'] == False: # this if statement is duplicated in setBaseREarrangeSteps()
+            self.lastRearrStep = 3
+        else:
+            self.lastRearrStep = 4
+        self.setBaseRearrangeSteps()   # Call this again to reset the base card segments, (to update lastRearrStep)
         for i in range(stepNumber):
             # If rearrToggle is true, then here we want last rearr step to move onto 1st loaded step.
             stepArguments = [lsteps['step_'+str(i)][x] for x in AWG.stepOrder]
 
-            if self.rParam['power_ramp'] == False:    
-                self.lastRearrStep = 3
-            else:
-                self.lastRearrStep = 4
-            self.setBaseRearrangeSteps()   # Call this again to reset the base card segments, (to update lastRearrStep)
             stepArguments[0] += self.lastRearrStep         # reindex step number starting from last rearrange step.
-            stepArguments[1] = i + self.segmentCounter      # reindex segments starting from last segment 
+            stepArguments[1] += self.lastRearrStep      # reindex segments starting from last segment 
             if stepArguments[3] != 0:                      # reindex NEXT step number starting from last rearrange step
                 stepArguments[3] += self.lastRearrStep     # unless next step is 0
-            stepArguments[4]=2 # set all trigs to 2
+            # stepArguments[4]=2 # set all trigs to 2 --- don't change this!
             if i ==stepNumber-1: 
                 stepArguments[4]=1 # last trigger should be 1
 
@@ -468,14 +472,19 @@ class rearrange():
         for i in range(len(cmd)):
                cmd[i][1] += self.segmentCounter
         self.awg.loadSeg(cmd)
-    
+
+    def saveRearrParams(self, savedir= r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\rearr_config_files'):
+        """Save the rearrangement parameters used to a metadata file. """
+        with open(savedir+r'\rearr_config.txt', 'w') as fp:
+            json.dump(self.rParam, fp, indent=1, separators=(',',':'))
+        
+            
     def rearr_saveData(self, path):
         """If rearranging is ON, replace awgHandler.save method with THIS method.
             - We no longer save the curent filedata, instead a COPY of the original file loaded in. 
         """
-        # print('rearr_save_data')
-        # print(path)
-        # print(path.rpartition('\\')[0])
+
+        #print('save path = ' + path)
         self.saveRearrParams(path.rpartition('\\')[0])  # saves rearr_config.txt to measure file
         if self.OGfile is not None:  # avoid error if you haven't loaded in a file after rearranging.
             self.copyOriginal(path)     # saves AWGparams_base (the base AWG file without rearr segs)
@@ -519,19 +528,25 @@ class rearrange():
 
     def set_functions(self):
         """
+        WARNING: ISSUES WITH THIS WAY OF DOING IT. ALTHOUGH SEEMS LIKE IT SHOULD BE FIND, WE HAVE SEEN
+        THAT IT CAUSES ISSUES FOR SOME REASON AND DOESN'T WORK
         Depending if rearrangement is on or off, redefine certain functions to behave differently.      
         By setting the function as soon as rearrangement is ON/OFF, avoids lots of IF statements in other
         functions which is cleaner and makes faster.
         """
         if self.rearrToggle == False:  # If rearrangement is OFF
+            pass
            # self.load = self.awg.load
-            self.loadSeg = self.awg.loadSeg
-            self.save = self.awg.saveData
+           # self.loadSeg = self.awg.loadSeg
+          #  self.save = self.awg.saveData
+          #  print('using regular functions')
        
         elif self.rearrToggle == True: # If rearrangement is ON
+            pass
            # self.load = self.rearr_load
-            self.loadSeg = self.rearr_loadSeg
-            self.save = self.rearr_saveData
+            #self.loadSeg = self.rearr_loadSeg
+           # self.save = self.rearr_saveData
+            #print('using rearr version of functions')
     
     def phase_adjust(self, N):
         """Analytic expression (Schroeder paper) to adjust phases to give a lower crest factor

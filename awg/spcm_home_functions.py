@@ -348,7 +348,7 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
         amp_ramp = np.array([ampAdjuster2d(sfreq[Y]*1e-6 + hybridJerk(t, 1e-6*rfreq[Y], numOfSamples, a), startAmp[Y]) for Y in range(l)])
         s = np.sum(amp_ramp, axis=0)
         if any(s > 280):
-            print('WARNING: multiple moving traps power overflow: total required power is > 280mV, max is: '+str(round(max(s),2))+'mV')
+            print('WARNING: multiple moving traps power overflow: total required power is > 280mV, peak is: '+str(round(max(s),2))+'mV')
             amp_ramp = np.ones(l)/l*tot_amp
     else: # nmt amp adjust
         if np.sum(tot_amp*startAmp) > 280:

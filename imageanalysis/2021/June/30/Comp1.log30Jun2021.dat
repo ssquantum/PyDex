@@ -1,0 +1,3 @@
+#Single Atom Image Analyser Log File: collects histogram data
+#include --[]
+#File ID, User variable, Number of images processed, 0 atom survival probability, 1 atom survival probability, Error in 0 atom survival probability, Error in 1 atom survival probability, Condition met, Error in Condition met, Include

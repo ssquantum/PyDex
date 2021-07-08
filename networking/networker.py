@@ -173,7 +173,7 @@ class PyServer(QThread):
                                 buffer_size = int.from_bytes(conn.recv(4), 'big')
                                 self.textin.emit(str(conn.recv(buffer_size), encoding))
                             except (ConnectionResetError, ConnectionAbortedError) as e:
-                                error('Python server %s: client terminated connection before receive.\n'%self._name+str(e))
+                                warning('Python server %s: client terminated connection before receive.\n'%self._name+str(e))
                             self.ts['received'].append(time.time() - self.ts['connect'][-1] - self.ts['sent'][-1])
                             self.ts['disconnect'].append(time.time())
                         except IndexError as e: 

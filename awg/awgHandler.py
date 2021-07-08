@@ -1864,7 +1864,7 @@ if __name__ == "__main__":
     
     ch1 = 0 #first channel to be used.
     ch2 = 1 #second channel to be used.
-    t = AWG([ch1,ch2])
+    t = AWG([ch1])
     
     t.setNumSegments(12)
     print(t.num_segment)
@@ -1988,23 +1988,28 @@ if __name__ == "__main__":
 #     
 #     fs = np.linspace(225, 135, 10)
 #     
-#     data01 = t.dataGen(0,ch1,'static',1,fs,1,9, 280,[0.15]*len(fs),phase_adjust(len(fs)),False,True)
 #     data02 = t.dataGen(0,ch2,'static',1,fs,1,9, 280,[0.15]*len(fs),phase_adjust(len(fs)),False,True)
-# 
-#     t.setSegment(0,data01, data02)
-#     t.setStep(0,0,1,0,2)
+    data00 = t.dataGen(0,ch1,'static',1,[175],1,9, 220,[1],[0],False,True)
+    t.setSegment(0,data00)
+    t.setStep(0,0,1,1,1)
     
-#     data11 = t.dataGen(1,ch1,'moving',2,f1,f2,0, 280,[0.5, fa_bal],[0.5, fa_bal],[0,0],False,False)
-#     t.setSegment(1,data11)
-#     t.setStep(1,1,1,2,2)
-#     
-#     data21 = t.dataGen(2,ch1,'ramp',2,f2,1,9,280,[0.5, fa_bal],[0.5,0.0],[0,0],False,False)  
-#     t.setSegment(2,data21)
-#     t.setStep(2,2,1,3,2)      
+    data01 = t.dataGen(1,ch1,'moving',2,[175],[166],0, 220,[1],[1],[0],False,True)
+    t.setSegment(1,data01)
+    t.setStep(1,1,1,2,2)
+
+    data02 = t.dataGen(2,ch1,'static',15,[166],1,9, 220,[1],[0],False,True)
+    t.setSegment(2,data02)
+    t.setStep(2,2,1,3,2)
+        
+    data03 = t.dataGen(3,ch1,'ramp',3,[166],1,9,220,[1],[0],[0],False,True )
+    t.setSegment(3,data03)
+    t.setStep(3,3,1,4,2)      
 # 
-#     data31 = t.dataGen(3,ch1,'static', 5,f2,1,9, 280,[0.5, 0],[0, 0],False,False)
-#     t.setSegment(2,data31)
-#     t.setStep(3,3,1,4,2)
+    data04 = t.dataGen(4,ch1,'static',1,[166],1,9, 220,[0],[0],False,True)
+    t.setSegment(4,data04)
+    t.setStep(4,4,1,0,1)
+    
+    t.start(True)
 #     
 #     data41 = t.dataGen(4,ch1,'ramp',2,f2,1,9,280,[0.5, 0.0],[0.5,fa_bal],[0,0],False,False)  
 #     t.setSegment(4,data41)
@@ -2054,17 +2059,17 @@ if __name__ == "__main__":
     # t.setStep(2,2,1,0,2)    
 #       #### DC offset modulate
     
-    data00 = t.dataGen(0,0,'offset',1,94,0, 0)
-    data10 = t.dataGen(0,1,'offset',1,94,280, 0)
-    t.setSegment(0,data00,data10)
-    t.setStep(0,0,1,1,1)  
-    
-    data01 = t.dataGen(1,0,'offset',50,94,0, 0)
-    data11 = t.dataGen(1,1,'offset',50,94,280, 0.1)
-    t.setSegment(1,data01,data11)
-    t.setStep(1,1,1,0,2) 
-    
-    t.start(True)
+    # data00 = t.dataGen(0,0,'offset',1,94,0, 0)
+    # data10 = t.dataGen(0,1,'offset',1,94,280, 0)
+    # t.setSegment(0,data00,data10)
+    # t.setStep(0,0,1,1,1)  
+    # 
+    # data01 = t.dataGen(1,0,'offset',50,94,0, 0)
+    # data11 = t.dataGen(1,1,'offset',50,94,280, 0.1)
+    # t.setSegment(1,data01,data11)
+    # t.setStep(1,1,1,0,2) 
+    # 
+    # t.start(True)
 #     
 #     # 1 trap
 #     # def setStep(self,stepNum,segNum,loopNum,nextStep, stepCondition ):

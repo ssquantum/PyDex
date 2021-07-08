@@ -52,11 +52,14 @@ class comp_handler(Analysis):
 
     def conf(self, success, total):
         """Return the Binomial confidence at 1 sigma"""
-        sp = success / total
-        conf = binom_conf_interval(success, total, interval='jeffreys')
-        uperr = conf[1] - sp # 1 sigma confidence above mean
-        loerr = sp - conf[0] # 1 sigma confidence below mean
-        return sp, uperr, loerr, 0.5*(uperr+loerr)
+        try:
+            sp = success / total
+            conf = binom_conf_interval(success, total, interval='jeffreys')
+            uperr = conf[1] - sp # 1 sigma confidence above mean
+            loerr = sp - conf[0] # 1 sigma confidence below mean
+            return sp, uperr, loerr, 0.5*(uperr+loerr)
+        except ValueError as e:
+            return 0, 0, 0, 0
         
     def process(self, user_var, natoms=-1, include=True):
         """Calculate the statistics from the current histograms.

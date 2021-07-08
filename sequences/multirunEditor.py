@@ -130,7 +130,8 @@ class multirun_widget(QWidget):
         'num_of_samples','duration_loop_[ms]','number_of_cycles']
         self.dds_args = ['Freq', 'Phase', 'Amp', 'Start_add', 'End_add', 'Step_rate', 'Sweep_start', 
         'Sweep_end', 'Pos_step', 'Neg_step', 'Pos_step_rate', 'Neg_step_rate']
-        self.slm_args = ['f','period','angle','radius']
+        self.slm_args = ['f','period','angle','radius','gradient','shift']
+        self.column_options = ['Analogue voltage', 'AWG chan : seg', 'DDS port : profile', 'SLM holograms'] # these analogue types require the analogue options 
         self.COM = ['RB1A', 'RB2', 'RB3', 'RB4', 'RB1B'] # DDS COM port connections
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
@@ -464,8 +465,7 @@ class multirun_widget(QWidget):
             antype = self.ui_param['Analogue type'][col]
             sel = {'Time step name':self.ui_param['Time step name'][col],
                 'Analogue channel':self.ui_param['Analogue channel'][col] 
-                    if any(mrtype==x for x in 
-                        ['Analogue voltage', 'AWG chan : seg', 'DDS port : profile']) else []}
+                    if any(mrtype==x for x in self.column_options) else []}
             list_ind = self.ui_param['list index'][col]
         except (IndexError, ValueError):
             mrtype, antype = 'Time step length', 'Fast analogue'
@@ -474,8 +474,7 @@ class multirun_widget(QWidget):
         self.list_index.setText(str(list_ind))
         self.chan_choices['Type'].setCurrentText(mrtype)
         self.chan_choices['Analogue type'].setCurrentText(antype)
-        self.chan_choices['Analogue channel'].setEnabled(any(mrtype==x for x in 
-                        ['Analogue voltage', 'AWG chan : seg', 'DDS port : profile']))
+        self.chan_choices['Analogue channel'].setEnabled(any(mrtype==x for x in self.column_options))
         for key in ['Time step name', 'Analogue channel']:
             self.chan_choices[key].setCurrentRow(0, QItemSelectionModel.Clear) # clear previous selection
             try:

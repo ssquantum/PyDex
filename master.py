@@ -361,6 +361,7 @@ class Master(QMainWindow):
             info += 'Monitor server is running.\n' if self.rn.monitor.isRunning() else 'Monitor server stopped.\n'
             info += 'AWG server is running.\n' if self.rn.awgtcp.isRunning() else 'AWG server stopped.\n'
             info += 'DDS server is running.\n' if self.rn.ddstcp.isRunning() else 'DDS server stopped.\n'
+            info += 'SLM server is running.\n' if self.rn.slmtcp.isRunning() else 'SLM server stopped.\n'
             info += 'BareDExTer server is running.\n' if self.rn.seqtcp.isRunning() else 'BareDExTer server stopped.\n'
             if self.rn.server.isRunning():
                 msgs = self.rn.server.get_queue()
@@ -632,7 +633,7 @@ class Master(QMainWindow):
         elif 'DDS ' in msg[:10]: # send command to DDS to set new data
             self.rn.ddstcp.priority_messages([(self.rn._n, msg.replace('DDS ', '').split('||||||||')[0])])
         elif 'SLM ' in msg[:10]: # send command to SLM to set new data
-            print(msg)
+            #print(msg)
             self.rn.slmtcp.priority_messages([(self.rn._n, msg.replace('SLM ', '').split('||||||||')[0])])
         elif 'LVData' in msg: 
             try:
@@ -685,8 +686,8 @@ class Master(QMainWindow):
                 "image_handler max length: ", max(map(np.size, mw.image_handler.stats.values())),
                 "\thisto_handler max length: ", max(map(np.size, mw.histo_handler.stats.values())))
         print("TCP Network:")
-        for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG'],
-                [self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp]):
+        for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG', 'SLM'],
+                [self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp, self.rn.slmtcp]):
             print(label, ': %s messages'%len(tcp.get_queue()))
         print("Mutlirun queue length: ", len(self.rn.seq.mr.mr_queue))
         if reset:

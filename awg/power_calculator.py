@@ -42,7 +42,7 @@ plt.ylabel('RF power (mV) \nrequired for %.3g%% output'%(power*100))
 freq = 166 # frequency in MHz
 powers = np.linspace(0.01,1,200) # optical power as a fraction of that at 166 MHz, 220mV
 plt.figure(1)
-plt.plot(powers*100, ampAdjuster2d(powers, freq)[:,0])
+plt.plot(powers*100, ampAdjuster2d(freq, powers))
 plt.xlabel('Requested Optical Power (%)')
 plt.ylabel('RF power (mV) \nrequired at %s MHz'%(freq))
 

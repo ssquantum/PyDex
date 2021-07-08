@@ -868,7 +868,7 @@ class settings_window(QMainWindow):
             self.rw[i].show()
         for i in range(len(self.cw)):
             self.cw[i].resize(w, h)
-            self.cw[i].setGeometry(rwx+i*2*w//len(self.rw_inds), mwy, w, h)
+            self.cw[i].setGeometry(rwx+i*2*w//len(self.cw), mwy, w, h)
             self.cw[i].show()
 
     def im_inds_validator(self, text=''):

@@ -87,6 +87,8 @@ class PyClient(QThread):
                 bytesize = sock.recv(4)# 4 bytes
                 size = int.from_bytes(bytesize, 'big')
                 msg = sock.recv(size)
+                self.dxnum.emit(str(int.from_bytes(dxn, 'big')))
+                self.textin.emit(str(msg, encoding))
                 # send back
                 if len(self.__mq):
                     try:
@@ -96,8 +98,6 @@ class PyClient(QThread):
                 sock.sendall(dxn)
                 sock.sendall(bytesize)
                 sock.sendall(msg)
-                self.dxnum.emit(str(int.from_bytes(dxn, 'big')))
-                self.textin.emit(str(msg, encoding))
             except (ConnectionRefusedError, TimeoutError) as e:
                 pass
             except (ConnectionResetError, ConnectionAbortedError) as e:

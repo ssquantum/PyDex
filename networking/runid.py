@@ -84,7 +84,7 @@ class runnum(QThread):
         self.ddstcp.start()
         self.seqtcp = PyServer(host='', port=8625, name='BareDExTer') # Sequence viewer in seperate instance of LabVIEW
         self.seqtcp.start()
-        self.slmtcp = PyServer(host='', port=8627, name='SLM') # Sequence viewer in seperate instance of LabVIEW
+        self.slmtcp = PyServer(host='', port=8627, name='SLM') # SLM program runs separately
         self.slmtcp.start()
         self.client = PyClient(host='129.234.190.235', port=8626, name='AWG recv') # incoming from AWG
         self.client.start()
@@ -282,7 +282,7 @@ class runnum(QThread):
             self.ddstcp.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDSparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.slmtcp.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'SLMparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             mr_queue = []
-            print('make msg')
+            #print('make msg')
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
                 if any('AWG' in x for x in self.seq.mr.mr_param['Type']): # send AWG parameters by TCP
                     awgmsg = self.get_params(v, 'AWG')
@@ -293,8 +293,6 @@ class runnum(QThread):
                 if any('SLM' in x for x in self.seq.mr.mr_param['Type']): # send SLM parameters by TCP
                     slmmsg = self.get_params(v, 'SLM')
                 else: slmmsg = ''
-                print('made msg')
-                print(slmmsg)
                 mr_queue += [[TCPENUM['TCP read'], awgmsg+'||||||||'+'0'*2000], # set AWG parameters
                     [TCPENUM['TCP read'], ddsmsg+'||||||||'+'0'*2000], # set DDS parameters
                     [TCPENUM['TCP read'], slmmsg+'||||||||'+'0'*2000], # set SLM parameters
@@ -318,6 +316,9 @@ class runnum(QThread):
                 self.awgtcp.add_message(self._n, 'AWG load='+os.path.join(self.sv.results_path, # reset AWG parameters
                     self.seq.mr.mr_param['measure_prefix'],'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
                # self.awgtcp.add_message(self._n, 'AWG start_awg') # keep AWG on even after multirun
+            if any('SLM' in x for x in self.seq.mr.mr_param['Type']):
+                self.slmtcp.add_message(self._n, 'load_all='+os.path.join(self.sv.results_path, # reset SLM parameters
+                    self.seq.mr.mr_param['measure_prefix'],'SLMparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
             self.cam.AF.AbortAcquisition()
             self.multirun = stillrunning
             if not stillrunning: 
@@ -366,7 +367,15 @@ class runnum(QThread):
                 if any('AWG' in x for x in self.seq.mr.mr_param['Type']): # send AWG parameters by TCP
                     awgmsg = self.get_params(var)
                 else: awgmsg = ''
+                if any('DDS' in x for x in self.seq.mr.mr_param['Type']): # send DDS parameters by TCP
+                    ddsmsg = self.get_params(v, 'DDS')
+                else: ddsmsg = ''
+                if any('SLM' in x for x in self.seq.mr.mr_param['Type']): # send SLM parameters by TCP
+                    slmmsg = self.get_params(v, 'SLM')
+                else: slmmsg = ''
                 mr_queue += [[TCPENUM['TCP read'], awgmsg+'||||||||'+'0'*2000], # set AWG parameters
+                    [TCPENUM['TCP read'], ddsmsg+'||||||||'+'0'*2000], # set DDS parameters
+                    [TCPENUM['TCP read'], slmmsg+'||||||||'+'0'*2000], # set SLM parameters
                     [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[var]],
                     [TCPENUM['TCP read'], 'pause for AWG'+'0'*2000 if awgmsg else '0'*2000]] + [
                     [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*var)+'\n'+'0'*2000] for r in range(repeats)
@@ -383,7 +392,7 @@ class runnum(QThread):
         next run is being sent, so the histogram is saved, fitted, and reset
         based on the run number +1."""
         self.monitor.add_message(self._n, 'update run number')
-        if self._k != self._m - int(self.rearranging) and self.seq.mr.ind > 1:
+        if self._k != self._m and self.seq.mr.ind > 1:
             warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
         self._k = 0
         r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # repeat
