@@ -139,7 +139,8 @@ class Master(QMainWindow):
         self.rn = runnum(camera(config_file=self.stats['CameraConfig']), # Andor camera
                 event_handler(self.stats['SaveConfig']), # image saver
                 image_analysis(results_path =sv_dirs['Results Path: '],
-                    im_store_path=sv_dirs['Image Storage Path: ']), # image analysis
+                    im_store_path=sv_dirs['Image Storage Path: '],
+                    config_file=self.stats['AnalysisConfig']), # image analysis
                 atom_window(last_im_path=sv_dirs['Image Storage Path: ']), # check if atoms are in ROIs to trigger experiment
                 Previewer(), # sequence editor
                 n=startn, m=2, k=0) 
@@ -184,7 +185,7 @@ class Master(QMainWindow):
         synchronisation if it is the same day, and use the same config files."""
         if not file_name:
             try:
-                file_name, _ = QFileDialog.getSaveFileName(self, 'Load the PyDex Master State', '', 'all (*)')
+                file_name, _ = QFileDialog.getOpenFileName(self, 'Load the PyDex Master State', '', 'all (*)')
             except OSError: return 0
         try:
             with open(file_name, 'r') as f:
@@ -207,18 +208,17 @@ class Master(QMainWindow):
         """Reset the date, camera config, image analysis config, and geometries"""
         try:
             self.reset_dates() # date
+            self.rn.sv.reset_dates(self.stats['SaveConfig']) # image saver
+            self.rn.sw.load_settings(fname=self.stats['AnalysisConfig'])
             if self.rn.cam.initialised > 2: # camera
                 if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
                     self.rn.cam.AF.AbortAcquisition()
                 check = self.rn.cam.ApplySettingsFromConfig(self.stats['CameraConfig'])
                 if not any(check):
-                    self.status_label.setText('Camera settings config: '+text)
-                    self.stats['CameraConfig'] = text
+                    self.status_label.setText('Camera settings config: '+self.stats['CameraConfig'])
                 else:
                     self.status_label.setText('Failed to update camera settings.')
             else: self.reset_camera(self.stats['CameraConfig'])
-            self.rn.sv.reset_dates(self.stats['SaveConfig']) # image saver
-            self.rn.sw.load_settings(self.stats['AnalysisConfig'])
         except AttributeError: pass # haven't made runid yet 
         except Exception as e: print('Master could not set state:\n'+str(e))
             

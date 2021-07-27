@@ -1989,7 +1989,7 @@ if __name__ == "__main__":
 #     fs = np.linspace(225, 135, 10)
 #     
 #     data02 = t.dataGen(0,ch2,'static',1,fs,1,9, 280,[0.15]*len(fs),phase_adjust(len(fs)),False,True)
-    data00 = t.dataGen(0,ch1,'static',1,[175],1,9, 220,[1],[0],False,True)
+    data00 = t.dataGen(0,ch1,'static',1,[155.899],1,9, 220,[1],[0],True,True)
     t.setSegment(0,data00)
     t.setStep(0,0,1,1,1)
     

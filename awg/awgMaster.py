@@ -49,7 +49,7 @@ class awg_window(QMainWindow):
     config_file -- path to the file that saved the previous settings.
     """
     def __init__(self, config_file='.\\state', AWG_channels=[0], 
-            default_seq=r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\single_static.txt'):
+            default_seq=r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\single_static_32segs.txt'):
         super().__init__()
         # self.types = OrderedDict([('FileName',str), ('segment',int)])
         self.stats = OrderedDict([('FileName', 0), ('segment', 0)])
@@ -134,7 +134,7 @@ class awg_window(QMainWindow):
             try:     
                 path = cmd.split('=')[1].strip('file:///')
                 if self.rr.rearrToggle == False:
-                    self.rr.awg.load(path)    # NB load is defined differently in rearrHandler, depending if rearrToggle is true/false          
+                    self.rr.awg.load(path)    # NB load is defined differently in rearrHandler, depending if rearrToggle is true/false
                 elif self.rr.rearrToggle == True:
                     self.rr.rearr_load(path)
                 if self.auto_plot:

@@ -1,0 +1,9 @@
+File#=46
+Date=13,July,2021
+CameraConfig=Z:/Tweezer/Code/Python 3.5/PyDex/andorcamera/3_body_camera_settings.dat
+SaveConfig=./config/config.dat
+AnalysisConfig=./config/Vincent_Analysis_settings.config
+MasterGeometry=[217, -591, 651, 118]
+AnalysisGeometry=[795, 170, 568, 613]
+SequencesGeometry=[1008, -957, 862, 884]
+TempXMLPath=X:/Sequence Log/temp.xml

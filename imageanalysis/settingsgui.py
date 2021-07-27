@@ -88,6 +88,7 @@ class settings_window(QMainWindow):
         self.rois = []  # list to hold ROI objects
         self.init_UI()  # make the widgets
         # make sure the analysis windows have the default settings:
+        self.display_settings()
         self.pic_size_text_edit()
         self.CCD_stat_edit()
         self.replot_rois()
@@ -614,9 +615,6 @@ class settings_window(QMainWindow):
             if not success:                   # if fit fails, use peak search
                 mw.display_fit(fit_method='quick')
                 mw.display_fit(fit_method='quick')
-                warning('Multirun run %s fitting failed. '%n +
-                    'Histogram data in '+ measure_prefix+'\\'+mw.name + 
-                    str(hist_id) + '.csv')
             mw.update()
             # append histogram stats to measure log file:
             with open(os.path.join(results_path, measure_prefix, 
@@ -639,7 +637,7 @@ class settings_window(QMainWindow):
         mw             -- imageanalysis window storing results"""
         datastr = 'Experiment,SOURCE=imageanalysis,name="%s" measure=%s,'%(mw.objectName(), measure_prefix)
         datastr +=','.join(['%s=%s'%(key.replace(' ', '_'), val) for key, val in mw.histo_handler.temp_vals.items()
-            if mw.histo_handler.types[key] != str]) 
+            if mw.histo_handler.types[key] == float]) 
         datastr += ' ' + str(int(time.time()*1e9)) + '\n'
         
         msg = "POST /write?db=arduino HTTP/1.1\nHost: 129.234.190.191\n"
@@ -749,6 +747,20 @@ class settings_window(QMainWindow):
                             warning('Failed to load image analysis default config file line: '+line+'\n'+str(e))
         except FileNotFoundError as e: 
             warning('Image analysis settings could not find the default.config file.\n'+str(e))
+        try: self.display_settings()
+        except AttributeError: pass # ui not initialised yet
+    
+    def display_settings(self):
+        """Set the stats into the GUI line edits"""
+        self.reim_edit.setText(str(self.stats['num_reim']))
+        self.coim_edit.setText(str(self.stats['num_coim']))
+        reset_slot(self.m_edit.editingFinished, self.im_inds_validator, False)
+        self.m_edit.setText(str(self.stats['num_images']))
+        reset_slot(self.m_edit.editingFinished, self.im_inds_validator, True)
+        self.a_edit.setText(str(self.stats['num_saia']))
+        self.a_ind_edit.setText(','.join(map(str, [i%self._m for i in range(self._a)])))
+        self.cam_pic_size_changed(self.stats['pic_width'], self.stats['pic_height'])
+        self.create_rois()
     
     def save_settings(self, fname='.\\imageanalysis\\default.config'):
         """Save the current settings to a config file"""
@@ -815,7 +827,7 @@ class settings_window(QMainWindow):
                 self.pic_height_edit.setText('1')
 
     def check_reset(self):
-        """Ask the user if they would like to reset the current data stored"""
+        """Ask the user if they would like to reset the current data storfed"""
         reply = QMessageBox.question(self, 'Confirm Data Replacement',
             "Do you want to discard all the current data?", 
             QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.Cancel)

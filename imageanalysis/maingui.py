@@ -460,6 +460,11 @@ class main_window(QMainWindow):
             self.plot_labels[i].addItems(list(self.histo_handler.stats.keys())) 
             # connect buttons to update functions
             self.plot_labels[i].activated[str].connect(self.update_varplot_axes)
+        # default x and y labels
+        if 'User variable' in self.histo_handler.stats.keys():
+            self.plot_labels[0].setCurrentText('User variable')
+        if 'Loading probability' in self.histo_handler.stats.keys():
+            self.plot_labels[1].setCurrentText('Loading probability')
         # empty text box for the user to write their xlabel
         self.plot_labels.append(QLineEdit(self))
         # position labels in grid

@@ -1,9 +1,0 @@
-File#=0
-Date=02,July,2021
-CameraConfig=Z:/Tweezer/Code/Python 3.5/PyDex/andorcamera/rearr_4x4.dat
-SaveConfig=.\\config\\config.dat
-AnalysisConfig=.\\imageanalysis\\rsc.config
-MasterGeometry=[221, 203, 651, 122]
-AnalysisGeometry=[1110, 338, 660, 613]
-SequencesGeometry=[324, -976, 862, 900]
-TempXMLPath=X:/Sequence Log/temp.xml

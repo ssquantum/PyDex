@@ -156,6 +156,10 @@ class compim_window(main_window):
         for x in self.plot_labels[:2]:
             x.clear()
             x.addItems(list(self.histo_handler.stats.keys())) 
+        if 'User variable' in self.histo_handler.stats.keys():
+            self.plot_labels[0].setCurrentText('User variable')
+        if 'Condition met' in self.histo_handler.stats.keys():
+            self.plot_labels[1].setCurrentText('Condition met')
 
     def set_logic(self):
         self.histo_handler.c0 = [int(x.isChecked()) for x in self.before_cond]

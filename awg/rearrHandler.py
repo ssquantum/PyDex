@@ -51,7 +51,8 @@ class rearrange():
         # Rearrangement variables
         
         self.awg = AWG(AWG_channels) # opens AWG card and initiates
-        
+        self.awg.setNumSegments(32)
+        print('this is num segs', self.awg.num_segment)
         self.activate_rearr(False)
         
         self.movesDict = {}           # dictionary will be populated when segments are calculated
@@ -95,7 +96,7 @@ class rearrange():
         self.lastRearrStep=0
         
         req_n_segs = self.rParam['headroom_segs']   #  Add 10 to required num of rearr segs for appending auxilliary moves afterwards
-        self.awg.setNumSegments(req_n_segs)
+        #self.awg.setNumSegments(req_n_segs)
         start_key = self.fstring(self.initial_freqs) # Static array at initial trap freqs 
         self.createRearrSegment(start_key+'si', seg=0)
 
@@ -447,6 +448,7 @@ class rearrange():
             # stepArguments[4]=2 # set all trigs to 2 --- don't change this!
             if i ==stepNumber-1: 
                 stepArguments[4]=1 # last trigger should be 1
+            #print(stepArguments)
 
             self.awg.setStep(*stepArguments)   
         

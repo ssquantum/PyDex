@@ -453,8 +453,8 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1
     ###############################################
     if freqAdjust == True:
         adjFreqs = adjuster(freqs,sampleRate,numOfSamples)
-       # print(freqs, sampleRate, numOfSamples)
-        #print(adjFreqs)
+        print(freqs, sampleRate, numOfSamples)
+        print(adjFreqs)
         
     else:
         adjFreqs = freqs
