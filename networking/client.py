@@ -13,6 +13,7 @@ except ImportError:
     from PyQt5.QtCore import QThread, pyqtSignal
     from PyQt5.QtWidgets import QApplication 
 import sys
+import time
 if '..' not in sys.path: sys.path.append('..')
 from mythread import reset_slot
 from strtypes import error, warning, info
@@ -38,13 +39,14 @@ class PyClient(QThread):
     dxnum = pyqtSignal(str) # received run number, synchronised with DExTer
     stop  = False           # toggle whether to stop listening
     
-    def __init__(self, host='localhost', port=8089, name=''):
+    def __init__(self, host='localhost', port=8089, name='', pause=0):
         super().__init__()
         self._name = name
         self.server_address = (host, port)
         self.__mq = [] # message queue
         self.app = QApplication.instance()
         self.finished.connect(self.reset_stop) # allow it to start again next time
+        self.pause = pause
         
     def add_message(self, enum, text, encoding="mbcs"):
         """Append a message to the queue that will be sent by TCP connection.
@@ -90,6 +92,7 @@ class PyClient(QThread):
                 self.dxnum.emit(str(int.from_bytes(dxn, 'big')))
                 self.textin.emit(str(msg, encoding))
                 # send back
+                if self.pause: time.sleep(self.pause)
                 if len(self.__mq):
                     try:
                         dxn, bytesize, msg = self.__mq.pop(0)
