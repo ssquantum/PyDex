@@ -1,5 +1,0 @@
-// list of required directories for SAIA
-image storage path	=Z:\Tweezer\Code\Python 3.5\PyDex\saveimages
-dexter sync file	=Z:\Tweezer\Code\Python 3.5\PyDex\saveimages\currentfile.txt
-results path		 =Z:\Tweezer\Experimental Results
-sequences path		 =Z:\Tweezer\Code\Python 3.5\PyDex\sequences\SequenceFiles

@@ -148,7 +148,7 @@ def plot_playback(data):
 if __name__ == "__main__":
     import json
     t0 = time.time()
-    with open(r'Z:\Tweezer\Experimental Results\2021\July\08\3_merge_3_separate.txt') as f:
+    with open(r"Z:\Tweezer\Experimental Results\2021\August\06\AWGRandR.txt") as f:
         filedata = json.load(f)
     t1 = time.time()
     print(t1 - t0)

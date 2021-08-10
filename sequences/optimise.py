@@ -34,8 +34,9 @@ from mythread import reset_slot # for dis- and re-connecting slots
 from strtypes import strlist, intstrlist, listlist, error, warning, info
 from translator import translate
 from multirunEditor import multirun_widget, sequenceSaver
-
+import fitFunctions
 ####    ####    ####    ####
+listbox.add(dir(fitFunctions))
 
 @contextmanager
 def wait_signal(signal, timeout=10000):
@@ -54,7 +55,8 @@ class MLOOPInterface(mli.Interface):
 
     def __init__(self, costfunc, measure):
         super(CustomInterface,self).__init__()
-        self.costfunc = costfunc
+        importlib.reload(fitFunctions)
+        self.costfunc = fitFunctions.costfunc
 
     def get_next_cost_dict(self,params_dict):
         """The cost function needs to send our suggested parameters, run the 
@@ -68,21 +70,6 @@ class MLOOPInterface(mli.Interface):
             uncer = 0
             bad = True
         return {'cost':cost, 'uncer':uncer, 'bad':bad}
-
-interface = CustomInterface()
-    controller = mlc.create_controller(interface,controller_type = 'neural_net', # 
-                    max_num_runs = 1000, # these don't include training runs
-                    target_cost =0.001, # value of the cost function to aim for
-                    num_params = 3, # detuning, duration, rabi freq
-                    min_boundary = [0.9,0.1,1], # lower limit on parameters
-                    max_boundary = [1.1,1.5,400], # upper limit on parameters
-                    cost_has_noise = False,trust_region = 0.4,
-                    learner_archive_filename='RSCm-loop_learner_archive.txt')
-    controller.optimize()
-    print('Best parameters found:')
-    print(controller.best_params)
-with wait_signal(simulator.finished, timeout=10000):
-    run sim
 
 ####    ####    ####    ####
 
@@ -118,6 +105,21 @@ class optimise_widget(multirun_widget):
         self.nrows = nrows
         self.ncols = ncols
         self.reinit_UI()  # edit the widgets
+        interface = CustomInterface()
+        # controller = mlc.create_controller(interface,controller_type = 'neural_net', # 
+        #                 max_num_runs = 1000, # these don't include training runs
+        #                 target_cost =0.001, # value of the cost function to aim for
+        #                 num_params = 3, # detuning, duration, rabi freq
+        #                 min_boundary = [0.9,0.1,1], # lower limit on parameters
+        #                 max_boundary = [1.1,1.5,400], # upper limit on parameters
+        #                 cost_has_noise = False,trust_region = 0.4,
+        #                 learner_archive_filename='RSCm-loop_learner_archive.txt')
+        # controller.optimize()
+        # print('Best parameters found:')
+        # print(controller.best_params)
+        # with wait_signal(simulator.finished, timeout=10000):
+        #     run sim
+
         
     def init_UI(self):
         """Edit the widgets from the multirun editor"""

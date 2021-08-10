@@ -730,8 +730,7 @@ class settings_window(QMainWindow):
     def load_settings(self, toggle=True, stats={}, fname='.\\imageanalysis\\default.config'):
         """Load the default settings from a config file"""
         if stats:
-            for key, val in stats.items():
-                self.stats[key] = self.types[key](val)
+            self.stats = stats
         else:
             try:
                 with open(fname, 'r') as f:

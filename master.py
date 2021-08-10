@@ -204,6 +204,9 @@ class Master(QMainWindow):
         try:
             self.reset_dates() # date
             self.rn.sv.reset_dates(self.stats['SaveConfig']) # image saver
+            sv_dirs = self.rn.sv.get_dirs(self.stats['SaveConfig'])
+            self.stats['AnalysisConfig']['results_path'] = sv_dirs['Results Path: ']
+            self.stats['AnalysisConfig']['image_path'] = sv_dirs['Image Storage Path: ']
             self.rn.sw.load_settings(stats=self.stats['AnalysisConfig'])
             if self.rn.cam.initialised > 2: # camera
                 if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
