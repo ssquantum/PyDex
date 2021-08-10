@@ -12,15 +12,9 @@ import sys
 import time
 import numpy as np
 import pyqtgraph as pg    # not as flexible as matplotlib but works a lot better with qt
-# some python packages use PyQt4, some use PyQt5...
-try:
-    from PyQt4.QtCore import pyqtSignal 
-    from PyQt4.QtGui import (QFont, QLabel, QMessageBox, QPushButton,
-        QCheckBox, QComboBox, QLineEdit, QIntValidator, QAction, QFileDialog)
-except ImportError:
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5.QtGui import QFont, QIntValidator
-    from PyQt5.QtWidgets import (QLabel, QMessageBox, QPushButton,
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtGui import QFont, QIntValidator
+from PyQt5.QtWidgets import (QLabel, QMessageBox, QPushButton,
         QCheckBox, QComboBox, QLineEdit, QAction, QFileDialog)
 from maingui import main_window, reset_slot
 from compHandler import comp_handler

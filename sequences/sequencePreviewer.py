@@ -14,17 +14,9 @@ with open('filename', 'r') as f:
 """
 import sys
 import numpy as np
-try:
-    from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer, Qt
-    from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel,
-        QAction, QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, 
-        QFileDialog, QDoubleValidator, QIntValidator, QComboBox, QMenu, 
-        QActionGroup, QTabWidget, QVBoxLayout, QHBoxLayout, QFont, QRegExpValidator, 
-        QInputDialog, QTableWidget, QTableWidgetItem, QScrollArea) 
-except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer, Qt
-    from PyQt5.QtGui import QFont, QIcon
-    from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, 
+from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer, Qt
+from PyQt5.QtGui import QFont, QIcon
+from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, 
         QTabWidget, QAction, QMainWindow, QLabel, QInputDialog, QGridLayout,
         QMessageBox, QLineEdit, QFileDialog, QComboBox, QActionGroup, QMenu,
         QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QScrollArea)

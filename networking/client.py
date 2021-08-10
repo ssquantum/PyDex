@@ -6,19 +6,15 @@ Stefan Spence 29/05/20
 """
 import socket
 import struct
-try:
-    from PyQt4.QtCore import QThread, pyqtSignal
-    from PyQt4.QtGui import QApplication
-except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal
-    from PyQt5.QtWidgets import QApplication 
+from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtWidgets import QApplication 
 import sys
 import time
 if '..' not in sys.path: sys.path.append('..')
-from mythread import reset_slot
+from mythread import reset_slot, enco
 from strtypes import error, warning, info
 
-def simple_msg(host, port, msg, encoding='utf-8', recv_buff_size=-1):
+def simple_msg(host, port, msg, encoding=enco, recv_buff_size=-1):
     """Open a socket and send a TCP message, then receive back a message."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         # sock.setblocking(0) # don't hold up if there's a delay
@@ -48,7 +44,7 @@ class PyClient(QThread):
         self.finished.connect(self.reset_stop) # allow it to start again next time
         self.pause = pause
         
-    def add_message(self, enum, text, encoding="mbcs"):
+    def add_message(self, enum, text, encoding=enco):
         """Append a message to the queue that will be sent by TCP connection.
         enum - (int) corresponding to the enum for DExTer's producer-
                 consumer loop.
@@ -58,7 +54,7 @@ class PyClient(QThread):
                                 struct.pack("!L", len(bytes(text, encoding))), # msg length 
                                 bytes(text, encoding)]) # message
                             
-    def priority_messages(self, message_list, encoding="mbcs"):
+    def priority_messages(self, message_list, encoding=enco):
         """Add messages to the start of the message queue.
         message_list - list of [enum (int), text(str)] pairs."""
         self.__mq = [[struct.pack("!L", int(enum)), # enum 
@@ -68,14 +64,14 @@ class PyClient(QThread):
     def get_queue(self):
         """Return a list of the queued messages."""
         return [(str(int.from_bytes(enum, 'big')), int.from_bytes(tlen, 'big'), 
-                str(text, 'mbcs')) for enum, tlen, text in self.__mq]
+                str(text, enco)) for enum, tlen, text in self.__mq]
                         
     def clear_queue(self):
         """Remove all of the messages from the queue."""
         reset_slot(self.textin, self.clear_queue, False) # only trigger clear_queue once
         self.__mq = []
     
-    def echo(self, encoding='mbcs'):
+    def echo(self, encoding=enco):
         """Receive and echo back 3 messages:
         1) the run number (unsigned long int)
         2) the length of a message string (unsigned long int)

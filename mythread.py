@@ -8,12 +8,9 @@ Stefan Spence 06/12/19
  - if the queue is empty, keep refreshing.
  - stop the thread by calling close()
 """
-try:
-    from PyQt4.QtCore import QThread, pyqtSignal
-    from PyQt4.QtGui import QApplication
-except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal
-    from PyQt5.QtWidgets import QApplication 
+from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtWidgets import QApplication 
+enco = 'mbcs' # TCP message encoding
 
 def reset_slot(signal, slot, reconnect=True):
     """Make sure all instances of slot are disconnected

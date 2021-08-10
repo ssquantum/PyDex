@@ -12,16 +12,9 @@ import numpy as np
 import pyqtgraph as pg
 from collections import OrderedDict
 # some python packages use PyQt4, some use PyQt5...
-try:
-    from PyQt4.QtCore import pyqtSignal, QRegExp
-    from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
-            QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
-            QMenu, QActionGroup, QFont, QTableWidget, QTableWidgetItem, QTabWidget, 
-            QVBoxLayout, QRegExpValidator) 
-except ImportError:
-    from PyQt5.QtCore import pyqtSignal, QRegExp
-    from PyQt5.QtGui import (QIcon, QRegExpValidator, QFont)
-    from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
+from PyQt5.QtCore import pyqtSignal, QRegExp
+from PyQt5.QtGui import (QIcon, QRegExpValidator, QFont)
+from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
         QFileDialog, QMessageBox, QLineEdit, QGridLayout, QWidget,
         QApplication, QPushButton, QAction, QMainWindow, QTabWidget,
         QTableWidget, QTableWidgetItem, QLabel)
@@ -45,12 +38,12 @@ class settings_window(QMainWindow):
     nreim         -- number of reimage.reim_window instances to create
     results_path  -- the directory where result csv or dat files are saved.
     im_store_path -- the directory where images are saved. Default
-    config_file   -- file name to load default configuration from
+    config_settings   -- dictionary to load default configuration from
     """
     m_changed = pyqtSignal(int) # gives the number of images per run
     bias_changed = pyqtSignal(int) # gives the bias offset to subtract from counts in images
 
-    def __init__(self, results_path='', im_store_path='', config_file='.\\imageanalysis\\default.config'):
+    def __init__(self, results_path='', im_store_path='', config_settings={}):
         super().__init__()
         self.types = OrderedDict([('pic_width',int), ('pic_height',int), ('ROIs',listlist), 
             ('bias', int), ('image_path', str), ('results_path', str), ('last_image', str),
@@ -61,13 +54,13 @@ class settings_window(QMainWindow):
             ('last_image', ''), ('window_pos', [550, 20, 10, 200, 600, 400]),
             ('num_images',2), ('num_saia',2), ('num_reim',1), ('num_coim', 0)])
         self.send_data = False
-        self.load_settings(fname=config_file) # load default
+        self.load_settings(stats=config_settings) # load default
         self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.results_path = results_path if results_path else self.stats['results_path'] # used for saving results
         self.last_path = self.stats['last_image'] # path history helps user get to the file they want
         self.image_storage_path = im_store_path if im_store_path else self.stats['image_path'] # used for loading image files
         self._m = self.stats['num_images'] # number of images per run 
-        self._a = self.stats['num_saia'] # number of SAIA instances
+        self._a = self.stats['num_saia'] // self._m # number of ROIs
         if len(self.stats['ROIs']) < self._a // self._m: # make the correct number of ROIs
             for i in range(len(self.stats['ROIs']), self._a // self._m):
                 self.stats['ROIs'].append([1,1,1,1,1])
@@ -734,19 +727,23 @@ class settings_window(QMainWindow):
             self.update_im(aveim)
             return 1
 
-    def load_settings(self, toggle=True, fname='.\\imageanalysis\\default.config'):
+    def load_settings(self, toggle=True, stats={}, fname='.\\imageanalysis\\default.config'):
         """Load the default settings from a config file"""
-        try:
-            with open(fname, 'r') as f:
-                for line in f:
-                    if len(line.split('=')) == 2:
-                        key, val = line.replace('\n','').split('=') # there should only be one = per line
-                        try:
-                            self.stats[key] = self.types[key](val)
-                        except KeyError as e:
-                            warning('Failed to load image analysis default config file line: '+line+'\n'+str(e))
-        except FileNotFoundError as e: 
-            warning('Image analysis settings could not find the default.config file.\n'+str(e))
+        if stats:
+            for key, val in stats.items():
+                self.stats[key] = self.types[key](val)
+        else:
+            try:
+                with open(fname, 'r') as f:
+                    for line in f:
+                        if len(line.split('=')) == 2:
+                            key, val = line.replace('\n','').split('=') # there should only be one = per line
+                            try:
+                                self.stats[key] = self.types[key](val)
+                            except KeyError as e:
+                                warning('Failed to load image analysis default config file line: '+line+'\n'+str(e))
+            except FileNotFoundError as e: 
+                warning('Image analysis settings could not find the default.config file.\n'+str(e))
         try: self.display_settings()
         except AttributeError: pass # ui not initialised yet
     
@@ -757,7 +754,7 @@ class settings_window(QMainWindow):
         reset_slot(self.m_edit.editingFinished, self.im_inds_validator, False)
         self.m_edit.setText(str(self.stats['num_images']))
         reset_slot(self.m_edit.editingFinished, self.im_inds_validator, True)
-        self.a_edit.setText(str(self.stats['num_saia']))
+        self.a_edit.setText(str(self.stats['num_saia']//self._m))
         self.a_ind_edit.setText(','.join(map(str, [i%self._m for i in range(self._a)])))
         self.cam_pic_size_changed(self.stats['pic_width'], self.stats['pic_height'])
         self.create_rois()

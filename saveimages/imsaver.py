@@ -13,10 +13,7 @@ import numpy as np
 import os
 import sys
 import time
-try:
-    from PyQt4.QtCore import pyqtSignal
-except ImportError:
-    from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal
 if '..' not in sys.path: sys.path.append('..')
 from mythread import PyDexThread
 from strtypes import error, warning, info

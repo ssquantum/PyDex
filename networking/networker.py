@@ -13,15 +13,12 @@ Stefan Spence 21/10/19
 import socket
 import struct
 import time
-try:
-    from PyQt4.QtCore import QThread, pyqtSignal
-    from PyQt4.QtGui import QApplication
-except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal
-    from PyQt5.QtWidgets import QApplication 
+from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtWidgets import QApplication 
 import sys
 if '..' not in sys.path: sys.path.append('..')
 from strtypes import error, warning, info
+from mythread import enco
 
 TCPENUM = { # enum for DExTer's producer-consumer loop cases
 'Initialise': 0,
@@ -94,7 +91,7 @@ class PyServer(QThread):
         """Unlock the msg queue and add all the msgs from reserve"""
         self.__lock = False
 
-    def add_message(self, enum, text, encoding="mbcs"):
+    def add_message(self, enum, text, encoding=enco):
         """Append a message to the queue that will be sent by TCP connection.
         enum - (int) corresponding to the enum for DExTer's producer-
                 consumer loop.
@@ -105,7 +102,7 @@ class PyServer(QThread):
                                 struct.pack("!L", len(bytes(text, encoding))), # msg length 
                                 bytes(text, encoding)]) # message
        
-    def priority_messages(self, message_list, encoding="mbcs"):
+    def priority_messages(self, message_list, encoding=enco):
         """Add messages to the start of the message queue.
         message_list - list of [enum (int), text(str)] pairs."""
         self.__mq = [[struct.pack("!L", int(enum)), # enum 
@@ -115,7 +112,7 @@ class PyServer(QThread):
     def get_queue(self):
         """Return a list of the queued messages."""
         return [(str(int.from_bytes(enum, 'big')), int.from_bytes(tlen, 'big'), 
-                str(text, 'mbcs')) for enum, tlen, text in self.__mq]
+                str(text, enco)) for enum, tlen, text in self.__mq]
                         
     def clear_queue(self):
         """Remove all of the messages from the queue."""
@@ -123,7 +120,7 @@ class PyServer(QThread):
         self.__mq = []
         self.unlockq()
 
-    def run(self, encoding="mbcs"):
+    def run(self, encoding=enco):
         """Keeps a socket open that waits for new connections. For each new
         connection, open a new socket that sends the following 3 messages:
          1) the enum as int32 (4 bytes), which will correspond to a command. 

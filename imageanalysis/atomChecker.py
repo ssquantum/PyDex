@@ -13,16 +13,9 @@ import time
 import numpy as np
 import pyqtgraph as pg
 from collections import OrderedDict
-# some python packages use PyQt4, some use PyQt5...
-try:
-    from PyQt4.QtCore import pyqtSignal, QTimer
-    from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, QAction,
-            QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, QFileDialog,
-            QMenu, QFont) 
-except ImportError:
-    from PyQt5.QtCore import pyqtSignal, QTimer
-    from PyQt5.QtGui import QIcon, QFont
-    from PyQt5.QtWidgets import (QMenu, QFileDialog, QMessageBox, QLineEdit, 
+from PyQt5.QtCore import pyqtSignal, QTimer
+from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtWidgets import (QMenu, QFileDialog, QMessageBox, QLineEdit, 
         QGridLayout, QWidget, QApplication, QPushButton, QAction, QMainWindow, 
         QLabel)
 if '.' not in sys.path: sys.path.append('.')

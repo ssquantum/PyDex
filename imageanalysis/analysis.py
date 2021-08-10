@@ -11,10 +11,7 @@ https://apps.dtic.mil/dtic/tr/fulltext/u2/1010895.pdf
 import sys
 import numpy as np
 from collections import OrderedDict
-try:
-    from PyQt4.QtCore import QThread
-except ImportError:
-    from PyQt5.QtCore import QThread
+from PyQt5.QtCore import QThread
 if '.' not in sys.path: sys.path.append('.')
 if '..' not in sys.path: sys.path.append('..')
 from strtypes import BOOL, error, warning, info

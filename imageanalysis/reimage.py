@@ -14,14 +14,9 @@ import time
 import numpy as np
 from astropy.stats import binom_conf_interval
 import pyqtgraph as pg    # not as flexible as matplotlib but works a lot better with qt
-# some python packages use PyQt4, some use PyQt5...
-try:
-    from PyQt4.QtCore import pyqtSignal 
-    from PyQt4.QtGui import QFont, QLabel, QMessageBox
-except ImportError:
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5.QtGui import QFont
-    from PyQt5.QtWidgets import QLabel, QMessageBox
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import QLabel, QMessageBox
 from maingui import main_window, reset_slot
 
 # main GUI window contains all the widgets                

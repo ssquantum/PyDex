@@ -15,18 +15,10 @@ import time
 import copy
 import numpy as np
 from collections import OrderedDict
-try:
-    from PyQt4.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
-    from PyQt4.QtGui import (QApplication, QPushButton, QWidget, QLabel, 
-        QAction, QGridLayout, QMainWindow, QMessageBox, QLineEdit, QIcon, 
-        QFileDialog, QDoubleValidator, QIntValidator, QComboBox, QMenu, 
-        QActionGroup, QTabWidget, QVBoxLayout, QFont, QRegExpValidator, 
-        QInputDialog) 
-except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
-    from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
+from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
+from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
         QFont, QRegExpValidator)
-    from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, 
+from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, 
         QTabWidget, QAction, QMainWindow, QLabel, QInputDialog, QGridLayout,
         QMessageBox, QLineEdit, QFileDialog, QComboBox, QActionGroup, QMenu,
         QVBoxLayout)
@@ -119,11 +111,14 @@ class Master(QMainWindow):
     def __init__(self, state_config='.\\state', image_analysis=settings_window):
         super().__init__()
         self.types = OrderedDict([('File#',int), ('Date',str), ('CameraConfig',str), 
-            ('SaveConfig',str), ('AnalysisConfig',str), ('MasterGeometry',intstrlist), ('AnalysisGeometry',intstrlist), 
+            ('SaveConfig',str), ('AnalysisConfig',eval), ('MasterGeometry',intstrlist), ('AnalysisGeometry',intstrlist), 
             ('SequencesGeometry',intstrlist), ('TempXMLPath', str)])
         self.stats = OrderedDict([('File#', 0), ('Date', time.strftime("%d,%B,%Y")), 
             ('CameraConfig', '.\\andorcamera\\Standard modes\\ExExposure_config.dat'), 
-            ('SaveConfig', '.\\config\\config.dat'), ('AnalysisConfig', '.\\imageanalysis\\default.config'), 
+            ('SaveConfig', '.\\config\\config.dat'), ('AnalysisConfig', {'pic_width':512,
+                'pic_height':512,'ROIs':'[[1, 1, 1, 1, 1], [1, 1, 1, 1, 1]]','bias':697,'image_path':'.',
+                'results_path':'.','last_image':'.','window_pos':'[550, 20, 10, 200, 600, 400]','num_images':2,
+                'num_saia':4,'num_reim':1,'num_coim':0}), 
             ('MasterGeometry', [10, 10, 500, 150]), ('AnalysisGeometry', [1400, 400, 600, 500]), 
             ('SequencesGeometry', [20, 100, 1000, 800]), 
             ('TempXMLPath', r'X:\\Sequence Log\\temp.xml')])
@@ -140,7 +135,7 @@ class Master(QMainWindow):
                 event_handler(self.stats['SaveConfig']), # image saver
                 image_analysis(results_path =sv_dirs['Results Path: '],
                     im_store_path=sv_dirs['Image Storage Path: '],
-                    config_file=self.stats['AnalysisConfig']), # image analysis
+                    config_settings=self.stats['AnalysisConfig']), # image analysis
                 atom_window(last_im_path=sv_dirs['Image Storage Path: ']), # check if atoms are in ROIs to trigger experiment
                 Previewer(), # sequence editor
                 n=startn, m=2, k=0) 
@@ -209,7 +204,7 @@ class Master(QMainWindow):
         try:
             self.reset_dates() # date
             self.rn.sv.reset_dates(self.stats['SaveConfig']) # image saver
-            self.rn.sw.load_settings(fname=self.stats['AnalysisConfig'])
+            self.rn.sw.load_settings(stats=self.stats['AnalysisConfig'])
             if self.rn.cam.initialised > 2: # camera
                 if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
                     self.rn.cam.AF.AbortAcquisition()
@@ -729,18 +724,17 @@ class Master(QMainWindow):
                 mw.image_handler.reset_arrays()
                 mw.histo_handler.reset_arrays()
 
-    def save_state(self, file_name='', sett_name='./imageanalysis/default.config'):
+    def save_state(self, file_name=''):
         """Save the file number and date and config file paths so that they
         can be loaded again when the program is next started."""
         if not file_name:
             try:
                 file_name, _ = QFileDialog.getSaveFileName(self, 'Save the PyDex Master State', '', 'all (*)')
-                sett_name, _ = QFileDialog.getSaveFileName(self, 'Save the Image Analysis Settings', '', 'all (*)')
             except OSError: return ''
         if not file_name: file_name = './state' # in case user cancels
-        if not sett_name: sett_name = './imageanalysis/default.config'
         self.stats['File#'] = self.rn._n
-        self.rn.sw.save_settings(sett_name)
+        self.stats['AnalysisConfig'] = dict(self.rn.sw.stats)
+        self.rn.sw.save_settings()
         for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
             ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:
             self.stats[key] = [g.x(), g.y(), g.width(), g.height()]

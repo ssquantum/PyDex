@@ -8,12 +8,8 @@ Stefan Spence 11/10/19
 import time
 import os
 import numpy as np
-try:
-    from PyQt4.QtCore import QThread, pyqtSignal, QTimer
-    from PyQt4.QtGui import QMessageBox
-except ImportError:
-    from PyQt5.QtCore import QThread, pyqtSignal, QTimer
-    from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer
+from PyQt5.QtWidgets import QMessageBox
 from networker import PyServer, reset_slot, TCPENUM
 from client import PyClient
 import sys

@@ -12,17 +12,9 @@ import copy
 import numpy as np
 from collections import OrderedDict
 from random import shuffle, randint
-try:
-    from PyQt4.QtCore import pyqtSignal, QItemSelectionModel, QThread, Qt
-    from PyQt4.QtGui import (QPushButton, QWidget, QLabel,
-        QGridLayout, QLineEdit, QDoubleValidator, QIntValidator, 
-        QComboBox, QListWidget, QTabWidget, QVBoxLayout, QInputDialog,
-        QTableWidget, QTableWidgetItem, QScrollArea, QMessageBox,
-        QFileDialog, QApplication) 
-except ImportError:
-    from PyQt5.QtCore import pyqtSignal, QItemSelectionModel, QThread, Qt
-    from PyQt5.QtGui import QDoubleValidator, QIntValidator
-    from PyQt5.QtWidgets import (QVBoxLayout, QWidget, QComboBox,
+from PyQt5.QtCore import pyqtSignal, QItemSelectionModel, QThread, Qt
+from PyQt5.QtGui import QDoubleValidator, QIntValidator
+from PyQt5.QtWidgets import (QVBoxLayout, QWidget, QComboBox,
         QLineEdit, QGridLayout, QPushButton, QListWidget, QListWidgetItem, 
         QScrollArea, QLabel, QTableWidget, QTableWidgetItem, QMessageBox,
         QFileDialog, QApplication)

@@ -10,14 +10,10 @@ import numpy as np
 import pyqtgraph as pg
 from skimage.filters import threshold_minimum
 from collections import OrderedDict
-try:
-    from PyQt4.QtCore import pyqtSignal
-    from PyQt4.QtGui import QFont, QWidget, QLineEdit, QCheckBox, QRect
-except ImportError:
-    from PyQt5.QtCore import pyqtSignal
-    from PyQt5.QtGui import QFont
-    from PyQt5.QtCore import QRect
-    from PyQt5.QtWidgets import QWidget, QLineEdit, QCheckBox
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtGui import QFont
+from PyQt5.QtCore import QRect
+from PyQt5.QtWidgets import QWidget, QLineEdit, QCheckBox
 if '.' not in sys.path: sys.path.append('.')
 if '..' not in sys.path: sys.path.append('..')
 from strtypes import error, warning, info
