@@ -111,8 +111,7 @@ class PyServer(QThread):
         
     def get_queue(self):
         """Return a list of the queued messages."""
-        return [(str(int.from_bytes(enum, 'big')), int.from_bytes(tlen, 'big'), 
-                str(text, enco)) for enum, tlen, text in self.__mq]
+        return [(str(int.from_bytes(enum, 'big')), str(text, enco)) for enum, tlen, text in self.__mq]
                         
     def clear_queue(self):
         """Remove all of the messages from the queue."""

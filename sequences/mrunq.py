@@ -33,6 +33,7 @@ class Ui_QueueWindow(object):
         # self.edit_btn.setObjectName("edit_btn")
         self.listWidget = QtWidgets.QListWidget(self.centralwidget)
         self.listWidget.setObjectName("listWidget")
+        self.listWidget.setSortingEnabled(False)
 
         # Put Buttons in boxes for dynamic layout
         hbox = QtWidgets.QHBoxLayout()
@@ -50,10 +51,10 @@ class Ui_QueueWindow(object):
         self.centralwidget.setLayout(vbox)
 
         # Fill listwidget with items from mr_queue
-        for params, _, _, _ in self.mr_queue:
-            item = QtWidgets.QListWidgetItem()
-            self.listWidget.addItem(item)
-
+#        for params, _, _, _ in self.mr_queue:
+#            item = QtWidgets.QListWidgetItem()
+#            self.listWidget.addItem(item)
+        
         # Add menubar and status bar
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
@@ -64,19 +65,20 @@ class Ui_QueueWindow(object):
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
 
-        self.remall_btn.clicked.connect(lambda: self.del_all())
-        self.up_btn.clicked.connect(lambda: self.move_up())
-        self.down_btn.clicked.connect(lambda: self.move_down())
-        self.remove_btn.clicked.connect(lambda: self.delete_run())
+        self.remall_btn.clicked.connect(self.del_all)
+        self.up_btn.clicked.connect(self.move_up)
+        self.down_btn.clicked.connect(self.move_down)
+        self.remove_btn.clicked.connect(self.delete_run)
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def updateList(self):
         _translate = QtCore.QCoreApplication.translate
+        self.listWidget.clear()
         for i, (params, _, _, _) in enumerate(self.mr_queue):
-            item = self.listWidget.item(i)
-            item.setText(_translate("Multirun Queue", params['measure_prefix'] + '\t' + params['Variable label'] + '\n'))
+            item = QtWidgets.QListWidgetItem(_translate("Multirun Queue", params['measure_prefix'] + '\t' + params['Variable label'] + '\n'))
+            self.listWidget.addItem(item)
 
 
     def retranslateUi(self, MainWindow):
@@ -92,12 +94,8 @@ class Ui_QueueWindow(object):
         self.up_btn.setText(_translate("Multirun Queue", "Move Up"))
         self.down_btn.setStatusTip(_translate("Multirun Queue", "Move multirun down the queue"))
         self.down_btn.setText(_translate("Multirun Queue", "Move Down"))
-        __sortingEnabled = self.listWidget.isSortingEnabled()
-        self.listWidget.setSortingEnabled(False)
-
+        
         self.updateList()
-
-        self.listWidget.setSortingEnabled(__sortingEnabled)
 
     def move_up(self):
         currentRow = self.listWidget.currentRow()
@@ -129,9 +127,6 @@ class Ui_QueueWindow(object):
         self.updateList()
 
 
-
-# TODO
-# Remove all does not seem to be working
 
 # To run this as a script file:
 # if __name__ == "__main__":

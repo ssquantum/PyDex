@@ -399,7 +399,8 @@ class Master(QMainWindow):
                 msgs = self.rn.server.get_queue()
                 info += "TCP server is running. %s queued message(s)."%len(msgs)
                 info += '\nCommand Enum | Length |\t Message\n'
-                for enum, textlength, text in msgs[:5]:
+                for enum, text in msgs[:5]:
+                    textlength = len(text)
                     info += enum + ' | ' + text[:20]
                     if textlength > 20:  info += '...'
                     info += '\n'
@@ -524,6 +525,8 @@ class Master(QMainWindow):
                         warning('Multirun has changed the "sync with DExTer" setting.')
                     status = self.rn.seq.mr.check_mr_params(self.rn.sv.results_path) # add to queue if valid
                     self.check_mr_queue() # prevent multiple multiruns occurring simultaneously
+                    if self.rn.seq.mr.QueueWindow.isVisible():
+                        self.rn.seq.mr.queue_ui.updateList()
                 else: 
                     QMessageBox.warning(self, 'Invalid multirun', 
                         'All cells in the multirun table must be populated with float values.')
@@ -608,7 +611,7 @@ class Master(QMainWindow):
         This prevents multiple multiruns being sent to DExTer at the same time."""
         num_mrs = len(self.rn.seq.mr.mr_queue) # number of multiruns queued
         if num_mrs:
-            if not self.rn.seq.mr.multirun: 
+            if not self.rn.seq.mr.multirun and not self.rn.seq.mr.QueueWindow.isVisible(): 
                 self.rn.seq.mr.multirun = True
                 self.rn.server.add_message(TCPENUM['TCP read'], # send the first multirun to DExTer
                     'start measure %s'%(self.rn.seq.mr.mr_param['measure'] + num_mrs - 1)+'\n'+'0'*2000)
@@ -759,7 +762,7 @@ class Master(QMainWindow):
             # self.rn.check.send_rois() # give ROIs from atom checker to image analysis
             for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, 
                     self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp, 
-                    self.rn.check, self.mon_win, self.dds_win]:
+                    self.rn.check, self.mon_win, self.dds_win, self.rn.seq.mr.QueueWindow]:
                 obj.close()
             self.save_state('./state')
             event.accept()

@@ -139,6 +139,10 @@ class multirun_widget(QWidget):
         self.mr_vals  = [] # multirun values for the current multirun
         self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
         self.appending = False # whether the current multirun will be appended on to the displayed results
+        self.multirun = False # whether a multirun is running or not
+        self.QueueWindow = QMainWindow() # window for editing mr queue
+        self.queue_ui = Ui_QueueWindow(self.mr_queue)
+        self.queue_ui.setupUi(self.QueueWindow)
         self.init_UI()  # make the widgets
         self.ss = sequenceSaver(self.mrtr, self.mr_vals, self.mr_param, '') # used to save sequences
 
@@ -624,12 +628,9 @@ class multirun_widget(QWidget):
     #### save and load parameters ####
 
     def view_mr_queue(self):
-        #app = QApplication(sys.argv)
-        self.QueueWindow = QMainWindow()
-        self.ui = Ui_QueueWindow(self.mr_queue)
-        self.ui.setupUi(self.QueueWindow)
+        """Show the window for editing the multirun queue"""
+        self.queue_ui.updateList()
         self.QueueWindow.show()
-        #sys.exit(app.exec_())
 
     def try_browse(self, title='Select a File', file_type='all (*)', 
                 open_func=QFileDialog.getOpenFileName):
