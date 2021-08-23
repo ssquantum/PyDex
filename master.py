@@ -332,7 +332,7 @@ class Master(QMainWindow):
     def reset_dates(self, auto=True):
         """Reset the date in the image saving and analysis, 
         then display the updated date. Don't reset during multirun."""
-        if not self.rn.multirun:
+        if not self.rn.seq.mr.multirun:
             self.date_reset = 0 # whether the dates are waiting to be reset or not
             t0 = time.localtime()
             self.stats['Date'] = time.strftime("%d,%B,%Y", t0)
@@ -413,7 +413,7 @@ class Master(QMainWindow):
             if reply == QMessageBox.Yes:
                 self.action_button.setEnabled(True)
                 self.rn.seq.mr.mr_queue = []
-                self.rn.multirun = False
+                self.rn.seq.mr.multirun = False
                 self.rn.reset_server(force=True) # stop and then restart the servers
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
             elif reply == QMessageBox.No:
@@ -530,10 +530,10 @@ class Master(QMainWindow):
             elif action_text == 'Resume multirun':
                 self.rn.multirun_resume(self.status_label.text())
             elif action_text == 'Pause multirun':
-                if 'multirun' in self.status_label.text() or self.rn.multirun:
+                if 'multirun' in self.status_label.text() or self.rn.seq.mr.multirun:
                     self.rn.multirun_go(False, stillrunning=True)
             elif action_text == 'Cancel multirun':
-                if 'multirun' in self.status_label.text() or self.rn.multirun:
+                if 'multirun' in self.status_label.text() or self.rn.seq.mr.multirun:
                     if self.rn.check.checking:
                         self.rn.check.rh.trigger.emit(1) # send software trigger to end
                     self.rn.multirun_go(False)
@@ -577,8 +577,8 @@ class Master(QMainWindow):
     def reset_cam_signals(self, toggle=True):
         """Stop sending images to the atom checker, send them to image analysis instead"""
         self.rn.check.checking = False
-        reset_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.multirun) # send images to analysis
-        reset_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.multirun)
+        reset_slot(self.rn.cam.AcquireEnd, self.rn.receive, not self.rn.seq.mr.multirun) # send images to analysis
+        reset_slot(self.rn.cam.AcquireEnd, self.rn.mr_receive, self.rn.seq.mr.multirun)
         reset_slot(self.rn.cam.AcquireEnd, self.rn.check_receive, False)
         reset_slot(self.rn.trigger.dxnum, self.reset_cam_signals, False) # only trigger once
         self.rn.trigger.add_message(TCPENUM['TCP read'], 'Go!'*600) # flush TCP
@@ -608,8 +608,8 @@ class Master(QMainWindow):
         This prevents multiple multiruns being sent to DExTer at the same time."""
         num_mrs = len(self.rn.seq.mr.mr_queue) # number of multiruns queued
         if num_mrs:
-            if not self.rn.multirun: 
-                self.rn.multirun = True
+            if not self.rn.seq.mr.multirun: 
+                self.rn.seq.mr.multirun = True
                 self.rn.server.add_message(TCPENUM['TCP read'], # send the first multirun to DExTer
                     'start measure %s'%(self.rn.seq.mr.mr_param['measure'] + num_mrs - 1)+'\n'+'0'*2000)
             else: QTimer.singleShot(10e3, self.check_mr_queue) # check again in 10s.

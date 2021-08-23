@@ -40,7 +40,6 @@ class runnum(QThread):
         self._n = n # the run number
         self._m = m # # images per run
         self._k = k # # images received
-        self.multirun = False # status of whether in multirun or not
         self.next_mr = [] # queue of messages for the next multirun
         self.rearranging = False # whether the first image is being used for rearrangement.
         self.cam = camra # Andor camera control
@@ -307,6 +306,7 @@ class runnum(QThread):
         else: # pause the multi-run
             reset_slot(self.cam.AcquireEnd, self.mr_receive, False)
             reset_slot(self.cam.AcquireEnd, self.receive, True) # process every image
+            if stillrunning: self.next_mr = self.server.get_queue() # save messages to reinsert when resume
             self.server.clear_queue()
             if any('AWG' in x for x in self.seq.mr.mr_param['Type']):
                 self.awgtcp.add_message(self._n, 'AWG load='+os.path.join(self.sv.results_path, # reset AWG parameters
@@ -316,7 +316,7 @@ class runnum(QThread):
                 self.slmtcp.add_message(self._n, 'load_all='+os.path.join(self.sv.results_path, # reset SLM parameters
                     self.seq.mr.mr_param['measure_prefix'],'SLMparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
             self.cam.AF.AbortAcquisition()
-            self.multirun = stillrunning
+            self.seq.mr.multirun = stillrunning
             if not stillrunning: 
                 self.seq.mr.ind = 0
                 self._k = 0
@@ -329,7 +329,7 @@ class runnum(QThread):
 
     def add_mr_msgs(self):
         """Add the next set of multirun messages to the queue to send to DExTer"""
-        if self.multirun:
+        if self.seq.mr.multirun:
             self.server.unlockq()
             for i in range(len(self.next_mr)):
                 enum, text = self.next_mr.pop(0)
@@ -347,40 +347,7 @@ class runnum(QThread):
             reset_slot(self.cam.AcquireEnd, self.receive, False) # only receive if not in '# omit'
             reset_slot(self.cam.AcquireEnd, self.mr_receive, True)
             self._k = 0 # reset image per run count
-            repeats = self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']
-            r = self.seq.mr.ind % repeats  # repeat
-            v = self.seq.mr.ind // repeats # variable
-            nrows = len(self.seq.mr.mr_vals)
-            if v > nrows - 1: v = nrows - 1
-            # finish this histogram
-            mr_queue = [[TCPENUM['TCP read'], 'restart measure %s'%(self.seq.mr.mr_param['measure'])+'\n'+'0'*2000],
-                [TCPENUM['TCP read'], self.get_params(v)+'||||||||'+'0'*2000], # set AWG parameters
-                [TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step run']+'0'*2000],
-                [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]]]
-            mr_queue += [[TCPENUM['Run sequence'], 'multirun run '+str(self._n + i)+'\n'+'0'*2000] for i in range(repeats - r + 1)
-                ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]
-            for var in range(v+1, nrows): # add the rest of the multirun
-                if any('AWG' in x for x in self.seq.mr.mr_param['Type']): # send AWG parameters by TCP
-                    awgmsg = self.get_params(var)
-                else: awgmsg = ''
-                if any('DDS' in x for x in self.seq.mr.mr_param['Type']): # send DDS parameters by TCP
-                    ddsmsg = self.get_params(v, 'DDS')
-                else: ddsmsg = ''
-                if any('SLM' in x for x in self.seq.mr.mr_param['Type']): # send SLM parameters by TCP
-                    slmmsg = self.get_params(v, 'SLM')
-                else: slmmsg = ''
-                mr_queue += [[TCPENUM['TCP read'], awgmsg+'||||||||'+'0'*2000], # set AWG parameters
-                    [TCPENUM['TCP read'], ddsmsg+'||||||||'+'0'*2000], # set DDS parameters
-                    [TCPENUM['TCP read'], slmmsg+'||||||||'+'0'*2000], # set SLM parameters
-                    [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[var]],
-                    [TCPENUM['TCP read'], 'pause for AWG'+'0'*2000 if awgmsg else '0'*2000]] + [
-                    [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*var)+'\n'+'0'*2000] for r in range(repeats)
-                    ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]
-            mr_queue.insert(len(mr_queue) - 2, [TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step end']+'0'*2000])
-            mr_queue += [[TCPENUM['TCP read'], 'confirm last multirun run\n'+'0'*2000], 
-                [TCPENUM['TCP read'], 'end multirun '+str(self.seq.mr.mr_param['measure'])+'\n'+'0'*2000]]
-            self.next_mr = mr_queue
-            self.add_mr_msgs()
+            self.add_mr_msgs() # the messages were already stored in next_mr
             
     def multirun_step(self, msg):
         """Update the status label for the multirun
@@ -439,4 +406,4 @@ class runnum(QThread):
             self.seq.mr.mr_param['measure_prefix'] + 'params' + str(self.seq.mr.mr_param['1st hist ID']) + '.csv')))
         self.seq.mr.progress.emit(       # update progress label
             'Finished measure %s: %s.'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label']))
-        self.multirun = False
+        self.seq.mr.multirun = False

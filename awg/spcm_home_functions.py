@@ -98,6 +98,7 @@ def chirp(t,d,T,a):
     d: total distance/frequency spanned
     T: total duration/number of samples desired
     a: percentage of trajectory being minimum jerk (a=0 is 100% minimum jerk, a=1 is fully linear motion.
+    NOTE I THINK THIS INTEGRAL IS CALCULATED WRONG (RVB 29.07.21)
     """
     a1 = int(0.5*T*(1.-a))  # Handles the first portion of the acceleration.
     a2 = int(T-0.5*T*(1-a)) # Handles the linear part of the trajectory.

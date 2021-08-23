@@ -98,6 +98,7 @@ class multirun_widget(QWidget):
         self.tr = tr # translator for the current sequence
         self.mrtr = tr.copy() # translator for multirun sequence
         self.msglist = [] # list of multirun sequences as XML string
+        self.multirun = False # status of whether in multirun or not. locks mr_queue
         self.ind = 0 # index for how far through the multirun we are
         self.nrows = nrows
         self.ncols = ncols
@@ -615,6 +616,8 @@ class multirun_widget(QWidget):
 
     def view_mr_queue(self):
         """Pop up message box displays the queued multiruns"""
+        stillrunning = self.multirun # whether a multirun is currently running
+        self.multirun = True # lock the multirun queue.
         text = 'Would you like to clear the following list of queued multiruns?\n'
         for params, _, _, _ in self.mr_queue:
             text += params['measure_prefix'] + '\t' + params['Variable label'] + '\n'
@@ -622,6 +625,7 @@ class multirun_widget(QWidget):
             text, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             self.mr_queue = []
+        self.multirun = stillrunning # reset the multirun queue.
 
     def try_browse(self, title='Select a File', file_type='all (*)', 
                 open_func=QFileDialog.getOpenFileName):
