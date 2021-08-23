@@ -12,17 +12,27 @@ import copy
 import numpy as np
 from collections import OrderedDict
 from random import shuffle, randint
-from PyQt5.QtCore import pyqtSignal, QItemSelectionModel, QThread, Qt
-from PyQt5.QtGui import QDoubleValidator, QIntValidator
-from PyQt5.QtWidgets import (QVBoxLayout, QWidget, QComboBox,
+try:
+    from PyQt4.QtCore import (pyqtSignal, QItemSelectionModel, QThread)
+    from PyQt4.QtGui import (QPushButton, QWidget, QLabel,
+        QGridLayout, QLineEdit, QDoubleValidator, QIntValidator, 
+        QComboBox, QListWidget, QListWidgetItem, QTabWidget, QVBoxLayout, QInputDialog,
+        QTableWidget, QTableWidgetItem, QScrollArea, QMessageBox,
+        QFileDialog, QApplication, QMainWindow) 
+except ImportError:
+    from PyQt5.QtCore import (pyqtSignal, QItemSelectionModel, QThread, Qt,
+                                QRect, QCoreApplication)
+    from PyQt5.QtGui import QDoubleValidator, QIntValidator
+    from PyQt5.QtWidgets import (QVBoxLayout, QWidget, QComboBox,
         QLineEdit, QGridLayout, QPushButton, QListWidget, QListWidgetItem, 
         QScrollArea, QLabel, QTableWidget, QTableWidgetItem, QMessageBox,
-        QFileDialog, QApplication)
+        QFileDialog, QApplication, QMainWindow)
 if '.' not in sys.path: sys.path.append('.')
 if '..' not in sys.path: sys.path.append('..')
 from mythread import reset_slot # for dis- and re-connecting slots
 from strtypes import strlist, intstrlist, listlist, error, warning, info
 from translator import translate
+from mrunq import Ui_QueueWindow
 
 ####    ####    ####    ####
 
@@ -98,7 +108,6 @@ class multirun_widget(QWidget):
         self.tr = tr # translator for the current sequence
         self.mrtr = tr.copy() # translator for multirun sequence
         self.msglist = [] # list of multirun sequences as XML string
-        self.multirun = False # status of whether in multirun or not. locks mr_queue
         self.ind = 0 # index for how far through the multirun we are
         self.nrows = nrows
         self.ncols = ncols
@@ -615,17 +624,12 @@ class multirun_widget(QWidget):
     #### save and load parameters ####
 
     def view_mr_queue(self):
-        """Pop up message box displays the queued multiruns"""
-        stillrunning = self.multirun # whether a multirun is currently running
-        self.multirun = True # lock the multirun queue.
-        text = 'Would you like to clear the following list of queued multiruns?\n'
-        for params, _, _, _ in self.mr_queue:
-            text += params['measure_prefix'] + '\t' + params['Variable label'] + '\n'
-        reply = QMessageBox.question(self, 'Queued Multiruns',
-            text, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
-            self.mr_queue = []
-        self.multirun = stillrunning # reset the multirun queue.
+        #app = QApplication(sys.argv)
+        self.QueueWindow = QMainWindow()
+        self.ui = Ui_QueueWindow(self.mr_queue)
+        self.ui.setupUi(self.QueueWindow)
+        self.QueueWindow.show()
+        #sys.exit(app.exec_())
 
     def try_browse(self, title='Select a File', file_type='all (*)', 
                 open_func=QFileDialog.getOpenFileName):
