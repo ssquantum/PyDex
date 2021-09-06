@@ -1,9 +1,0 @@
-File#=18043
-Date=09,August,2021
-CameraConfig=Z:/Tweezer/Code/Python 3.5/PyDex/andorcamera/3_body_camera_settings.dat
-SaveConfig=./config/config.dat
-AnalysisConfig={'pic_width':80,'pic_height':80,'ROIs':[[23, 26, 4, 4, 155], [32, 27, 4, 4, 155], [42, 29, 4, 4, 155]],'bias':697,'image_path':'.\\','results_path':'.\\','last_image':'.','window_pos':[600, 50, 10, 200, 600, 400],'num_images':2,'num_saia':6,'num_reim':3,'num_coim':1}
-MasterGeometry=[92, -267, 651, 100]
-AnalysisGeometry=[248, -949, 568, 613]
-SequencesGeometry=[1057, -949, 862, 884]
-TempXMLPath=X:/Sequence Log/temp.xml

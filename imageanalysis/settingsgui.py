@@ -610,9 +610,13 @@ class settings_window(QMainWindow):
                 mw.display_fit(fit_method='quick')
             mw.update()
             # append histogram stats to measure log file:
-            with open(os.path.join(results_path, measure_prefix, 
-                    mw.objectName() + measure_prefix + '.dat'), 'a') as f:
-                f.write(','.join(list(map(str, mw.histo_handler.temp_vals.values()))) + '\n')
+            try:
+                with open(os.path.join(results_path, measure_prefix, 
+                        mw.objectName() + measure_prefix + '.dat'), 'a') as f:
+                    f.write(','.join(list(map(str, mw.histo_handler.temp_vals.values()))) + '\n')
+            except FileNotFoundError as e: 
+                error("Multirun couldn't save histogram statistics to file %s.\n"%os.path.join(results_path, measure_prefix, 
+                        mw.objectName() + measure_prefix + '.dat') + str(e))
         # save and reset the histograms, make sure to do reimage windows first!
         for mw in self.rw[:len(self.rw_inds)] + self.mw[:self._a]: 
             if self.send_data: self.send_results(measure_prefix, hist_id, mw)
@@ -911,6 +915,12 @@ class settings_window(QMainWindow):
             error('Invalid analysis settings.\n'+str(e))
             return 0
         
+        geometries = [[],[],[]] # store the user's window layout
+        for i, mws in enumerate([self.mw, self.rw, self.cw]):
+            for mw in mws:
+                g = mw.geometry()
+                geometries[i].append([g.x(), g.y(), g.width(), g.height()])
+        
         for mw in self.mw + self.rw + self.cw:
             mw.image_handler.reset_arrays()
             mw.histo_handler.reset_arrays()
@@ -1012,6 +1022,11 @@ class settings_window(QMainWindow):
         self.CCD_stat_edit()
         self.replot_rois()
         self.show_analyses()
+        for i in range(3): # restore previous geometry
+            mws = [self.mw, self.rw, self.cw][i]
+            for j in range(min(len(geometries[i]), len(mws))):
+                mws[j].resize(*geometries[i][j][-2:])
+                mws[j].setGeometry(*geometries[i][j])
         self.m_changed.emit(m) # let other modules know the value has changed, and reconnect signals
         
     def closeEvent(self, event, confirm=False):

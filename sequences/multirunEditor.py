@@ -141,6 +141,7 @@ class multirun_widget(QWidget):
         self.appending = False # whether the current multirun will be appended on to the displayed results
         self.multirun = False # whether a multirun is running or not
         self.QueueWindow = QMainWindow() # window for editing mr queue
+        self.QueueWindow.setStyleSheet("background-color: cyan;")
         self.queue_ui = Ui_QueueWindow(self.mr_queue)
         self.queue_ui.setupUi(self.QueueWindow)
         self.init_UI()  # make the widgets

@@ -80,13 +80,12 @@ class awg_window(QMainWindow):
             'reset_tcp         --- check the TCP server and client status. If the server has stopped, then restart it.\n'+
             'send_trigger      --- manually send a TCP message to trigger DExTer.\n'+
             'auto_plot=0/1     --- if True, automatically plot the sequence when it\'s loaded.\n'+
-            'start_awg         --- manually start the AWG.\n'+
-            'stop_awg          --- manually stop the AWG.\n'+
-            'reset_awg=[...]   --- create a new AWG instance with channels [ch1, ch2, ...] activated. \n'+
-            '\n'+
+            'start_awg         --- manually start the AWG.\nstop_awg          --- manually stop the AWG.\n'+
+            'reset_awg=[...]   --- create a new AWG instance with channels [ch1, ch2, ...] activated. \n\n'+
             '~~~ Rearrangement Commands ~~~\n'+ 
             'rearr_on= config_path    --- activate rearrangment. To refresh rearrangement, do rearr_on again \n'+
             'rearr_off                --- deactivate rearrangment \n'+
+            'rload=file_path          --- set the default segment data when in rearrangement mode.\n'+
             'rearrange=01110##..##    --- binary string triggers rearr step calculation'
             )
         self.centre_widget.layout.addWidget(cmd_info, 0,0, 1,1)
@@ -181,7 +180,7 @@ class awg_window(QMainWindow):
             self.rr.awg.stop()
             self.set_status('AWG stopped.')
         elif 'set_data' in cmd:    
-            self.set_status('Received string = '+cmd.replace('#','').split('=')[1])  # print what occupancy string is received
+            # self.set_status('Received string = '+cmd.replace('#','').split('=')[1])  # print what occupancy string is received
 
             #try:
             t = time.time()

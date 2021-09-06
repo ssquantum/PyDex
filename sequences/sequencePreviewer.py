@@ -93,7 +93,8 @@ class Previewer(QMainWindow):
         save = QAction('Save Sequence', self) 
         save.triggered.connect(self.save_seq_file)
         seq_menu.addAction(save)
-        self.display_toggle = QAction('Display Sequence', self, checkable=True, checked=True) 
+        self.display_toggle = QAction('Display Sequence', self, checkable=True, checked=False) 
+        self.display_toggle.setChecked(False)
         self.display_toggle.triggered.connect(self.redisplay_sequence)
         seq_menu.addAction(self.display_toggle)
 

@@ -21,7 +21,7 @@ from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator,
 from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, 
         QTabWidget, QAction, QMainWindow, QLabel, QInputDialog, QGridLayout,
         QMessageBox, QLineEdit, QFileDialog, QComboBox, QActionGroup, QMenu,
-        QVBoxLayout)
+        QVBoxLayout, QShortcut)
 # change directory to this file's location
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 import warnings
@@ -308,19 +308,37 @@ class Master(QMainWindow):
 
         # actions that can be carried out 
         self.actions = QComboBox(self)
-        self.actions.addItems(['Run sequence', 'Multirun run',
-            'Pause multirun', 'Resume multirun', 'Cancel multirun',
-            'Send sequence to DExTer',
-            'Get sequence from DExTer',
+        self.actions.addItems(['Run sequence (F2)', 'Multirun run (F3)', 'Pause multirun (F4)', 
+            'Resume multirun (F5)', 'Cancel multirun (Esc)', 'Skip multirun histogram (F6)', 
+            'Send sequence to DExTer (F7)','Get sequence from DExTer (F8)',
             'Get sequence from BareDExTer',
             'Save DExTer sequence', 'End Python Mode', 
             'Resync DExTer', 'Start acquisition'])
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
+        
+        # shortcuts
+        self.shortcuts=[QShortcut('F2', self)]
+        self.shortcuts[0].activated.connect(lambda: self.start_action('Run sequence'))
+        self.shortcuts.append(QShortcut('F3', self))
+        self.shortcuts[1].activated.connect(lambda: self.start_action('Multirun run'))
+        self.shortcuts.append(QShortcut('F4', self))
+        self.shortcuts[2].activated.connect(lambda: self.start_action('Pause multirun'))
+        self.shortcuts.append(QShortcut('F5', self))
+        self.shortcuts[3].activated.connect(lambda: self.start_action('Resume multirun'))
+        self.shortcuts.append(QShortcut('Esc', self))
+        self.shortcuts[4].activated.connect(lambda: self.start_action('Cancel multirun'))
+        self.shortcuts.append(QShortcut('F6', self))
+        self.shortcuts[5].activated.connect(lambda: self.start_action('Skip multirun histogram'))
+        self.shortcuts.append(QShortcut('F7', self))
+        self.shortcuts[6].activated.connect(lambda: self.start_action('Send sequence to DExTer'))
+        self.shortcuts.append(QShortcut('F8', self))
+        self.shortcuts[7].activated.connect(lambda: self.start_action('Get sequence from DExTer'))
+        
 
-        self.action_button = QPushButton('Go (F9)', self, checkable=False)
-        self.action_button.setShortcut('F9')
-        self.action_button.clicked[bool].connect(self.start_action)
+        self.action_button = QPushButton('Go (F10)', self, checkable=False)
+        self.action_button.setShortcut('F10')
+        self.action_button.clicked.connect(self.start_action)
         self.action_button.resize(self.action_button.sizeHint())
         self.centre_widget.layout.addWidget(self.action_button, 2,1, 1,1)
 
@@ -477,7 +495,7 @@ class Master(QMainWindow):
         self.status_label.setText('Camera settings config: '+ancam_config)
         self.stats['CameraConfig'] = ancam_config
 
-    def start_action(self):
+    def start_action(self, action_text=''):
         """Perform the action currently selected in the actions combobox.
         Run sequence:   Start the camera acquisition, then make 
                         DExTer perform a single run of the 
@@ -492,7 +510,7 @@ class Master(QMainWindow):
         Resync DExTer:  send a null message just to resync the run number.
         Start acquisition:  start the camera acquiring without telling
                         DExTer to run. Used in unsynced mode."""
-        action_text = self.actions.currentText()
+        if not action_text: action_text = self.actions.currentText()
         if action_text == 'Start acquisition' and self.action_button.text() == 'Go':
             if self.rn.cam.initialised > 2:
                 if self.sync_toggle.isChecked():
@@ -512,13 +530,13 @@ class Master(QMainWindow):
             self.end_run()
 
         if self.rn.server.isRunning():
-            if action_text == 'Run sequence':
+            if 'Run sequence' in action_text:
                 # queue up messages: start acquisition, check run number
                 self.action_button.setEnabled(False) # only process 1 run at a time
                 self.rn._k = 0 # reset image per run count 
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000) 
                 self.rn.monitor.add_message(self.rn._n, 'update run number')
-            elif action_text == 'Multirun run':
+            elif 'Multirun run' in action_text:
                 if self.rn.seq.mr.check_table():
                     if not self.sync_toggle.isChecked():
                         self.sync_toggle.setChecked(True) # it's better to multirun in synced mode
@@ -530,37 +548,45 @@ class Master(QMainWindow):
                 else: 
                     QMessageBox.warning(self, 'Invalid multirun', 
                         'All cells in the multirun table must be populated with float values.')
-            elif action_text == 'Resume multirun':
+            elif 'Resume multirun' in action_text:
                 self.rn.multirun_resume(self.status_label.text())
-            elif action_text == 'Pause multirun':
-                if 'multirun' in self.status_label.text() or self.rn.seq.mr.multirun:
+                if self.rn.cam.initialised:
+                    self.rn.cam.start() # start acquisition
+                    self.wait_for_cam() # wait for camera to initialise before running
+                else: 
+                    warning('Run %s started without camera acquisition.'%(self.rn._n))
+            elif 'Pause multirun' in action_text:
+                if self.rn.seq.mr.multirun:
                     self.rn.multirun_go(False, stillrunning=True)
-            elif action_text == 'Cancel multirun':
-                if 'multirun' in self.status_label.text() or self.rn.seq.mr.multirun:
+            elif 'Cancel multirun' in action_text:
+                if self.rn.seq.mr.multirun:
                     if self.rn.check.checking:
                         self.rn.check.rh.trigger.emit(1) # send software trigger to end
                     self.rn.multirun_go(False)
                     self.rn.seq.mr.ind = 0
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
-            elif action_text == 'Send sequence to DExTer':
+            elif 'Skip multirun histogram' in action_text:
+                if self.rn.seq.mr.multirun:
+                    self.rn.skip_mr_hist()
+            elif 'Send sequence to DExTer' in action_text:
                 self.rn.server.add_message(TCPENUM['TCP load sequence from string'], self.rn.seq.tr.seq_txt)
                 self.rn.seqtcp.add_message(TCPENUM['TCP load sequence from string'], self.rn.seq.tr.seq_txt)
-            elif action_text == 'Get sequence from DExTer':
+            elif 'Get sequence from DExTer' in action_text:
                 self.rn.server.add_message(TCPENUM['TCP read'], 'send sequence xml\n'+'0'*2000) # Dx adds sequence to msg queue
                 for i in range(5):
                     self.rn.server.add_message(TCPENUM['TCP read'], 'replaced with sequence\n') # needs some time to get msg
                 # also send this sequence to BareDExTer
                 QTimer.singleShot(0.5, lambda:self.rn.seqtcp.add_message(TCPENUM['TCP load sequence from string'], self.rn.seq.tr.seq_txt))
-            elif action_text == 'Get sequence from BareDExTer':
+            elif 'Get sequence from BareDExTer' in action_text:
                 self.rn.seqtcp.add_message(TCPENUM['TCP read'], 'send sequence xml\n'+'0'*2000) # Dx adds sequence to msg queue
                 for i in range(5):
                     self.rn.seqtcp.add_message(TCPENUM['TCP read'], 'replaced with sequence\n') # needs some time to get msg
-            elif action_text == 'Save DExTer sequence':
+            elif 'Save DExTer sequence' in action_text:
                 self.rn.server.add_message(TCPENUM['Save sequence'], 'save log file automatic name\n'+'0'*2000)
-            elif action_text == 'End Python Mode':
+            elif 'End Python Mode' in action_text:
                 self.rn.server.add_message(TCPENUM['TCP read'], 'python mode off\n'+'0'*2000)
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Resync DExTer\n'+'0'*2000) # for when it reconnects
-            elif action_text ==  'Resync DExTer':
+            elif 'Resync DExTer' in action_text:
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Resync DExTer\n'+'0'*2000)
 
     def trigger_exp_start(self, n=None):

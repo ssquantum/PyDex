@@ -640,7 +640,8 @@ class main_window(QMainWindow):
                             self.histo_handler.yvals, pen=None, symbol='o')
                 # add error bars if available:
                 if ('Loading probability' in y_label or 'Fidelity' in y_label 
-        or 'Background peak count' in y_label or 'Signal peak count' in y_label):
+        or 'Background peak count' in y_label or 'Signal peak count' in y_label
+        or 'survival probability' in y_label or 'Condition met' in y_label):
                     # add widget for errorbars
                     # estimate sensible beam width at the end of the errorbar
                     if np.size(self.histo_handler.xvals)//2:

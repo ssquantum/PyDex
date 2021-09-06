@@ -60,6 +60,9 @@ def reset_slot(signal, slot, reconnect=True):
         except TypeError: break
     if reconnect: signal.connect(slot)
     
+def silence(txt=""):
+    pass
+    
 class PyServer(QThread):
     """Create a server that opens a socket to host TCP connections.
     While stop=False the server waits for a connection. Once a connection is
@@ -73,7 +76,7 @@ class PyServer(QThread):
     stop   = False           # toggle whether to stop listening
     connected = False        # whether a TCP connection is currently active
     
-    def __init__(self, host='localhost', port=8089, name=''):
+    def __init__(self, host='localhost', port=8089, name='', verbosity=0):
         super().__init__()
         self._name = name
         self.server_address = (host, port)
@@ -82,6 +85,10 @@ class PyServer(QThread):
         self.ts = {label:[time.time()] for label in ['start', 'connect', 'waiting', 
             'sent', 'received', 'disconnect']}
         self.app = QApplication.instance() # the main application that's running
+        if verbosity:
+            self.warn = warning
+        else:
+            self.warn = silence
 
     def lockq(self):
         """Lock the msg queue and add to reserve instead."""
@@ -135,7 +142,7 @@ class PyServer(QThread):
                 s.bind(self.server_address)
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # reuse addresses if they're in time_wait
                 # start the socket that waits for connections
-                s.listen(0) # only allow one connection at a time
+                s.listen() 
             except OSError as e:
                 error('Failed to start server %s at address: '%self._name + 
                     ', '.join(map(str, self.server_address)) + '\n' + str(e))
@@ -169,7 +176,7 @@ class PyServer(QThread):
                                 buffer_size = int.from_bytes(conn.recv(4), 'big')
                                 self.textin.emit(str(conn.recv(buffer_size), encoding))
                             except (ConnectionResetError, ConnectionAbortedError) as e:
-                                warning('Python server %s: client terminated connection before receive.\n'%self._name+str(e))
+                                self.warn('Python server %s: client terminated connection before receive.\n'%self._name+str(e))
                             self.ts['received'].append(time.time() - self.ts['connect'][-1] - self.ts['sent'][-1])
                             self.ts['disconnect'].append(time.time())
                         except IndexError as e: 

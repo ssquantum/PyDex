@@ -42,6 +42,7 @@ class runnum(QThread):
         self._k = k # # images received
         self.next_mr = [] # queue of messages for the next multirun
         self.rearranging = False # whether the first image is being used for rearrangement.
+        self.mr_paused = False # whether the current multirun has been paused
         self.cam = camra # Andor camera control
         self.cam.AcquireEnd.connect(self.receive) # receive the most recent image
         self.sv = saver  # image saver
@@ -62,7 +63,7 @@ class runnum(QThread):
         self.check.roi_values.connect(self.sw.set_rois)
         self.seq = seq   # sequence editor
         
-        self.server = PyServer(host='', port=8620, name='DExTer') # server will run continuously on a thread
+        self.server = PyServer(host='', port=8620, name='DExTer', verbosity=1) # server will run continuously on a thread
         self.server.dxnum.connect(self.set_n) # signal gives run number
         self.server.start()
         if self.server.isRunning():
@@ -83,8 +84,8 @@ class runnum(QThread):
         self.slmtcp.start()
         self.client = PyClient(host='129.234.190.235', port=8626, name='AWG recv') # incoming from AWG
         self.client.start()
-        self.client.textin.connect(self.add_mr_msgs)
-            
+        self.client.textin.connect(self.add_mr_msgs) # msg from AWG starts next multirun step
+        
     def reset_server(self, force=False):
         """Check if the server is running. If it is, don't do anything, unless 
         force=True, then stop and restart the server. If the server isn't 
@@ -323,12 +324,14 @@ class runnum(QThread):
                 for mw in self.sw.mw + self.sw.rw:
                     mw.multirun = ''
             status = ' paused.' if stillrunning else ' ended.'
+            self.mr_paused = stillrunning
             text = 'STOPPED. Multirun measure %s: %s is'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label'])
             self.seq.mr.progress.emit(text+status)
             self.server.add_message(TCPENUM['Run sequence'], text+status) # a final run, needed to trigger the AWG to start.
 
     def add_mr_msgs(self):
-        """Add the next set of multirun messages to the queue to send to DExTer"""
+        """Add the next set of multirun messages to the queue to send to DExTer.
+        Gets triggered by the AWG TCP client."""
         if self.seq.mr.multirun:
             self.server.unlockq()
             for i in range(len(self.next_mr)):
@@ -339,11 +342,27 @@ class runnum(QThread):
                     self.seq.mr.progress.emit('Waiting for AWG...')
                     self.server.lockq()
                     break
+                
+    def skip_mr_hist(self):
+        """Remove the TCP messages for the current histogram so that MR skips it"""
+        try:
+            queue = self.server.get_queue()
+            self.server.clear_queue()
+            for i, item in enumerate(queue): # find the end of the histogram
+                if 'save and reset histogram' in item[1]:
+                    break
+            self.next_mr = queue[i+1:]
+            self.sw.all_hists(action='Reset')
+            r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist'])
+            self.seq.mr.ind += self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist'] - r
+            self.add_mr_msgs()
+        except IndexError as e: error('Failed to skip histogram. IndexError:\n'+str(e))
 
     def multirun_resume(self, status):
         """Resume the multi-run where it was left off.
         If the multirun is already running, do nothing."""
-        if 'paused' in status: 
+        if self.mr_paused: 
+            self.mr_paused = False
             reset_slot(self.cam.AcquireEnd, self.receive, False) # only receive if not in '# omit'
             reset_slot(self.cam.AcquireEnd, self.mr_receive, True)
             self._k = 0 # reset image per run count
