@@ -244,7 +244,7 @@ class AWG:
         ### Intermediate communication between segment data and step data for static traps
         #######################################################################################
         self.rounding = 1024
-        self.statDur = 0.002             # Duration of a single static trap segment in MILLIseconds. Total duration handled by Loops.
+        self.statDur = 0.005             # Duration of a single static trap segment in MILLIseconds. Total duration handled by Loops.
         #self.effDur = math.floor(self.sample_rate.value * (self.statDur*10**-3)/self.rounding)*self.rounding/self.sample_rate.value*10**3
         #self.statDur = round(self.effDur,7)
         self.staticDuration = {}        # Keeps track of the requested duration for each static trap. Will be converted in setStep method.
@@ -261,11 +261,6 @@ class AWG:
             os.makedirs(self.path)
         
 
-        
-        
-        
-        
-        
         
         
     def __str__(self):
@@ -1872,7 +1867,7 @@ if __name__ == "__main__":
     # 0.329um/MHz
     # setup trigger and segment duration
     t.setTrigger(1) # 0 software, 1 ext0
-    t.setSegDur(0.002)
+    t.setSegDur(0.005)
     
     """
     Loading an old experiment

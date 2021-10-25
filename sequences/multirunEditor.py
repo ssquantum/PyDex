@@ -134,6 +134,7 @@ class multirun_widget(QWidget):
         'Sweep_end', 'Pos_step', 'Neg_step', 'Pos_step_rate', 'Neg_step_rate']
         self.slm_args = ['f','period','angle','radius','gradient','shift']
         self.column_options = ['Analogue voltage', 'AWG chan : seg', 'DDS port : profile', 'SLM holograms'] # these analogue types require the analogue options 
+        self.col_range_text = ['']*ncols
         self.COM = ['RB1A', 'RB2', 'RB3', 'RB4', 'RB1B'] # DDS COM port connections
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
@@ -257,7 +258,7 @@ class multirun_widget(QWidget):
         self.col_index = self.make_label_edit('column index:', self.grid, 
                 position=[5,0, 1,1], default_text='0', 
                 validator=col_validator)[1]
-        self.col_range = QLineEdit('linspace(0,1,%s)'%(self.nrows), self)
+        self.col_range = QLineEdit('np.linspace(0,1,%s)'%(self.nrows), self)
         self.grid.addWidget(self.col_range, 5,2, 1,2)
         # show the previously selected channels for this column:
         self.chan_choices['Time step name'].itemClicked.connect(self.save_chan_selection)
@@ -327,6 +328,8 @@ class multirun_widget(QWidget):
         self.ui_param['Time step name'] = [[]]*self.ncols
         self.ui_param['Analogue channel'] = [[]]*self.ncols
         self.ui_param['list index'] = ['0']*self.ncols
+        self.col_range_text = self.col_range_text[:self.ncols] + ['']*(
+                                        self.ncols-len(self.col_range_text))
         self.set_chan_listbox(0)
         
     def check_table(self):
@@ -358,6 +361,8 @@ class multirun_widget(QWidget):
         if self.col_index.text() and int(self.col_index.text()) > self.ncols-1:
             self.col_index.setText(str(self.ncols-1))
         self.reset_array() 
+        self.col_range_text = self.col_range_text[:self.ncols] + ['']*(
+                                        self.ncols-len(self.col_range_text))
         self.ui_param['runs included'] = [[] for i in range(self.nrows)]
         for key, default in zip(['Type', 'Analogue type', 'Time step name', 'Analogue channel', 'list index'],
             ['Time step length', 'Fast analogue', [], [], '0']):
@@ -405,16 +410,9 @@ class multirun_widget(QWidget):
         in the multirun values array. The function is chosen by the user.
         Values are repeated a set number of times, ordered according to the 
         ComboBox text. The selected channels are stored in lists."""
-        if 'linspace' in self.col_range.text(): # choose the generating function
-            f = np.linspace
-        elif 'logspace' in self.col_range.text():
-            f = np.logspace
-        elif 'range' in self.col_range.text():
-            f = np.arange
-        else: return 0
         try: # make the list of values
-            vals = f(*map(float, self.col_range.text().split('(')[-1].replace(')','').split(',')))
-        except (ZeroDivisionError, TypeError, ValueError) as e: 
+            vals = eval(self.col_range.text())
+        except Exception as e: 
             warning('Add column to multirun: invalid syntax "'+self.col_range.text()+'".\n'+str(e))
             return 0
         col = int(self.col_index.text()) if self.col_index.text() else 0
@@ -458,6 +456,7 @@ class multirun_widget(QWidget):
                 for key in ['Time step name', 'Analogue channel']:
                     self.ui_param[key][col] = list(map(self.chan_choices[key].row, self.chan_choices[key].selectedItems()))
                 self.ui_param['list index'][col] = int(self.list_index.text()) if self.list_index.text() else 0
+                self.col_range_text[col] = self.col_range.text()
         except IndexError as e:
             error("Multirun couldn't save channel choices for column "+self.col_index.text()+'.\n'+str(e))
         
@@ -474,10 +473,13 @@ class multirun_widget(QWidget):
                 'Analogue channel':self.ui_param['Analogue channel'][col] 
                     if any(mrtype==x for x in self.column_options) else []}
             list_ind = self.ui_param['list index'][col]
+            col_range_txt = self.col_range_text[col]
         except (IndexError, ValueError):
             mrtype, antype = 'Time step length', 'Fast analogue'
             sel = {'Time step name':[], 'Analogue channel':[]}
             list_ind = 0
+            col_range_txt = ''
+        self.col_range.setText(col_range_txt)
         self.list_index.setText(str(list_ind))
         self.chan_choices['Type'].setCurrentText(mrtype)
         self.chan_choices['Analogue type'].setCurrentText(antype)
@@ -658,12 +660,15 @@ class multirun_widget(QWidget):
             if hasattr(self.sender(), 'text') and self.sender().text() == 'Save Parameters':
                 params, vals = self.ui_param, self.get_table() # save from UI
             else: params, vals = self.mr_param, self.mr_vals # save from multirun
-            with open(save_file_name, 'w+') as f:
-                f.write('Multirun list of variables:\n')
-                f.write(';'.join([','.join([vals[row][col] 
-                    for col in range(len(vals[0]))]) for row in range(len(vals))]) + '\n')
-                f.write(';'.join(params.keys())+'\n')
-                f.write(';'.join(map(str, list(params.values()))))
+            try:
+                with open(save_file_name, 'w+') as f:
+                    f.write('Multirun list of variables:\n')
+                    f.write(';'.join([','.join([vals[row][col] 
+                        for col in range(len(vals[0]))]) for row in range(len(vals))]) + '\n')
+                    f.write(';'.join(params.keys())+'\n')
+                    f.write(';'.join(map(str, list(params.values()))))
+            except PermissionError as e:
+                error("Couldn't save Multirun params to file: %s\n"%save_file_name+str(e))
 
     def load_mr_params(self, load_file_name=''):
         """Load the multirun variables array from a file."""

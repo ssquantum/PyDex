@@ -359,6 +359,9 @@ class Master(QMainWindow):
                 QTimer.singleShot((29*3600 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
                     self.reset_dates) # set the next timer to reset dates
             info(time.strftime("Date reset: %d %B %Y", t0))
+            results_path = os.path.join(self.stats['AnalysisConfig']['results_path'], *time.strftime('%Y,%B,%d').split(','))
+            os.makedirs(results_path, exist_ok=True)
+            self.save_state(os.path.join(results_path, 'PyDexState'+time.strftime("%d%b%y")+'.txt'))
         else:
             self.date_reset = 1 # whether the dates are waiting to be reset or not
 
@@ -431,7 +434,7 @@ class Master(QMainWindow):
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
                 self.action_button.setEnabled(True)
-                self.rn.seq.mr.mr_queue = []
+                self.rn.seq.mr.mr_queue.clear()
                 self.rn.seq.mr.multirun = False
                 self.rn.reset_server(force=True) # stop and then restart the servers
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 

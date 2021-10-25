@@ -99,17 +99,21 @@ class Ui_QueueWindow(object):
 
     def move_up(self):
         currentRow = self.listWidget.currentRow()
-        if currentRow != 0:
-            self.mr_queue[currentRow], self.mr_queue[currentRow - 1] = self.mr_queue[currentRow - 1], self.mr_queue[currentRow]
-            self.updateList()
-            self.listWidget.setCurrentRow(currentRow-1)
+        try:
+            if currentRow != 0:
+                self.mr_queue[currentRow], self.mr_queue[currentRow - 1] = self.mr_queue[currentRow - 1], self.mr_queue[currentRow]
+                self.updateList()
+                self.listWidget.setCurrentRow(currentRow-1)
+        except IndexError: pass
 
     def move_down(self):
         currentRow = self.listWidget.currentRow()
-        if currentRow != self.listWidget.count()-1:
-            self.mr_queue[currentRow], self.mr_queue[currentRow + 1] = self.mr_queue[currentRow + 1], self.mr_queue[currentRow]
-            self.updateList()
-            self.listWidget.setCurrentRow(currentRow+1)
+        try:
+            if currentRow != self.listWidget.count()-1:
+                self.mr_queue[currentRow], self.mr_queue[currentRow + 1] = self.mr_queue[currentRow + 1], self.mr_queue[currentRow]
+                self.updateList()
+                self.listWidget.setCurrentRow(currentRow+1)
+        except IndexError: pass
 
     def delete_run(self):
         currentRow = self.listWidget.currentRow()

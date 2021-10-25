@@ -77,7 +77,7 @@ class awg_window(QMainWindow):
             'save=file_path    --- save segment metadata, steps, and parameters to json in directory file_path.\n'+
             'set_data=[[...]]  --- set segment data: [channel, segment, parameter name, value].\n'+
             'set_step=[...]    --- set step data: [step, segment, # loops, next step, condition].\n'+
-            'reset_tcp         --- check the TCP server and client status. If the server has stopped, then restart it.\n'+
+            'reset_server      --- check the TCP server and client status. If the server has stopped, then restart it.\n'+
             'send_trigger      --- manually send a TCP message to trigger DExTer.\n'+
             'auto_plot=0/1     --- if True, automatically plot the sequence when it\'s loaded.\n'+
             'start_awg         --- manually start the AWG.\nstop_awg          --- manually stop the AWG.\n'+
@@ -270,7 +270,7 @@ class awg_window(QMainWindow):
         self.rr.awg = AWG(eval(cmd.split('=')[1]))#
         self.rr.awg.setNumSegments(8)
         # self.awg.setTrigger(0) # 0 software, 1 ext0
-        self.rr.awg.setSegDur(0.002)
+        self.rr.awg.setSegDur(0.005)
         self.set_status('New instance of AWG created.')
         
     def closeEvent(self, event):

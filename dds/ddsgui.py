@@ -87,6 +87,7 @@ class Ui_MainWindow(object):
         self.tht = np.zeros((5,8))
 
         # For the RAM profiles
+        self.load_DDS_ram = True
         self.Start_Address = np.zeros((5,8))
         self.End_Address = np.zeros((5,8))
         self.Rate = np.zeros((5,8))
@@ -1965,7 +1966,7 @@ class Ui_MainWindow(object):
         self.Disconnect.setText(_translate("MainWindow", "Disconnect"))
 
         self.GB_Aux.setTitle(_translate("MainWindow", "Auxillary parameter sources"))
-        self.Freq_aux.setText(_translate("MainWindow", "110.00"))
+        self.Freq_aux.setText(_translate("MainWindow", "%.1f"%self.FTW[0]))
         self.label_5.setText(_translate("MainWindow", "Frequency"))
         self.label_7.setText(_translate("MainWindow", "MHz"))
         self.label_8.setText(_translate("MainWindow", "Deg"))

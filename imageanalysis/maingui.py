@@ -600,7 +600,8 @@ class main_window(QMainWindow):
             for key in self.histo_handler.stats.keys(): # update the text labels
                 self.stat_labels[key].setText(str(self.histo_handler.temp_vals[key]))
             self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
-            if len(self.image_handler.stats['Counts']) > 50 and not any(self.image_handler.stats['Atom detected'][-50:]):
+            if (len(self.image_handler.stats['Counts']) > 50 and not any(self.image_handler.stats['Atom detected'][-50:]) 
+                    and 'Im0' in self.objectName()):
                 warning('Zero atoms detected in the last 50 shots of analysis '
                     +self.name+' '+self.multirun+' histogram %s.'%self.histo_handler.temp_vals['File ID']) 
             bf = self.histo_handler.bf # short hand
@@ -639,20 +640,18 @@ class main_window(QMainWindow):
                 self.varplot_canvas.plot(self.histo_handler.xvals, 
                             self.histo_handler.yvals, pen=None, symbol='o')
                 # add error bars if available:
-                if ('Loading probability' in y_label or 'Fidelity' in y_label 
+                if ('Fidelity' in y_label 
         or 'Background peak count' in y_label or 'Signal peak count' in y_label
         or 'survival probability' in y_label or 'Condition met' in y_label):
                     # add widget for errorbars
                     # estimate sensible beam width at the end of the errorbar
-                    if np.size(self.histo_handler.xvals)//2:
-                        beam_width = 0.1*(self.histo_handler.xvals[1]
-                                                - self.histo_handler.xvals[0])
-                    else:
-                        beam_width = 0.2
-                    err_bars = pg.ErrorBarItem(x=self.histo_handler.xvals, 
-                        y=self.histo_handler.yvals, 
-                        height=np.array(self.histo_handler.stats['Error in '+y_label]),
-                        beam=beam_width) # plot with error bars
+                    err_bars = pg.ErrorBarItem(x=self.histo_handler.xvals, y=self.histo_handler.yvals, 
+                        height=2*np.array(self.histo_handler.stats['Error in '+y_label]), beam=0) 
+                    self.varplot_canvas.addItem(err_bars)
+                elif 'Loading probability' in y_label:
+                    err_bars = pg.ErrorBarItem(x=self.histo_handler.xvals, y=self.histo_handler.yvals, 
+                        top=np.array(self.histo_handler.stats['Upper Error in '+y_label]),
+                        bottom=np.array(self.histo_handler.stats['Lower Error in '+y_label]), beam=0) 
                     self.varplot_canvas.addItem(err_bars)
             except Exception: pass # probably wrong length of arrays
 
