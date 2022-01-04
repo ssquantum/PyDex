@@ -22,6 +22,9 @@ class fit:
     erry  -- errors in the dependent variable array
     param -- optional best fit parameter estimate
     func  -- a function used for best fits"""
+    fitFuncs = ['offGauss', 'gauss', 'double_gauss', 'poisson', 
+                'double_poisson']
+    
     def __init__(self, xdat=0, ydat=0, erry=None, param=None, func=None):
         self.x    = xdat   # independent variable
         self.y    = ydat   # measured dependent variable
@@ -32,7 +35,7 @@ class fit:
         self.bffunc= func  # function used for the best fit
         self.rchisq = None  # reduced chi-squared statistic for the most recent fit
 
-    def estGaussParam(self):
+    def estOffGaussParam(self):
         """Guess at the amplitude A, centre x0, width wx, and offset y0 of a 
         Gaussian"""
         A = np.max(self.y) - np.min(self.y)     # peak
@@ -46,12 +49,17 @@ class fit:
             xm = self.x[Aind - np.size(self.y[:Aind]) + np.where(self.y[:Aind] - np.min(self.y) < A/2.)[0][-1]]
         e2_width = np.sqrt(2/np.log(2)) * abs(x0 - xm)
         # parameters: [amplitude, centre, standard deviation] #, offset]
-        self.p0 = [A, x0, e2_width/2.] #, np.min(self.y)]
+        self.p0 = [A, x0, e2_width/2., np.min(self.y)]
+        
+    def estGaussParam(self):
+        self.estOffGaussParam()
+        self.p0 = self.p0[:3]
     
-    def offGauss(self, x, A, x0, wx, y0):
-        """Gaussian function centred at x0 with amplitude A, 1/e^2 width wx
+    def offGauss(self, x, A, x0, FWHM, y0):
+        """Gaussian function centred at x0 with amplitude A, Full width half maximum FWHM
         and background offset y0"""
-        return A * np.exp( -2 * (x-x0)**2 /wx**2) + y0
+        sigma=FWHM/(2*np.sqrt(2*np.log(2)))
+        return A * np.exp( - (x-x0)**2 /(2*(sigma**2))) + y0
 
     def gauss(self, x, A, x0, sig):
         """Gaussian function centred at x0 with amplitude A, and standard 

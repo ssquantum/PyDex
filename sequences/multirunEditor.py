@@ -263,6 +263,7 @@ class multirun_widget(QWidget):
         # show the previously selected channels for this column:
         self.chan_choices['Time step name'].itemClicked.connect(self.save_chan_selection)
         self.chan_choices['Analogue channel'].itemClicked.connect(self.save_chan_selection)
+        self.col_range.editingFinished.connect(self.save_chan_selection)
         self.col_index.textChanged[str].connect(self.set_chan_listbox)
 
         # add the column to the multirun values array
@@ -457,7 +458,7 @@ class multirun_widget(QWidget):
                     self.ui_param[key][col] = list(map(self.chan_choices[key].row, self.chan_choices[key].selectedItems()))
                 self.ui_param['list index'][col] = int(self.list_index.text()) if self.list_index.text() else 0
                 self.col_range_text[col] = self.col_range.text()
-        except IndexError as e:
+        except (ValueError, IndexError) as e:
             error("Multirun couldn't save channel choices for column "+self.col_index.text()+'.\n'+str(e))
         
     def set_chan_listbox(self, col):

@@ -24,8 +24,8 @@ from translator import translate
 from multirunEditor import multirun_widget
 import logging
 logger = logging.getLogger(__name__)
-sys.path.append('.')
-sys.path.append('..')
+if '.' not in sys.path: sys.path.append('.')
+if '..' not in sys.path: sys.path.append('..')
 from strtypes import BOOL
 
 def fmt(val, p):

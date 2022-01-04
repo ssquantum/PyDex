@@ -101,6 +101,8 @@ class PyClient(QThread):
                 pass
             except (ConnectionResetError, ConnectionAbortedError) as e:
                 error('Python client %s: server cancelled connection.\n'%self._name+str(e))
+            except OSError as e:
+                error('Python client %s: network failure.\n'%self._name + str(e))
                 
     def check_stop(self):
         """Check if the thread has been told to stop"""
