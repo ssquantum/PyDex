@@ -52,7 +52,6 @@ class rearrange():
         
         self.awg = AWG(AWG_channels) # opens AWG card and initiates
         self.awg.setNumSegments(32)
-        print('this is num segs', self.awg.num_segment)
         self.activate_rearr(False)
         
         self.movesDict = {}           # dictionary will be populated when segments are calculated

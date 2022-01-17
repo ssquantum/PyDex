@@ -58,7 +58,7 @@ class runnum(QThread):
         self.check.nrois_edit.setText(str(len(self.sw.stats['ROIs'])))
         self.cam.ROIChanged.connect(self.check.rh.cam_pic_size_changed)
         self.check.recv_rois_action.triggered.connect(self.get_rois_from_analysis)
-        self.get_rois_from_analysis()
+        # self.get_rois_from_analysis()
         self.sw.bias_changed.connect(self.check.rh.set_bias)
         self.check.roi_values.connect(self.sw.set_rois)
         self.seq = seq   # sequence editor

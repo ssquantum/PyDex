@@ -101,8 +101,12 @@ class Analysis(QThread):
         Then data follows.
         """
         # data converted to the correct type
-        out_arr = np.array([list(map(self.types[key], val))
-                for key, val in self.stats.items()], dtype=str).T
+        try:
+            out_arr = np.array([list(map(self.types[key], val))
+                    for key, val in self.stats.items()], dtype=str).T
+        except ValueError as e:
+            error('Could not convert data: \n' + str(self.stats) + '\n'+str(e))
+            return 0
 
         header = ','.join(meta_head) + '\n'
         header += ','.join(meta_vals) + '\n'

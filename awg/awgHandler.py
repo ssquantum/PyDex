@@ -45,7 +45,7 @@ class AWG:
     spcm_dwGetParam_i32 (hCard, SPC_FNCTYPE, byref (lFncType))                  # Enquiry of the pointer should return 2. In manual p.59, this value corresponds to the arb. function generator. 
     spcm_dwSetParam_i32 (hCard, SPC_CLOCKOUT,   0)                              # Disables the clock output (tristate). A value of 1 enables on external connector. Check p.83 on manual for more details.
     
-    
+
     """
     This is for the trigger method.
     Consult the manual p.91 for more details.
@@ -115,6 +115,19 @@ class AWG:
     """
     
     def __init__ (self, channel_enable = [0,1],sample_rate = MEGA(625), num_segment = int(16) , start_step=int(0)):
+        #### Determine the type of card opened
+        self.__str__()
+        if AWG.lCardType.value in [TYP_M4I6620_X8, TYP_M4I6621_X8, TYP_M4I6622_X8]:
+            self.max_sample_rate = MEGA(625)
+            self.allowed_num_channels = [2**i for i in range(AWG.lCardType.value-TYP_M4I6620_X8+1)]
+        elif AWG.lCardType.value in [TYP_M4I6630_X8, TYP_M4I6631_X8]:
+            self.max_sample_rate = MEGA(1250)
+            self.allowed_num_channels = [2**i for i in range(AWG.lCardType.value-TYP_M4I6630_X8+1)]
+        else: 
+            print('Unknown card model, setting max sample rate 625 MS/s')
+            self.max_sample_rate = MEGA(625)
+            self.allowed_num_channels = [1,2]
+            
         ###################################################################
         # This is where the card metadata will be stored
         ###################################################################
@@ -125,9 +138,9 @@ class AWG:
         self.filedata["calibration"] = {}
         
         # Setting the sample rate of the card.
-        if sample_rate> MEGA(625):
-            sys.stdout.write("Requested sample rate larger than maximum. Sample rate set at 625 MS/s")
-            sample_rate = MEGA(625)
+        if sample_rate> self.max_sample_rate:
+            sys.stdout.write("Requested sample rate larger than maximum. Sample rate set at %s MS/s"%(self.max_sample_rate/1e6))
+            sample_rate = self.max_sample_rate
         self.sample_rate = sample_rate
         spcm_dwSetParam_i64 (AWG.hCard, SPC_SAMPLERATE, int32(self.sample_rate))    # Setting the sample rate for the card
         
@@ -139,7 +152,6 @@ class AWG:
         
         
         # Setting the card channel
-        self.allowed_num_channels = (1,2,4)
         
         if type(channel_enable)==int or type(channel_enable)==float:
             """
@@ -265,8 +277,8 @@ class AWG:
         
     def __str__(self):
         ### Note: The functionL szTypeToName shown below is defined in the spcm_tools.py
-        sCardName = szTypeToName (lCardType.value) # M4i.6622-x8. It just reads out the value from earlier. 
-        sys.stdout.write("Found: {0} sn {1:05d}\n".format(sCardName,lSerialNumber.value))
+        sCardName = szTypeToName (AWG.lCardType.value) # M4i.6622-x8. It just reads out the value from earlier. 
+        sys.stdout.write("Found: {0} sn {1:05d}\n".format(sCardName,AWG.lSerialNumber.value))
         
     def setSampleRate(self,new_sampleRate):
         
@@ -276,9 +288,9 @@ class AWG:
         """
         self.stop()  # Ensure that the card is not outputting something.
         
-        if new_sampleRate> MEGA(625):
-            sys.stdout.write("Requested sample rate larger than maximum. Sample rate set at 625 MS/s")
-            new_sampleRate = MEGA(625)
+        if new_sampleRate> self.max_sample_rate:
+            sys.stdout.write("Requested sample rate larger than maximum. Sample rate set at %s MS/s"%(self.max_sample_rate/1e6))
+            new_sampleRate = self.max_sample_rate
         self.sample_rate = new_sampleRate
         spcm_dwSetParam_i64 (AWG.hCard, SPC_SAMPLERATE, int32(self.sample_rate))    # Setting the sample rate for the card
                
@@ -404,7 +416,7 @@ class AWG:
         leave the others switched off. 
         """
         #Channels start by being off
-        startChannels = {0:0,1:0,2:0,3:0}
+        startChannels = {i:0 for i in range(max(self.allowed_num_channels))}
         flag =0
         # Normalising input:
         if type(channels) == int or type(channels)==float:
@@ -425,7 +437,7 @@ class AWG:
         
         if flag ==0:
             for i in list(startChannels.keys()):
-                spcm_dwSetParam_i64 (AWG.hCard, SPC_ENABLEOUT0+int(i)*100, startChannels[i])
+                spcm_dwSetParam_i64 (AWG.hCard, SPC_ENABLEOUT0+int(i)*(SPC_ENABLEOUT1 - SPC_ENABLEOUT0), startChannels[i])
     
     def setMaxOutput(self,new_maxOutput):
         """
@@ -446,12 +458,12 @@ class AWG:
         This segment will be looped an appropriate number of times to achieve the requested value.
         """
         # self.statDur = new_segDur
-        if 0.0016384 <= new_segDur: 
+        if 1024e3/self.max_sample_rate <= new_segDur: 
             self.statDur = new_segDur             # Duration of a single static trap segment in MILLIseconds. Total duration handled by Loops.
             self.effDur = round(math.floor(self.sample_rate.value * (self.statDur*10**-3)/self.rounding)*self.rounding/self.sample_rate.value*10**3,7)
             self.statDur = round(self.effDur,7)
         else:
-            sys.stdout.write("Segment size must be between 0.0016384 and 0.1 ms. Set to minimum allowed by sample rate.")
+            sys.stdout.write("Segment size must be between %.3g and 0.1 ms. Set to minimum allowed by sample rate."%(1024e3/self.max_sample_rate))
             minVal = self.rounding/self.sample_rate.value*10**3
             self.effDur = round(math.floor(self.sample_rate.value * (minVal*10**-3)/self.rounding)*self.rounding/self.sample_rate.value*10**3,7)
             self.statDur = round(self.effDur,7)
@@ -1866,7 +1878,7 @@ if __name__ == "__main__":
     print(t.maxDuration)
     # 0.329um/MHz
     # setup trigger and segment duration
-    t.setTrigger(1) # 0 software, 1 ext0
+    t.setTrigger(0) # 0 software, 1 ext0
     t.setSegDur(0.005)
     
     """
@@ -2004,7 +2016,7 @@ if __name__ == "__main__":
     t.setSegment(4,data04)
     t.setStep(4,4,1,0,1)
     
-    t.start(True)
+    t.start()
 #     
 #     data41 = t.dataGen(4,ch1,'ramp',2,f2,1,9,280,[0.5, 0.0],[0.5,fa_bal],[0,0],False,False)  
 #     t.setSegment(4,data41)

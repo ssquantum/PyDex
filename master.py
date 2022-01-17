@@ -111,7 +111,8 @@ class Master(QMainWindow):
     def __init__(self, state_config='.\\state', image_analysis=settings_window):
         super().__init__()
         self.types = OrderedDict([('File#',int), ('Date',str), ('CameraConfig',str), 
-            ('SaveConfig',str), ('AnalysisConfig',eval), ('MasterGeometry',intstrlist), ('AnalysisGeometry',intstrlist), 
+            ('SaveConfig',str), ('AnalysisConfig',eval), ('MasterGeometry',intstrlist), 
+            ('AtomCheckerROIs', eval), ('AnalysisGeometry',intstrlist), 
             ('SequencesGeometry',intstrlist), ('TempXMLPath', str)])
         self.stats = OrderedDict([('File#', 0), ('Date', time.strftime("%d,%B,%Y")), 
             ('CameraConfig', '.\\andorcamera\\Standard modes\\ExExposure_config.dat'), 
@@ -119,6 +120,7 @@ class Master(QMainWindow):
                 'pic_height':512,'ROIs':'[[1, 1, 1, 1, 1], [1, 1, 1, 1, 1]]','bias':697,'image_path':'.',
                 'results_path':'.','last_image':'.','window_pos':'[550, 20, 10, 200, 600, 400]','num_images':2,
                 'num_saia':4,'num_reim':1,'num_coim':0}), 
+            ('AtomCheckerROIs',[[1, 1, 1, 1, 1], [1, 1, 1, 1, 1]]),
             ('MasterGeometry', [10, 10, 500, 150]), ('AnalysisGeometry', [1400, 400, 600, 500]), 
             ('SequencesGeometry', [20, 100, 1000, 800]), 
             ('TempXMLPath', r'X:\\Sequence Log\\temp.xml')])
@@ -136,7 +138,8 @@ class Master(QMainWindow):
                 image_analysis(results_path =sv_dirs['Results Path: '],
                     im_store_path=sv_dirs['Image Storage Path: '],
                     config_settings=self.stats['AnalysisConfig']), # image analysis
-                atom_window(last_im_path=sv_dirs['Image Storage Path: ']), # check if atoms are in ROIs to trigger experiment
+                atom_window(last_im_path=sv_dirs['Image Storage Path: '],
+                    rois=self.stats['AtomCheckerROIs']), # check if atoms are in ROIs to trigger experiment
                 Previewer(), # sequence editor
                 n=startn, m=2, k=0) 
         # now the signals are connected, send camera settings to image analysis
@@ -202,12 +205,13 @@ class Master(QMainWindow):
     def apply_state(self):
         """Reset the date, camera config, image analysis config, and geometries"""
         try:
-            self.reset_dates() # date
+            self.reset_dates(savestate=False) # date
             self.rn.sv.reset_dates(self.stats['SaveConfig']) # image saver
             sv_dirs = self.rn.sv.get_dirs(self.stats['SaveConfig'])
             self.stats['AnalysisConfig']['results_path'] = sv_dirs['Results Path: ']
             self.stats['AnalysisConfig']['image_path'] = sv_dirs['Image Storage Path: ']
             self.rn.sw.load_settings(stats=self.stats['AnalysisConfig'])
+            self.rn.check.set_rois(self.stats['AtomCheckerROIs'])
             if self.rn.cam.initialised > 2: # camera
                 if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
                     self.rn.cam.AF.AbortAcquisition()
@@ -347,7 +351,7 @@ class Master(QMainWindow):
         self.setWindowTitle('PyDex Master')
         self.setWindowIcon(QIcon('docs/pydexicon.png'))
 
-    def reset_dates(self, auto=True):
+    def reset_dates(self, auto=True, savestate=True):
         """Reset the date in the image saving and analysis, 
         then display the updated date. Don't reset during multirun."""
         if not self.rn.seq.mr.multirun:
@@ -361,7 +365,7 @@ class Master(QMainWindow):
             info(time.strftime("Date reset: %d %B %Y", t0))
             results_path = os.path.join(self.stats['AnalysisConfig']['results_path'], *time.strftime('%Y,%B,%d').split(','))
             os.makedirs(results_path, exist_ok=True)
-            self.save_state(os.path.join(results_path, 'PyDexState'+time.strftime("%d%b%y")+'.txt'))
+            if savestate: self.save_state(os.path.join(results_path, 'PyDexState'+time.strftime("%d%b%y")+'.txt'))
         else:
             self.date_reset = 1 # whether the dates are waiting to be reset or not
 
@@ -769,6 +773,7 @@ class Master(QMainWindow):
         if not file_name: file_name = './state' # in case user cancels
         self.stats['File#'] = self.rn._n
         self.stats['AnalysisConfig'] = dict(self.rn.sw.stats)
+        self.stats['AtomCheckerROIs'] = self.rn.check.get_rois()
         self.rn.sw.save_settings()
         for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
             ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:

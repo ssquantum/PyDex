@@ -454,8 +454,6 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1
     ###############################################
     if freqAdjust == True:
         adjFreqs = adjuster(freqs,sampleRate,numOfSamples)
-        print(freqs, sampleRate, numOfSamples)
-        print(adjFreqs)
         
     else:
         adjFreqs = freqs
@@ -794,3 +792,11 @@ if __name__ == "__main__":
     # plt.plot(np.fft.fftfreq(np.size(y), 1/625), np.fft.fft(y), label='195 -> 135 MHz')
     # plt.legend()
     # plt.show()
+    
+    dur = 0.1
+    y1 = static(100e6,1,0.1,dur,200,[1],[0],False,True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz)
+    y2 = static(100.01e6,1,0.1,dur,200,[1],[0],False,True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz)
+    plt.plot(np.fft.fftfreq(np.size(y1), 1/625), np.fft.fft(y1), label='100 MHz')
+    plt.plot(np.fft.fftfreq(np.size(y2), 1/625), np.fft.fft(y2), label='100.01 MHz')
+    plt.xlabel('Frequency (MHz)')
+    plt.show()

@@ -1,3 +1,4 @@
+# -*- coding: cp1252 -*-
 """PyDex - DDS
 Lewis McArd, Stefan Spence 24.11.20
 
@@ -454,7 +455,7 @@ class Ui_MainWindow(object):
     def setupUi_coms(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(837, 600)
-        self.mw = MainWindow
+        self.MainWindow = MainWindow
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
 
@@ -532,7 +533,7 @@ class Ui_MainWindow(object):
         self.Freq_aux = QtWidgets.QLineEdit(self.GB_Aux)
         self.Freq_aux.setGeometry(QtCore.QRect(70, 20, 151, 21))
         self.Freq_aux.setObjectName("Freq_aux")
-        self.Freq_aux.editingFinished.connect(self.update_RAM_values_func)
+        self.Freq_aux.editingFinished.connect(self.set_ram_ftw)
         self.label_5 = QtWidgets.QLabel(self.GB_Aux)
         self.label_5.setGeometry(QtCore.QRect(10, 20, 65, 16))
         self.label_5.setObjectName("label_5")
@@ -548,7 +549,7 @@ class Ui_MainWindow(object):
         self.Phase_aux = QtWidgets.QLineEdit(self.GB_Aux)
         self.Phase_aux.setGeometry(QtCore.QRect(70, 60, 151, 21))
         self.Phase_aux.setObjectName("Phase_aux")
-        self.Phase_aux.editingFinished.connect(self.update_RAM_values_func)
+        self.Phase_aux.editingFinished.connect(self.set_ram_pow)
         self.label_AMWunits = QtWidgets.QLabel(self.GB_Aux)
         self.label_AMWunits.setGeometry(QtCore.QRect(230, 100, 25, 16))
         self.label_AMWunits.setObjectName("label_AMWunits")
@@ -558,7 +559,7 @@ class Ui_MainWindow(object):
         self.Amp_aux = QtWidgets.QLineEdit(self.GB_Aux)
         self.Amp_aux.setGeometry(QtCore.QRect(70, 100, 151, 21))
         self.Amp_aux.setObjectName("Amp_aux")
-        self.Amp_aux.editingFinished.connect(self.update_RAM_values_func)
+        self.Amp_aux.editingFinished.connect(self.set_ram_amw)
         self.Amp_aux.editingFinished.connect(self.reload_RAM) # reload data if this parameter is changed
         self.Amp_aux.editingFinished.connect(lambda: self.Amp_aux.setText(self.dbl_fixup(self.Amp_aux.text())))
         self.label_ALIMunits = QtWidgets.QLabel(self.GB_Aux)
@@ -2272,7 +2273,7 @@ class Ui_MainWindow(object):
                     self.debug_func(25)
                     time.sleep(0.05)
                     self.ind = (int(self.port.replace('COM',''))-7)%len(self.COMlabels)
-                    self.mw.setWindowTitle(
+                    self.MainWindow.setWindowTitle(
                         'DDS GUI -- '+self.port+': '+self.COMlabels[self.ind])
                     self.redisplay_profiles()
                     self.reload_RAM()
@@ -2296,7 +2297,7 @@ class Ui_MainWindow(object):
 
             self.ser.close()
             self.Display_func('Disconnected from ' + self.port)
-            self.mw.setWindowTitle('DDS GUI -- disconnected')
+            self.MainWindow.setWindowTitle('DDS GUI -- disconnected')
         else:
             self.Display_func("Disconnected. But from what? Make sure you're connected to a device first.")
 
@@ -2339,6 +2340,15 @@ class Ui_MainWindow(object):
             self.No_dwell[ID] = 0
 
     def switch_DRG_func(self, state, ID):
+        """
+        This function updates the storage array for the features used by the digital ramp generator.
+        DRG enable = 0
+        Auto-clearDRG = 1
+        Clear DRA = 2
+        Load_DRR = 3
+        No dwell high = 4
+        No dwell low = 5
+        """
         if state:
             self.DGR_params[ID] = 1
         else:
@@ -2399,46 +2409,58 @@ class Ui_MainWindow(object):
         
     def set_stp_freq(self):
         try:
-            self.fout[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+            self.fout[self.ind, self.MainWindow.sender().i] = abs(float(self.MainWindow.sender().text()))
         except ValueError: pass
         
     def set_stp_tht(self):
         try:
-            self.tht[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+            self.tht[self.ind, self.MainWindow.sender().i] = abs(float(self.MainWindow.sender().text()))
         except ValueError: pass
         
     def set_stp_amp(self):
-        val = self.dbl_fixup(self.mw.sender().text())
-        self.amp[self.ind, self.mw.sender().i] = abs(float(val))
-        self.mw.sender().setText(val)
+        val = self.dbl_fixup(self.MainWindow.sender().text())
+        self.amp[self.ind, self.MainWindow.sender().i] = abs(float(val))
+        self.MainWindow.sender().setText(val)
         
     def set_ram_start(self):
         try:
-            self.Start_Address[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+            self.Start_Address[self.ind, self.MainWindow.sender().i] = abs(float(self.MainWindow.sender().text()))
         except ValueError: pass
         
     def set_ram_end(self):
         try:
-            self.End_Address[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+            self.End_Address[self.ind, self.MainWindow.sender().i] = abs(float(self.MainWindow.sender().text()))
         except ValueError: pass
         
     def set_ram_rate(self):
         try:
-            self.Rate[self.ind, self.mw.sender().i] = abs(float(self.mw.sender().text()))
+            self.Rate[self.ind, self.MainWindow.sender().i] = abs(float(self.MainWindow.sender().text()))
         except ValueError: pass
         
     def set_ram_mode(self, text):
         try:
-            self.RAM_playback_mode[self.ind, self.mw.sender().i, :] = self.RAM_profile_mode.get(text)
+            self.RAM_playback_mode[self.ind, self.MainWindow.sender().i, :] = self.RAM_profile_mode.get(text)
         except ValueError: pass
     
-    def update_RAM_values_func(self):
+    def set_ram_pow(self):
         try:
             self.POW[self.ind] = abs(float(self.Phase_aux.text()))
+        except Exception as e:
+            self.Display_func('Please make sure you use a real, positive number.\n'+str(e))
+            
+    def set_ram_ftw(self):
+        try:
             self.FTW[self.ind] = abs(float(self.Freq_aux.text()))
+        except Exception as e:
+            self.Display_func('Please make sure you use a real, positive number.\n'+str(e))
+            
+    def set_ram_amw(self):
+        try:
             self.AMW[self.ind] = abs(float(self.Amp_aux.text())%1.0001)
         except Exception as e:
             self.Display_func('Please make sure you use a real, positive number.\n'+str(e))
+    
+    def update_RAM_values_func(self):
         try:
             self.RAM_playback_dest = self.RAM_data_type.get(str(self.RAM_data.currentText()))
             self.Int_profile_cntrl = self.RAM_controls.get(str(self.Int_ctrl.currentText()))
@@ -2543,7 +2565,7 @@ class Ui_MainWindow(object):
 
 
         #Get the values in the text boxes
-        #self.update_RAM_values_func()
+        self.update_RAM_values_func()
         if self.DGR_params[0] == 1:
             self.update_DRG_values_func()
             self.DGR_register_func()
@@ -3294,47 +3316,6 @@ class Ui_MainWindow(object):
         except:
             self.FPGA_display_func("Data load failed")
             self.load_FPGA_file = False
-
-    def Quartus_program(self):
-
-    	cof_file = "DecConversion"
-    	cable = "USB-Blaster"
-    	port = "USB-0"
-    	outfile = "DecPWM"
-
-    	os.chdir(writedir)
-    	self.FPGA_display_func("Updating FPGA memory files")
-    	os.system("quartus_cdb --update_mif " + ProjName)
-
-    	self.FPGA_display_func("Assembling files")
-    	os.system("quartus_asm " + ProjName)
-
-    	self.FPGA_display_func("Converting programming files")
-    	os.system("quartus_cpf --convert " + cof_file + ".cof")
-
-    	self.FPGA_display_func("Writing to FPGA")
-    	os.system("quartus_pgm -c " + cable + " -m JTAG -o ipv;" + outfile + ".jic")
-
-    def Mojo_program(self):
-
-    	cof_file = "DecConversion"
-    	cable = "USB-Blaster"
-    	port = "USB-0"
-    	outfile = "DecPWM"
-
-    	os.chdir(writedir)
-    	self.FPGA_display_func("Updating FPGA memory files")
-    	os.system("quartus_cdb --update_mif " + ProjName)
-
-    	self.FPGA_display_func("Assembling files")
-    	os.system("quartus_asm " + ProjName)
-
-    	self.FPGA_display_func("Converting programming files")
-    	os.system("quartus_cpf --convert " + cof_file + ".cof")
-
-    	self.FPGA_display_func("Writing to FPGA")
-    	os.system("quartus_pgm -c " + cable + " -m JTAG -o ipv;" + outfile + ".jic")
-
 
     def Memory_file_type_func(self):
         if self.Coe_radio.isChecked() == True:

@@ -84,7 +84,7 @@ class atom_window(QMainWindow):
         # ROI menu for sending, receiving, and auto-generating ROIs
         rois_menu = menubar.addMenu('ROIs')
         self.send_rois_action = QAction('Send ROIs to analysis', self)
-        self.send_rois_action.triggered.connect(self.send_rois)
+        self.send_rois_action.triggered.connect(self.emit_rois)
         rois_menu.addAction(self.send_rois_action)
 
         self.recv_rois_action = QAction('Get ROIs from analysis', self)
@@ -217,15 +217,25 @@ class atom_window(QMainWindow):
         for key, val in zip(r.edits.keys(), [xc, yc, w, h]):
             r.edits[key].setText(str(val))
 
-    def send_rois(self, toggle=0):
+    def emit_rois(self, toggle=0):
         """Emit the signal with the list of ROIs"""
         self.roi_values.emit([[r.x, r.y, r.w, r.h, r.t] for r in self.rh.ROIs])
+        
+    def get_rois(self):
+        """Return lits of ROIs"""
+        return [[r.x, r.y, r.w, r.h, r.t] for r in self.rh.ROIs]
 
     def send_trigger(self, toggle=0):
         """Emit the roi_handler's trigger signal to start the experiment"""
         if self.checking: self.rh.trigger.emit(1)
 
     #### #### automatic ROI assignment #### ####
+    
+    def set_rois(self, ROIlist):
+        """Set the ROI list as the new ROIs"""
+        self.rh.create_rois(len(ROIlist))
+        self.rh.resize_rois(ROIlist)
+        self.display_rois()
 
     def make_roi_grid(self, toggle=True, method=''):
         """Create a grid of ROIs and assign them to analysers that are using the
