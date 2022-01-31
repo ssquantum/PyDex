@@ -74,23 +74,32 @@ class runnum(QThread):
         self.monitor = PyServer(host='', port=8622, name='DAQ') # monitor program runs separately
         self.monitor.start()
         self.monitor.add_message(self._n, 'resync run number')
-        self.awgtcp = PyServer(host='', port=8623, name='AWG') # AWG program runs separately
-        self.awgtcp.start()
-        self.ddstcp = PyServer(host='', port=8624, name='DDS') # DDS program runs separately
-        self.ddstcp.start()
+        self.awgtcp1 = PyServer(host='', port=8623, name='AWG1') # AWG program runs separately
+        self.awgtcp1.start()
+        self.ddstcp1 = PyServer(host='', port=8624, name='DDS1') # DDS program runs separately
+        self.ddstcp1.start()
         self.seqtcp = PyServer(host='', port=8625, name='BareDExTer') # Sequence viewer in seperate instance of LabVIEW
         self.seqtcp.start()
         self.slmtcp = PyServer(host='', port=8627, name='SLM') # SLM program runs separately
         self.slmtcp.start()
-        self.client = PyClient(host='129.234.190.235', port=8626, name='AWG recv') # incoming from AWG
+        self.client = PyClient(host='129.234.190.235', port=8626, name='AWG1 recv') # incoming from AWG
         self.client.start()
         self.client.textin.connect(self.add_mr_msgs) # msg from AWG starts next multirun step
+        self.awgtcp2 = PyServer(host='', port=8628, name='AWG2') # AWG program runs separately
+        self.awgtcp2.start()
+        self.clien2 = PyClient(host='129.234.190.233', port=8629, name='AWG2 recv') # incoming from AWG
+        self.clien2.start()
+        self.clien2.textin.connect(self.add_mr_msgs) # msg from AWG starts next multirun step
+        self.ddstcp2 = PyServer(host='', port=8630, name='DDS2') # DDS program runs separately
+        self.ddstcp2.start()
+        
         
     def reset_server(self, force=False):
         """Check if the server is running. If it is, don't do anything, unless 
         force=True, then stop and restart the server. If the server isn't 
         running, then start it."""
-        for server in [self.server, self.trigger, self.monitor, self.awgtcp, self.ddstcp, self.slmtcp, self.seqtcp]:
+        for server in [self.server, self.trigger, self.monitor, self.awgtcp1, self.ddstcp1, 
+                self.slmtcp, self.seqtcp, self.awgtcp2, self.ddstcp2]:
             if server.isRunning():
                 if force:
                     server.close()
@@ -104,6 +113,7 @@ class runnum(QThread):
         If it's during a multirun, check that the right number of 
         images were taken in the last run."""
         self._n = int(dxn)
+        self._k = 0 # reset image count --- each run should start with im0
     
     def set_m(self, newm):
         """Change the number of images per run"""
@@ -176,8 +186,12 @@ class runnum(QThread):
 
     def send_rearr_msg(self, msg=''):
         """Send the command to the AWG for rearranging traps"""
-        self.awgtcp.priority_messages([(self._n, 'rearrange='+msg+'#'*2000)])
+        self.awgtcp1.priority_messages([(self._n, 'rearrange='+msg+'#'*2000)])
 
+    def send_rear2_msg(self, msg=''):
+        """Send the command to the 2nd AWG for rearranging traps"""
+        self.awgtcp2.priority_messages([(self._n, 'rearrange='+msg+'#'*2000)])
+        
     def atomcheck_go(self, toggle=True):
         """Disconnect camera images from analysis, start the camera
         acquisition and redirect the images to the atom checker."""
@@ -195,12 +209,12 @@ class runnum(QThread):
 
     #### multirun ####
 
-    def get_params(self, v, module='AWG'):
+    def get_params(self, v, module='AWG1'):
         """Reformat the multirun paramaters into a string to be sent to the AWG, DDS, or SLM"""
         msg = module+' set_data=['
         col = -1  # in case the for loop doesn't execute
         for col in range(len(self.seq.mr.mr_param['Type'])):
-            if 'AWG' in self.seq.mr.mr_param['Type'][col] and module == 'AWG':
+            if 'AWG1' in self.seq.mr.mr_param['Type'][col] and module == 'AWG1':
                 try: # argument: value
                     for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen AWG channel, segment 
                         for m in self.seq.mr.mr_param['Analogue channel'][col]:
@@ -208,12 +222,29 @@ class runnum(QThread):
                                 self.seq.mr.awg_args[m], self.seq.mr.mr_vals[v][col], 
                                 self.seq.mr.mr_param['list index'][col])
                 except Exception as e: error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
-            elif 'DDS' in self.seq.mr.mr_param['Type'][col] and module == 'DDS':
+            elif 'AWG2' in self.seq.mr.mr_param['Type'][col] and module == 'AWG2':
+                try: # argument: value
+                    for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen AWG channel, segment 
+                        for m in self.seq.mr.mr_param['Analogue channel'][col]:
+                            msg += '[%s, %s, "%s", %s, %s],'%(n%2, n//2, 
+                                self.seq.mr.awg_args[m], self.seq.mr.mr_vals[v][col], 
+                                self.seq.mr.mr_param['list index'][col])
+                except Exception as e: error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
+            elif 'DDS1' in self.seq.mr.mr_param['Type'][col] and module == 'DDS1':
                 try: # argument: value
                     for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen DDS COM port, profile
                         for m in self.seq.mr.mr_param['Analogue channel'][col]:
                             port = '"P%s"'%(n%9) if (n%9)<8 else '"aux"'
                             msg += '["COM%s", '%((n//9)+7)+port+', "%s", %s],'%(# we use COM7 - COM11
+                                self.seq.mr.dds_args[m], 
+                                self.seq.mr.mr_vals[v][col])
+                except Exception as e: error('Invalid DDS parameter at (%s, %s)\n'%(v,col)+str(e))
+            elif 'DDS2' in self.seq.mr.mr_param['Type'][col] and module == 'DDS2':
+                try: # argument: value
+                    for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen DDS COM port, profile
+                        for m in self.seq.mr.mr_param['Analogue channel'][col]:
+                            profile = '"P%s"'%(n%9) if (n%9)<8 else '"aux"'
+                            msg += '["%s", '%(n//9+1)+profile+', "%s", %s],'%(# don't specify COM port
                                 self.seq.mr.dds_args[m], 
                                 self.seq.mr.mr_vals[v][col])
                 except Exception as e: error('Invalid DDS parameter at (%s, %s)\n'%(v,col)+str(e))
@@ -274,27 +305,29 @@ class runnum(QThread):
             repeats = self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']
             # list of TCP messages for the whole multirun
             # save AWG, DDS, and SLM params
-            self.awgtcp.priority_messages([[self._n, 'save='+os.path.join(results_path,'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
-            self.ddstcp.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDSparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
+            self.awgtcp1.priority_messages([[self._n, 'save='+os.path.join(results_path,'AWG1param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
+            self.awgtcp2.priority_messages([[self._n, 'save='+os.path.join(results_path,'AWG2param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
+            self.ddstcp1.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDS1param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
+            self.ddstcp2.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDS2param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.slmtcp.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'SLMparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             mr_queue = []
             #print('make msg')
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
-                if any('AWG' in x for x in self.seq.mr.mr_param['Type']): # send AWG parameters by TCP
-                    awgmsg = self.get_params(v, 'AWG')
-                else: awgmsg = ''
-                if any('DDS' in x for x in self.seq.mr.mr_param['Type']): # send DDS parameters by TCP
-                    ddsmsg = self.get_params(v, 'DDS')
-                else: ddsmsg = ''
-                if any('SLM' in x for x in self.seq.mr.mr_param['Type']): # send SLM parameters by TCP
-                    slmmsg = self.get_params(v, 'SLM')
-                else: slmmsg = ''
-                mr_queue += [[TCPENUM['TCP read'], awgmsg+'||||||||'+'0'*2000], # set AWG parameters
-                    [TCPENUM['TCP read'], ddsmsg+'||||||||'+'0'*2000], # set DDS parameters
-                    [TCPENUM['TCP read'], slmmsg+'||||||||'+'0'*2000], # set SLM parameters
+                module_msgs = {'AWG1':'', 'AWG2':'', 'DDS1':'', 'DDS2':'', 'SLM':''}
+                for key in module_msgs.keys():
+                    if any(key in x for x in self.seq.mr.mr_param['Type']): # send parameters by TCP
+                        module_msgs[key] = self.get_params(v, key)
+                pausemsg = '0'*2000
+                if module_msgs['AWG1']: pausemsg = 'pause for AWG1' + pausemsg
+                if module_msgs['AWG2']: pausemsg = 'pause for AWG2' + pausemsg
+                mr_queue += [[TCPENUM['TCP read'], module_msgs['AWG1']+'||||||||'+'0'*2000], # set AWG parameters
+                    [TCPENUM['TCP read'], module_msgs['AWG2']+'||||||||'+'0'*2000], # set AWG parameters
+                    [TCPENUM['TCP read'], module_msgs['DDS1']+'||||||||'+'0'*2000], # set DDS parameters
+                    [TCPENUM['TCP read'], module_msgs['DDS2']+'||||||||'+'0'*2000], # set DDS parameters
+                    [TCPENUM['TCP read'], module_msgs['SLM']+'||||||||'+'0'*2000], # set SLM parameters
                     [TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step run']+'0'*2000],
                     [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]],
-                    [TCPENUM['TCP read'], 'pause for AWG'+'0'*2000 if awgmsg else '0'*2000]] + [
+                    [TCPENUM['TCP read'], pausemsg]] + [
                     [TCPENUM['Run sequence'], 'multirun run '+str(self._n + r + repeats*v)+'\n'+'0'*2000] for r in range(repeats)
                     ] + [[TCPENUM['TCP read'], 'save and reset histogram\n'+'0'*2000]]
             # reset last time step for the last run:
@@ -309,10 +342,12 @@ class runnum(QThread):
             reset_slot(self.cam.AcquireEnd, self.receive, True) # process every image
             if stillrunning: self.next_mr = self.server.get_queue() # save messages to reinsert when resume
             self.server.clear_queue()
-            if any('AWG' in x for x in self.seq.mr.mr_param['Type']):
-                self.awgtcp.add_message(self._n, 'AWG load='+os.path.join(self.sv.results_path, # reset AWG parameters
-                    self.seq.mr.mr_param['measure_prefix'],'AWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
-               # self.awgtcp.add_message(self._n, 'AWG start_awg') # keep AWG on even after multirun
+            if any('AWG1' in x for x in self.seq.mr.mr_param['Type']):
+                self.awgtcp1.add_message(self._n, 'AWG1 load='+os.path.join(self.sv.results_path, # reset AWG parameters
+                    self.seq.mr.mr_param['measure_prefix'],'AWG1param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
+            if any('AWG2' in x for x in self.seq.mr.mr_param['Type']):
+                self.awgtcp2.add_message(self._n, 'AWG2 load='+os.path.join(self.sv.results_path, # reset AWG parameters
+                    self.seq.mr.mr_param['measure_prefix'],'AWG2param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
             if any('SLM' in x for x in self.seq.mr.mr_param['Type']):
                 self.slmtcp.add_message(self._n, 'load_all='+os.path.join(self.sv.results_path, # reset SLM parameters
                     self.seq.mr.mr_param['measure_prefix'],'SLMparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
@@ -351,7 +386,7 @@ class runnum(QThread):
             for i, item in enumerate(queue): # find the end of the histogram
                 if 'save and reset histogram' in item[1]:
                     break
-            self.next_mr = queue[i+1:]
+            self.next_mr = [[TCPENUM['TCP read'], '||||||||'+'0'*2000]] + queue[i+1:]
             self.sw.all_hists(action='Reset')
             r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist'])
             self.seq.mr.ind += self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist'] - r
@@ -376,7 +411,7 @@ class runnum(QThread):
         self.monitor.add_message(self._n, 'update run number')
         if self._k != self._m and self.seq.mr.ind > 1:
             warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
-        self._k = 0
+        # self._k = 0 # image count resets in set_n() now
         r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # repeat
         if r == 1:
             self.monitor.add_message(self._n, 'set fadelines') # keep the trace from the start of the histogram

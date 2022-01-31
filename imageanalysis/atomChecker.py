@@ -39,7 +39,7 @@ class atom_window(QMainWindow):
     event_im = pyqtSignal(np.ndarray) # image taken by the camera as np array
     roi_values = pyqtSignal(list) # list of ROIs (x, y, w, h, threshold)
     rearr_msg  = pyqtSignal(str)  # message to send AWG about rearranging
-    
+     
     def __init__(self, last_im_path='.', rois=[(1,1,1,1)], num_plots=9, 
             image_shape=(512,512), name=''):
         super().__init__()
@@ -186,9 +186,8 @@ class atom_window(QMainWindow):
 
     def get_rearrange(self, atomstring=''):
         """Calculate the rearrangement to fill the desired ROIs"""
-        # .... tbc .....
         self.rearr_msg.emit(atomstring)
-
+   
     #### #### user input functions #### ####
 
     def set_im_show(self, toggle):

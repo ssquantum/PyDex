@@ -9,15 +9,10 @@ Change log:
 4. add TCP communication with PyDex
 
 """
-import serial
-import time
 import sys
 import os
 os.system("color") # allows error/warning/info messages to print in colour
-import glob
 import datetime
-import pickle
-import json
 import numpy as np
 from collections import OrderedDict
 
@@ -46,31 +41,31 @@ class Ui_MainWindow(PSoC):
                         'Amplitude' : np.array([1,0]),
                         'Polar' : np.array([1,1])}
 
-    RAM_controls = {"Disable" : np.array([0,0,0,0]),
-                    "Burst. Profiles 0 - 1" : np.array([0,0,0,1]),
-                    "Burst. Profiles 0 - 2" : np.array([0,0,1,0]),
-                    "Burst. Profiles 0 - 3": np.array([0,0,1,1]),
-                    "Burst. Profiles 0 - 4": np.array([0,1,0,0]),
-                    "Burst. Profiles 0 - 5": np.array([0,1,0,1]),
-                    "Burst. Profiles 0 - 6": np.array([0,1,1,0]),
-                    "Burst. Profiles 0 - 7": np.array([0,1,1,1]),
-                    "Continuous. Profiles 0 - 1": np.array([1,0,0,0]),
-                    "Continuous. Profiles 0 - 2": np.array([1,0,0,1]),
-                    "Continuous. Profiles 0 - 3": np.array([1,0,1,0]),
-                    "Continuous. Profiles 0 - 4": np.array([1,0,1,1]),
-                    "Continuous. Profiles 0 - 5": np.array([1,1,0,0]),
-                    "Continuous. Profiles 0 - 6": np.array([1,1,0,1]),
-                    "Continuous. Profiles 0 - 7": np.array([1,1,1,1])}
+    RAM_controls = OrderedDict([("Disable" , np.array([0,0,0,0])),
+                    ("Burst. Profiles 0 - 1" , np.array([0,0,0,1])),
+                    ("Burst. Profiles 0 - 2" , np.array([0,0,1,0])),
+                    ("Burst. Profiles 0 - 3", np.array([0,0,1,1])),
+                    ("Burst. Profiles 0 - 4", np.array([0,1,0,0])),
+                    ("Burst. Profiles 0 - 5", np.array([0,1,0,1])),
+                    ("Burst. Profiles 0 - 6", np.array([0,1,1,0])),
+                    ("Burst. Profiles 0 - 7", np.array([0,1,1,1])),
+                    ("Continuous. Profiles 0 - 1", np.array([1,0,0,0])),
+                    ("Continuous. Profiles 0 - 2", np.array([1,0,0,1])),
+                    ("Continuous. Profiles 0 - 3", np.array([1,0,1,0])),
+                    ("Continuous. Profiles 0 - 4", np.array([1,0,1,1])),
+                    ("Continuous. Profiles 0 - 5", np.array([1,1,0,0])),
+                    ("Continuous. Profiles 0 - 6", np.array([1,1,0,1])),
+                    ("Continuous. Profiles 0 - 7", np.array([1,1,1,1]))])
 
-    RAM_profile_mode = {"Direct" : np.array([0,0,0]),
-                        "Ramp-up" : np.array([0,0,1]),
-                        "Bidirectional ramp" : np.array([0,1,0]),
-                        "Continuous bidirectional ramp" : np.array([0,1,1]),
-                        "Continuous recirculate" : np.array([1,0,0])}
+    RAM_profile_mode = OrderedDict([("Direct" , np.array([0,0,0])),
+                        ("Ramp-up" , np.array([0,0,1])),
+                        ("Bidirectional ramp" , np.array([0,1,0])),
+                        ("Continuous bidirectional ramp" , np.array([0,1,1])),
+                        ("Continuous recirculate" , np.array([1,0,0]))])
     
     DRG_modes = ['DRG Frequency', 'DRG Phase', 'DRG Amplitude']
 
-    COMlabels = ['420', '977', '1013', '1557', '']
+    COMlabels = ['', '1557', '977', '1013', '420']
 
     def __init__(self, port=8630, host='localhost', alim=1, Today_file='', 
                  enable_print = False #Prints additional information such as the serial data to the terminal or command line
@@ -156,6 +151,8 @@ class Ui_MainWindow(PSoC):
         self.MainWindow = MainWindow
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(837, 600)
+        MainWindow.setStyleSheet("background-color: rgb(255,220,255);")
+        
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
 
@@ -206,15 +203,16 @@ class Ui_MainWindow(PSoC):
         
         ### TCP communication with PyDex
         self.PyDexTCP = QtWidgets.QPushButton(self.Coms)
-        self.PyDexTCP.setGeometry(QtCore.QRect(330, 20, 111, 41))
+        self.PyDexTCP.setGeometry(QtCore.QRect(330, 120, 111, 41))
         self.PyDexTCP.setObjectName("PyDex_TCP_reset")
         self.PyDexTCP.clicked.connect(self.Pydex_tcp_reset)
 
         self.Module_address = QtWidgets.QComboBox(self.Coms)
         self.Module_address.setGeometry(QtCore.QRect(108, 121, 91, 41))
         self.Module_address.setObjectName("Module_address")
-        for jc in range(1,6):
+        for jc in range(1,5):
             self.Module_address.addItem(str(jc))
+        self.Module_address.currentTextChanged[str].connect(self.set_window_title)
 
         self.label_150 = QtWidgets.QLabel(self.Coms)
         self.label_150.setGeometry(QtCore.QRect(10, 130, 91, 16))
@@ -1479,7 +1477,7 @@ class Ui_MainWindow(PSoC):
         self.Enable_FPGA_chck = QtWidgets.QCheckBox(self.FPGA_playback)
         self.Enable_FPGA_chck.setGeometry(QtCore.QRect(10, 20, 161, 17))
         self.Enable_FPGA_chck.setObjectName("Enable_FPGA_chck")
-        self.Enable_FPGA_chck.toggled.connect(lambda:self.switch_FPGA_func(FPGA.Enable_FPGA_chck.isChecked(), 0))
+        # self.Enable_FPGA_chck.toggled.connect(lambda:self.switch_FPGA_func(FPGA.Enable_FPGA_chck.isChecked(), 0))
 
         ###
 
@@ -1572,7 +1570,7 @@ class Ui_MainWindow(PSoC):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "DDS GUI -- disconnected"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "DDS2 GUI -- disconnected"))
         self.label_147.setText(_translate("MainWindow", "Device messages"))
         self.label_148.setText(_translate("MainWindow", "COM Port number"))
         self.Connect.setText(_translate("MainWindow", "Connect"))
@@ -1679,7 +1677,7 @@ class Ui_MainWindow(PSoC):
         self.GB_ram_P0.setTitle(_translate("MainWindow", "000 Profile 0"))
         self.Start_address_Prof0.setText(_translate("MainWindow", "0"))
         self.label_76.setText(_translate("MainWindow", "Start address"))
-        self.label_78.setText(_translate("MainWindow", "μs"))
+        self.label_78.setText(_translate("MainWindow", "�s"))
         self.label_79.setText(_translate("MainWindow", "End address"))
         self.End_address_Prof0.setText(_translate("MainWindow", "0"))
         self.StepRate_P0.setText(_translate("MainWindow", "1"))
@@ -1689,7 +1687,7 @@ class Ui_MainWindow(PSoC):
         self.GB_ram_P1.setTitle(_translate("MainWindow", "100 Profile 1"))
         self.Start_address_Prof1.setText(_translate("MainWindow", "0"))
         self.label_89.setText(_translate("MainWindow", "Start address"))
-        self.label_90.setText(_translate("MainWindow", "μs"))
+        self.label_90.setText(_translate("MainWindow", "�s"))
         self.label_91.setText(_translate("MainWindow", "End address"))
         self.End_address_Prof1.setText(_translate("MainWindow", "0"))
         self.StepRate_P1.setText(_translate("MainWindow", "1"))
@@ -1699,7 +1697,7 @@ class Ui_MainWindow(PSoC):
         self.GB_ram_P2.setTitle(_translate("MainWindow", "010 Profile 2"))
         self.Start_address_Prof2.setText(_translate("MainWindow", "0"))
         self.label_97.setText(_translate("MainWindow", "Start address"))
-        self.label_98.setText(_translate("MainWindow", "μs"))
+        self.label_98.setText(_translate("MainWindow", "�s"))
         self.label_99.setText(_translate("MainWindow", "End address"))
         self.End_address_Prof2.setText(_translate("MainWindow", "0"))
         self.StepRate_P2.setText(_translate("MainWindow", "1"))
@@ -1709,7 +1707,7 @@ class Ui_MainWindow(PSoC):
         self.GB_ram_P4.setTitle(_translate("MainWindow", "001 Profile 4"))
         self.Start_address_Prof4.setText(_translate("MainWindow", "0"))
         self.label_117.setText(_translate("MainWindow", "Start address"))
-        self.label_118.setText(_translate("MainWindow", "μs"))
+        self.label_118.setText(_translate("MainWindow", "�s"))
         self.label_119.setText(_translate("MainWindow", "End address"))
         self.End_address_Prof4.setText(_translate("MainWindow", "0"))
         self.StepRate_P4.setText(_translate("MainWindow", "1"))
@@ -1719,7 +1717,7 @@ class Ui_MainWindow(PSoC):
         self.GB_ram_P3.setTitle(_translate("MainWindow", "110 Profile 3"))
         self.Start_address_Prof3.setText(_translate("MainWindow", "0"))
         self.label_121.setText(_translate("MainWindow", "Start address"))
-        self.label_122.setText(_translate("MainWindow", "μs"))
+        self.label_122.setText(_translate("MainWindow", "�s"))
         self.label_123.setText(_translate("MainWindow", "End address"))
         self.End_address_Prof3.setText(_translate("MainWindow", "0"))
         self.StepRate_P3.setText(_translate("MainWindow", "1"))
@@ -1729,7 +1727,7 @@ class Ui_MainWindow(PSoC):
         self.GB_ram_P5.setTitle(_translate("MainWindow", "101 Profile 5"))
         self.Start_address_Prof5.setText(_translate("MainWindow", "0"))
         self.label_125.setText(_translate("MainWindow", "Start address"))
-        self.label_126.setText(_translate("MainWindow", "μs"))
+        self.label_126.setText(_translate("MainWindow", "�s"))
         self.label_127.setText(_translate("MainWindow", "End address"))
         self.End_address_Prof5.setText(_translate("MainWindow", "0"))
         self.StepRate_P5.setText(_translate("MainWindow", "1"))
@@ -1739,7 +1737,7 @@ class Ui_MainWindow(PSoC):
         self.GB_ram_P6.setTitle(_translate("MainWindow", "011 Profile 6"))
         self.Start_address_Prof6.setText(_translate("MainWindow", "0"))
         self.label_137.setText(_translate("MainWindow", "Start address"))
-        self.label_138.setText(_translate("MainWindow", "μs"))
+        self.label_138.setText(_translate("MainWindow", "�s"))
         self.label_139.setText(_translate("MainWindow", "End address"))
         self.End_address_Prof6.setText(_translate("MainWindow", "0"))
         self.StepRate_P6.setText(_translate("MainWindow", "1"))
@@ -1749,7 +1747,7 @@ class Ui_MainWindow(PSoC):
         self.GB_ram_P7.setTitle(_translate("MainWindow", "111 Profile 7"))
         self.Start_address_Prof7.setText(_translate("MainWindow", "0"))
         self.label_141.setText(_translate("MainWindow", "Start address"))
-        self.label_142.setText(_translate("MainWindow", "μs"))
+        self.label_142.setText(_translate("MainWindow", "�s"))
         self.label_143.setText(_translate("MainWindow", "End address"))
         self.End_address_Prof7.setText(_translate("MainWindow", "0"))
         self.StepRate_P7.setText(_translate("MainWindow", "1"))
@@ -1787,8 +1785,8 @@ class Ui_MainWindow(PSoC):
         self.Neg_step_rate.setText(_translate("MainWindow", "1"))
         self.label_16.setText(_translate("MainWindow", "Positive step rate"))
         self.label_17.setText(_translate("MainWindow", "Negative step rate"))
-        self.label_81.setText(_translate("MainWindow", "μs"))
-        self.label_82.setText(_translate("MainWindow", "μs"))
+        self.label_81.setText(_translate("MainWindow", "�s"))
+        self.label_82.setText(_translate("MainWindow", "�s"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Ramp_gen), _translate("MainWindow", "DDS ramp generator"))
 
 
@@ -1823,7 +1821,8 @@ class Ui_MainWindow(PSoC):
         self.actionLoad_RAM.setText(_translate("MainWindow", "Load DDS RAM profile"))
         self.actionSave_RAM.setText(_translate("MainWindow", "Save DDS RAM profile"))
         self.actionLoad_all.setText(_translate("MainWindow", "Load all parameters"))
-        self.actionSave_all.setText(_translate("MainWindow", "Save all parameters"))self.actionLoad_DDS_RAM.setText(_translate("MainWindow", "Load DDS RAM playback"))
+        self.actionSave_all.setText(_translate("MainWindow", "Save all parameters"))
+        self.actionLoad_DDS_RAM.setText(_translate("MainWindow", "Load DDS RAM playback"))
         self.actionUser_guide.setText(_translate("MainWindow", "User guide"))
         self.actionClose.setText(_translate("MainWindow", "Close"))
 
@@ -1853,7 +1852,7 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow(port=8630, host='129.234.190.164', alim=1, 
-                       Today_file=today_file_path, enable_print = False)
+                       Today_file=today_file_path, enable_print = True)
     ui.setupUi_coms(MainWindow)
     
     def closeEvent(event):

@@ -164,8 +164,8 @@ class Master(QMainWindow):
         self.rn.monitor.textin[str].connect(self.mon_win.set_label)
         self.rn.monitor.textin.connect(self.mon_win.set_connected)
         self.dds_win = DDSComWindow() # display communication with DDS
-        self.dds_win.msg[str].connect(lambda msg: self.rn.ddstcp.add_message(self.rn._n, msg))
-        self.rn.ddstcp.textin[str].connect(lambda msg: self.dds_win.set_status(' received >> '+msg))
+        self.dds_win.msg[str].connect(lambda msg: self.rn.ddstcp1.add_message(self.rn._n, msg))
+        self.rn.ddstcp1.textin[str].connect(lambda msg: self.dds_win.set_status(' received >> '+msg))
         # set a timer to update the dates at 5am:
         t0 = time.localtime()
         self.date_reset = 0 # whether the dates are waiting to be reset or not
@@ -212,6 +212,7 @@ class Master(QMainWindow):
             self.stats['AnalysisConfig']['image_path'] = sv_dirs['Image Storage Path: ']
             self.rn.sw.load_settings(stats=self.stats['AnalysisConfig'])
             self.rn.check.set_rois(self.stats['AtomCheckerROIs'])
+            self.rn.sw.reset_analyses()
             if self.rn.cam.initialised > 2: # camera
                 if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
                     self.rn.cam.AF.AbortAcquisition()
@@ -416,8 +417,10 @@ class Master(QMainWindow):
         elif self.sender().text() == 'TCP Server':
             info = 'Trigger server is running.\n' if self.rn.trigger.isRunning() else 'Trigger server stopped.\n'
             info += 'Monitor server is running.\n' if self.rn.monitor.isRunning() else 'Monitor server stopped.\n'
-            info += 'AWG server is running.\n' if self.rn.awgtcp.isRunning() else 'AWG server stopped.\n'
-            info += 'DDS server is running.\n' if self.rn.ddstcp.isRunning() else 'DDS server stopped.\n'
+            info += 'AWG1 server is running.\n' if self.rn.awgtcp1.isRunning() else 'AWG1 server stopped.\n'
+            info += 'AWG2 server is running.\n' if self.rn.awgtcp2.isRunning() else 'AWG2 server stopped.\n'
+            info += 'DDS1 server is running.\n' if self.rn.ddstcp1.isRunning() else 'DDS1 server stopped.\n'
+            info += 'DDS2 server is running.\n' if self.rn.ddstcp2.isRunning() else 'DDS2 server stopped.\n'
             info += 'SLM server is running.\n' if self.rn.slmtcp.isRunning() else 'SLM server stopped.\n'
             info += 'BareDExTer server is running.\n' if self.rn.seqtcp.isRunning() else 'BareDExTer server stopped.\n'
             if self.rn.server.isRunning():
@@ -684,7 +687,7 @@ class Master(QMainWindow):
                 reset_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
                 self.rn.atomcheck_go() # start camera in internal trigger mode
             self.rn.multirun_step(msg)
-            self.rn._k = 0 # reset image per run count
+            # self.rn._k = 0 # reset image per run count
         elif 'save and reset histogram' in msg:
             self.rn.multirun_save(msg)
         elif 'end multirun' in msg:
@@ -696,10 +699,14 @@ class Master(QMainWindow):
             self.status_label.setText(msg)
             if self.date_reset: # reset dates at end of multirun
                 self.reset_dates()
-        elif 'AWG ' in msg[:10]: # send command to AWG to set new data
-            self.rn.awgtcp.priority_messages([(self.rn._n, msg.replace('AWG ', '').split('||||||||')[0])])
-        elif 'DDS ' in msg[:10]: # send command to DDS to set new data
-            self.rn.ddstcp.priority_messages([(self.rn._n, msg.replace('DDS ', '').split('||||||||')[0])])
+        elif 'AWG1 ' in msg[:10]: # send command to AWG to set new data
+            self.rn.awgtcp1.priority_messages([(self.rn._n, msg.replace('AWG1 ', '').split('||||||||')[0])])
+        elif 'AWG2 ' in msg[:10]: # send command to AWG to set new data
+            self.rn.awgtcp2.priority_messages([(self.rn._n, msg.replace('AWG2 ', '').split('||||||||')[0])])
+        elif 'DDS1 ' in msg[:10]: # send command to DDS to set new data
+            self.rn.ddstcp1.priority_messages([(self.rn._n, msg.replace('DDS1 ', '').split('||||||||')[0])])
+        elif 'DDS2 ' in msg[:10]: # send command to DDS to set new data
+            self.rn.ddstcp2.priority_messages([(self.rn._n, msg.replace('DDS2 ', '').split('||||||||')[0])])
         elif 'SLM ' in msg[:10]: # send command to SLM to set new data
             #print(msg)
             self.rn.slmtcp.priority_messages([(self.rn._n, msg.replace('SLM ', '').split('||||||||')[0])])
@@ -754,8 +761,9 @@ class Master(QMainWindow):
                 "image_handler max length: ", max(map(np.size, mw.image_handler.stats.values())),
                 "\thisto_handler max length: ", max(map(np.size, mw.histo_handler.stats.values())))
         print("TCP Network:")
-        for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG', 'SLM'],
-                [self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp, self.rn.slmtcp]):
+        for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG1', 'AWG2', 'DDS1', 'DDS2', 'SLM'],
+                [self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, self.rn.awgtcp2, 
+                    self.rn.ddstcp1, self.rn.ddstcp2, self.rn.slmtcp]):
             print(label, ': %s messages'%len(tcp.get_queue()))
         print("Mutlirun queue length: ", len(self.rn.seq.mr.mr_queue))
         if reset:
@@ -795,7 +803,8 @@ class Master(QMainWindow):
             except Exception as e: warning('camera safe shutdown failed.\n'+str(e))
             # self.rn.check.send_rois() # give ROIs from atom checker to image analysis
             for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, 
-                    self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp, 
+                    self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, 
+                    self.rn.awgtcp2, self.rn.ddstcp1, self.rn.ddstcp2, 
                     self.rn.check, self.mon_win, self.dds_win, self.rn.seq.mr.QueueWindow]:
                 obj.close()
             self.save_state('./state')

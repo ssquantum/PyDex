@@ -132,10 +132,12 @@ class multirun_widget(QWidget):
         'num_of_samples','duration_loop_[ms]','number_of_cycles']
         self.dds_args = ['Freq', 'Phase', 'Amp', 'Start_add', 'End_add', 'Step_rate', 'Sweep_start', 
         'Sweep_end', 'Pos_step', 'Neg_step', 'Pos_step_rate', 'Neg_step_rate']
-        self.slm_args = ['f','period','angle','radius','gradient','shift']
-        self.column_options = ['Analogue voltage', 'AWG chan : seg', 'DDS port : profile', 'SLM holograms'] # these analogue types require the analogue options 
+        self.slm_args = ['f','period','angle','radius','gradient','shift','radial','azimuthal','amplitude']
+        self.column_options = ['Analogue voltage', 'AWG1 chan : seg', 'AWG2 chan : seg',
+            'DDS1 port : profile', 'DDS2 module : profile', 'SLM holograms'] # these analogue types require the analogue options 
         self.col_range_text = ['']*ncols
         self.COM = ['RB1A', 'RB2', 'RB3', 'RB4', 'RB1B'] # DDS COM port connections
+        self.COM2 = ['1557', '977', '1013', '420'] # DDS2 module connections
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
         self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
@@ -220,8 +222,8 @@ class multirun_widget(QWidget):
         self.chan_choices = OrderedDict()
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
         sht = self.tr.get_esc()[2][2:] # 'Sequence header top'
-        options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG chan : seg', 
-                    'DDS port : profile', 'SLM holograms','Other'], 
+        options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG1 chan : seg', 
+        'AWG2 chan : seg', 'DDS1 port : profile', 'DDS2 module : profile', 'SLM holograms','Other'], 
             list(map(str.__add__, [str(i) for i in range(len(sht))],
                     [': '+hc[6][1].text for hc in sht])), # time step names
             ['Fast analogue', 'Slow analogue'],
@@ -512,7 +514,7 @@ class multirun_widget(QWidget):
                      -- Analogue voltage: also needs channels
                      -- AWG: takes float values but with a list index."""
         sht = self.tr.get_esc()[2][2:] # 'Sequence header top'
-        if newtype == 'AWG chan : seg':
+        if newtype == 'AWG1 chan : seg' or newtype == 'AWG2 chan : seg':
             self.chan_choices['Time step name'].clear()
             self.chan_choices['Time step name'].addItems([str(i)+', '+str(j) for j in range(100) for i in range(2)])
             reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)
@@ -521,10 +523,14 @@ class multirun_widget(QWidget):
             self.chan_choices['Analogue channel'].setEnabled(True)
             self.chan_choices['Analogue channel'].clear()
             self.chan_choices['Analogue channel'].addItems(self.awg_args)
-        elif newtype == 'DDS port : profile':
+        elif 'DDS' in newtype:
             self.chan_choices['Time step name'].clear()
-            ddsoptions = ['COM%s : P%s - '%(i+7,j)+self.COM[i] for i in range(5) for j in range(8)]
-            for i in range(5): ddsoptions.insert(i*9+8, 'COM%s : aux - '%(i+7)+self.COM[i])
+            if 'DDS2' in newtype:
+                ddsoptions = ['%s : P%s - '%(i+1,j)+self.COM2[i] for i in range(4) for j in range(8)]
+                for i in range(4): ddsoptions.insert(i*9+8, '%s : aux - '%(i+1)+self.COM2[i])
+            else:
+                ddsoptions = ['COM%s : P%s - '%(i+7,j)+self.COM[i] for i in range(5) for j in range(8)]
+                for i in range(5): ddsoptions.insert(i*9+8, 'COM%s : aux - '%(i+7)+self.COM[i])
             self.chan_choices['Time step name'].addItems(ddsoptions)
             reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)
             self.chan_choices['Analogue type'].clear()

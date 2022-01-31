@@ -28,7 +28,6 @@ except OSError as e:
         
         
 
-
 class PSoC(object):
 
     def Pydex_tcp_reset(self, force=False):
@@ -87,15 +86,9 @@ class PSoC(object):
                     time.sleep(0.05)
                     self.connected = True
                     self.PSoC_PC_handshake()
-                    try: 
-                        self.ind = int(self.Module_address.currentText())
-                    except ValueError:
-                        self.ind = 1
-                    self.MainWindow.setWindowTitle(
-                        'DDS GUI -- '+self.port+': '+self.COMlabels[self.ind])
-                    self.redisplay_profiles()
-                    self.reload_RAM()
-
+                    self.set_window_title(self.Module_address.currentText())
+                    self.Display_Message_DDS('Connected to ' + self.port + 
+                        ' / %s: '%self.ind+self.COMlabels[self.ind])
                 except:
                     self.Display_Message_DDS('Failed opening port, check port properties and COM name.')
             else:
@@ -119,7 +112,7 @@ class PSoC(object):
 
             self.ser.close()
             self.Display_Message_DDS('Disconnected from ' + self.port)
-            self.MainWindow.setWindowTitle('DDS GUI -- disconnected')
+            self.MainWindow.setWindowTitle('DDS2 GUI -- disconnected')
         else:
             self.Display_Message_DDS("Disconnected. But from what? Make sure you're connected to a device first.")
 
@@ -130,7 +123,7 @@ class PSoC(object):
         if self.enable_print:
             print(CMDStr)
 
-        self.Display_Message_DDS(CMDStr)
+        # self.Display_Message_DDS(CMDStr)
         time.sleep(0.1)
         for ic in range(len(CMDStr)):
             time.sleep(0.001)
@@ -501,13 +494,13 @@ class PSoC(object):
         POW = self.bin_array(data, 16)
         # print(POW)
 
-        self.Format_array_transmission(8, POW, 4)
+        self.Format_array_transmission(8, POW, 2)
 
         #Send the RAM data. Note this is sent backwards. Because reasons
         try:
             # Make sure that wwe have RAM data loaded
             RAM_data_reg = np.zeros((1024, 32), dtype = np.bool_())
-
+            
             if len(self.RAM_modulation_data[self.ind][0,:]) >= 1024:
                self.Display_Message_DDS('Data is too long and will be truncated')
                end = 1024
@@ -518,14 +511,6 @@ class PSoC(object):
             NTS = self.RAM_data_type.get(str(self.RAM_data.currentText())) # Do not allow this state
             ID =  2*(NTS[0]) + NTS[1]
             
-            DDS_Address = '{0:02x}'.format(int(self.Module_address.currentText()))
-            command_ID = 22 #### i think this is right based off the old code
-            pack = [DDS_Address, '{0:02x}'.format(command_ID), '0', 128, 32] # Second element is for the check sum
-            Sum = 0
-
-            for ic in range(len(pack)):
-                Sum += int(pack[ic], 16)
-
             if ID == 0: # If the ramp generator is modulating frequency
                 data = np.around((2**32 *(np.absolute(self.RAM_modulation_data[self.ind][0,:])/1000)), decimals = 0) #Note AD9910 has a clock frequency of 1 GHz or 1000 MHz
                 ind_high = np.where(data >= 2**31)[0]
@@ -553,8 +538,16 @@ class PSoC(object):
                 data2 = np.around((2**14 *(np.absolute(self.RAM_modulation_data[self.ind][1,:])/ np.amax(self.RAM_modulation_data[self.ind][1, :]))), decimals = 0)
                 ind_high = np.where(data >= 2**14)[0]
                 data[ind_high] = 2**14- 1
+                end *= end
 
+            DDS_Address = '{0:02x}'.format(int(self.Module_address.currentText()))
+            command_ID = 22 #### i think this is right based off the old code
+            # pack: 3rd element is for the check sum, data length is 4*5
+            pack = [DDS_Address, '{0:02x}'.format(command_ID), '0','{0:02x}'.format(32),'{0:02x}'.format(128)] 
+            Sum = 0
 
+            for ic in range(len(pack)):
+                Sum += int(pack[ic], 16)
 
             for ic in range(end):
                 RAM_data_reg[ic, 0: ind] = self.bin_array(int(data[ic]), ind)
@@ -580,9 +573,11 @@ class PSoC(object):
                 if self.connected:
                     # time.sleep(0.5)
                     self.Send_data_to_DDS(pack)
+                    self.Display_Message_DDS("Sent RAM data to DDS but i'm not sure it's working yet")
                 self.load_DDS_ram = False
-        except:
-            self.Display_Message_DDS("Make sure the RAM data has been loaded")
+        except Exception as e:
+            self.Display_Message_DDS("Make sure the RAM data has been loaded.\n"+str(e))
+            self.Display_Message_DDS("RAM data shape: "+str(np.shape(self.RAM_modulation_data[self.ind])))
 
         # time.sleep(5)
         self.Format_RAM_register_data(True)
@@ -1075,6 +1070,18 @@ class PSoC(object):
             elif 'RAM' in self.mode:
                 self.Load_RAM_playback()
                 
+    def set_window_title(self, text='1'):
+        """Every time the module is updated, redisplay the profiles"""
+        self.port = str(self.COM_no.currentText())
+        try: 
+            self.ind = int(text)
+        except ValueError:
+            self.ind = 1
+        self.MainWindow.setWindowTitle(
+            'DDS2 GUI -- '+self.port+': '+self.COMlabels[self.ind])
+        self.redisplay_profiles()
+        self.reload_RAM()
+                
     def search_dic(self, iterable, value):
         for i, x in enumerate(iterable):
             if all(x == value):
@@ -1103,11 +1110,11 @@ class PSoC(object):
                 self.centralwidget.findChild(QtWidgets.QLineEdit, 'Freq_P%s'%i).setText('%s'%self.fout[self.ind,i])
                 self.centralwidget.findChild(QtWidgets.QLineEdit, 'Phase_P%s'%i).setText('%s'%self.tht[self.ind,i])
                 self.centralwidget.findChild(QtWidgets.QLineEdit, 'Amp_P%s'%i).setText('%s'%self.amp[self.ind,i])
-                self.centralwidget.findChild(QtWidgets.QLineEdit, 'Start_add_P%s'%i).setText('%s'%self.Start_Address[self.ind,i])
-                self.centralwidget.findChild(QtWidgets.QLineEdit, 'End_add_P%s'%i).setText('%s'%self.End_Address[self.ind,i])
-                self.centralwidget.findChild(QtWidgets.QLineEdit, 'Step_rate_P%s'%i).setText('%s'%self.Rate[self.ind,i])
-                self.centralwidget.findChild(QtWidgets.QCheckBox, 'ND_P%s'%i).setChecked(bool(self.No_dwell[self.ind,i]))
-                self.centralwidget.findChild(QtWidgets.QCheckBox, 'ZC_P%s'%i).setChecked(bool(self.Zero_crossing[self.ind,i]))
+                self.centralwidget.findChild(QtWidgets.QLineEdit, 'Start_address_Prof%s'%i).setText('%s'%self.Start_Address[self.ind,i])
+                self.centralwidget.findChild(QtWidgets.QLineEdit, 'End_address_Prof%s'%i).setText('%s'%self.End_Address[self.ind,i])
+                self.centralwidget.findChild(QtWidgets.QLineEdit, 'StepRate_P%s'%i).setText('%s'%self.Rate[self.ind,i])
+                self.centralwidget.findChild(QtWidgets.QCheckBox, 'NoDWell_Prof%s'%i).setChecked(bool(self.No_dwell[self.ind,i]))
+                self.centralwidget.findChild(QtWidgets.QCheckBox, 'ZeroCrossing_Prof%s'%i).setChecked(bool(self.Zero_crossing[self.ind,i]))
                 self.centralwidget.findChild(QtWidgets.QComboBox, 'Mode_P%s'%i).setCurrentIndex(self.search_dic(self.RAM_profile_mode.values(), self.RAM_playback_mode[self.ind,i]))
             except Exception as e: self.Display_Message_DDS("Couldn't display stored parameter:\n"+str(e)) # key could be for ramp
         try:
@@ -1156,7 +1163,7 @@ class PSoC(object):
         try:
             if not fname:
                 fname, _ = QtWidgets.QFileDialog.getOpenFileName(
-                    self.centralwidget, 'Open STP File', '', 'txt(*.txt);;all (*)')
+                    self.centralwidget, 'Open File', '', 'txt(*.txt);;all (*)')
             if os.path.exists(fname): # if user cancels then fname is empty str
                 with open(fname) as f:
                     data = json.load(f)

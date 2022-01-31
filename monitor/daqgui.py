@@ -856,6 +856,8 @@ if __name__ == "__main__":
     # if standalone: # if there isn't an instance, make one
     #     app = QApplication(sys.argv)
     # 
-    # d = daq_window(config_file=r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\DEoptimiseConfig.dat', host='129.234.190.235')
+    # d = daq_window(config_file=r'Z:\Tweezer\Code\Python 3.5\PyDex\monitor\DEoptimiseConfig.dat', host='129.234.190.233')
     # d.show()
+    # if standalone: # if an app instance was made, execute it
+    #     sys.exit(app.exec_())
     run()
