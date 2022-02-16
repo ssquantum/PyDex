@@ -1,19 +1,19 @@
 {
     "calibration": {
-        "calibration_file": "calFile_08.06.2021.txt",
+        "calibration_file": "calFile_06.10.2020.txt",
         "saved_in": "Z:\\Tweezer\\Experimental\\Setup and characterisation\\Settings and calibrations\\tweezer calibrations\\AWG calibrations\\"
     },
     "properties": {
         "card_settings": {
-            "active_channels": "[0]",
+            "active_channels": "[0, 1]",
             "bytes_per_channel": 2,
             "max_output_mV": 282,
             "maximum_samples": 268435456,
-            "numOfChannels": 1,
-            "num_of_segments": 32,
-            "sample_rate_Hz": 625000000,
+            "numOfChannels": 2,
+            "num_of_segments": 8,
+            "sample_rate_Hz": 1024000000,
             "start_step": 0,
-            "static_duration_ms": 0.0016384,
+            "static_duration_ms": 0.001,
             "trig_level0_main": 2500,
             "trig_level1_aux": 0,
             "trig_mode": 1
@@ -25,19 +25,37 @@
                 "action_code": "static",
                 "action_type": "static trap",
                 "action_val": 1,
-                "amp_adjust": "True",
+                "amp_adjust": "False",
                 "channel_out": 0,
                 "distance_[um]": 9,
                 "duration_[ms]": 1,
                 "freq_adjust": "False",
                 "freq_amp": "[1]",
                 "freq_phase_[deg]": "[0]",
-                "freqs_input_[MHz]": "[166]",
-                "freqs_output_[Hz]": "[166000000]",
+                "freqs_input_[MHz]": "[100]",
+                "freqs_output_[Hz]": "[100000000]",
                 "num_of_samples": 1024,
                 "num_of_traps": 1,
                 "segment": 0,
-                "tot_amp_[mV]": 220
+                "tot_amp_[mV]": 150
+            },
+            "channel_1": {
+                "action_code": "static",
+                "action_type": "static trap",
+                "action_val": 1,
+                "amp_adjust": "False",
+                "channel_out": 1,
+                "distance_[um]": 9,
+                "duration_[ms]": 1,
+                "freq_adjust": "False",
+                "freq_amp": "[1]",
+                "freq_phase_[deg]": "[0]",
+                "freqs_input_[MHz]": "[100]",
+                "freqs_output_[Hz]": "[100000000]",
+                "num_of_samples": 1024,
+                "num_of_traps": 1,
+                "segment": 0,
+                "tot_amp_[mV]": 150
             }
         }
     },

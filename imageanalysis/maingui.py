@@ -786,8 +786,12 @@ class main_window(QMainWindow):
         self.update_varplot_axes()  # update the plot with the new values
         self.histo_handler.ind = np.size(self.histo_handler.stats['File ID']) # index for histograms
         # append histogram stats to log file:
-        with open(self.log_file_name, 'a') as f:
-            f.write(','.join(list(map(str, self.histo_handler.temp_vals.values()))) + '\n')
+        try:
+            with open(self.log_file_name, 'a') as f:
+                f.write(','.join(list(map(str, self.histo_handler.temp_vals.values()))) + '\n')
+        except (PermissionError, FileNotFoundError) as e:
+            error("Analyser "+str(self.name)+" could not open file "+str(self.log_file_name) + 
+                "\n" + str(e))
 
     #### #### save and load data functions #### ####
 

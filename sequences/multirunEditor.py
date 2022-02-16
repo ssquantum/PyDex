@@ -674,7 +674,7 @@ class multirun_widget(QWidget):
                         for col in range(len(vals[0]))]) for row in range(len(vals))]) + '\n')
                     f.write(';'.join(params.keys())+'\n')
                     f.write(';'.join(map(str, list(params.values()))))
-            except PermissionError as e:
+            except (PermissionError, FileNotFoundError) as e:
                 error("Couldn't save Multirun params to file: %s\n"%save_file_name+str(e))
 
     def load_mr_params(self, load_file_name=''):

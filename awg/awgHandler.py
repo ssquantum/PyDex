@@ -20,8 +20,6 @@ def statusChecker(N):
        time.sleep(0.1) 
     
 
-    
-    
 
 class AWG:
     
@@ -114,7 +112,7 @@ class AWG:
     Changing these would affect the particular instance. 
     """
     
-    def __init__ (self, channel_enable = [0,1],sample_rate = MEGA(625), num_segment = int(16) , start_step=int(0)):
+    def __init__ (self, channel_enable = [0,1],sample_rate = MEGA(1250), num_segment = int(16) , start_step=int(0)):
         #### Determine the type of card opened
         self.__str__()
         if AWG.lCardType.value in [TYP_M4I6620_X8, TYP_M4I6621_X8, TYP_M4I6622_X8]:
@@ -272,7 +270,7 @@ class AWG:
         if not os.path.isdir(self.path):
             os.makedirs(self.path)
         
-
+        self.cals = {i:cal2d for i in channel_enable}
         
         
     def __str__(self):
@@ -314,7 +312,7 @@ class AWG:
         self.num_segment = int(2**int(math.ceil(math.log(num_segment)/math.log(2))))
         if self.num_segment != num_segment:
              sys.stdout.write("...number of segments must be power of two.\n Segments have been set to nearest power of two:{0:d}\n".format(self.num_segment))
-             self.stepFlag=[0]*self.num_segment
+        self.stepFlag=[0]*self.num_segment
         spcm_dwSetParam_i32 (AWG.hCard, SPC_SEQMODE_MAXSEGMENTS, self.num_segment)  # The entire memory will be divided in this many segments. 
         
         """
@@ -426,6 +424,8 @@ class AWG:
         if len(channels) in self.allowed_num_channels:
             if np.max(channels) <= 3 and np.min(channels) >= 0:
                 for i in channels:
+                    if i not in self.cals.keys():
+                        self.cals[i] = cal2d  # make sure there is a calibration for every file
                     if i in list(startChannels.keys()):
                         startChannels[i]=1
             else:
@@ -454,7 +454,7 @@ class AWG:
             
     def setSegDur(self,new_segDur):
         """
-        Sets the size (duration) of the segment in static traps.
+        Sets the size (duration) of the segment in static traps in milliseconds.
         This segment will be looped an appropriate number of times to achieve the requested value.
         """
         # self.statDur = new_segDur
@@ -870,12 +870,12 @@ class AWG:
                 ##############
                 #  Generate the Data
                 #########################
-                outData =  static(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)            # Generates the requested data
+                outData =  static(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz,cal=self.cals[channel])            # Generates the requested data
                 
                 if type(f1)==np.ndarray or type(f1)==list :
                     f1 = str(list(f1))
-                dataj(self.filedata,self.segment,channel,action,duration,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),\
-                str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples)                # Stores information in the filedata variable, to be written when card initialises. 
+                dataj(self.filedata,self.segment,channel,action,duration,f1,numOfTraps,distance,self.tot_amp,str(list(self.freq_amp)),\
+                str(list(self.freq_phase)),str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples)                # Stores information in the filedata variable, to be written when card initialises. 
             
             
                          
@@ -1021,7 +1021,7 @@ class AWG:
                   
                 
                 if flag ==0:
-                    outData =  moving(self.f1,self.f2,self.duration,self.a,self.tot_amp,self.start_amp,self.end_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value)
+                    outData =  moving(self.f1,self.f2,self.duration,self.a,self.tot_amp,self.start_amp,self.end_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,cal=self.cals[channel])
                     dataj(self.filedata,self.segment,channel,action,self.duration,str(list(f1)),str(list(f2)),self.a,self.tot_amp,str(self.start_amp)\
                     ,str(self.end_amp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),\
                     str(list(self.exp_start)),str(list(self.exp_end)),self.numOfSamples)
@@ -1155,7 +1155,7 @@ class AWG:
                 
                 if flag==0:
                     #ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =0.329)
-                    outData = ramp(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.startAmp,self.endAmp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)
+                    outData = ramp(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.startAmp,self.endAmp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz,cal=self.cals[channel])
                     dataj(self.filedata,self.segment,channel,action,self.duration, str(f1),numOfTraps,distance,\
                     self.tot_amp,str(self.startAmp),str(self.endAmp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),\
                     str(self.exp_freqs),self.numOfSamples)
@@ -1342,7 +1342,7 @@ class AWG:
                 #########################
                 
                 if flag ==0:
-                    outData =  ampModulation(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.mod_freq,self.mod_depth,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)            # Generates the requested data
+                    outData =  ampModulation(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.mod_freq,self.mod_depth,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz,cal=self.cals[channel])            # Generates the requested data
                     
                     if type(f1)==np.ndarray or type(f1)==list :
                         f1 = str(list(f1))
@@ -1450,7 +1450,7 @@ class AWG:
                 ##############
                 #  Generate the Data
                 #########################
-                outData =  switch(self.f1,numOfTraps,distance,self.duration,off_time,self.tot_amp,self.freq_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz)            # Generates the requested data
+                outData =  switch(self.f1,numOfTraps,distance,self.duration,off_time,self.tot_amp,self.freq_amp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz,cal=self.cals[channel])            # Generates the requested data
                 if type(f1)==np.ndarray or type(f1)==list :
                     f1 = str(list(f1))
                 dataj(self.filedata,self.segment,channel,action,duration,off_time,f1,numOfTraps,distance,self.tot_amp,str(self.freq_amp),\
@@ -1505,8 +1505,19 @@ class AWG:
             sys.stdout.write("Data for segment {} were not generated due to unresolved errors\n".format(self.segment))
         
         
-        
-        
+    def arrayGen(self, numx, numy, segment, freqs=[], amps=[], AmV=160,
+            duration=1, freqAdjust=True, ampAdjust=True, phaseAdjust=True):
+        """Gemerate the data for an array of (numx x numy) traps on segment.
+        The spacing is fsep MHz."""
+        data = []
+        try:  
+            for i, f, a in zip(self.channel_enable, freqs, amps):
+                if phaseAdjust: 
+                    phases = phase_minimise(f, duration, int(self.sample_rate.value/1e6), a)
+                else: phases = [0]*len(f)
+                data.append(self.dataGen(segment,i,'static',duration,f,1,9,AmV,a,phases, freqAdjust, ampAdjust))
+            self.setSegment(segment, *data)
+        except IndexError as e: print('Could not generate array.\n'+str(e))
         
     def setStep(self,stepNum,segNum,loopNum,nextStep, stepCondition ):
         
@@ -1603,7 +1614,10 @@ class AWG:
         else:
             sys.stdout.write("Input must be a string.")
             
-            
+    def setCalibration(self, channel, filename, freqs = np.linspace(135,190,150), 
+            powers = np.linspace(0,1,50)):
+        """Load a calibration from a json file"""
+        self.cals[channel] = load_calibration(filename, freqs, powers)
     
     def saveData(self, fpath=''):
         """
@@ -1652,11 +1666,16 @@ class AWG:
             elif saveFile ==True:
                 self.saveData(save_path)
                    
-            spcm_dwSetParam_i32 (AWG.hCard, SPC_TIMEOUT, int(timeOut))
-            sys.stdout.write("\nAWG started.\n")
-            dwError = spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITPREFULL)
-            if dwError == ERR_TIMEOUT:
-                spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
+            status = int32(0)
+            _ = spcm_dwGetParam_i32(AWG.hCard, SPC_M2STATUS, byref(status))
+            if status.value == 7:
+                spcm_dwSetParam_i32 (AWG.hCard, SPC_TIMEOUT, int(timeOut))
+                sys.stdout.write("-AWG started.-")
+                dwError = spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITPREFULL)
+                if dwError == ERR_TIMEOUT:
+                    spcm_dwSetParam_i32 (AWG.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
+            else:
+                sys.stdout.write("\nAWG is already running...\n")
         else:
             y=[]
             yStep=[]
@@ -1871,28 +1890,19 @@ if __name__ == "__main__":
     
     ch1 = 0 #first channel to be used.
     ch2 = 1 #second channel to be used.
-    t = AWG([ch1])
-    
-    t.setNumSegments(12)
+    t = AWG([ch1,ch2])
+    t.setCalibration(0, r'Z:\Tweezer\Experimental\AOD\2D AOD\diffraction efficiency 852\VcalFile_20.01.2022.txt',
+         freqs=np.linspace(81,105,100), powers = np.linspace(0,1,50))
+    t.setCalibration(1, r'Z:\Tweezer\Experimental\AOD\2D AOD\diffraction efficiency 852\VcalFile_20.01.2022.txt',
+        freqs=np.linspace(81,105,100), powers = np.linspace(0,1,50))
+    t.setNumSegments(16)
+    t.setSampleRate(MEGA(1024))
     print(t.num_segment)
     print(t.maxDuration)
     # 0.329um/MHz
     # setup trigger and segment duration
-    t.setTrigger(0) # 0 software, 1 ext0
-    t.setSegDur(0.005)
-    
-    """
-    Loading an old experiment
-    """
-    # file_dir=t.latestSave #'Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin\\20200819\\20200819_165335.txt'
-    # t.load(file_dir)
-    
-    
-    """
-    Testing a multirun reloading
-    """
-    # multirun  = [[0,0,'duration_[ms]',2],[1,0,'duration_[ms]',2]]
-    # t.loadSeg(0,multirun,t.latestSave)
+    t.setTrigger(1) # 0 software, 1 ext0
+    # t.setSegDur(0.005)
     
     
     """
@@ -1910,215 +1920,24 @@ if __name__ == "__main__":
     #t.setSegment(seg,data11)
     #t.setStep(seg,seg,1,0,2)
     
-#    """
-#    What follows is a standard 6-step experiment for merging and separating (for 1 or 2 channels)
-#    """
-#    data01 = t.dataGen(0,ch1,'static',1,[166],1,9, 200,[1],[0],False,False) #seg0, channel 1 - Cs
-#    data02 = t.dataGen(0,ch2,'static',1,[166],1,9, 200,[1],[0],False,False) #seg0, channel 2 - Rb
-#    t.setSegment(0,data01,data02)
-#    t.setStep(0,0,1,1,1)
-#    
-#    
-#    
-#    """
-#    move the trap along one axis.
-#    The other AOD has a static trap, emulated by a ramp function
-#    """
-#    dur = 50
-#    data11 = t.dataGen(1,ch1,'ampMod',dur,[166],1,9, 200,[1],20,0.05,[0],False,False)      #seg1, channel 1
-#    data12 = t.dataGen(1,ch2,'ampMod',dur,[166],1,9, 200,[1],20,0.05,[0],False,False)      #seg1, channel 2
-#    t.setSegment(1,data11,data12)
-#    t.setStep(1,1,1,0,2)
-#     
-#     
-#     
-#     """
-#     ramp the power down on the moving trap. No need to do this for both. 
-#     The first AOD amplitude controls everything.
-#     """
-#     
-#     data21 = t.dataGen(2,ch1,'ramp',15,[180],1,9,220,[1],[0.8],[0],False,False) #seg2, channel 1
-#     data22 = t.dataGen(2,ch2,'ramp',15,[166],1,9,220,[1],[0],[0],False,False) #seg2, channel 2
-#     t.setSegment(2,data21,data22)
-#     t.setStep(2,2,1,6,2)
-#     
-#     """
-#     Short holding stage
-#     """
-#     
-#     data61 = t.dataGen(6,ch1,'static',5,[180],1,9, 50,[1],[1],False,False) #seg0, channel 1 - Cs
-#     data62 = t.dataGen(6,ch2,'static',5,[166],1,9, 50,[0],[0],False,False) #seg0, channel 2 - Rb
-#     t.setSegment(6,data61,data62)
-#     t.setStep(6,6,1,3,2)
-#     
-#         
-#     """
-#     ramp the power up to reverse the process.
-#     """
-#     data31 = t.dataGen(3,ch1,'ramp',15,[180],1,9,220,[1],[1],[0],False,False) #seg3, channel 1
-#     data32 = t.dataGen(3,ch2,'ramp',15,[166],1,9,220,[0],[0.5],[0],False,False) #seg3, channel 2
-#     t.setSegment(3,data31,data32)
-#     t.setStep(3,3,1,4,2)    
-# 
-#     """
-#     Separate the traps.
-#     """
-#     data41 = t.dataGen(4,ch1,'moving',10,[180],[160],1,220,[1],[1],[0],False,False) #seg4, channel 1
-#     data42 = t.dataGen(4,ch2,'ramp',10,[166],1,9,220,[0.5],[0.5],[0],False,False)   #seg4, channel 2
-#     t.setSegment(4,data41,data42)
-#     t.setStep(4,4,1,5,2)   
-#     
-#     
-#     """
-#     return to two static traps along X and Y axes
-#     and terminate
-#     """
-#     data51 = t.dataGen(5,ch1,'static',5,[160],1,9, 220,[1],[0],False,False) #seg0, channel 1
-#     data52 = t.dataGen(5,ch2,'static',5,[166],1,9, 220,[1],[0],False,False) #seg0, channel 2
-#     t.setSegment(5,data51,data52)
-#     t.setStep(5,5,1,5,3)
-    
     """
     Vincent 14/9/2020 
     """
     
-#     def phase_adjust(N):
-#         phi = np.zeros(N)
-#         for i in range(N):
-#             phi[i] = -np.pi/2-np.pi*(i+1)**2/N
-#         phi = phi /np.pi * 180
-#         return(phi)
-#     
-#     f1 = [185, 150]
-#     f2 = [185, 184]
-#     fa_bal = 0.4965
-#     
-#     fs = np.linspace(225, 135, 10)
-#     
-#     data02 = t.dataGen(0,ch2,'static',1,fs,1,9, 280,[0.15]*len(fs),phase_adjust(len(fs)),False,True)
-    data00 = t.dataGen(0,ch1,'static',1,[155.899],1,9, 220,[1],[0],True,True)
-    t.setSegment(0,data00)
-    t.setStep(0,0,1,1,1)
     
-    data01 = t.dataGen(1,ch1,'moving',2,[175],[166],0, 220,[1],[1],[0],False,True)
-    t.setSegment(1,data01)
-    t.setStep(1,1,1,2,2)
+    data00 = t.dataGen(0,0,'static',2,[85+i*4 for i in range(4)],1,9, 160,[1]*4,phase_adjust(4),False,False)
+    data01 = t.dataGen(0,1,'static',2,[97],1,9, 160,[1],[0],False,False)
+    # data00 = t.dataGen(0,0,'static',2,[97.4],1,9, 160,[1],[0],False,False)
+    # data01 = t.dataGen(0,1,'static',2,[96.7],1,9, 160,[1],[0],False,False)
+    t.setSegment(0,data00,data01)
+    t.setStep(0,0,1,0,1) 
+                
+    # data00 = t.dataGen(1,0,'moving',2,[97.4],[97.4],0.1, 160,[1],[1],[0],False,True)
+    # data01 = t.dataGen(1,1,'moving',2,[82],[104],0.1, 160,[1],[1],[0],False,True)
+    # t.setSegment(1,data00,data01)
+    # t.setStep(1,1,1,0,2) 
 
-    data02 = t.dataGen(2,ch1,'static',15,[166],1,9, 220,[1],[0],False,True)
-    t.setSegment(2,data02)
-    t.setStep(2,2,1,3,2)
-        
-    data03 = t.dataGen(3,ch1,'ramp',3,[166],1,9,220,[1],[0],[0],False,True )
-    t.setSegment(3,data03)
-    t.setStep(3,3,1,4,2)      
-# 
-    data04 = t.dataGen(4,ch1,'static',1,[166],1,9, 220,[0],[0],False,True)
-    t.setSegment(4,data04)
-    t.setStep(4,4,1,0,1)
-    
     t.start()
-#     
-#     data41 = t.dataGen(4,ch1,'ramp',2,f2,1,9,280,[0.5, 0.0],[0.5,fa_bal],[0,0],False,False)  
-#     t.setSegment(4,data41)
-#     t.setStep(4,4,1,5,2)     
-#     
-#     data51 = t.dataGen(5,ch1,'moving',2,f2,f1,0, 280,[0.5,fa_bal],[0.5,fa_bal],[0,0],False,False)
-#     t.setSegment(5,data51)
-#     t.setStep(5,5,1,0,2)
-
-    # data61 = t.dataGen(6,ch1,'static',1,f1,1,9, 280,[0.5, 0.4975],[0,0],False,True)
-    # t.setSegment(6,data61)
-    # t.setStep(6,6,1,0,2)
-    
-#    data11 = t.dataGen(1,ch1,'static',1,[180, 170, 160],1,9, 220,[0.333,0.333,0.333],[0,0,0],False,True)
-#     data12 = t.dataGen(1,ch2,'static',1,[180, 170, 160],1,9, 220,[0.333,0.333,0.333],[0,0,0],False,True)
-#     t.setSegment(1,data11, data12)
-#     t.setStep(1,1,1,0,1)  
-#     
-#     data21 = t.dataGen(2,ch1,'static',1,[180, 170],1,9, 220,[0.5, 0.5],[0,0],False,True)
-#     data22 = t.dataGen(2,ch2,'static',1,[180, 170],1,9, 220,[0.5, 0.5],[0,0],False,True)
-#     t.setSegment(2,data21, data22)
-#     t.setStep(2,2,1,0,1)
-# 
-#     data31 = t.dataGen(3,ch1,'static',1,[190,180,170,160,150,140],1,9, 220,[1/6.]*6,[0]*6,False,True)
-#     data32 = t.dataGen(3,ch2,'static',1,[190,180,170,160,150,140],1,9, 220,[1/6.]*6,[0]*6,False,True)
-#     t.setSegment(3,data31, data32)
-#     t.setStep(3,3,1,0,1)      
-#     
-    # data11 = t.dataGen(1,ch1,'moving',1,[160, 150],[180, 150],0, 220,[0.583,0.6],[0.583,0.6],[0,90],False,True)
-    # data12 = t.dataGen(1,ch2,'moving',1,[180, 150],[180, 150],0, 220,[0.6,0.6],[0.6,0.6],[0,90],False,True)
-    # t.setSegment(1,data11, data12)
-    # t.setStep(1,1,1,2,2)
-# 
-#     data21 = t.dataGen(2,ch1,'ramp',5,[153, 150],1,9,220,[0.6,0.6],[0.6, 0],[0,90],False,True)  
-#     data22 = t.dataGen(2,ch2,'ramp',5,[153, 150],1,9,220,[0.5, 0.5],[0.5, 0],[0,90],False,True)  
-#     t.setSegment(2,data21, data22)
-#     t.setStep(2,2,1,3,2)
-# 
-#     data31 = t.dataGen(3,ch1,'switch',1,5,[180, 150],1,9, 220,[0.6, 0],[0,90],False,True)
-#     data32 = t.dataGen(3,ch2,'switch',1,5,[180, 150],1,9, 220,[0.5, 0],[0,90],False,True)
-#     t.setSegment(3,data31, data32)
-#     t.setStep(3,3,1,0,2)
-#     
-    # data21 = t.dataGen(2,ch1,'static',100,[180, 150],1,9, 220,[0.583,0.6],[0,90],False,True)
-    # data22 = t.dataGen(2,ch2,'static',100,[180, 150],1,9, 220,[0.5,0.6],[0,90],False,True)
-    # t.setSegment(2,data21, data22)
-    # t.setStep(2,2,1,0,2)    
-#       #### DC offset modulate
-    
-    # data00 = t.dataGen(0,0,'offset',1,94,0, 0)
-    # data10 = t.dataGen(0,1,'offset',1,94,280, 0)
-    # t.setSegment(0,data00,data10)
-    # t.setStep(0,0,1,1,1)  
-    # 
-    # data01 = t.dataGen(1,0,'offset',50,94,0, 0)
-    # data11 = t.dataGen(1,1,'offset',50,94,280, 0.1)
-    # t.setSegment(1,data01,data11)
-    # t.setStep(1,1,1,0,2) 
-    # 
-    # t.start(True)
-#     
-#     # 1 trap
-#     # def setStep(self,stepNum,segNum,loopNum,nextStep, stepCondition ):
-#     data01 = t.dataGen(0,ch1,'static',1,[180],1,9, 220,[1],[0],False,True)
-#     data02 = t.dataGen(0,ch2,'static',1,[180],1,9, 220,[1],[0],False,True)
-#     t.setSegment(0,data01, data02)
-#       
-#     
-#     data11 = t.dataGen(1,ch1,'moving',1,[180],[150],1, 220,[1],[1],[0],False,True)
-#     data12 = t.dataGen(1,ch2,'moving',1,[180],[150],1, 220,[1],[1],[0],False,True)
-#     t.setSegment(1,data11, data12)
-# 
-# 
-#     data21 = t.dataGen(2,ch1,'moving',1,[150],[180],1, 220,[1],[1],[0],False,True)
-#     data22 = t.dataGen(2,ch2,'moving',1,[150],[180],1, 220,[1],[1],[0],False,True)
-#     t.setSegment(2,data21, data22)
-#     
-#     t.setStep(0,0,1,1,1)  # set step 0: 1 static trap
-#     
-#     nsweep = 49  # number of sweeps there and back
-#     j = 1
-#     for i in range(nsweep):
-#         #print(j)
-#         t.setStep(j,1,1,j+1,2)   # sweep there
-#         j+=1
-#         t.setStep(j,2,1,j+1,2)   # sweep back
-#         j+=1
-# 
-#     t.setStep(j,1,1,j+1,2)  
-#     j+=1
-#     t.setStep(j,2,1,0,2)         # after final sweep back go back to static trap
-# 
-# 
-#     
-#     t.start(True)
-#     
-    
-    # data11 = t.dataGen(1,ch1,'ampMod',50,[166],1,9, 220,[1],20,0.05,[0],False,False)      #seg1, channel 1
-    # data12 = t.dataGen(1,ch2,'ampMod',50,[166],1,9, 220,[1],20,0.05,[0],False,False)      #seg1, channel 2
-    # t.setSegment(1,data11,data12)
-    # t.setStep(1,1,1,0,2) 
-        
     # 
     # ### STATIC/RAMP
     # # action/freq/num of traps/distance/duration/freq Adjust/sample rate/umPerMhz

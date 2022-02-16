@@ -3,18 +3,48 @@ import math
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from scipy.interpolate import interp1d, RectBivariateSpline
+from scipy.optimize import minimize
 from collections import OrderedDict
 import ctypes
-
+import itertools
 import sys
 import time
 import json
 import os
 
-###############################################
-## Currently this code does not do interpolation
-## for the moving trap. Just static and ramp.
-##################################################
+def phase_adjust(N):
+    """Minimise the crest factor analytically. See DOI 10.5755/j01.eie.23.2.18001 """
+    phi = np.zeros(N)
+    for i in range(N):
+        phi[i] = -np.pi/2-np.pi*(i+1)**2/N
+    phi = phi /np.pi * 180
+    return(phi)    
+    
+def crest(phases, freqs=[85,87,89], dur=1, sampleRate=625, freqAmps=[1,1,1]):
+    """Get the crest factor for data generated for a static trap"""
+    y = static(freqs,1,1,dur,20,freqAmps,phases,False,False,sampleRate=sampleRate)
+    return np.max(y)/np.sqrt(np.mean(y**2))
+    
+def crest_index(phi, phases, ind, freqs=[85,87,89], dur=1, sampleRate=625, freqAmps=[1,1,1]):
+    phases[ind] = phi
+    return crest(phases, freqs, dur, sampleRate, freqAmps)
+
+def phase_minimise(freqs=[85,87,89], dur=1, sampleRate=625, freqAmps=[1]*3):
+    """Numerically optimise the phases to reduce the crest factor"""
+    if len(freqAmps) != len(freqs):
+        freqAmps = [1]*len(freqs)
+    # start by optimizing them all
+    result = minimize(crest, phase_adjust(len(freqs)), args=(freqs, dur, sampleRate, freqAmps))
+    phases = result.x
+    for i in range(len(freqs)): # then one by one
+        result = minimize(crest_index, phases[i], args=(phases,i,freqs,dur,sampleRate,freqAmps))
+        phases[i] = result.x
+    print('Minimiser succeeded.' if result.success else 'Minimiser failed')
+    print(result.message)
+    print('Minimiser result: ', result.fun)
+    return phases
+    
+
 def RMS(signal):
     """Calculate the RMS of a signal"""
     rms = np.sqrt(np.sum(signal**2)/np.abs(len(signal)))
@@ -33,7 +63,7 @@ def checkWaveformAmp(y):
         print('CLIP WARNING:')
         print('  Wave amp is '+str(round(peak, 1))+'/280 mV')
         print('   and RMS is '+str(round(rms, 1))+'/200 mV')
-    str(round(peak, 1))
+    return peak, rms
 
 def adjuster (requested_freq,samplerate,memSamples):
     """
@@ -44,7 +74,7 @@ def adjuster (requested_freq,samplerate,memSamples):
     These are typically given in Hz and bytes respectively.
     """
     nCycles = np.round(requested_freq/samplerate*memSamples)
-    newFreq = np.round(nCycles*samplerate/memSamples)
+    newFreq = nCycles*samplerate/memSamples
     return newFreq
 
 def minJerk(t,d,T):
@@ -116,68 +146,61 @@ def chirp(t,d,T,a):
 ######################
 # Calibration data for interpolation
 # Values that normally go above 1, are limited to 1.
-# More info here: https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html
 ########################################################
 
+def load_calibration(filename, fs = np.linspace(135,190,150), power = np.linspace(0,1,50)):
+    """Convert saved diffraction efficiency data into a 2D freq/amp calibration"""
+    with open(filename) as json_file:
+        calFile = json.load(json_file) 
+    contour_dict = OrderedDict(calFile["Power_calibration"]) # for flattening the diffraction efficiency curve: keep constant power as freq is changed
+    for key in contour_dict.keys():
+        try:
+            contour_dict[key]['Calibration'] = interp1d(contour_dict[key]['Frequency (MHz)'], contour_dict[key]['RF Amplitude (mV)'])
+        except Exception as e: print(e)
+    
+    def ampAdjuster1d(freq, optical_power):
+        """Find closest optical power in the presaved dictionary of contours, 
+        then use interpolation to get the RF amplitude at the given frequency"""
+        i = np.argmin([abs(float(p) - optical_power) for p in contour_dict.keys()]) 
+        key = list(contour_dict.keys())[i]
+        y = np.array(contour_dict[key]['Calibration'](freq), ndmin=1) # return amplitude in mV to keep constant optical power
+        if (np.size(y)==1 and y>280) or any(y > 280):
+            print('WARNING: power calibration overflow: required power is > 280mV')
+            y[y>280] = 280
+        return y
+
+    mv = np.zeros((len(power), len(fs)))
+    for i, p in enumerate(power):
+        try:
+            mv[i] = ampAdjuster1d(fs, p)
+        except Exception as e: print('Warning: could not create power calibration for %s\n'%p+str(e))
+        
+    return RectBivariateSpline(power, fs, mv)
+    
 
 importPath="Z:\\Tweezer\Experimental\\Setup and characterisation\\Settings and calibrations\\tweezer calibrations\\AWG calibrations\\"
 importFile = "calFile_08.06.2021.txt"
 
-
 with open(importPath+importFile) as json_file:
-    calFile = json.load(json_file) 
+    calFile1 = json.load(json_file) 
 
+cal_umPerMHz = calFile1["umPerMHz"]
 
-contour_dict = OrderedDict(calFile["Power_calibration"]) # for flattening the diffraction efficiency curve: keep constant power as freq is changed
-for key in contour_dict.keys():
-    try:
-        contour_dict[key]['Calibration'] = interp1d(contour_dict[key]['Frequency (MHz)'], contour_dict[key]['RF Amplitude (mV)'])
-    except Exception as e: print(e)
+cal2d = load_calibration(importPath+importFile)
 
-DE_RF_dict = OrderedDict(calFile["DE_RF_calibration"]) # for ramping the amplitude in a linear fashion at a constant freq
-for key in DE_RF_dict.keys():
-    try:
-        DE_RF_dict[key]['Calibration'] = interp1d(DE_RF_dict[key]['Diffraction Efficiency'], DE_RF_dict[key]['RF Amplitude (mV)'], fill_value='extrapolate')
-    except Exception as e: print(e)
-
-
-cal_umPerMHz = calFile["umPerMHz"]
-
-
-def ampAdjuster1d(freq, optical_power):
-    """Find closest optical power in the presaved dictionary of contours, then use interpolation to get the 
-    RF amplitude at the given frequency"""
-    i = np.argmin([abs(float(p) - optical_power) for p in contour_dict.keys()]) 
-    key = list(contour_dict.keys())[i]
-    y = np.array(contour_dict[key]['Calibration'](freq), ndmin=1) # return amplitude in mV to keep constant optical power
-    if (np.size(y)==1 and y>280) or any(y > 280):
-        print('WARNING: power calibration overflow: required power is > 280mV')
-        y[y>280] = 280
-    return y
-
-fs = np.linspace(135,190,150)
-power = np.linspace(0,1,50)
-mv = np.zeros((len(power), len(fs)))
-for i, p in enumerate(power):
-    try:
-        mv[i] = ampAdjuster1d(fs, p)
-    except Exception as e: print('Warning: could not create power calibration for %s\n'%p+str(e))
-    
-cal2d = RectBivariateSpline(power, fs, mv)
-
-def ampAdjuster2d(freqs, optical_power):
+def ampAdjuster2d(freqs, optical_power, cal=cal2d):
     """Sort the arguments into ascending order and then put back so that we can 
     use the 2D calibration"""
     if np.size(freqs) > 1: # interpolating frequency
         inds = np.argsort(freqs)
         f = freqs[inds]
-        return cal2d(optical_power, f)[0][np.argsort(inds)]
+        return cal(optical_power, f)[0][np.argsort(inds)]
     elif np.size(optical_power) > 1: # interpolating amplitude
         inds = np.argsort(optical_power)
         a = optical_power[inds]
-        return cal2d(a, freqs)[:,0][np.argsort(inds)]
+        return cal(a, freqs)[:,0][np.argsort(inds)]
     else:
-        return cal2d(optical_power, freqs)[0]
+        return cal(optical_power, freqs)[0]
 
 def getFrequencies(action,*args):
     
@@ -267,7 +290,8 @@ def getFrequencies(action,*args):
         return np.array([sfreq,ffreq])
     
 
-def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq_adjust,amp_adjust,sampleRate):
+def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,
+        freq_adjust,amp_adjust,sampleRate, cal=cal2d):
     """
     Identical to the moving function above. The only difference is that it also applies the adjuster function
     to ensure that the starting and end frequencies are as close as possible to the frequencies needed
@@ -346,16 +370,16 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
     # Generate the data 
     ##########################   
     if amp_adjust:
-        amp_ramp = np.array([ampAdjuster2d(sfreq[Y]*1e-6 + hybridJerk(t, 1e-6*rfreq[Y], numOfSamples, a), startAmp[Y]) for Y in range(l)])
+        amp_ramp = np.array([ampAdjuster2d(sfreq[Y]*1e-6 + hybridJerk(t, 1e-6*rfreq[Y], numOfSamples, a), startAmp[Y], cal=cal) for Y in range(l)])
         s = np.sum(amp_ramp, axis=0)
         if any(s > 280):
             print('WARNING: multiple moving traps power overflow: total required power is > 280mV, peak is: '+str(round(max(s),2))+'mV')
             amp_ramp = np.ones(l)/l*tot_amp
     else: # nmt amp adjust
-        if np.sum(tot_amp*startAmp) > 280:
+        if np.sum(tot_amp*np.array(startAmp)) > 280:
             print('WARNING: startAmp power overflow: total required power is > 280mV, is:'+str(np.sum(tot_amp*startAmp))+'mV')
             startAmp = np.ones(l) / l
-        if np.sum(tot_amp*endAmp) > 280:
+        if np.sum(tot_amp*np.array(endAmp)) > 280:
             print('WARNING: startAmp power overflow: total required power is > 280mV, is:'+str(np.sum(tot_amp*endAmp))+'mV')
             endAmp = np.ones(l) / l
     
@@ -380,7 +404,7 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
         for Y in range(l):
             traj = hybridJerk(idxs, rfreq[Y]*1e-6, numOfSamples, a)
             amp_ramp_adjusted.append(interp1d(idxs, 
-                np.concatenate([ampAdjuster2d(sfreq[Y]*1e-6 + traj[i], amp_ramp[Y][i]/tot_amp)
+                np.concatenate([ampAdjuster2d(sfreq[Y]*1e-6 + traj[i], amp_ramp[Y][i]/tot_amp, cal=cal)
                     for i in range(100)]), kind='linear'))
 
         y = 1./282*0.5*2**16 *np.sum([
@@ -399,7 +423,7 @@ def moving(startFreq, endFreq,duration,a,tot_amp,startAmp,endAmp,freq_phase,freq
 
 
 
-def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1,tot_amp=10,freq_amp = [1],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz):
+def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1,tot_amp=10,freq_amp = [1],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz, cal=cal2d):
     """
     centralFreq   : Defined in [MHz]. Accepts int/float/list/numpy.arrays()
     numberOfTraps : Defines the total number of traps including the central frequency.
@@ -409,6 +433,7 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1
     freq_amp      : Defines the individual frequency amplitude as a fraction of the global (ranging from 0 to 1).
     freq_phase    : Defines the individual frequency phase in degrees [deg].
     freqAdjust    : On/Off switch for whether the frequency should be adjusted to full number of cycles [Bool].
+    ampAdjust     : Toggle whether to apply a calibration to correct for diffraction efficiency
     sampleRate    : Defines the sample rate by which the data will read [in Hz].
     umPerMHz      : Conversion rate for the AWG card.
     """
@@ -463,14 +488,14 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1
     ########################## 
     t = np.arange(numOfSamples)
     if ampAdjust ==True:
-        amps = [ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y]) for Y in range(numberOfTraps)]
+        amps = [ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y], cal=cal) for Y in range(numberOfTraps)]
         y = 1./282*0.5*2**16*np.sum([amps[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
-        checkWaveformAmp(y)
+        peak, rms = checkWaveformAmp(y)
         # check that the waveform RMS doesn't exceed 200 or the peak amp doesnt exceed 300mV.
-        if max(abs(y*282/(0.5*2**16))) > 300 or RMS(y*282/(0.5*2**16))>200:
-            print('WARNING: RMS voltage is = '+str(round(RMS(y)*282/(0.5*2**16), 1))+'mV and amplitude is = '+str(round(max(abs(y))*282/(0.5*2**16),1))+' mV')
+        if peak > 300 or rms>200:
             print(' ### Freq amps have been set to '+str(round(1/len(freqs),3)))
-            y =  1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+            amps = [ampAdjuster2d(freqs[Y]*10**-6, 1/len(freqs), cal=cal) for Y in range(numberOfTraps)]
+            y =  1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([amps[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
 
     else:  ### should static trap divide by number of traps?
         y = 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
@@ -478,7 +503,7 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1
     #checkWaveformAmp(y)
     return(y)
 
-def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz):
+def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz, cal=cal2d):
     """
     freqs         : Defined in [MHz]. Accepts int, list and np.arrays()
     numberOfTraps : Defines the total number of traps including the central frequency.
@@ -557,7 +582,7 @@ def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=22
     t =np.arange(numOfSamples)
     if ampAdjust:
         y = 1./282*0.5*2**16*\
-            np.sum([ampAdjuster2d(adjFreqs[Y]*1e-6, np.linspace(startAmp[Y], endAmp[Y], numOfSamples)) * 
+            np.sum([ampAdjuster2d(adjFreqs[Y]*1e-6, np.linspace(startAmp[Y], endAmp[Y], numOfSamples), cal=cal) * 
                 np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     else:
         y = 1.*tot_amp/282/len(freqs)*0.5*2**16*\
@@ -567,7 +592,7 @@ def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=22
     return y
 
 
-def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1,tot_amp=10,freq_amp = [1],mod_freq=100e3,mod_depth=0.2,freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz):
+def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1,tot_amp=10,freq_amp = [1],mod_freq=100e3,mod_depth=0.2,freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz, cal=cal2d):
     """
     centralFreq   : Defined in [MHz]. Accepts int/float/list/numpy.arrays()
     numberOfTraps : Defines the total number of traps including the central frequency.
@@ -625,12 +650,12 @@ def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duratio
         if (np.size(mod_amp)==1 and mod_amp>1) or any(mod_amp > 1):
             print('WARNING: power calibration overflow: cannot exceed freq_amp > 1')
         return 1./282*0.5*2**16*np.sum([
-            ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y]*(1 + mod_amp)
+            ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y]*(1 + mod_amp), cal=cal
             )*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360.) for Y in range(numberOfTraps)],axis=0)
     else:
        return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*(1+mod_amp)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     
-def switch(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration=0.1,offt=0.01,tot_amp=10,freq_amp=[1],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate=625*10**6,umPerMHz=cal_umPerMHz):
+def switch(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration=0.1,offt=0.01,tot_amp=10,freq_amp=[1],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate=625*10**6,umPerMHz=cal_umPerMHz,cal=cal2d):
     """
     centralFreq   : Defined in [MHz]. Accepts int/float/list/numpy.arrays()
     numberOfTraps : Defines the total number of traps including the central frequency.
@@ -701,11 +726,11 @@ def switch(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration=0.1,o
     if ampAdjust ==True:
         try:
             return 1./282*0.5*2**16 * np.concatenate((
-                np.sum([ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y])*np.sin(2.*np.pi*t0*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0),
+                np.sum([ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y], cal=cal)*np.sin(2.*np.pi*t0*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0),
                 np.zeros(numOfSamples - len(t0) - len(t1)),
-                np.sum([ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y])*np.sin(2.*np.pi*t1*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)))
+                np.sum([ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y], cal=cal)*np.sin(2.*np.pi*t1*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)))
         except ValueError: # if off time = 0
-            return 1./282/len(freqs)*0.5*2**16 * np.sum([ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y])*np.sin(2.*np.pi*np.arange(numOfSamples)*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+            return 1./282/len(freqs)*0.5*2**16 * np.sum([ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y], cal=cal)*np.sin(2.*np.pi*np.arange(numOfSamples)*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
     else:
         try: 
             return 1.*tot_amp/282/len(freqs)*0.5*2**16 * np.concatenate((

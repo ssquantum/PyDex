@@ -58,6 +58,14 @@ class imageArray:
             else: self.fitfunc = self.fitGaussSum
         self._labels += [x+'_err' for x in self._labels] 
         self.df = pd.DataFrame(columns=self._labels) # xc, w, yc, h, I for each ROI
+        self.ref = 1  # reference intensity
+        
+    def setRef(self, imarr):
+        """Use an image to define the reference intensity as the mean of fitted 
+        intensities in the image."""
+        self._imvals = imarr
+        self.fitImage()
+        self.ref = self.df['I0'].mean()
         
     def loadImage(self, filename, imshape=(1024,1280)):
         if 'bmp' in filename:
@@ -141,17 +149,22 @@ class imageArray:
                     movable=False, rotatable=False, resizable=False, pen='w')
             viewbox.addItem(s)
                 
-    def getScaleFactors(self, verbose=0):
+    def getScaleFactors(self, verbose=0, target=None):
         """Sort the ROIs and return an array of suggested scale factors to 
         make the intensities uniform."""
         lx, ly = self._s
         # make array of desired scale factors
-        target = self.df['I0'].values.reshape(self._s)
-        target = np.min(target) / target # normalise and invert
+        I0s = self.df['I0'].values.reshape(self._s) / self.ref
+        if target:
+            try: target = target / I0s
+            except Exception as e: 
+                error("Invalid target for scale factor: "+str(target)+'\n'+str(e))
+                target = 1 / I0s
+        else: target = 1 / I0s # invert to get correction
         def func(xy):
             return np.linalg.norm(np.outer(xy[:lx], xy[lx:]) - target)
         p0 = np.ones(lx + ly)
-        result = minimize(func, p0, bounds=(p0*0,p0))
+        result = minimize(func, p0, bounds=[[0,1]]*(lx+ly))
         if verbose:
             info('Array scale factors ' + result.message + '\n' + 'Cost: %s'%result.fun)
         if verbose > 1: 

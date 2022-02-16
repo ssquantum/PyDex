@@ -58,7 +58,7 @@ class Optimiser():
         self.dxs.start()
 
         self.t = AWG([0,1])
-        self.t.setNumSegments(8)
+        self.t.setNumSegments(128)
         self.t.setTrigger(0) # software trigger
         self.t.setSegDur(0.002)
         
@@ -69,8 +69,8 @@ class Optimiser():
         # self.t.start()
         # self.t.setSegment(0, self.t.dataGen(0,0,'static',1,[fset],1,9, amp,[1],[0],False,False))
         # self.t.setStep(0,0,1,0,1)
-        self.t.load(r'Z:\Tweezer\Experimental\AOD\AWG template sequences\test amp_adjust\swap_static.txt')
-        self.t.start()
+        self.t.load(r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\2channel_swap_static.txt')
+        # self.t.start()
 
     def respond(self, msg=''):
         """TCP message can contain the measurement from the DAQ"""
@@ -115,8 +115,8 @@ class Optimiser():
         time.sleep(self.sleep)
         self.dxs.add_message(TCPENUM['Run sequence'], 'run the sequence\n'+'0'*1600)
         time.sleep(self.sleep)
-        self.s.add_message(self.n, 'measure') # tells DAQ to add the measurement to the next message
-        self.s.add_message(self.n, 'readout') # reads the measurement
+        # self.s.add_message(self.n, 'measure') # tells DAQ to add the measurement to the next message
+        # self.s.add_message(self.n, 'readout') # reads the measurement
         
     def restart(self):
         self.i = 0
@@ -152,29 +152,62 @@ if __name__ == "__main__":
     o.s.textin.disconnect()
     # o.restart()
     
-    # from numpy.random import shuffle
-    # fs = np.linspace(120, 220, 201)
-    # # fs = np.delete(fs, np.array([154, 174, 152, 169, 155, 208, 140, 199, 173, 121, 189, 120])-120)
-    # shuffle(fs)
-    # amps = np.linspace(1,280,50)
-    # shuffle(amps)
-    # fdir = r'Z:\Tweezer\Experimental\Setup and characterisation\Settings and calibrations\tweezer calibrations\AWG calibrations\07062021AWG_power_calibration'
-    # os.makedirs(fdir, exist_ok=True)
-    # o.s.add_message(o.n, fdir+'=save_dir')
+    from numpy.random import shuffle
+    fs = np.linspace(80, 120, 160)
+    # fs = np.delete(fs, np.array([154, 174, 152, 169, 155, 208, 140, 199, 173, 121, 189, 120])-120)
+    shuffle(fs)
+    amps = np.linspace(0,170,120)
+    shuffle(amps)
+    fdir = r'Z:\Tweezer\Experimental\AOD\2D AOD\diffraction efficiency 814\CH0-H_calibration'
+    os.makedirs(fdir, exist_ok=True)
+    o.s.add_message(o.n, fdir+'=save_dir')
+    o.s.add_message(o.n, 'reset graph')
+    # for f in fs:
+    #     for a in amps:
+    #         o.n = int(a)
+    #         o.s.add_message(o.n, 'sets n') # sets the amplitude for reference
+    #         o.s.add_message(o.n, 'sets n') # sets the amplitude for reference
+    #         o.t.setSegment(1, o.t.dataGen(1,0,'static',30,[f],1,9, a,[1],[0],False,False), 
+    #                         o.t.dataGen(1,1,'static',30,[100],1,9, 150,[1],[0],False,False))
+    #         # o.t.loadSeg([[0,0,'freqs_input_[MHz]',f,0],[0,0,'tot_amp_[mV]',a,0]])
+    #         o.measure()
+    #     o.s.add_message(o.n, '%.1fMHz.csv=graph_file'%f)
+    #     time.sleep(0.3)
+    #     o.s.add_message(o.n, 'save graph')
+    #     time.sleep(0.3)
+    #     o.s.add_message(o.n, 'reset graph')
+    # o.s.add_message(o.n, r'Z:\Tweezer\Experimental\AOD\2D AOD\diffraction efficiency 814\CH1-V_calibration=save_dir')
     # o.s.add_message(o.n, 'reset graph')
     # for f in fs:
     #     for a in amps:
     #         o.n = int(a)
     #         o.s.add_message(o.n, 'sets n') # sets the amplitude for reference
     #         o.s.add_message(o.n, 'sets n') # sets the amplitude for reference
-    #         o.t.setSegment(1, o.t.dataGen(1,0,'static',1,[f],1,9, a,[1],[0],False,False), 
-    #                         o.t.dataGen(1,1,'static',1,[f],1,9, a,[1],[0],False,False))
+    #         o.t.setSegment(1, o.t.dataGen(1,0,'static',30,[100],1,9, 150,[1],[0],False,False), 
+    #                         o.t.dataGen(1,1,'static',30,[f],1,9, a,[1],[0],False,False))
     #         # o.t.loadSeg([[0,0,'freqs_input_[MHz]',f,0],[0,0,'tot_amp_[mV]',a,0]])
     #         o.measure()
     #     o.s.add_message(o.n, '%.1fMHz.csv=graph_file'%f)
-    #     time.sleep(0.01)
+    #     time.sleep(0.3)
     #     o.s.add_message(o.n, 'save graph')
-    #     time.sleep(0.01)
+    #     time.sleep(0.3)
     #     o.s.add_message(o.n, 'reset graph')
-    #     
-    # o.t.stop()
+    o.measure()
+    print('triggered AWG.')
+    time.sleep(2)
+    fdir = r'Z:\Tweezer\Experimental\AOD\2D AOD\diffraction efficiency 814\CH0-H_calibration'
+    os.makedirs(fdir, exist_ok=True)
+    o.s.add_message(o.n, fdir+'=save_dir')
+    for f in fs:
+        o.n = int(f)
+        o.s.add_message(o.n, 'sets n') # sets the amplitude for reference
+        o.s.add_message(o.n, 'sets n') # sets the amplitude for reference
+        o.t.loadSeg([[0,i+1,"freqs_input_[MHz]",float(f),0] for i in range(120)])
+        time.sleep(0.3)
+        o.t.loadSeg([[0,i+1,"tot_amp_[mV]",float(a),0] for i, a in enumerate(amps)])
+        time.sleep(0.3)
+        o.measure()
+        o.s.add_message(o.n, '%.2fMHz.csv=trace_file'%f)
+        time.sleep(2)
+        o.s.add_message(o.n, 'save trace')
+    o.t.stop()

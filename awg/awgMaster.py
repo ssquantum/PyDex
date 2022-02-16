@@ -49,15 +49,16 @@ class awg_window(QMainWindow):
     config_file -- path to the file that saved the previous settings.
     """
     def __init__(self, config_file='.\\state', AWG_channels=[0], 
-            default_seq=r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\single_static_32segs.txt'):
+            default_seq=r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\single_static.txt',
+            server_port=8626, clientIP='129.234.190.164', client_port=8623):
         super().__init__()
         # self.types = OrderedDict([('FileName',str), ('segment',int)])
         self.stats = OrderedDict([('FileName', 0), ('segment', 0)])
         self.t_load = 0 # time taken to transfer data onto card
         self.init_UI()
-        self.server = PyServer(host='', port=8626) # TCP server to message PyDex
+        self.server = PyServer(host='', port=server_port) # TCP server to message PyDex
         self.server.start()
-        self.client = PyClient(host='129.234.190.164', port=8623) # TCP client to message PyDex
+        self.client = PyClient(host=clientIP, port=client_port) # TCP client to message PyDex
         self.client.textin[str].connect(self.respond) # carry out the command in the msg
         self.client.start()
         self.rr = rearrHandler.rearrange(AWG_channels) # opens AWG card via rearr class and initiates

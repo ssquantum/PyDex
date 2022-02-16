@@ -10,7 +10,7 @@
             "max_output_mV": 282,
             "maximum_samples": 268435456,
             "numOfChannels": 1,
-            "num_of_segments": 8,
+            "num_of_segments": 32,
             "sample_rate_Hz": 625000000,
             "start_step": 0,
             "static_duration_ms": 0.0016384,

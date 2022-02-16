@@ -180,5 +180,5 @@ class daqCollection(QThread):
                 ['mean', 'stdv'] for s in self.slices for chan in 
                 s.stats.keys()] + [self.times]).T
             np.savetxt(file_name, out_arr, delimiter=',', fmt='%s', header=header)
-        except PermissionError as e:
+        except (PermissionError, FileNotFoundError) as e:
             error('DAQ Analysis denied permission to save file: \n'+str(e))
