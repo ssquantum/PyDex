@@ -50,10 +50,12 @@ class awg_window(QMainWindow):
     """
     def __init__(self, config_file='.\\state', AWG_channels=[0], 
             default_seq=r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\single_static.txt',
+            rearr_base_path=r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\rearr_base.txt',
             server_port=8626, clientIP='129.234.190.164', client_port=8623):
         super().__init__()
         # self.types = OrderedDict([('FileName',str), ('segment',int)])
         self.stats = OrderedDict([('FileName', 0), ('segment', 0)])
+        self.rearr_base_path = rearr_base_path
         self.t_load = 0 # time taken to transfer data onto card
         self.init_UI()
         self.server = PyServer(host='', port=server_port) # TCP server to message PyDex
@@ -219,8 +221,8 @@ class awg_window(QMainWindow):
 
         elif 'rearr_on' in cmd:
          #   try:   
-            self.renewAWG('chans=[0]')
-            self.rr.awg.load(r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\rearr_base.txt') # load basic data
+            self.renewAWG('chans=%s'%list(self.rr.awg.channel_enable))
+            self.rr.awg.load(self.rearr_base_path) # load basic data
             self.rr.activate_rearr(toggle=True)
             if '=' in cmd:  # if equals, then load in the specified rearragement config file.
                 self.rr.rr_config = cmd.partition('=')[2].strip('file:///')

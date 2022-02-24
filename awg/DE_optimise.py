@@ -158,7 +158,7 @@ if __name__ == "__main__":
     shuffle(fs)
     amps = np.linspace(0,170,120)
     shuffle(amps)
-    fdir = r'Z:\Tweezer\Experimental\AOD\2D AOD\diffraction efficiency 814\CH0-H_calibration'
+    fdir = r'Z:\Tweezer\Experimental\AOD\2D AOD\diffraction efficiency 814\CH1-V_calibration'
     os.makedirs(fdir, exist_ok=True)
     o.s.add_message(o.n, fdir+'=save_dir')
     o.s.add_message(o.n, 'reset graph')
@@ -195,16 +195,19 @@ if __name__ == "__main__":
     o.measure()
     print('triggered AWG.')
     time.sleep(2)
-    fdir = r'Z:\Tweezer\Experimental\AOD\2D AOD\diffraction efficiency 814\CH0-H_calibration'
+    fdir = r'Z:\Tweezer\Experimental\AOD\2D AOD\diffraction efficiency 814\CH1-V_calibration'
+    o.t.loadSeg([[0,i+1,"freqs_input_[MHz]",float(100),0] for i in range(120)])
+    time.sleep(0.3)
+    o.t.loadSeg([[0,i+1,"tot_amp_[mV]",float(150),0] for i, a in enumerate(amps)])
     os.makedirs(fdir, exist_ok=True)
     o.s.add_message(o.n, fdir+'=save_dir')
     for f in fs:
         o.n = int(f)
         o.s.add_message(o.n, 'sets n') # sets the amplitude for reference
         o.s.add_message(o.n, 'sets n') # sets the amplitude for reference
-        o.t.loadSeg([[0,i+1,"freqs_input_[MHz]",float(f),0] for i in range(120)])
+        o.t.loadSeg([[1,i+1,"freqs_input_[MHz]",float(f),0] for i in range(120)])
         time.sleep(0.3)
-        o.t.loadSeg([[0,i+1,"tot_amp_[mV]",float(a),0] for i, a in enumerate(amps)])
+        o.t.loadSeg([[1,i+1,"tot_amp_[mV]",float(a),0] for i, a in enumerate(amps)])
         time.sleep(0.3)
         o.measure()
         o.s.add_message(o.n, '%.2fMHz.csv=trace_file'%f)

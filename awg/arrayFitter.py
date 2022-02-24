@@ -155,6 +155,7 @@ class imageArray:
         lx, ly = self._s
         # make array of desired scale factors
         I0s = self.df['I0'].values.reshape(self._s) / self.ref
+        print("\n", self.df['I0'].values/self.ref, "\n")
         if target:
             try: target = target / I0s
             except Exception as e: 
@@ -164,7 +165,7 @@ class imageArray:
         def func(xy):
             return np.linalg.norm(np.outer(xy[:lx], xy[lx:]) - target)
         p0 = np.ones(lx + ly)
-        result = minimize(func, p0, bounds=[[0,1]]*(lx+ly))
+        result = minimize(func, p0, bounds=[[0,10]]*(lx+ly))
         if verbose:
             info('Array scale factors ' + result.message + '\n' + 'Cost: %s'%result.fun)
         if verbose > 1: 

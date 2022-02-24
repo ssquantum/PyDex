@@ -33,6 +33,7 @@ RVB SUGGESTIONS FOR FUTURE CHANGES:
 """
 
 from awgHandler import AWG
+from spcm_home_functions import phase_minimise
 
 # Modules used for rearrangement
 from itertools import combinations   # returns tuple of combinations
@@ -159,6 +160,7 @@ class rearrange():
         # STATIC TRAP
         if 's' in key:
             fa = self.rearr_freq_amp
+            duration = self.rParam['static_duration_[ms]']
             if 'si' in key:                # Initial array of static traps
                 f1 = self.flist(key.partition('s')[0], self.initial_freqs)
             elif 'st' in key:              # Target array of static traps
@@ -169,8 +171,8 @@ class rearrange():
                     
                 if self.rParam['power_ramp']==True:
                     fa = self.rParam['final_freq_amp']
-            if self.rParam['phase_adjust'] == True:
-                phase = self.phase_adjust(len(f1))
+            if self.rParam['phase_adjust'] == True and len(f1) > 1:
+                phase = list(phase_minimise(freqs=f1, dur=duration, sampleRate=self.awg.sample_rate.value/1e6, freqAmps=[fa]*len(f1)))
             else:
                 phase = [0]*len(f1)
             data = self.awg.dataGen(seg,
@@ -206,6 +208,7 @@ class rearrange():
                                 [0]*len(f1),   # freq phases
                                 self.rParam['freq_adjust'],     
                                 self.rParam['amp_adjust'])
+            duration = self.rParam['moving_duration_[ms]']
         # RAMPING TRAP
         elif 'r' in key: # Ramp target array frequency amplitudes up to make use of freed-up RF power.            
             f2 = self.flist(key.partition('r')[0], self.target_freqs)  
@@ -225,12 +228,29 @@ class rearrange():
                                 [0]*len(f2),   # freq phases
                                 self.rParam['freq_adjust'],     
                                 self.rParam['amp_adjust'])
+            duration = self.rParam['ramp_duration_[ms]']
         
-        # self.awg.setSegment(self.segmentCounter,data)
-        # self.movesDict[key] = self.segmentCounter
-        self. movesDict[key] = data   # List of data saves to movesDict, can be inserted to setSegment during rearrangement.
+        self.movesDict[key] = [data]   # List of data saves to movesDict, can be inserted to setSegment during rearrangement.
+        
+        if len(self.awg.channel_enable) == 2:
+            # assume active channels are either 0 or 1
+            chan2 = 1 - self.rParam['channel']
+            f3 = self.rParam['alt_freqs']
+            if self.rParam['phase_adjust'] == True and len(f3) > 1:
+                phase = list(phase_minimise(freqs=f3, dur=duration, sampleRate=self.awg.sample_rate.value/1e6, freqAmps=[1]*len(f3)))
+            else:
+                phase = [0]*len(f3)
+            
+            # has to be moving so that the duration of data is right (static does loops)
+            data2 = self.awg.dataGen(seg, chan2, 'moving', duration, 
+                        f3, f3, 1, # frequencies
+                        self.rParam['alt_amp_[mV]'], [1]*len(f3), [1]*len(f3), # amps
+                        phase, #phase
+                        self.rParam['freq_adjust'], self.rParam['amp_adjust'])
+            self.movesDict[key].insert(chan2, data2)
+            
         if seg is not None or 1:   # If you have specified the segment argument, it will set segment (used ininitial setup of rearr)
-            self.awg.setSegment(seg, data) # because of garbage awgHandler code, need to call setSegment immediately after datagen
+            self.awg.setSegment(seg, *self.movesDict[key]) # because of garbage awgHandler code, need to call setSegment immediately after datagen
     
     def r_setStep(self, *args):
         """Calls the AWG set step function and also updates the filedata dictionary.
@@ -274,8 +294,7 @@ class rearrange():
         
         if len(keyStr)<len(self.target_freqs) and self.rearrMode=='use_exact':
             moveKey = keyStr+'m'+''.join(self.fstring(keyStr))
-            segData = self.movesDict[moveKey]
-            self.awg.setSegment(1,segData, verbosity=False) 
+            self.awg.setSegment(1,*self.movesDict[moveKey], verbosity=False) 
             
             
         
@@ -290,18 +309,15 @@ class rearrange():
             
             if self.rearrMode == 'use_exact':
                 moveKey = keyStr[-len(self.target_freqs):]+'m'+''.join(self.fstring(self.target_freqs))
-                segData = self.movesDict[moveKey]      # Find the relevant segment data in movesDict and
-                self.awg.setSegment(1,segData, verbosity=False)        # segment 1 is always the move segment (0 static, 1 move, 2 static //OR// 2 ramp, 3 static)
+                self.awg.setSegment(1, *self.movesDict[moveKey], verbosity=False)        # segment 1 is always the move segment (0 static, 1 move, 2 static //OR// 2 ramp, 3 static)
                 
             
             elif self.rearrMode == 'use_all':
                 moveKey = keyStr + 'm'+''.join(self.fstring([1]*len(keyStr)))
-                segData = self.movesDict[moveKey]      # Find the relevant segment data in movesDict and
-                self.awg.setSegment(1,segData, verbosity=False)        # segment 1 is always the move segment (0 static, 1 move, 2 static //OR// 2 ramp, 3 static)
+                self.awg.setSegment(1, *self.movesDict[moveKey], verbosity=False)        # segment 1 is always the move segment (0 static, 1 move, 2 static //OR// 2 ramp, 3 static)
                 
                 endKey = self.fstring(['1']*len(keyStr)) +'st'
-                segData = self.movesDict[endKey]
-                self.awg.setSegment(2,segData, verbosity=False)        # segment 1 is always the move segment (0 static, 1 move, 2 static //OR// 2 ramp, 3 static)
+                self.awg.setSegment(2, *self.movesDict[moveKey], verbosity=False)        # segment 1 is always the move segment (0 static, 1 move, 2 static //OR// 2 ramp, 3 static)
 
 
            
@@ -342,6 +358,11 @@ class rearrange():
         self.initial_freqs = self.rParam['initial_freqs']
         self.target_freqs = self.rParam['target_freqs']
         self.setRearrFreqAmps(self.rParam['rearr_freq_amps'])       # Initialises frequency amplitudes during rearrangment to default 1/len(initial_freqs)
+        try:
+            self.awg.setSegDur(self.rParam['static_duration_[ms]'])
+        except AttributeError:
+            print("Loading rearr params but couldn't set static trap duration")
+            
        # self.saveRearrParams()
 
 
@@ -355,7 +376,6 @@ class rearrange():
         print('  - Config file used is: '+self.rr_config)
         print('  - Current active channels ='+str(self.awg.channel_enable))
         print('  - Card is partitioned into '+str(self.awg.num_segment)+' segments')
-        # max duration per segment is (memory=4gB)/(2*n_segments*sample_rate*n_channels)
         print('  - Sample rate is = '+str(self.awg.sample_rate.value))
         print('  - Max duration / segment = ', 4e9/(2*self.awg.num_segment*self.awg.sample_rate.value*len(self.awg.channel_enable))*1e3,' ms')
         print('  - Initial frequencies = '+str(self.initial_freqs))
@@ -498,8 +518,7 @@ class rearrange():
            
     def fstring(self, freqs):
         """Convert a list [150, 160, 170]~MHz to '012' """
-        idxs = [a for (a, b) in enumerate(freqs)]   
-        return("".join([str(int) for int in idxs]) )
+        return ( "".join(str(i) for i in range(len(freqs))) )
         
     def flist(self, fstring, freq_list):
         """Given a string of e.g. '0123' and an array (initial/target), convert this to a list of freqs
@@ -511,19 +530,23 @@ class rearrange():
                 will return [190.,180.,160.,150.]
             
             """
-        idxs = [int(i) for i in list(fstring)]
-        
-        return [freq_list[k] for k in idxs]     #   returns list of frequencies
+        return [freq_list[int(k)] for k in list(fstring)]     #   returns list of frequencies
     
     def convertBinaryOccupancy(self, occupancyStr = '11010'):
         """Convert the string of e.g 010101 received from pyDex image analysis to 
         a string of occupied sites """
         occupied = ''
-        for i in range(len(occupancyStr)):  # convert string of e.g. '00101' to '13'
-            if occupancyStr[i] == '1': 
-                occupied += str(i)
+        j = 0
+        for _ in range(len(occupancyStr)): # unless they're all occupied, we won't need every iteration
+            try: 
+               i = occupancyStr.index('1',j)
+               occupied += str(i)
+               j = i+1
+            except ValueError: 
+                break
+        
         if occupied == '':    # deal with the case of zero atoms being loaded
-            occupied += '0'
+            occupied = '0'
         
         return occupied
 

@@ -30,7 +30,7 @@ class ROI(QWidget):
     counts within the ROI), ID (number to identify this ROI),
     autothresh (boolean toggle for automatically updating threshold)."""
     def __init__(self, imshape, xc, yc, width, height, threshold=1, 
-            counts=1000, ID=0, autothresh=False):
+            counts=1000, ID=0, autothresh=False, label=''):
         super().__init__()
         self.x = xc
         self.y = yc
@@ -40,7 +40,7 @@ class ROI(QWidget):
         self.c = np.zeros(counts)
         self.i = 0 # number of images processed
         self.id = ID
-        self.label = pg.TextItem('ROI'+str(ID), pg.intColor(ID), anchor=(0,1))
+        self.label = pg.TextItem(label+'ROI'+str(ID), pg.intColor(ID), anchor=(0,1))
         font = QFont()
         font.setPixelSize(16) 
         self.label.setFont(font)
@@ -184,18 +184,18 @@ class roi_handler(QWidget):
     trigger = pyqtSignal(int)
     rearrange = pyqtSignal(str)
 
-    def __init__(self, rois=[(1,1,1,1,1)], im_shape=(512,512)):
+    def __init__(self, rois=[(1,1,1,1,1)], im_shape=(512,512), label=''):
         super().__init__()
-        self.ROIs = [ROI(im_shape,*r, ID=i) for i, r in enumerate(rois)]
+        self.ROIs = [ROI(im_shape,*r, ID=i, label=label) for i, r in enumerate(rois)]
         self.shape = im_shape # image dimensions in pixels
         self.bias  = 697      # bias offset to subtract from image counts
         self.delim = ' '      # delimiter used to save/load files
         
-    def create_rois(self, n):
+    def create_rois(self, n, label=''):
         """Change the list of ROIs to have length n"""
         self.ROIs = self.ROIs[:n]
         for i in range(len(self.ROIs), n): # make new ROIs
-            self.ROIs.append(ROI(self.shape, 1,1,1,1, ID=i))
+            self.ROIs.append(ROI(self.shape, 1,1,1,1, ID=i, label=label))
 
     def resize_rois(self, ROIlist):
         """Convenience function for setting multiple ROIs"""
@@ -236,6 +236,7 @@ class roi_handler(QWidget):
         except ZeroDivisionError: 
             self.trigger.emit(success) # only emit if successful
         self.rearrange.emit(atomstring)
+        print('Atom checker occupancy:'+atomstring)
         
     def set_pic_size(self, im_name):
         """Set the pic size by looking at the number of columns in a file

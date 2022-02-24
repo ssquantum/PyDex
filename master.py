@@ -28,7 +28,7 @@ import warnings
 warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
 sys.path.append('./imageanalysis')
 from imageanalysis.settingsgui import settings_window
-from imageanalysis.atomChecker import atom_window
+from imageanalysis.atomChecker2 import atom_window
 sys.path.append('./andorcamera')
 from andorcamera.cameraHandler import camera # manages Andor camera
 sys.path.append('./saveimages')
@@ -133,13 +133,14 @@ class Master(QMainWindow):
         # choose which image analyser to use from number images in sequence
         self.init_UI(startn)
         # initialise the thread controlling run # and emitting images
+        CsROIs, RbROIs = self.get_atomchecker_rois()
         self.rn = runnum(camera(config_file=self.stats['CameraConfig']), # Andor camera
                 event_handler(self.stats['SaveConfig']), # image saver
                 image_analysis(results_path =sv_dirs['Results Path: '],
                     im_store_path=sv_dirs['Image Storage Path: '],
                     config_settings=self.stats['AnalysisConfig']), # image analysis
                 atom_window(last_im_path=sv_dirs['Image Storage Path: '],
-                    rois=self.stats['AtomCheckerROIs']), # check if atoms are in ROIs to trigger experiment
+                    Cs_rois=CsROIs, Rb_rois=RbROIs), # check if atoms are in ROIs to trigger experiment
                 Previewer(), # sequence editor
                 n=startn, m=2, k=0) 
         # now the signals are connected, send camera settings to image analysis
@@ -201,6 +202,15 @@ class Master(QMainWindow):
         if d == time.strftime("%d,%B,%Y"): # restore file number
             return self.stats['File#'] # [Py]DExTer file number
         else: return 0
+        
+    def get_atomchecker_rois(self):
+        """Compatability with old states which didn't have Rb and Cs ROIs for atomChecker"""
+        try: 
+            CsROIs, RbROIs = self.stats['AtomCheckerROIs']
+        except ValueError as e: 
+            error("Couldn't load atomChecker ROIs: \n"+str(self.stats['AtomCheckerROIs'])+'\n'+str(e))
+            CsROIs, RbROIs  = [[1,1,1,1,1]],  [[1,1,1,1,1]]
+        return CsROIs, RbROIs
 
     def apply_state(self):
         """Reset the date, camera config, image analysis config, and geometries"""
@@ -211,7 +221,9 @@ class Master(QMainWindow):
             self.stats['AnalysisConfig']['results_path'] = sv_dirs['Results Path: ']
             self.stats['AnalysisConfig']['image_path'] = sv_dirs['Image Storage Path: ']
             self.rn.sw.load_settings(stats=self.stats['AnalysisConfig'])
-            self.rn.check.set_rois(self.stats['AtomCheckerROIs'])
+            CsROIs, RbROIs = self.get_atomchecker_rois()
+            self.rn.check.set_rois(CsROIs, 'Cs')
+            self.rn.check.set_rois(RbROIs, 'Rb')
             self.rn.sw.reset_analyses()
             if self.rn.cam.initialised > 2: # camera
                 if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
@@ -471,8 +483,8 @@ class Master(QMainWindow):
     def set_rearranging(self, toggle=False):
         """In rearranging mode, the first image is sent to the atom checker"""
         self.rn.rearranging = toggle
-        reset_slot(self.rn.check.rh.rearrange, self.rn.check.get_rearrange, toggle)
-        reset_slot(self.rn.check.rearr_msg, self.rn.send_rearr_msg, toggle)
+        reset_slot(self.rn.check.rh['Cs'].rearrange, self.rn.send_rearr_msg, toggle)
+        reset_slot(self.rn.check.rh['Rb'].rearrange, self.rn.send_rearr2_msg, toggle)
         self.rn.set_m(self.rn.sw._m)
 
     def browse_sequence(self, toggle=True):
@@ -571,7 +583,7 @@ class Master(QMainWindow):
             elif 'Cancel multirun' in action_text:
                 if self.rn.seq.mr.multirun:
                     if self.rn.check.checking:
-                        self.rn.check.rh.trigger.emit(1) # send software trigger to end
+                        self.rn.check.rh['Cs'].trigger.emit(1) # send software trigger to end
                     self.rn.multirun_go(False)
                     self.rn.seq.mr.ind = 0
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
@@ -662,7 +674,7 @@ class Master(QMainWindow):
         elif 'start acquisition' in msg:
             self.status_label.setText('Running')
             if self.check_rois.isChecked(): # start experiment when ROIs have atoms
-                reset_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
+                reset_slot(self.rn.check.rh['Cs'].trigger, self.trigger_exp_start, True) 
                 self.rn.atomcheck_go() # start camera acuiring
             elif self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
@@ -675,7 +687,7 @@ class Master(QMainWindow):
         elif 'start measure' in msg:
             reset_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
             if self.check_rois.isChecked(): # start experiment when ROIs have atoms
-                reset_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
+                reset_slot(self.rn.check.rh['Cs'].trigger, self.trigger_exp_start, True) 
                 self.rn.atomcheck_go() # start camera acquiring
             elif self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
@@ -684,7 +696,7 @@ class Master(QMainWindow):
             if 'restart' not in msg: self.rn.multirun_go(msg) # might be resuming multirun instead of starting a new one
         elif 'multirun run' in msg:
             if self.check_rois.isChecked(): # start experiment when ROIs have atoms
-                reset_slot(self.rn.check.rh.trigger, self.trigger_exp_start, True) 
+                reset_slot(self.rn.check.rh['Cs'].trigger, self.trigger_exp_start, True) 
                 self.rn.atomcheck_go() # start camera in internal trigger mode
             self.rn.multirun_step(msg)
             # self.rn._k = 0 # reset image per run count
@@ -729,7 +741,7 @@ class Master(QMainWindow):
         only triggers once."""
         self.action_button.setEnabled(True) # allow another command to be sent
          # reset atom checker trigger
-        reset_slot(self.rn.check.rh.trigger, self.trigger_exp_start, False)
+        reset_slot(self.rn.check.rh['Cs'].trigger, self.trigger_exp_start, False)
         if self.rn.trigger.connected:
             reset_slot(self.rn.trigger.textin, self.rn.trigger.clear_queue, True)
             self.rn.trigger.add_message(TCPENUM['TCP read'], 'end connection'*150)
@@ -781,7 +793,7 @@ class Master(QMainWindow):
         if not file_name: file_name = './state' # in case user cancels
         self.stats['File#'] = self.rn._n
         self.stats['AnalysisConfig'] = dict(self.rn.sw.stats)
-        self.stats['AtomCheckerROIs'] = self.rn.check.get_rois()
+        self.stats['AtomCheckerROIs'] = [self.rn.check.get_rois('Cs'), self.rn.check.get_rois('Rb')]
         self.rn.sw.save_settings()
         for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
             ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:

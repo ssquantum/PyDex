@@ -54,7 +54,7 @@ class Camera():
         return self.gain
 
     def acquire(self):
-        """Aquires a single array from the camera with the current settings."""
+        """Acquires a single array from the camera with the current settings."""
         array = self.cam.acquire() #acquire an image
         if self.roi != None:
             array = array[self.roi[1]:self.roi[3],self.roi[0]:self.roi[2]]
@@ -71,7 +71,7 @@ class Camera():
             Image object containing the array from the camera and current 
             camera parameters.
         """
-        array = self.aquire()
+        array = self.acquire()
         return Image(array,self.exposure,self.blacklevel,self.roi,self.gain)
 
     def set_roi(self,roi):
@@ -190,16 +190,13 @@ class Image():
 
 class ImageHandler():
     """Deals with the saving and loading of images from the ThorLabs camera"""
-    def __init__(self,measure=None,measure_params=None):
+    def __init__(self,image_dir='.',measure_params=None):
         """Creates the directory to save images in.
 
         Parameters
         ----------
-        measure: int or None or str
-            the measure number to assign. -1 to append to the last 
-            measure, and None to create a new measure. If a string is
-            passed, this will be used as the subfolder name (without 
-            Measure prefixed)
+        image_dir : str
+            directory to save images to
         measure_params : dict or None
             other parameters to save about the measure in a json called 
             params.json in the measure folder
@@ -209,7 +206,7 @@ class ImageHandler():
         None
         """
         self.created_dirs = False
-        self.measure = measure
+        self.image_dir = image_dir
         self.measure_params = measure_params
 
     def create_dirs(self,image_dir=None):
@@ -240,6 +237,7 @@ class ImageHandler():
         properties = image.get_properties()
         self.df = self.df.append(properties,ignore_index=True)
         self.df.to_csv(self.image_dir+'/images.csv')
+        # copyfile(sys.argv[0], self.image_dir+os.path.basename(sys.argv[0]))
         array = image.get_array()
         filepath = self.image_dir+'/'+str(self.df.index[-1])+'.png'
         PILImage.fromarray(array,"L").save(filepath)

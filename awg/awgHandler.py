@@ -436,6 +436,7 @@ class AWG:
             sys.stdout.write("The card can support either 1, 2 or 4 activated channels at any given time.")
         
         if flag ==0:
+            self.channel_enable = channels
             for i in list(startChannels.keys()):
                 spcm_dwSetParam_i64 (AWG.hCard, SPC_ENABLEOUT0+int(i)*(SPC_ENABLEOUT1 - SPC_ENABLEOUT0), startChannels[i])
     
@@ -994,7 +995,7 @@ class AWG:
                     self.freq_phase = freq_phase
                 else:
                     self.freq_phase = [0]*len(f1)
-                    sys.stdout.write("Phase must be list of lenght 2, i.e. [1,1]")
+                    sys.stdout.write("Phase must be list, i.e. [1,1]")
                     flag = 1
                 
                 ############################
@@ -1517,6 +1518,7 @@ class AWG:
                 else: phases = [0]*len(f)
                 data.append(self.dataGen(segment,i,'static',duration,f,1,9,AmV,a,phases, freqAdjust, ampAdjust))
             self.setSegment(segment, *data)
+            self.filedata = eval(str(self.filedata)) # some strange bug stops it saving...
         except IndexError as e: print('Could not generate array.\n'+str(e))
         
     def setStep(self,stepNum,segNum,loopNum,nextStep, stepCondition ):

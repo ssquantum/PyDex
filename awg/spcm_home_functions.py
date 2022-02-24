@@ -153,10 +153,14 @@ def load_calibration(filename, fs = np.linspace(135,190,150), power = np.linspac
     with open(filename) as json_file:
         calFile = json.load(json_file) 
     contour_dict = OrderedDict(calFile["Power_calibration"]) # for flattening the diffraction efficiency curve: keep constant power as freq is changed
+    failed = [] # keep track of keys that couldn't produce a calibration
     for key in contour_dict.keys():
         try:
             contour_dict[key]['Calibration'] = interp1d(contour_dict[key]['Frequency (MHz)'], contour_dict[key]['RF Amplitude (mV)'])
-        except Exception as e: print(e)
+        except Exception as e: 
+            failed.append(key)
+            print(key, e)
+    for key in failed: contour_dict.pop(key) # remove failed calibrations
     
     def ampAdjuster1d(freq, optical_power):
         """Find closest optical power in the presaved dictionary of contours, 

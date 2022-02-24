@@ -55,11 +55,11 @@ class runnum(QThread):
         self.cam.SettingsChanged.connect(self.sw.CCD_stat_edit)
         self.cam.ROIChanged.connect(self.sw.cam_pic_size_changed) # triggers pic_size_text_edit()
         self.check = check  # atom checker for ROIs, trigger experiment
-        self.check.nrois_edit.setText(str(len(self.sw.stats['ROIs'])))
-        self.cam.ROIChanged.connect(self.check.rh.cam_pic_size_changed)
         self.check.recv_rois_action.triggered.connect(self.get_rois_from_analysis)
         # self.get_rois_from_analysis()
-        self.sw.bias_changed.connect(self.check.rh.set_bias)
+        for rh in self.check.rh.values():
+            self.cam.ROIChanged.connect(rh.cam_pic_size_changed)
+            self.sw.bias_changed.connect(rh.set_bias)
         self.check.roi_values.connect(self.sw.set_rois)
         self.seq = seq   # sequence editor
         
@@ -180,15 +180,15 @@ class runnum(QThread):
     
     #### atom checker ####
 
-    def get_rois_from_analysis(self):
-        self.check.rh.cam_pic_size_changed(self.sw.stats['pic_width'], self.sw.stats['pic_height'])
-        self.check.rh.resize_rois(self.sw.stats['ROIs'])
+    def get_rois_from_analysis(self, atom='Cs'):
+        self.check.rh[atom].cam_pic_size_changed(self.sw.stats['pic_width'], self.sw.stats['pic_height'])
+        self.check.rh[atom].resize_rois(self.sw.stats['ROIs'])
 
     def send_rearr_msg(self, msg=''):
         """Send the command to the AWG for rearranging traps"""
         self.awgtcp1.priority_messages([(self._n, 'rearrange='+msg+'#'*2000)])
 
-    def send_rear2_msg(self, msg=''):
+    def send_rearr2_msg(self, msg=''):
         """Send the command to the 2nd AWG for rearranging traps"""
         self.awgtcp2.priority_messages([(self._n, 'rearrange='+msg+'#'*2000)])
         
