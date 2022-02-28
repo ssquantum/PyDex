@@ -32,7 +32,7 @@
                 "freq_adjust": "False",
                 "freq_amp": "[1]",
                 "freq_phase_[deg]": "[0]",
-                "freqs_input_[MHz]": "[166]",
+                "freqs_input_[MHz]": "[166.015625]",
                 "freqs_output_[Hz]": "[166000000]",
                 "num_of_samples": 1024,
                 "num_of_traps": 1,

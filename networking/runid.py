@@ -112,6 +112,8 @@ class runnum(QThread):
         """Change the Dexter run number to the new value.
         If it's during a multirun, check that the right number of 
         images were taken in the last run."""
+        if self._k != self._m and self.seq.mr.ind > 1:
+            warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
         self._n = int(dxn)
         self._k = 0 # reset image count --- each run should start with im0
     
@@ -409,9 +411,6 @@ class runnum(QThread):
         next run is being sent, so the histogram is saved, fitted, and reset
         based on the run number +1."""
         self.monitor.add_message(self._n, 'update run number')
-        if self._k != self._m and self.seq.mr.ind > 1:
-            warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
-        # self._k = 0 # image count resets in set_n() now
         r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # repeat
         if r == 1:
             self.monitor.add_message(self._n, 'set fadelines') # keep the trace from the start of the histogram

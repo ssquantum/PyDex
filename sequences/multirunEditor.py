@@ -414,6 +414,8 @@ class multirun_widget(QWidget):
         Values are repeated a set number of times, ordered according to the 
         ComboBox text. The selected channels are stored in lists."""
         try: # make the list of values
+            table = np.array(self.get_table()).T
+            c = [column.astype(float) for column in table if '' not in column]
             vals = eval(self.col_range.text())
         except Exception as e: 
             warning('Add column to multirun: invalid syntax "'+self.col_range.text()+'".\n'+str(e))

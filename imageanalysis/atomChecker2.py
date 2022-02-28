@@ -17,7 +17,7 @@ from PyQt5.QtCore import pyqtSignal, QTimer
 from PyQt5.QtGui import QIcon, QFont
 from PyQt5.QtWidgets import (QMenu, QFileDialog, QMessageBox, QLineEdit, 
         QGridLayout, QWidget, QApplication, QPushButton, QAction, QMainWindow, 
-        QLabel, QTableWidget, QHBoxLayout)
+        QLabel, QTableWidget, QHBoxLayout, QCheckBox)
 if '.' not in sys.path: sys.path.append('.')
 if '..' not in sys.path: sys.path.append('..')
 from strtypes import intstrlist, listlist, error, warning, info
@@ -55,6 +55,13 @@ class atom_window(QMainWindow):
         self.timer = QTimer() 
         self.timer.t0 = 0 # trigger the experiment after the timeout
         
+    def make_checkbox(self, r, i, atom):
+        """Assign properties to checkbox so that it can be easily associated with an ROI"""
+        r.plottoggle = QCheckBox(self, checked=True) # plot the line?
+        r.plottoggle.i = i
+        r.plottoggle.atom = atom
+        r.plottoggle.stateChanged[int].connect(self.show_line)
+                
     def init_UI(self):
         """Create all the widgets and position them in the layout"""
         self.centre_widget = QWidget()
@@ -157,25 +164,27 @@ class atom_window(QMainWindow):
         layout.addWidget(im_widget, 1,0, 4,4)
         
         #### table has all of the values for the ROIs ####
-        self.tables = {'Cs':QTableWidget(len(self.rh['Cs'].ROIs), 6),
-                    'Rb':QTableWidget(len(self.rh['Rb'].ROIs), 6)}
+        self.tables = {'Cs':QTableWidget(len(self.rh['Cs'].ROIs), 7),
+                    'Rb':QTableWidget(len(self.rh['Rb'].ROIs), 7)}
         layout.addWidget(self.tables['Cs'], 1,5, 4,4)
         layout.addWidget(self.tables['Rb'], 3,5, 4,4)
         
         self.plots = {} # display plots of counts for each ROI         
         for atom in ['Cs', 'Rb']:
-            self.tables[atom].setHorizontalHeaderLabels(['x', 'y', 'w', 'h', 'Threshold', 'Auto-thresh'])
+            self.tables[atom].setHorizontalHeaderLabels(['x', 'y', 'w', 'h', 'Threshold', 'Auto-thresh', 'Plot'])
             for i, r in enumerate(self.rh[atom].ROIs):
+                self.make_checkbox(r, i, atom)
                 # line edits with ROI x, y, w, h, threshold, auto update threshold
-                for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]): 
+                for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh, r.plottoggle]): 
                     self.tables[atom].setCellWidget(i, j, label)   
                   
             # plots  
             pw = pg.PlotWidget() # main subplot of histogram
             pw.setTitle(atom)
             self.plots[atom] = {'plot':pw, 'legend':pw.addLegend(), 
-                'counts':[pw.plot(np.zeros(1000)+j*1.1, name=self.rh[atom].ROIs[j].id) for j in range(len(self.rh[atom].ROIs))],
-                'thresh':[pw.addLine(y=j*1.1+1, pen='r') for j in range(len(self.rh[atom].ROIs))]}
+                'counts':[pw.plot(np.zeros(1000), name=self.rh[atom].ROIs[j].id, 
+                        pen=pg.intColor(j)) for j in range(len(self.rh[atom].ROIs))],
+                'thresh':[pw.addLine(y=1, pen=pg.intColor(j)) for j in range(len(self.rh[atom].ROIs))]}
             pw.getAxis('bottom').tickFont = font
             pw.getAxis('left').tickFont = font             
         
@@ -330,11 +339,11 @@ class atom_window(QMainWindow):
         # add extra lines for new ROIs
         pw = self.plots[atom]['plot']
         for i in range(len(self.plots[atom]['counts']), len(ROIs)):
-            self.plots[atom]['counts'].append(pw.plot(np.zeros(1000)+i*1.1, name=ROIs[i].id))
-            self.plots[atom]['thresh'].append(pw.addLine(y=i*1.1+1, pen='r'))
+            self.plots[atom]['counts'].append(pw.plot(np.zeros(1000)+i*1.1, name=ROIs[i].id, pen=pg.intColor(i)))
+            self.plots[atom]['thresh'].append(pw.addLine(y=i*1.1+1, pen=pg.intColor(i)))
         # remove excess lines
         for i in reversed(range(len(ROIs), len(self.plots[atom]['counts']))):
-            self.remove_legend_item(self.plots[atom]['legend'], i) # doesn't do anything
+            self.remove_legend_item(self.plots[atom]['legend'], i) 
             self.plots[atom]['plot'].removeItem(self.plots[atom]['counts'][i])
             self.plots[atom]['plot'].removeItem(self.plots[atom]['thresh'][i])
             self.plots[atom]['counts'].pop(i)
@@ -344,7 +353,8 @@ class atom_window(QMainWindow):
         """Set the rows with the line edit widgets from each ROI."""
         self.tables[atom].setRowCount(len(self.rh[atom].ROIs))
         for i, r in enumerate(self.rh[atom].ROIs):
-            for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh]): 
+            self.make_checkbox(r, i, atom)
+            for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh, r.plottoggle]): 
                 self.tables[atom].setCellWidget(i, j, label)
             
     def create_new_rois(self, n='', atom=''):
@@ -377,15 +387,26 @@ class atom_window(QMainWindow):
                     viewbox.addItem(r.roi)
                     viewbox.addItem(r.label)
                     
+    def show_line(self, toggle=0, i=0, atom='Cs'):
+        """Display the lines of counts if the toggle is true"""
+        i, atom = self.sender().i, self.sender().atom
+        if toggle:
+            self.plots[atom]['counts'][i].show()
+            self.plots[atom]['thresh'][i].show()
+        else:
+            self.plots[atom]['counts'][i].hide()
+            self.plots[atom]['thresh'][i].hide()
+                        
     def update_plots(self, im=0, include=1):
         """Plot the history of counts in each ROI in the associated plots"""
         for atom in ['Cs', 'Rb']:
             for i, r in enumerate(self.rh[atom].ROIs):
                 try:
                     label = 'ROI %s, LP=%.3g'%(r.id, r.LP())
-                    self.plots[atom]['counts'][i].setData(i*1.1+np.array(r.c[:r.i])/np.max(r.c[:r.i]), name=label) # history of counts
+                    self.plots[atom]['counts'][i].setData(r.c[:r.i], name=label,
+                            pen=pg.intColor(i)) # history of counts
                     if r.autothresh.isChecked(): r.thresh() # update threshold
-                    self.plots[atom]['thresh'][i].setValue(i*1.1+r.t/np.max(r.c[:r.i])) # plot threshold
+                    self.plots[atom]['thresh'][i].setValue(r.t) # plot threshold
                     self.plots[atom]['legend'].items[i][1].setText(label)
                 except (IndexError, ValueError): pass
                 
