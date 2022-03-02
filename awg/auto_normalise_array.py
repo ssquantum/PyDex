@@ -25,6 +25,7 @@ class normaliser:
     def __init__(self, awgparam='Z:/Tweezer/Experimental/AOD/2D AOD/Array normalisation/6x1array.txt',
             image_dir='Z:/Tweezer/Experimental/AOD/2D AOD/Array normalisation/Normalised', 
             cam_roi=None, fit_roi_size=50, freq_amp_max=[1,1]):
+        self.i = 0 # iteration number
         ### set up AWG
         self.awg = AWG([0,1], sample_rate=int(1024e6))
         fdir = 'Z:/Tweezer/Experimental/Setup and characterisation/Settings and calibrations/tweezer calibrations/AWG calibrations'
@@ -92,19 +93,17 @@ class normaliser:
             ave_im += self.get_image(i, iteration, sleep)
         return ave_im / reps
         
-    def normalise(self, num_ims=24, num_ave=3, precision=0.005, max_iter=7):
+    def normalise(self, num_ims=5, num_ave=3, precision=0.005, max_iter=7):
         """Take images and then produce corrections factors until desired precision
         or max iterations are reached.
         num_ims:     int number of images to take for each iteration of normalisation
         num_ave:     int number of sets to split the images into to take averages
         max_iter:    int stop the normalisation after this many iterations
         precision:   float stop the normalisation when stdv/mean is this value"""
-        base_dir = self.imhand.image_dir
         history = [[1, self.a0, self.a1]]
         for i in range(max_iter):
             # take images and calculate correction factors
-            self.imhand.image_dir = os.path.join(base_dir, 'Iteration'+str(i))
-            self.imhand.create_dirs()
+            self.save_meta_param(i)
             c0 = np.zeros(self.ncols)
             c1 = np.zeros(self.nrows)
             for j in range(num_ave):
@@ -135,7 +134,33 @@ class normaliser:
                 freqAdjust=True, ampAdjust=True, phaseAdjust=True)
         self.awg.filedata = eval(str(self.awg.filedata))
         self.awg.saveData(os.path.splitext(self.awg.param_file)[0] + '_normalised.txt')
+        self.i = 0
         return history
+        
+    def step(self, *amps, i=0, num_ims=5, sleep=0.3):
+        """load amps onto the AWG, then take images and evaluate the cost function.
+        amps:      1D array with amplitudes for both channels
+        num_ims:   int number of images to average together
+        sleep:     float ms duration to wait for AWG to turn on and camera to take images"""
+        # take images and calculate correction factors
+        self.a0 = np.array(amps[:self.ncols])
+        self.a1 = np.array(amps[self.ncols:])
+        self.awg.arrayGen(self.ncols, self.nrows, 0, freqs=[self.f0, self.f1], 
+                amps=[self.a0, self.a1], AmV=self.amp, duration=1, 
+                freqAdjust=True, ampAdjust=True, phaseAdjust=True)
+        time.sleep(sleep)
+        ave_im = self.get_images(num_ims, iteration=self.i, sleep=sleep)
+        self.process(ave_im)
+        c = self.fitr.df['I0']
+        return c.std()/c.mean()
+        
+    def save_meta_param(self, i=0, basedir=''):
+        if not basedir:
+            basedir = self.imhand.image_dir
+        self.imhand.image_dir = os.path.join(basedir, 'Iteration'+str(i))
+        self.imhand.measure_params['AWGparams'] = self.awg.filedata
+        self.imhand.create_dirs()
+        self.i = i
     
 if __name__ == "__main__":
     boss = normaliser(image_dir='Z:/Tweezer/Experimental/AOD/2D AOD/Array normalisation/Measure0',

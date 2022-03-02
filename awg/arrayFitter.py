@@ -15,6 +15,7 @@ if '..' not in sys.path: sys.path.append('..')
 from strtypes import error, warning, info
 from imageanalysis.fitCurve import fit
 from scipy.optimize import minimize, curve_fit
+from itertools import combinations
 
 ##### helper functions #####
 def _transform(M):
@@ -47,7 +48,8 @@ class imageArray:
         self._n = dims[0]*dims[1]  # number of spots to fit
         self._s = dims             # rows, cols of trap array 
         self._imvals = np.zeros((512,512))
-        self._d = roi_size   # crop the image down to 2d x 2d pixels
+        self._dx = roi_size   # crop the image down to 2d x 2d pixels
+        self._dy = roi_size   # crop the image down to 2d x 2d pixels
         if fitmode == 'gauss2d':
             self._labels = list(gauss2D.__code__.co_varnames[1:7])
             self.fitfunc = self.fitGauss2D
@@ -59,6 +61,59 @@ class imageArray:
         self._labels += [x+'_err' for x in self._labels] 
         self.df = pd.DataFrame(columns=self._labels) # xc, w, yc, h, I for each ROI
         self.ref = 1  # reference intensity
+        
+    def check_overlap(self, xmin0, xmax0, ymin0, ymax0, xmin1, xmax1, ymin1, 
+            ymax1, imshape=(1024,1280)):
+        """Check the bounds for an ROI to see if the boxes are overlapping"""
+        for i, v in enumerate([xmin0, xmax0, ymin0, ymax0, xmin1, xmax1, ymin1, ymax1]):
+            if v < 0:  # ROI goes off the bottom of the image
+                return abs(v)
+            elif v > imshape[(i//2)%2]: # ROI goes off the top of the image
+                return v - imshape[(i//2)%2]
+        return (min(xmax0-xmin1, xmax1-xmin0), min(ymax0-ymin1, ymax1-ymin0))
+        
+    def check_outlier(self, key='w'):
+        """See if a value is an outlier based on the interquartile range from median"""
+        return (self.df[key].std() / self.df[key].mean() > 0.3).any()
+        
+    def autoROISize(self, filename='', imshape=(1024,1280), widget=None):
+        """Choose ROI size automatically by fitting a Gaussian in an image."""
+        self.fitImage(filename, imshape=imshape)
+        for i in reversed(range(5)): # bad ROI size, try another
+            if (self.df.isin([np.inf,-np.inf]).values.any() or self.df.isnull().values.any()
+                    or self.check_outlier('w') or self.check_outlier('h')):
+                self._dx = int((i+1)**2 * 5)
+                self._dy = int((i+1)**2 * 5)
+                try:
+                    self.fitImage()
+                except: pass
+            else: break
+        # check if ROIs overlap
+        overx, overy = -1, -1
+        xmins, xmaxs = self.df['xc'] - self._dx, self.df['xc'] + self._dx
+        ymins, ymaxs = self.df['yc'] - self._dy, self.df['yc'] + self._dy
+        for pos0, pos1 in combinations(zip(xmins, xmaxs, ymins, ymaxs), 2):
+            ox, oy = self.check_overlap(*pos0, *pos1)
+            overx = max(overx, ox)
+            overy = max(overy, oy)
+        if overx > 0 and self._s[0] > 1:
+            self._dx -= round(overx)
+        elif overy > 0 and self._s[1] > 1:
+            self._dy -= round(overy)
+        self.fitImage()
+        info("imageArray fitter reset ROI width, height to %s, %s"%(self._dy, self._dx))
+        xmins, xmaxs = self.df['xc'] - self._dx, self.df['xc'] + self._dx
+        ymins, ymaxs = self.df['yc'] - self._dy, self.df['yc'] + self._dy
+        # image could be cropped to: [xmin,ymin,xmax,ymax]
+        bounds = list(map(round, [min(xmins), min(ymins), max(xmaxs), max(ymaxs)]))
+        # plot the bounds
+        if widget:
+            viewbox = self.plotContours(widget)
+            s = pg.ROI((min(xmins), self._imvals.shape[0]-max(ymaxs)),   # origin is bottom-left
+                    (max(xmaxs) - min(xmins), max(ymaxs) - min(ymins)),
+                    movable=False, pen='w') # rotatable=False, resizable=False, 
+            viewbox.addItem(s)
+        return bounds
         
     def setRef(self, imarr):
         """Use an image to define the reference intensity as the mean of fitted 
@@ -74,10 +129,10 @@ class imageArray:
             self._imvals = np.array(Image.open(filename).getdata()).reshape(imshape)
         return self._imvals.copy()
     
-    def fitImage(self, filename=''):
+    def fitImage(self, filename='', imshape=(1024,1280)):
         """Loop over spots in images and fit Gaussians"""
         if filename:
-            im = self.loadImage(filename)
+            im = self.loadImage(filename, imshape=imshape)
         else: 
             im = self._imvals.copy()
             
@@ -86,12 +141,12 @@ class imageArray:
         if np.size(np.shape(im)) == 2:
             for i in range(self._n):
                 yc, xc = np.unravel_index(np.argmax(im), im.shape)
-                l0 = xc - self._d if xc-self._d>0 else 0 # don't overshoot boundary
-                l1 = yc - self._d if yc-self._d>0 else 0
-                im2 = im[l1:yc+self._d, l0:xc+self._d] # better for fitting to use zoom in
+                l0 = xc - self._dx if xc-self._dx>0 else 0 # don't overshoot boundary
+                l1 = yc - self._dy if yc-self._dy>0 else 0
+                im2 = im[l1:yc+self._dy, l0:xc+self._dx] # better for fitting to use zoom in
                 self.df = self.df.append(self.fitfunc(im2, xc, yc), ignore_index=True) # fit
                 try: # then block that region out of the image
-                    im[l1:yc+self._d, l0:xc+self._d] = np.zeros(np.shape(im2)) + np.min(im)
+                    im[l1:yc+self._dy, l0:xc+self._dx] = np.zeros(np.shape(im2)) + np.min(im)
                 except (IndexError, ValueError): pass
 
         # sort ROIs by x coordinate        
@@ -112,7 +167,7 @@ class imageArray:
             popt, pcov = curve_fit(gauss, np.arange(-d/2, d/2)+c, vals, 
                 p0=[np.max(vals), c, d/8, np.min(vals)])
             perr = np.sqrt(np.diag(pcov))
-            ps += [popt[1], abs(popt[2])]
+            ps += [popt[1], abs(popt[2])*2]
             perrs += [perr[1], perr[2]]
             I += popt[0] + popt[-1]
             Ierr = perr[0]**2 + perr[-1]**2
@@ -138,16 +193,33 @@ class imageArray:
     def plotContours(self, widget):
         """Plot the stored image and outline of the fitted ROIs onto the widget"""
         viewbox = widget.addViewBox()
-        viewbox.addItem(pg.ImageItem(_transform(self._imvals)))
+        im = np.zeros(self._imvals.shape)
+        dy, dx = im.shape
         for i, df in self.df.iterrows(): # note: image coordinates inverted
-            e = pg.EllipseROI((df['xc']-self._d*0.5, self._imvals.shape[0]-df['yc']-self._d*0.25), (2*df['w'], 2*df['h']),  # origin is bottom-left
-                    movable=False, rotatable=False, resizable=False, pen=pg.intColor(i, self._n))
+            x, y = np.meshgrid(np.arange(dx)*2 - df['xc'], 
+                                np.arange(dy)*2 - df['yc'])
+            im += gauss2D((x,y),df['yc'],df['w'],df['xc'],df['h'],1,0).reshape(dy, dx)
+            e = pg.EllipseROI((df['xc']-df['h'], dy-df['yc']-df['w']), (2*df['h'], 2*df['w']),  # origin is bottom-left
+                    movable=False, pen=pg.intColor(i, self._n))
             viewbox.addItem(e)
             for h in e.getHandles():
                 e.removeHandle(h)
-            s = pg.ROI((df['xc']-self._d, self._imvals.shape[0]-df['yc']-self._d), (2*self._d, 2*self._d),  # origin is bottom-left
-                    movable=False, rotatable=False, resizable=False, pen='w')
+        viewbox.addItem(pg.ImageItem(_transform(im)))
+        viewbox = widget.addViewBox()
+        viewbox.addItem(pg.ImageItem(_transform(self._imvals)))
+        for i, df in self.df.iterrows(): # note: image coordinates inverted
+            e = pg.EllipseROI((df['xc']-df['h'], dy-df['yc']-df['w']), (2*df['h'], 2*df['w']),  # origin is bottom-left
+                    movable=False, pen=pg.intColor(i, self._n))
+            viewbox.addItem(e)
+            for h in e.getHandles():
+                e.removeHandle(h)
+            s = pg.ROI((df['xc']-self._dx, dy-df['yc']-self._dy), (self._dx*2, self._dy*2),  # origin is bottom-left
+                    movable=False, pen=pg.intColor(i, self._n)) # rotatable=False, resizable=False, 
             viewbox.addItem(s)
+        size = widget.geometry()
+        size.setCoords(50,50,1500,int(1500*dy/dx))
+        widget.setGeometry(size)
+        return viewbox
                 
     def getScaleFactors(self, verbose=0, target=None):
         """Sort the ROIs and return an array of suggested scale factors to 
@@ -155,7 +227,6 @@ class imageArray:
         lx, ly = self._s
         # make array of desired scale factors
         I0s = self.df['I0'].values.reshape(self._s) / self.ref
-        print("\n", self.df['I0'].values/self.ref, "\n")
         if target:
             try: target = target / I0s
             except Exception as e: 
@@ -169,6 +240,7 @@ class imageArray:
         if verbose:
             info('Array scale factors ' + result.message + '\n' + 'Cost: %s'%result.fun)
         if verbose > 1: 
+            info("Intensities:\n"+str(self.df['I0'].values/self.ref))
             info('Target:\n' + str(target.T) + '\nResult:\n' + str(
                 np.outer(result.x[lx:], result.x[:lx])))
         return (result.x[lx:], result.x[:lx]) # note: taking transform
