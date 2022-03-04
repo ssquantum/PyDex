@@ -60,7 +60,7 @@ if os.name == 'nt':
     # Load DLL into memory.
     # use windll because all driver access functions use _stdcall calling convention under windows
     if (bIs64Bit == 1):
-        spcmDll = windll.LoadLibrary ("c:\\windows\\system32\\spcm_win64.dll")
+        spcmDll = windll.LoadLibrary (r"Z:\Tweezer\Code\Python 3.5\PyDex\awg\spcm_win64.dll")
     else:
         spcmDll = windll.LoadLibrary ("c:\\windows\\system32\\spcm_win32.dll")
 

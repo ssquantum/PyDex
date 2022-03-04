@@ -26,6 +26,7 @@ import ctypes
 import platform
 _linux = (platform.system() == "Linux")
 import numpy as np
+import os
 
 from .uc480_h import *
 
@@ -165,7 +166,7 @@ class uc480:
                 if _linux:
                     self._lib = ctypes.cdll.LoadLibrary("libueye_api64.so.3.82")
                 else:
-                    self._lib = ctypes.cdll.LoadLibrary("uc480_64.dll")
+                    self._lib = ctypes.cdll.LoadLibrary(os.path.abspath("uc480_64.dll"))
         else:
             self._lib = ctypes.cdll.LoadLibrary(library)
 

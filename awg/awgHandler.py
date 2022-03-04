@@ -10,6 +10,9 @@ import json
 import ctypes
 from timeit import default_timer as timer
 import numpy as np
+if '.' not in sys.path: sys.path.append('.')
+if '..' not in sys.path: sys.path.append('..')
+from networking.networker import PyServer
 
 
 def statusChecker(N):
@@ -19,7 +22,41 @@ def statusChecker(N):
        print(test.value)
        time.sleep(0.1) 
     
-
+class remoteAWG:
+    """Remotely connect to the AWG and control it"""
+    def __init__(self, *args, sample_rate=int(1024e6), port=8628):
+        self.filedata = {}
+        self.server = PyServer(host='', port=port, name='AWG2')
+        self.server.start()
+        
+    def setCalibration(self, *args, freqs=0, powers=0):
+        pass # assume this is already set
+    
+    def load(self, filename):
+        with open(filename) as json_file:
+            self.filedata = json.load(json_file)
+        self.server.add_message(0, 'load='+filename)
+        
+    def setTrigger(self, *args):
+        pass
+    
+    def start(self, *args):
+        self.server.add_message(0, 'start_awg'+'#'*2000)
+        
+    def stop(self, *args):
+        self.server.add_message(0, 'stop_awg'+'#'*2000)
+        
+    def arrayGen(self, *args, **kwargs):
+        a0, a1 = kwargs['amps']
+        changes = [[0,0,"freq_amp",a,i] for i, a in enumerate(a0)]
+        changes += [[1,0,"freq_amp",a,i] for i,a in enumerate(a1)]
+        self.server.add_message(0, 'set_data='+str(changes))
+        for i, a in enumerate([a0, a1]):
+            self.filedata['segments']['segment_0']['channel_%s'%i]['freq_amp'] = str(a)
+        
+    def saveData(self, filename):
+        self.server.add_message(0, 'save='+filename)
+        
 
 class AWG:
     

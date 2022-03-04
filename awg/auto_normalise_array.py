@@ -5,9 +5,9 @@ import os
 import sys
 if not '..' in sys.path: sys.path.append('..')
 import time
-from thorlabscamera import Camera, ImageHandler
-from awgHandler import AWG, phase_minimise
-from arrayFitter import imageArray
+from thorlabscamera import TCamera, Camera, ImageHandler
+from awgHandler import AWG, remoteAWG, phase_minimise
+from arrayFitter import imageArray, _transform, _inverse
 from PIL import Image
 
 def limit(arr, ulim=1):
@@ -21,13 +21,22 @@ class normaliser:
     image_dir:    str directory to save images in
     cam_roi:      list roi in pixel coordinates: [xmin,ymin,xmax,ymax]
     freq_amp_max: [CH0,CH1] cap the fractional optical power to avoid saturation
-     """
+    rotate:       int degrees anticlockwise to rotate image (arrayFitter will rotate -90)
+    remote:       bool True => send TCP messages to control the AWG
+    camera:       str which ThorCam is being used. different SDK for scientific cameras
+    exposure:     float exposure time for camera in ms"""
     def __init__(self, awgparam='Z:/Tweezer/Experimental/AOD/2D AOD/Array normalisation/6x1array.txt',
             image_dir='Z:/Tweezer/Experimental/AOD/2D AOD/Array normalisation/Normalised', 
-            cam_roi=None, fit_roi_size=50, freq_amp_max=[1,1]):
+            cam_roi=None, fit_roi_size=50, freq_amp_max=[1,1], rotate=0, remote=False,
+            camera='uc480', exposure=3):
         self.i = 0 # iteration number
+        
+        # image rotation
+        self.rotate = rotate // 90
         ### set up AWG
-        self.awg = AWG([0,1], sample_rate=int(1024e6))
+        if not remote:
+            self.awg = AWG([0,1], sample_rate=int(1024e6))
+        else: self.awg = remoteAWG(port=8628)
         fdir = 'Z:/Tweezer/Experimental/Setup and characterisation/Settings and calibrations/tweezer calibrations/AWG calibrations'
         self.awg.setCalibration(0, fdir+'/814_H_calFile_17.02.2022.txt', 
                 freqs = np.linspace(85,110,100), powers = np.linspace(0,1,200))
@@ -45,24 +54,43 @@ class normaliser:
         self.a1 = np.array(eval(seg["channel_1"]["freq_amp"]), dtype=float)
         self.ulim = freq_amp_max
         self.amp = int(seg["channel_0"]["tot_amp_[mV]"])
+        self.awg.start()
         
         #### set up camera
-        self.cam = Camera(exposure=7, gain=1, roi=cam_roi)
-        self.awg.start()
-        time.sleep(0.5)
-        self.cam.auto_gain_exposure()
-        self.cam.update_exposure(self.cam.exposure*0.6) # saturating is bad
-
+        if camera=='uc480':
+            self.cam = Camera(exposure=exposure, gain=1, roi=cam_roi)
+        else:
+            self.cam = TCamera(exposure=exposure, gain=1, roi=cam_roi, serial_no='14119')
+            
+        
         #### image handler saves images
         self.imhand = ImageHandler(image_dir=image_dir,
             measure_params={'rows':self.nrows,'columns':self.ncols,'AWGparam_file':awgparam})
         self.imhand.create_dirs()
         
         #### fitr extracts trap positions and intensities from an image
-        self.fitr = imageArray(dims=(self.ncols,self.nrows), roi_size=fit_roi_size, fitmode='sum')
-        self.fitr.setRef(self.get_image(-1, -1, auto_exposure=False))
+        self.fitr = imageArray(dims=(self.ncols, self.nrows), roi_size=fit_roi_size, fitmode='sum')
+        
+    def prepare(self):
+        """Set camera and reference value to normalise to"""
+        self.cam.auto_gain_exposure()
+        self.cam.update_exposure(self.cam.exposure*0.6) # saturating is bad
+        time.sleep(0.1)
+        self.fitr.setRef(self.get_image(-1, -1, auto_exposure=False)) # reference image should not be rotated
 
+    def unrotate(self, xmin, ymin, xmax, ymax, imxmax, imymax):
+        """Undo the image transform to get unrotated points"""
+        if self.rotate == -1:
+            return ymin, imxmax - xmax, ymax, imxmax - xmin
+        elif self.rotate == 1:
+            return imymax - ymax, xmin, imymax - ymin, xmax
+        elif self.rotate == 2:
+            return imxmax - xmax, imymax - ymax, imxmax - xmin, imymax - ymin
+        else: return xmin, ymin, xmax, ymax
+        
+        
     def process(self, arr):
+        """Get intensities of traps in image and return correction factors"""
         self.fitr._imvals = arr
         self.fitr.fitImage()
         return self.fitr.getScaleFactors()
@@ -82,11 +110,11 @@ class normaliser:
         image.add_property('intensity_correction_iteration',iteration)
         image.add_property('rep',repetition)
         self.imhand.save(image)
-        return array
+        return np.rot90(array, self.rotate)
 
     def get_images(self, reps=100, iteration=0, sleep=0.3):
         """Take images in a loop"""
-        ave_im = np.zeros(self.cam.acquire().shape)
+        ave_im = np.zeros(self.get_image(-1,iteration,sleep).shape)
         self.awg.stop() # awg might crash if it's started twice
         time.sleep(sleep)
         for i in range(reps):
@@ -100,6 +128,7 @@ class normaliser:
         num_ave:     int number of sets to split the images into to take averages
         max_iter:    int stop the normalisation after this many iterations
         precision:   float stop the normalisation when stdv/mean is this value"""
+        self.prepare()
         history = [[1, self.a0, self.a1]]
         for i in range(max_iter):
             # take images and calculate correction factors
@@ -137,7 +166,7 @@ class normaliser:
         self.i = 0
         return history
         
-    def step(self, *amps, i=0, num_ims=5, sleep=0.3):
+    def step(self, amps, num_ims=5, sleep=0.3):
         """load amps onto the AWG, then take images and evaluate the cost function.
         amps:      1D array with amplitudes for both channels
         num_ims:   int number of images to average together
@@ -157,9 +186,12 @@ class normaliser:
     def save_meta_param(self, i=0, basedir=''):
         if not basedir:
             basedir = self.imhand.image_dir
-        self.imhand.image_dir = os.path.join(basedir, 'Iteration'+str(i))
+        if 'Iteration' not in basedir:
+            iterdir = os.path.join(basedir, 'Iteration'+str(i))
+        else: 
+            iterdir = os.path.join(os.path.dirname(basedir), 'Iteration'+str(i))
         self.imhand.measure_params['AWGparams'] = self.awg.filedata
-        self.imhand.create_dirs()
+        self.imhand.create_dirs(iterdir)
         self.i = i
     
 if __name__ == "__main__":

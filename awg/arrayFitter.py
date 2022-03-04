@@ -20,11 +20,11 @@ from itertools import combinations
 ##### helper functions #####
 def _transform(M):
     """Rotate loaded image so it displays with original coordinate frame"""
-    return np.flipud(M).T
+    return np.rot90(M,-1)
 
 def _inverse(M):
     """Rotate array so that is displays with same dimensions as the image"""
-    return np.flipud(M.T)
+    return np.rot90(M, 1)
     
 ##### Gaussian functions #####
 
@@ -42,11 +42,12 @@ def gauss(x, A, x0, sig, y0):
 #####   ######  ######
 
 class imageArray:
-    """Fit Gaussians to an array of spots in an image"""
+    """Fit Gaussians to an array of spots in an image
+    x = horizontal = axis 1, y = vertical = axis 0"""
     
     def __init__(self, dims=(3,3), roi_size=40, pixelconv=3.6e-6, fitmode='sum'):
         self._n = dims[0]*dims[1]  # number of spots to fit
-        self._s = dims             # rows, cols of trap array 
+        self._s = dims             # cols, rows of trap array 
         self._imvals = np.zeros((512,512))
         self._dx = roi_size   # crop the image down to 2d x 2d pixels
         self._dy = roi_size   # crop the image down to 2d x 2d pixels
@@ -61,16 +62,6 @@ class imageArray:
         self._labels += [x+'_err' for x in self._labels] 
         self.df = pd.DataFrame(columns=self._labels) # xc, w, yc, h, I for each ROI
         self.ref = 1  # reference intensity
-        
-    def check_overlap(self, xmin0, xmax0, ymin0, ymax0, xmin1, xmax1, ymin1, 
-            ymax1, imshape=(1024,1280)):
-        """Check the bounds for an ROI to see if the boxes are overlapping"""
-        for i, v in enumerate([xmin0, xmax0, ymin0, ymax0, xmin1, xmax1, ymin1, ymax1]):
-            if v < 0:  # ROI goes off the bottom of the image
-                return abs(v)
-            elif v > imshape[(i//2)%2]: # ROI goes off the top of the image
-                return v - imshape[(i//2)%2]
-        return (min(xmax0-xmin1, xmax1-xmin0), min(ymax0-ymin1, ymax1-ymin0))
         
     def check_outlier(self, key='w'):
         """See if a value is an outlier based on the interquartile range from median"""
@@ -89,23 +80,38 @@ class imageArray:
                 except: pass
             else: break
         # check if ROIs overlap
-        overx, overy = -1, -1
+        overx, overy = 0, 0
         xmins, xmaxs = self.df['xc'] - self._dx, self.df['xc'] + self._dx
         ymins, ymaxs = self.df['yc'] - self._dy, self.df['yc'] + self._dy
-        for pos0, pos1 in combinations(zip(xmins, xmaxs, ymins, ymaxs), 2):
-            ox, oy = self.check_overlap(*pos0, *pos1)
-            overx = max(overx, ox)
-            overy = max(overy, oy)
-        if overx > 0 and self._s[0] > 1:
-            self._dx -= round(overx)
-        elif overy > 0 and self._s[1] > 1:
-            self._dy -= round(overy)
+        # if any boxes are outside camera ROI
+        if len(xmins[xmins < 0]):
+            overx = np.abs(np.min(xmins[xmins<0]))
+        if len(ymins[ymins < 0]):
+            overy = np.abs(np.min(ymins[ymins<0]))
+        if len(xmaxs[xmaxs > imshape[1]]):
+            overx = max(overx, np.max(xmaxs[xmaxs > imshape[1]]) - imshape[1])
+        if len(ymaxs[ymaxs > imshape[0]]):
+            overy = max(overy, np.max(ymaxs[ymaxs > imshape[0]]) - imshape[0])
+        # look at first row, compare first and second column
+        if self._s[0] > 1:
+            ox = (xmins[1] - xmaxs[0])/2.
+            if ox < 0:
+                overx = max(overx, np.abs(ox))
+        # look at first column, compare first and second row
+        if self._s[1] > 1:
+            oy = (ymins[1] - ymaxs[0])/2.
+            if oy < 0:
+                overy = max(overy, np.abs(oy))
+        # set new width, height of ROI        
+        self._dx -= int(round(overx))
+        self._dy -= int(round(overy))
         self.fitImage()
         info("imageArray fitter reset ROI width, height to %s, %s"%(self._dy, self._dx))
         xmins, xmaxs = self.df['xc'] - self._dx, self.df['xc'] + self._dx
         ymins, ymaxs = self.df['yc'] - self._dy, self.df['yc'] + self._dy
         # image could be cropped to: [xmin,ymin,xmax,ymax]
-        bounds = list(map(round, [min(xmins), min(ymins), max(xmaxs), max(ymaxs)]))
+        bounds = list(map(int, [np.floor(min(xmins)), np.floor(min(ymins)), 
+                    np.ceil(max(xmaxs)), np.ceil(max(ymaxs))]))
         # plot the bounds
         if widget:
             viewbox = self.plotContours(widget)
@@ -152,8 +158,11 @@ class imageArray:
         # sort ROIs by x coordinate        
         lx, ly = self._s
         self.df = self.df.sort_values('xc')
-        for i in range(ly): # sort columns by y coordinate
-            self.df.iloc[i*lx:(i+1)*lx] = self.df.iloc[i*lx:(i+1)*lx].sort_values('yc')
+        if ly == 1: # one column, sort by y
+            self.df = self.df.sort_values('yc')
+        else:
+            for i in range(ly): # sort columns by y coordinate
+                self.df.iloc[i*lx:(i+1)*lx] = self.df.iloc[i*lx:(i+1)*lx].sort_values('yc')
         
                 
     def fitGaussAmp(self, im, x0, y0):
@@ -205,8 +214,10 @@ class imageArray:
             for h in e.getHandles():
                 e.removeHandle(h)
         viewbox.addItem(pg.ImageItem(_transform(im)))
+        viewbox.addItem(pg.TextItem('Fit'))
         viewbox = widget.addViewBox()
         viewbox.addItem(pg.ImageItem(_transform(self._imvals)))
+        viewbox.addItem(pg.TextItem('Image'))
         for i, df in self.df.iterrows(): # note: image coordinates inverted
             e = pg.EllipseROI((df['xc']-df['h'], dy-df['yc']-df['w']), (2*df['h'], 2*df['w']),  # origin is bottom-left
                     movable=False, pen=pg.intColor(i, self._n))
@@ -216,9 +227,9 @@ class imageArray:
             s = pg.ROI((df['xc']-self._dx, dy-df['yc']-self._dy), (self._dx*2, self._dy*2),  # origin is bottom-left
                     movable=False, pen=pg.intColor(i, self._n)) # rotatable=False, resizable=False, 
             viewbox.addItem(s)
-        size = widget.geometry()
-        size.setCoords(50,50,1500,int(1500*dy/dx))
-        widget.setGeometry(size)
+        # size = widget.geometry()
+        # size.setCoords(50,50,1200,int(1200*dy/dx))
+        # widget.setGeometry(size)
         return viewbox
                 
     def getScaleFactors(self, verbose=0, target=None):
