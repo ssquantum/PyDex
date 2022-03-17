@@ -67,7 +67,7 @@ class runnum(QThread):
         self.server.dxnum.connect(self.set_n) # signal gives run number
         self.server.start()
         if self.server.isRunning():
-            self.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
+            self.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000)
 
         self.trigger = PyServer(host='', port=8621, name='Dx SFTWR TRIGGER') # software trigger using TCP
         self.trigger.start()
@@ -83,15 +83,23 @@ class runnum(QThread):
         self.slmtcp = PyServer(host='', port=8627, name='SLM') # SLM program runs separately
         self.slmtcp.start()
         self.client = PyClient(host='129.234.190.235', port=8626, name='AWG1 recv') # incoming from AWG
+        # self.client = PyClient(host='localhost', port=8626, name='AWG1 recv') # incoming from AWG
         self.client.start()
         self.client.textin.connect(self.add_mr_msgs) # msg from AWG starts next multirun step
         self.awgtcp2 = PyServer(host='', port=8628, name='AWG2') # AWG program runs separately
         self.awgtcp2.start()
         self.clien2 = PyClient(host='129.234.190.233', port=8629, name='AWG2 recv') # incoming from AWG
+        # self.clien2 = PyClient(host='localhost', port=8629, name='AWG2 recv') # incoming from AWG
         self.clien2.start()
         self.clien2.textin.connect(self.add_mr_msgs) # msg from AWG starts next multirun step
         self.ddstcp2 = PyServer(host='', port=8630, name='DDS2') # DDS program runs separately
         self.ddstcp2.start()
+        self.mwgtcp = PyServer(host='', port=8631, name='MWG') # MW generator control program runs separately
+        self.mwgtcp.start()
+        self.clientmwg = PyClient(host='129.234.190.235', port=8632, name='MW recv') # incoming from MW generator control
+        # self.clientmwg = PyClient(host='localhost', port=8632, name='MWG recv') # incoming from MW generator control
+        self.clientmwg.start()
+        self.clientmwg.textin.connect(self.add_mr_msgs) # msg from MW generator control starts next multirun step
         
         
     def reset_server(self, force=False):
@@ -99,7 +107,7 @@ class runnum(QThread):
         force=True, then stop and restart the server. If the server isn't 
         running, then start it."""
         for server in [self.server, self.trigger, self.monitor, self.awgtcp1, self.ddstcp1, 
-                self.slmtcp, self.seqtcp, self.awgtcp2, self.ddstcp2]:
+                self.slmtcp, self.seqtcp, self.awgtcp2, self.ddstcp2, self.mwgtcp]:
             if server.isRunning():
                 if force:
                     server.close()
@@ -212,7 +220,7 @@ class runnum(QThread):
     #### multirun ####
 
     def get_params(self, v, module='AWG1'):
-        """Reformat the multirun paramaters into a string to be sent to the AWG, DDS, or SLM"""
+        """Reformat the multirun paramaters into a string to be sent to the AWG, DDS, SLM, or MWG"""
         msg = module+' set_data=['
         col = -1  # in case the for loop doesn't execute
         for col in range(len(self.seq.mr.mr_param['Type'])):
@@ -258,6 +266,14 @@ class runnum(QThread):
                                 self.seq.mr.slm_args[m], 
                                 self.seq.mr.mr_vals[v][col])
                 except Exception as e: error('Invalid SLM parameter at (%s, %s)\n'%(v,col)+str(e))
+            elif 'MWG' in self.seq.mr.mr_param['Type'][col] and module == 'MWG':
+                try: # argument: value
+                    for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen MWG tone
+                        for m in self.seq.mr.mr_param['Analogue channel'][col]:
+                            msg += '[%s,"%s",%s],'%(n, # [tone index, parameter, value]
+                                self.seq.mr.mwg_args[m], 
+                                self.seq.mr.mr_vals[v][col])
+                except Exception as e: error('Invalid MWG parameter at (%s, %s)\n'%(v,col)+str(e))
         if col > -1: msg = msg[:-1] + ']'
         else: msg += ']'
         return msg
@@ -312,21 +328,24 @@ class runnum(QThread):
             self.ddstcp1.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDS1param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.ddstcp2.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDS2param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.slmtcp.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'SLMparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
+            self.mwgtcp.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'MWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             mr_queue = []
             #print('make msg')
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
-                module_msgs = {'AWG1':'', 'AWG2':'', 'DDS1':'', 'DDS2':'', 'SLM':''}
+                module_msgs = {'AWG1':'', 'AWG2':'', 'DDS1':'', 'DDS2':'', 'SLM':'', 'MWG':''}
                 for key in module_msgs.keys():
                     if any(key in x for x in self.seq.mr.mr_param['Type']): # send parameters by TCP
                         module_msgs[key] = self.get_params(v, key)
                 pausemsg = '0'*2000
                 if module_msgs['AWG1']: pausemsg = 'pause for AWG1' + pausemsg
                 if module_msgs['AWG2']: pausemsg = 'pause for AWG2' + pausemsg
+                if module_msgs['MWG']: pausemsg = 'pause for MWG' + pausemsg
                 mr_queue += [[TCPENUM['TCP read'], module_msgs['AWG1']+'||||||||'+'0'*2000], # set AWG parameters
                     [TCPENUM['TCP read'], module_msgs['AWG2']+'||||||||'+'0'*2000], # set AWG parameters
                     [TCPENUM['TCP read'], module_msgs['DDS1']+'||||||||'+'0'*2000], # set DDS parameters
                     [TCPENUM['TCP read'], module_msgs['DDS2']+'||||||||'+'0'*2000], # set DDS parameters
                     [TCPENUM['TCP read'], module_msgs['SLM']+'||||||||'+'0'*2000], # set SLM parameters
+                    [TCPENUM['TCP read'], module_msgs['MWG']+'||||||||'+'0'*2000], # set MWG parameters
                     [TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step run']+'0'*2000],
                     [TCPENUM['TCP load sequence from string'], self.seq.mr.msglist[v]],
                     [TCPENUM['TCP read'], pausemsg]] + [
@@ -353,7 +372,13 @@ class runnum(QThread):
             if any('SLM' in x for x in self.seq.mr.mr_param['Type']):
                 self.slmtcp.add_message(self._n, 'load_all='+os.path.join(self.sv.results_path, # reset SLM parameters
                     self.seq.mr.mr_param['measure_prefix'],'SLMparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
-            self.cam.AF.AbortAcquisition()
+            if any('MWG' in x for x in self.seq.mr.mr_param['Type']):
+                self.mwgtcp.add_message(self._n, 'load_all='+os.path.join(self.sv.results_path, # reset MWG parameters
+                    self.seq.mr.mr_param['measure_prefix'],'MWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
+            try:
+                self.cam.AF.AbortAcquisition()
+            except Exception:
+                error('Failed to abort camera acquisition.')
             self.seq.mr.multirun = stillrunning
             if not stillrunning: 
                 self.seq.mr.ind = 0
@@ -368,17 +393,21 @@ class runnum(QThread):
 
     def add_mr_msgs(self):
         """Add the next set of multirun messages to the queue to send to DExTer.
-        Gets triggered by the AWG TCP client."""
+        Gets triggered by the AWG1, AWG2, and MWG TCP clients."""
         if self.seq.mr.multirun:
             self.server.unlockq()
             for i in range(len(self.next_mr)):
                 enum, text = self.next_mr.pop(0)
-                if not 'pause for AWG' in text:
-                    self.server.add_message(enum, text)
-                else:
+                if 'pause for AWG' in text:
                     self.seq.mr.progress.emit('Waiting for AWG...')
                     self.server.lockq()
                     break
+                elif 'pause for MWG' in text:
+                    self.seq.mr.progress.emit('Waiting for MWG...')
+                    self.server.lockq()
+                    break
+                else:
+                    self.server.add_message(enum, text)
                 
     def skip_mr_hist(self):
         """Remove the TCP messages for the current histogram so that MR skips it"""

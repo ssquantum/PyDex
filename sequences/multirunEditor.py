@@ -133,8 +133,9 @@ class multirun_widget(QWidget):
         self.dds_args = ['Freq', 'Phase', 'Amp', 'Start_add', 'End_add', 'Step_rate', 'Sweep_start', 
         'Sweep_end', 'Pos_step', 'Neg_step', 'Pos_step_rate', 'Neg_step_rate']
         self.slm_args = ['f','period','angle','radius','gradient','shift','radial','azimuthal','amplitude']
+        self.mwg_args = ['freq (MHz)','amp (dBm)']
         self.column_options = ['Analogue voltage', 'AWG1 chan : seg', 'AWG2 chan : seg',
-            'DDS1 port : profile', 'DDS2 module : profile', 'SLM holograms'] # these analogue types require the analogue options 
+            'DDS1 port : profile', 'DDS2 module : profile', 'SLM holograms','MWG tones'] # these analogue types require the analogue options 
         self.col_range_text = ['']*ncols
         self.COM = ['RB1A', 'RB2', 'RB3', 'RB4', 'RB1B'] # DDS COM port connections
         self.COM2 = ['1557', '977', '1013', '420'] # DDS2 module connections
@@ -223,7 +224,7 @@ class multirun_widget(QWidget):
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
         sht = self.tr.get_esc()[2][2:] # 'Sequence header top'
         options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG1 chan : seg', 
-        'AWG2 chan : seg', 'DDS1 port : profile', 'DDS2 module : profile', 'SLM holograms','Other'], 
+        'AWG2 chan : seg', 'DDS1 port : profile', 'DDS2 module : profile', 'SLM holograms','MWG tones','Other'], 
             list(map(str.__add__, [str(i) for i in range(len(sht))],
                     [': '+hc[6][1].text for hc in sht])), # time step names
             ['Fast analogue', 'Slow analogue'],
@@ -550,9 +551,19 @@ class multirun_widget(QWidget):
             self.chan_choices['Analogue channel'].setEnabled(True)
             self.chan_choices['Analogue channel'].clear()
             self.chan_choices['Analogue channel'].addItems(self.slm_args)
+        elif newtype == 'MWG tones':
+            self.chan_choices['Time step name'].clear()
+            mwgoptions = ['{:0>4}'.format(i) for i in range(2000)]
+            self.chan_choices['Time step name'].addItems(mwgoptions)
+            reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)
+            self.chan_choices['Analogue type'].clear()
+            self.chan_choices['Analogue type'].addItems(['MWG Parameter'])
+            self.chan_choices['Analogue channel'].setEnabled(True)
+            self.chan_choices['Analogue channel'].clear()
+            self.chan_choices['Analogue channel'].addItems(self.mwg_args)
         else:
             if  any(self.chan_choices['Analogue type'].currentText()==x for x in 
-                        ['AWG Parameter', 'DDS Parameter','Hologram Parameter']):
+                        ['AWG Parameter', 'DDS Parameter','Hologram Parameter','MWG Parameter']):
                 self.chan_choices['Analogue type'].clear()
                 self.chan_choices['Analogue type'].addItems(['Fast analogue', 'Slow analogue'])
                 self.chan_choices['Analogue type'].currentTextChanged[str].connect(self.change_mr_anlg_type)

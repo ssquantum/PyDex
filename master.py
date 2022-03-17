@@ -434,6 +434,7 @@ class Master(QMainWindow):
             info += 'DDS1 server is running.\n' if self.rn.ddstcp1.isRunning() else 'DDS1 server stopped.\n'
             info += 'DDS2 server is running.\n' if self.rn.ddstcp2.isRunning() else 'DDS2 server stopped.\n'
             info += 'SLM server is running.\n' if self.rn.slmtcp.isRunning() else 'SLM server stopped.\n'
+            info += 'MWG server is running.\n' if self.rn.mwgtcp.isRunning() else 'MWG server stopped.\n'
             info += 'BareDExTer server is running.\n' if self.rn.seqtcp.isRunning() else 'BareDExTer server stopped.\n'
             if self.rn.server.isRunning():
                 msgs = self.rn.server.get_queue()
@@ -720,8 +721,9 @@ class Master(QMainWindow):
         elif 'DDS2 ' in msg[:10]: # send command to DDS to set new data
             self.rn.ddstcp2.priority_messages([(self.rn._n, msg.replace('DDS2 ', '').split('||||||||')[0])])
         elif 'SLM ' in msg[:10]: # send command to SLM to set new data
-            #print(msg)
             self.rn.slmtcp.priority_messages([(self.rn._n, msg.replace('SLM ', '').split('||||||||')[0])])
+        elif 'MWG ' in msg[:10]: # send command to MW generator to set new data
+            self.rn.mwgtcp.priority_messages([(self.rn._n, msg.replace('MWG ', '').split('||||||||')[0])])
         elif 'LVData' in msg: 
             try:
                 # self.rn.seq.tr.load_xml_str(msg) # for some reason LV can't sent strings longer than 2453 ...
@@ -773,9 +775,9 @@ class Master(QMainWindow):
                 "image_handler max length: ", max(map(np.size, mw.image_handler.stats.values())),
                 "\thisto_handler max length: ", max(map(np.size, mw.histo_handler.stats.values())))
         print("TCP Network:")
-        for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG1', 'AWG2', 'DDS1', 'DDS2', 'SLM'],
+        for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG1', 'AWG2', 'DDS1', 'DDS2', 'SLM', 'MWG'],
                 [self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, self.rn.awgtcp2, 
-                    self.rn.ddstcp1, self.rn.ddstcp2, self.rn.slmtcp]):
+                    self.rn.ddstcp1, self.rn.ddstcp2, self.rn.slmtcp, self.rn.mwgtcp]):
             print(label, ': %s messages'%len(tcp.get_queue()))
         print("Mutlirun queue length: ", len(self.rn.seq.mr.mr_queue))
         if reset:
@@ -816,7 +818,7 @@ class Master(QMainWindow):
             # self.rn.check.send_rois() # give ROIs from atom checker to image analysis
             for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, 
                     self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, 
-                    self.rn.awgtcp2, self.rn.ddstcp1, self.rn.ddstcp2, 
+                    self.rn.awgtcp2, self.rn.ddstcp1, self.rn.ddstcp2, self.rn.mwgtcp,
                     self.rn.check, self.mon_win, self.dds_win, self.rn.seq.mr.QueueWindow]:
                 obj.close()
             self.save_state('./state')
