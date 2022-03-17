@@ -1,4 +1,3 @@
-
 from pyspcm import *
 from spcm_tools import *
 from spcm_home_functions import *
@@ -57,6 +56,7 @@ class remoteAWG:
     def saveData(self, filename):
         self.server.add_message(0, 'save='+filename)
         
+
 
 class AWG:
     
@@ -149,7 +149,7 @@ class AWG:
     Changing these would affect the particular instance. 
     """
     
-    def __init__ (self, channel_enable = [0,1],sample_rate = MEGA(1250), num_segment = int(16) , start_step=int(0)):
+    def __init__ (self, channel_enable = [0,1],sample_rate = MEGA(625), num_segment = int(16) , start_step=int(0)):
         #### Determine the type of card opened
         self.__str__()
         if AWG.lCardType.value in [TYP_M4I6620_X8, TYP_M4I6621_X8, TYP_M4I6622_X8]:
@@ -867,10 +867,10 @@ class AWG:
                 This just enables the flexibility of typing an actual list or loading a string from a file. 
                 """
                     
-                if abs(max(freq_amp)) <= 1 and len(freq_amp)==numOfTraps:
+                if abs(max(freq_amp)) <= 1.5 and len(freq_amp)==numOfTraps:
                     self.freq_amp = freq_amp
-                elif abs(max(freq_amp))> 1:
-                    sys.stdout.write("Amplitudes must only contain values between 0 and 1.\n")
+                elif abs(max(freq_amp))> 1.5:
+                    sys.stdout.write("Amplitudes must only contain values between 0 and 1.5.\n")
                     self.freq_amp = [1]*numOfTraps
                     flag =1
                 elif len(freq_amp) != numOfTraps:
@@ -1152,7 +1152,7 @@ class AWG:
                     self.startAmp = startAmp
                     self.endAmp   = endAmp
                 else:
-                    sys.stdout.write("Starting and ending amplitudes must lists of equal size, with values lying between 0 and 1.")
+                    sys.stdout.write("Starting and ending amplitudes must lists of equal size, with values lying between 0 and 1.5.")
                     flag =1
                     
                 if type(freq_phase) == list:
@@ -1313,10 +1313,10 @@ class AWG:
                 if type(freq_phase)==str:
                     freq_phase = eval(freq_phase)
                     
-                if abs(max(freq_amp)) <= 1 and len(freq_amp)==numOfTraps:
+                if abs(max(freq_amp)) <= 1.5 and len(freq_amp)==numOfTraps:
                     self.freq_amp = freq_amp
-                elif abs(max(freq_amp))> 1:
-                    sys.stdout.write("Amplitudes must only contain values between 0 and 1.\n")
+                elif abs(max(freq_amp))> 1.5:
+                    sys.stdout.write("Amplitudes must only contain values between 0 and 1.5.\n")
                     self.freq_amp = [1]*numOfTraps
                     flag =1
                 elif len(freq_amp) != numOfTraps:
@@ -1342,20 +1342,6 @@ class AWG:
                 if type(aAdjust) == str:
                     aAdjust = eval(aAdjust)
                     
-                AODlimiter = 220 #limiting AWG output for the AOD (after amplifier).
-                maxAmp = max(self.freq_amp)  # finds the maximum of the individual amplitudes
-                maxpos = self.freq_amp.index(maxAmp)
-                if self.tot_amp *maxAmp* (1+mod_depth) <= 220 and not aAdjust:
-                    self.mod_depth = mod_depth
-                else:
-                    sugDepth = round(AODlimiter/self.tot_amp/maxAmp -1,2)
-                    sugTotAmp = round(AODlimiter/(1+mod_depth)/maxAmp,2)
-                    sugfreqAmp = round(AODlimiter/(1+mod_depth)/self.tot_amp,2)
-                    sys.stdout.write("For these values of tot_amp and mod_depth, the output of the card will exceed 220 mV.\n")
-                    sys.stdout.write("Either change tot_amp to {} mV, mod_depth to {}, or freqAmp position {} to {}.\n".format(sugTotAmp,sugDepth,maxpos,sugfreqAmp))
-                    flag =1    
-                    
-                    
                 if type(fAdjust) != bool:
                     sys.stdout.write("Frequency Adjustment is not a boolean.\n")
                     self.fAdjust = True
@@ -1380,12 +1366,12 @@ class AWG:
                 #########################
                 
                 if flag ==0:
-                    outData =  ampModulation(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.mod_freq,self.mod_depth,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz,cal=self.cals[channel])            # Generates the requested data
+                    outData =  ampModulation(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.freq_amp,self.mod_freq,mod_depth,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz,cal=self.cals[channel])            # Generates the requested data
                     
                     if type(f1)==np.ndarray or type(f1)==list :
                         f1 = str(list(f1))
                     dataj(self.filedata,self.segment,channel,action,duration,f1,numOfTraps,distance,self.tot_amp,\
-                    str(self.freq_amp),self.mod_freq/1000.,self.mod_depth,str(self.freq_phase),\
+                    str(self.freq_amp),self.mod_freq/1000.,mod_depth,str(self.freq_phase),\
                     str(self.fAdjust),str(self.aAdjust),str(self.exp_freqs),self.numOfSamples,self.duration,self.numOfModCycles)                # Stores information in the filedata variable, to be written when card initialises. 
                 
   
@@ -1447,10 +1433,10 @@ class AWG:
                     sys.stdout.write("Chosen amplitude will damage the spectrum analyser. Set to 50mV")
                     self.tot_amp = 50
                 
-                if abs(max(freq_amp)) <= 1 and len(freq_amp)==numOfTraps:
+                if abs(max(freq_amp)) <= 1.5 and len(freq_amp)==numOfTraps:
                     self.freq_amp = freq_amp
-                elif abs(max(freq_amp))> 1:
-                    sys.stdout.write("Amplitudes must only contain values between 0 and 1.\n")
+                elif abs(max(freq_amp))> 1.5:
+                    sys.stdout.write("Amplitudes must only contain values between 0 and 1.5.\n")
                     self.freq_amp = [1]*numOfTraps
                     flag =1
                 elif len(freq_amp) != numOfTraps:

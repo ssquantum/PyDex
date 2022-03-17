@@ -651,13 +651,13 @@ def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duratio
     t = np.arange(numOfSamples)
     mod_amp = mod_depth*np.sin(2.*np.pi*t*mod_freq/sampleRate)
     if ampAdjust:
-        if (np.size(mod_amp)==1 and mod_amp>1) or any(mod_amp > 1):
-            print('WARNING: power calibration overflow: cannot exceed freq_amp > 1')
-        return 1./282*0.5*2**16*np.sum([
+        y = 1./282*0.5*2**16*np.sum([
             ampAdjuster2d(freqs[Y]*10**-6, freq_amp[Y]*(1 + mod_amp), cal=cal
             )*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360.) for Y in range(numberOfTraps)],axis=0)
     else:
-       return 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*(1+mod_amp)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+       y = 1.*tot_amp/282/len(freqs)*0.5*2**16*np.sum([freq_amp[Y]*(1+mod_amp)*np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate+ 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+    checkWaveformAmp(y)
+    return y
     
 def switch(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration=0.1,offt=0.01,tot_amp=10,freq_amp=[1],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate=625*10**6,umPerMHz=cal_umPerMHz,cal=cal2d):
     """

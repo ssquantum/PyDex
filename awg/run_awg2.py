@@ -10,7 +10,8 @@ if standalone: # if there isn't an instance, make one
 boss = awg_window(config_file='./state2', AWG_channels=[0,1], 
             default_seq=r'Z:/Tweezer/Code/Python 3.5/PyDex/awg/AWG template sequences/2channel_static.txt',
             rearr_base_path=r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\AWG template sequences\rearr_base2.txt',
-            server_port=8629, clientIP='129.234.190.164', client_port=8628)
+            server_port=8629, clientIP='129.234.190.164', client_port=8628,
+            name='AWG2')
 
 fdir = 'Z:/Tweezer/Experimental/Setup and characterisation/Settings and calibrations/tweezer calibrations/AWG calibrations'
 boss.rr.awg.setCalibration(0, fdir+'/814_H_calFile_17.02.2022.txt', 

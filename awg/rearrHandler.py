@@ -47,13 +47,14 @@ import shutil
 
 class rearrange():
     ### Rearrangement ###
-    def __init__(self, AWG_channels=[0]):
+    def __init__(self, AWG_channels=[0], name='AWG1'):
                 
         # Rearrangement variables
         
         self.awg = AWG(AWG_channels) # opens AWG card and initiates
         self.awg.setNumSegments(32)
         self.activate_rearr(False)
+        self.name = name
         
         self.movesDict = {}           # dictionary will be populated when segments are calculated
         self.segmentCounter = 0       # Rearranging: increments by 1 each time calculateAllMoves uploaded a new segment
@@ -140,7 +141,8 @@ class rearrange():
         self.setBaseRearrangeSteps()    # Once all moves calculated, set the base segments which are constant during rearrangement
 
         t1 = time.time()
-        print('All move data calculated in '+str(round(t1-t0,3))+' seconds.')                        
+        print('All move data calculated in '+str(round(t1-t0,3))+' seconds.')     
+                           
     def createRearrSegment(self, key, seg=None):
         """
         Pass a key to this function which will:
@@ -159,20 +161,21 @@ class rearrange():
             seg = 1
         # STATIC TRAP
         if 's' in key:
-            fa = self.rearr_freq_amp
             duration = self.rParam['static_duration_[ms]']
             if 'si' in key:                # Initial array of static traps
                 f1 = self.flist(key.partition('s')[0], self.initial_freqs)
+                fa = self.getRearrFreqAmps(self.rearr_freq_amp, len(f1))
             elif 'st' in key:              # Target array of static traps
                 if self.rearrMode =='use_exact':
                     f1 = self.flist(key.partition('s')[0], self.target_freqs)
                 elif self.rearrMode == 'use_all':
                     f1 = self.flist(key.partition('s')[0], self.initial_freqs)
                     
-                if self.rParam['power_ramp']==True:
-                    fa = self.rParam['final_freq_amp']
+                if self.rParam['power_ramp']:
+                    fa = self.getRearrFreqAmps(self.rParam['final_freq_amp'], len(f1))
+                    
             if self.rParam['phase_adjust'] == True and len(f1) > 1:
-                phase = list(phase_minimise(freqs=f1, dur=duration, sampleRate=self.awg.sample_rate.value/1e6, freqAmps=[fa]*len(f1)))
+                phase = list(phase_minimise(freqs=f1, dur=duration, sampleRate=self.awg.sample_rate.value/1e6, freqAmps=fa))
             else:
                 phase = [0]*len(f1)
             data = self.awg.dataGen(seg,
@@ -182,16 +185,16 @@ class rearrange():
                                 f1,
                                 1,9, # pointless legacy arguments 
                                 self.rParam['tot_amp_[mV]'],
-                                [fa]*len(f1),         # tone freq. amps
+                                fa,         # tone freq. amps
                                 phase,                      #  tone phases
                                 self.rParam['freq_adjust'],     
                                 self.rParam['amp_adjust'])
         # MOVING TRAP    
         elif 'm' in key: # Move from initial array to target array of static traps
-            f1 = self.flist(key.partition('m')[0], self.initial_freqs) 
+            f1 = self.flist(key.partition('m')[0], self.initial_freqs)
+            fa = self.getRearrFreqAmps(self.rearr_freq_amp, len(f1)) 
             if self.rearrMode == 'use_exact':
                 f2 = self.flist(key.partition('m')[2], self.target_freqs)
-                fa = self.rearr_freq_amp
             elif self.rearrMode == 'use_all':
                 f2 = self.flist(key.partition('m')[2], self.initial_freqs)
                 
@@ -203,8 +206,8 @@ class rearrange():
                                 f2,
                                 self.rParam['hybridicity'],
                                 self.rParam['tot_amp_[mV]'],
-                                [self.rearr_freq_amp]*len(f1),   # start freq amps divide by n initial traps for consistent trap depth
-                                [self.rearr_freq_amp]*len(f1),   # end freq amps
+                                self.getRearrFreqAmps(self.rearr_freq_amp, len(f1)),   # start freq amps
+                                self.getRearrFreqAmps(self.rearr_freq_amp, len(f2)),   # end freq amps
                                 [0]*len(f1),   # freq phases
                                 self.rParam['freq_adjust'],     
                                 self.rParam['amp_adjust'])
@@ -212,10 +215,6 @@ class rearrange():
         # RAMPING TRAP
         elif 'r' in key: # Ramp target array frequency amplitudes up to make use of freed-up RF power.            
             f2 = self.flist(key.partition('r')[0], self.target_freqs)  
-            if self.rParam['final_freq_amp'] == 'default':   # If you say final freq amp is default it will divide through by n target sites
-                ffa = 1/len(f2)                              # else it will go to the value you have specified.
-            else:
-                ffa = self.rParam['final_freq_amp']
             data = self.awg.dataGen(seg,
                                 self.rParam['channel'],
                                 'ramp',
@@ -223,8 +222,8 @@ class rearrange():
                                 f2,
                                 1,9, # pointless legacy arguments
                                 self.rParam['tot_amp_[mV]'],
-                                [self.rearr_freq_amp]*len(f2),   # start freq amps
-                                [ffa]*len(f2),   # end freq amps
+                                self.getRearrFreqAmps(self.rearr_freq_amp, len(f2)),   # start freq amps
+                                self.getRearrFreqAmps(self.rParam["final_freq_amp"], len(f2)),   # end freq amps
                                 [0]*len(f2),   # freq phases
                                 self.rParam['freq_adjust'],     
                                 self.rParam['amp_adjust'])
@@ -357,7 +356,7 @@ class rearrange():
         self.rearrMode = self.rParam["rearrMode"]
         self.initial_freqs = self.rParam['initial_freqs']
         self.target_freqs = self.rParam['target_freqs']
-        self.setRearrFreqAmps(self.rParam['rearr_freq_amps'])       # Initialises frequency amplitudes during rearrangment to default 1/len(initial_freqs)
+        self.rearr_freq_amp = self.rParam['rearr_freq_amps']       # Initialises frequency amplitudes during rearrangment to default 1/len(initial_freqs)
         try:
             self.awg.setSegDur(self.rParam['static_duration_[ms]'])
         except AttributeError:
@@ -384,17 +383,20 @@ class rearrange():
         print('  - Rearranging freq_amps are = ', self.rearr_freq_amp)
         print('')
          
-    def setRearrFreqAmps(self, value = 'default'):
+    def getRearrFreqAmps(self, value = 'default', n_traps=1):
         """Set the frequency amplitudes during rearrangment either to default or to some fixed amplitude.
             When rearr is initialised, default freq amps are 1/(# initial traps)
             From python command terminal can set value to something fixed, applied globally across all rearr freq amps.
             e.g. set freq_amp = 0.2 and in all steps it will be 2.
             """
 
-        if value == 'default':
-            self.rearr_freq_amp = round(1/len(self.initial_freqs),3)
+        if type(value) == str:
+            return [round(1/len(self.initial_freqs),3)]*n_traps
         else:
-            self.rearr_freq_amp = float(value)    
+            if np.shape(value):
+                return list(map(float, value))
+            else:
+                return [float(value)]*n_traps
 
 
     def rearr_load(self,file_dir='Z:\Tweezer\Experimental\AOD\m4i.6622 - python codes\Sequence Replay tests\metadata_bin\\20200819\\20200819_165335.txt'):
@@ -496,7 +498,7 @@ class rearrange():
 
     def saveRearrParams(self, savedir= r'Z:\Tweezer\Code\Python 3.5\PyDex\awg\rearr_config_files'):
         """Save the rearrangement parameters used to a metadata file. """
-        with open(savedir+r'\rearr_config.txt', 'w') as fp:
+        with open(savedir+r'\{}rearr_config.txt'.format(self.name), 'w') as fp:
             json.dump(self.rParam, fp, indent=1, separators=(',',':'))
         
             

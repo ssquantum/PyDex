@@ -236,7 +236,6 @@ class roi_handler(QWidget):
         except ZeroDivisionError: 
             self.trigger.emit(success) # only emit if successful
         self.rearrange.emit(atomstring)
-        print('Atom checker occupancy:'+atomstring)
         
     def set_pic_size(self, im_name):
         """Set the pic size by looking at the number of columns in a file

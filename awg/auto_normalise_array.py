@@ -24,24 +24,32 @@ class normaliser:
     rotate:       int degrees anticlockwise to rotate image (arrayFitter will rotate -90)
     remote:       bool True => send TCP messages to control the AWG
     camera:       str which ThorCam is being used. different SDK for scientific cameras
-    exposure:     float exposure time for camera in ms"""
+    exposure:     float exposure time for camera in ms
+    awgtype:      str which AOD is being controlled; the 814 tweezer or 938"""
     def __init__(self, awgparam='Z:/Tweezer/Experimental/AOD/2D AOD/Array normalisation/6x1array.txt',
             image_dir='Z:/Tweezer/Experimental/AOD/2D AOD/Array normalisation/Normalised', 
             cam_roi=None, fit_roi_size=50, freq_amp_max=[1,1], rotate=0, remote=False,
-            camera='uc480', exposure=3):
+            camera='uc480', exposure=3, awgtype='814'):
         self.i = 0 # iteration number
         
         # image rotation
         self.rotate = rotate // 90
         ### set up AWG
         if not remote:
-            self.awg = AWG([0,1], sample_rate=int(1024e6))
+            if '814' in awgtype:
+                chans = [0,1]
+                srate = int(1024e6)
+            else:
+                chans = [0]
+                srate = int(625e6)
+            self.awg = AWG(chans, sample_rate=srate)
         else: self.awg = remoteAWG(port=8628)
         fdir = 'Z:/Tweezer/Experimental/Setup and characterisation/Settings and calibrations/tweezer calibrations/AWG calibrations'
-        self.awg.setCalibration(0, fdir+'/814_H_calFile_17.02.2022.txt', 
-                freqs = np.linspace(85,110,100), powers = np.linspace(0,1,200))
-        self.awg.setCalibration(1, fdir+'/814_V_calFile_17.02.2022.txt', 
-                freqs = np.linspace(85,115,100), powers = np.linspace(0,1,200))
+        if '814' in awgtype:
+            self.awg.setCalibration(0, fdir+'/814_H_calFile_17.02.2022.txt', 
+                    freqs = np.linspace(85,110,100), powers = np.linspace(0,1,200))
+            self.awg.setCalibration(1, fdir+'/814_V_calFile_17.02.2022.txt', 
+                    freqs = np.linspace(85,115,100), powers = np.linspace(0,1,200))
         self.awg.load(awgparam)
         self.awg.param_file = awgparam
         self.awg.setTrigger(0) # 0 software, 1 ext0
@@ -65,11 +73,22 @@ class normaliser:
         
         #### image handler saves images
         self.imhand = ImageHandler(image_dir=image_dir,
-            measure_params={'rows':self.nrows,'columns':self.ncols,'AWGparam_file':awgparam})
+            measure_params={'rows':self.nrows,'columns':self.ncols,'AWGparam_file':awgparam,
+                        'Camera ROI':cam_roi, 'Fit ROI size':fit_roi_size, 'reference':1})
         self.imhand.create_dirs()
         
         #### fitr extracts trap positions and intensities from an image
         self.fitr = imageArray(dims=(self.ncols, self.nrows), roi_size=fit_roi_size, fitmode='sum')
+        
+    def re_init(self, exposure=3):
+        self.awg.load(self.awg.param_file)
+        seg = self.awg.filedata["segments"]["segment_0"]
+        self.a0 = np.array(eval(seg["channel_0"]["freq_amp"]), dtype=float)
+        self.a1 = np.array(eval(seg["channel_1"]["freq_amp"]), dtype=float)
+        self.amp = int(seg["channel_0"]["tot_amp_[mV]"])
+        self.awg.start()
+        self.cam.update_exposure(3)
+        self.prepare()
         
     def prepare(self):
         """Set camera and reference value to normalise to"""
@@ -77,6 +96,7 @@ class normaliser:
         self.cam.update_exposure(self.cam.exposure*0.6) # saturating is bad
         time.sleep(0.1)
         self.fitr.setRef(self.get_image(-1, -1, auto_exposure=False)) # reference image should not be rotated
+        self.imhand.measure_params['reference'] = self.fitr.ref
 
     def unrotate(self, xmin, ymin, xmax, ymax, imxmax, imymax):
         """Undo the image transform to get unrotated points"""
@@ -121,14 +141,13 @@ class normaliser:
             ave_im += self.get_image(i, iteration, sleep)
         return ave_im / reps
         
-    def normalise(self, num_ims=5, num_ave=3, precision=0.005, max_iter=7):
+    def normalise(self, num_ims=5, num_ave=3, precision=0.01, max_iter=7):
         """Take images and then produce corrections factors until desired precision
         or max iterations are reached.
         num_ims:     int number of images to take for each iteration of normalisation
         num_ave:     int number of sets to split the images into to take averages
         max_iter:    int stop the normalisation after this many iterations
-        precision:   float stop the normalisation when stdv/mean is this value"""
-        self.prepare()
+        precision:   float stop the normalisation when cost is this value"""
         history = [[1, self.a0, self.a1]]
         for i in range(max_iter):
             # take images and calculate correction factors
@@ -146,11 +165,11 @@ class normaliser:
             self.awg.arrayGen(self.ncols, self.nrows, 0, freqs=[self.f0, self.f1], 
                 amps=[self.a0, self.a1], AmV=self.amp, duration=1, 
                 freqAdjust=True, ampAdjust=True, phaseAdjust=True)
-            c = self.fitr.df['I0']
+            c = self.fitr.df['I0'].values.reshape(self.fitr._s)
             if any([I0 < 0 for I0 in c]):
                 print('\nCamera saturated, aborting optimisation...')
                 return history
-            pack = [c.std()/c.mean(), self.a0, self.a1]
+            pack = [np.sum(np.abs(1 - c / self.fitr.ref)), self.a0, self.a1]
             history.append(pack)
             print(i, *[x+str(y) for x,y in zip(
                     ['\n Relative Error:  ', '\nCH1: ', '\nCH2: '], pack)])
@@ -180,8 +199,8 @@ class normaliser:
         time.sleep(sleep)
         ave_im = self.get_images(num_ims, iteration=self.i, sleep=sleep)
         self.process(ave_im)
-        c = self.fitr.df['I0']
-        return c.std()/c.mean()
+        #c = self.fitr.df['I0'] / self.fitr.ref # #c.std()/c.mean()
+        return np.sum(np.abs(1 - self.fitr.df['I0'] / self.fitr.ref))
         
     def save_meta_param(self, i=0, basedir=''):
         if not basedir:

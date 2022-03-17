@@ -65,7 +65,7 @@ class imageArray:
         
     def check_outlier(self, key='w'):
         """See if a value is an outlier based on the interquartile range from median"""
-        return (self.df[key].std() / self.df[key].mean() > 0.3).any()
+        return np.array(self.df[key].std() / self.df[key].mean() > 0.3).any()
         
     def autoROISize(self, filename='', imshape=(1024,1280), widget=None):
         """Choose ROI size automatically by fitting a Gaussian in an image."""
@@ -81,8 +81,10 @@ class imageArray:
             else: break
         # check if ROIs overlap
         overx, overy = 0, 0
-        xmins, xmaxs = self.df['xc'] - self._dx, self.df['xc'] + self._dx
-        ymins, ymaxs = self.df['yc'] - self._dy, self.df['yc'] + self._dy
+        xmins = np.array(sorted(self.df['xc'] - self._dx))
+        xmaxs = np.array(sorted(self.df['xc'] + self._dx))
+        ymins = np.array(sorted(self.df['yc'] - self._dy))
+        ymaxs = np.array(sorted(self.df['yc'] + self._dy))
         # if any boxes are outside camera ROI
         if len(xmins[xmins < 0]):
             overx = np.abs(np.min(xmins[xmins<0]))
@@ -128,6 +130,10 @@ class imageArray:
         self.fitImage()
         self.ref = self.df['I0'].mean()
         
+    def setTarget(self, amps):
+        """Use the fraction amplitudes between 0-1 to scale the reference intensity"""
+        self.ref = self.ref * np.array(amps).reshape(self._s)
+        
     def loadImage(self, filename, imshape=(1024,1280)):
         if 'bmp' in filename:
             self._imvals = np.array(Image.open(filename), dtype=float)[:,:,0]
@@ -158,11 +164,11 @@ class imageArray:
         # sort ROIs by x coordinate        
         lx, ly = self._s
         self.df = self.df.sort_values('xc')
-        if ly == 1: # one column, sort by y
+        if lx == 1: # one column, sort by y
             self.df = self.df.sort_values('yc')
         else:
-            for i in range(ly): # sort columns by y coordinate
-                self.df.iloc[i*lx:(i+1)*lx] = self.df.iloc[i*lx:(i+1)*lx].sort_values('yc')
+            for i in range(lx): # sort columns by y coordinate
+                self.df.iloc[i*ly:(i+1)*ly] = self.df.iloc[i*ly:(i+1)*ly].sort_values('yc')
         
                 
     def fitGaussAmp(self, im, x0, y0):
@@ -232,18 +238,15 @@ class imageArray:
         # widget.setGeometry(size)
         return viewbox
                 
-    def getScaleFactors(self, verbose=0, target=None):
+    def getScaleFactors(self, verbose=0):
         """Sort the ROIs and return an array of suggested scale factors to 
         make the intensities uniform."""
         lx, ly = self._s
+        I0s = self.df['I0'].values.reshape(self._s)
+        if np.shape(self.ref):
+            self.ref = self.ref.reshape(self._s)
         # make array of desired scale factors
-        I0s = self.df['I0'].values.reshape(self._s) / self.ref
-        if target:
-            try: target = target / I0s
-            except Exception as e: 
-                error("Invalid target for scale factor: "+str(target)+'\n'+str(e))
-                target = 1 / I0s
-        else: target = 1 / I0s # invert to get correction
+        target = self.ref / I0s
         def func(xy):
             return np.linalg.norm(np.outer(xy[:lx], xy[lx:]) - target)
         p0 = np.ones(lx + ly)
@@ -251,7 +254,7 @@ class imageArray:
         if verbose:
             info('Array scale factors ' + result.message + '\n' + 'Cost: %s'%result.fun)
         if verbose > 1: 
-            info("Intensities:\n"+str(self.df['I0'].values/self.ref))
+            info("Intensities:\n"+str(I0s/self.ref))
             info('Target:\n' + str(target.T) + '\nResult:\n' + str(
                 np.outer(result.x[lx:], result.x[:lx])))
         return (result.x[lx:], result.x[:lx]) # note: taking transform

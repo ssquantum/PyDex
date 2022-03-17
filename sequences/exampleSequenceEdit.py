@@ -18,10 +18,10 @@ except ImportError:
 import time
 t = translate()
 t0 = time.time()
-t.load_xml('Z:/Tweezer/Experimental Results/2021/August/13/Measure6/sequences/Measure6_5.xml')
+t.load_xml('Z:/Tweezer/Experimental Results/2022/March/15/Measure6/sequences/Measure6_0.xml')
 t1 = time.time()
-t.set_routine_name("Rb MW transition")
-t.set_routine_description("RSC then MW in 1064")
+t.set_routine_name("Dual RSC")
+t.set_routine_description("Use only RB2 for RSC")
 
 # the event list contains metadata for events.
 # if you remove or add a timestep, make sure to add its index to an event.
@@ -70,9 +70,13 @@ num_s = len(esc[tdict.get('Sequence header top')]) - 2 # total number of timeste
 #        esc[position][timestep+2][tdict.get('Time step length')][1].text = '30'
             
 # turn on some digital channels
+channel = 55
 for timestep in range(num_s):
-    for channel in [18,21]:
-        esc[tdict.get('Fast digital channels')][timestep + channel*num_s + 3][1].text = '1' # store booleans as int 0 = False, 1 = True
+    esc[tdict.get('Fast digital channels')][timestep + channel*num_s + 3][1].text = '0' # store booleans as int 0 = False, 1 = True
+
+channel = 54
+for timestep in list(range(28, 225,4))+list(range(228, 520,20)) + list(range(236,520,20)):
+    esc[tdict.get('Fast digital channels')][timestep + channel*num_s + 3][1].text = '1' # store booleans as int 0 = False, 1 = True
     
 # change some analogue voltages
 #for timestep in [7, 8, 9]:
@@ -89,7 +93,7 @@ for timestep in range(num_s):
 #        esc[tdict.get('Slow analogue array')][timestep + channel*num_s + 3][3][1].text = str(shim_values[i])
 
 t2 = time.time()
-t.write_to_file(r'Z:\Tweezer\Experimental Results\2021\August\13\RbMW.xml')
+t.write_to_file(r'Z:\Tweezer\Experimental Results\2022\March\15\RB2_RSC.xml')
 if len(sys.argv) > 1 and sys.argv[1] == '-timeit':
     t3 = time.time()
     t.write_to_str()
