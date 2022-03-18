@@ -61,7 +61,7 @@ class imageArray:
             else: self.fitfunc = self.fitGaussSum
         self._labels += [x+'_err' for x in self._labels] 
         self.df = pd.DataFrame(columns=self._labels) # xc, w, yc, h, I for each ROI
-        self.ref = 1  # reference intensity
+        self.ref = 1  # reference power
         
     def check_outlier(self, key='w'):
         """See if a value is an outlier based on the interquartile range from median"""
@@ -124,14 +124,14 @@ class imageArray:
         return bounds
         
     def setRef(self, imarr):
-        """Use an image to define the reference intensity as the mean of fitted 
-        intensities in the image."""
+        """Use an image to define the reference power as the mean of fitted 
+        powers in the image."""
         self._imvals = imarr
         self.fitImage()
         self.ref = self.df['I0'].mean()
         
     def setTarget(self, amps):
-        """Use the fraction amplitudes between 0-1 to scale the reference intensity"""
+        """Use the fraction amplitudes between 0-1 to scale the reference power"""
         self.ref = self.ref * np.array(amps).reshape(self._s)
         
     def loadImage(self, filename, imshape=(1024,1280)):
@@ -240,7 +240,7 @@ class imageArray:
                 
     def getScaleFactors(self, verbose=0):
         """Sort the ROIs and return an array of suggested scale factors to 
-        make the intensities uniform."""
+        make the powers uniform."""
         lx, ly = self._s
         I0s = self.df['I0'].values.reshape(self._s)
         if np.shape(self.ref):
@@ -254,7 +254,7 @@ class imageArray:
         if verbose:
             info('Array scale factors ' + result.message + '\n' + 'Cost: %s'%result.fun)
         if verbose > 1: 
-            info("Intensities:\n"+str(I0s/self.ref))
+            info("Powers:\n"+str(I0s.T/self.ref))
             info('Target:\n' + str(target.T) + '\nResult:\n' + str(
                 np.outer(result.x[lx:], result.x[:lx])))
         return (result.x[lx:], result.x[:lx]) # note: taking transform

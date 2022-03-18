@@ -573,7 +573,7 @@ class PSoC(object):
                 if self.connected:
                     # time.sleep(0.5)
                     self.Send_data_to_DDS(pack)
-                    self.Display_Message_DDS("Sent RAM data to DDS but i'm not sure it's working yet")
+                    
                 self.load_DDS_ram = False
         except Exception as e:
             self.Display_Message_DDS("Make sure the RAM data has been loaded.\n"+str(e))

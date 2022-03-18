@@ -16,7 +16,7 @@ def limit(arr, ulim=1):
     return arr
 
 class normaliser:
-    """Class to iteratively normalise an array of trap intensities using a CCD.
+    """Class to iteratively normalise an array of trap powers using a CCD.
     awgparam:     str path to file to load awg segment data from
     image_dir:    str directory to save images in
     cam_roi:      list roi in pixel coordinates: [xmin,ymin,xmax,ymax]
@@ -77,7 +77,7 @@ class normaliser:
                         'Camera ROI':cam_roi, 'Fit ROI size':fit_roi_size, 'reference':1})
         self.imhand.create_dirs()
         
-        #### fitr extracts trap positions and intensities from an image
+        #### fitr extracts trap positions and powers from an image
         self.fitr = imageArray(dims=(self.ncols, self.nrows), roi_size=fit_roi_size, fitmode='sum')
         
     def re_init(self, exposure=3):
@@ -110,7 +110,7 @@ class normaliser:
         
         
     def process(self, arr):
-        """Get intensities of traps in image and return correction factors"""
+        """Get powers of traps in image and return correction factors"""
         self.fitr._imvals = arr
         self.fitr.fitImage()
         return self.fitr.getScaleFactors()
@@ -127,7 +127,7 @@ class normaliser:
         bgnd = self.cam.take_image()
         image.add_background(bgnd)
         array = image.get_bgnd_corrected_array()
-        image.add_property('intensity_correction_iteration',iteration)
+        image.add_property('power_correction_iteration',iteration)
         image.add_property('rep',repetition)
         self.imhand.save(image)
         return np.rot90(array, self.rotate)
@@ -148,7 +148,7 @@ class normaliser:
         num_ave:     int number of sets to split the images into to take averages
         max_iter:    int stop the normalisation after this many iterations
         precision:   float stop the normalisation when cost is this value"""
-        history = [[1, self.a0, self.a1]]
+        history = [[1, list(self.a0), list(self.a1)]]
         for i in range(max_iter):
             # take images and calculate correction factors
             self.save_meta_param(i)
@@ -169,7 +169,7 @@ class normaliser:
             if any([I0 < 0 for I0 in c]):
                 print('\nCamera saturated, aborting optimisation...')
                 return history
-            pack = [np.sum(np.abs(1 - c / self.fitr.ref)), self.a0, self.a1]
+            pack = [np.sum(np.abs(1 - c / self.fitr.ref)), list(self.a0), list(self.a1)]
             history.append(pack)
             print(i, *[x+str(y) for x,y in zip(
                     ['\n Relative Error:  ', '\nCH1: ', '\nCH2: '], pack)])
@@ -182,6 +182,8 @@ class normaliser:
                 freqAdjust=True, ampAdjust=True, phaseAdjust=True)
         self.awg.filedata = eval(str(self.awg.filedata))
         self.awg.saveData(os.path.splitext(self.awg.param_file)[0] + '_normalised.txt')
+        np.savetxt(os.path.join(os.path.dirname(self.imhand.image_dir), 'iteration_results.txt' ), 
+                   np.array(history,dtype=object), fmt='%s', delimiter=',', header='Cost,CH0 amps,CH1 amps')
         self.i = 0
         return history
         
