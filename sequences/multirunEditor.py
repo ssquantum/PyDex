@@ -12,21 +12,13 @@ import copy
 import numpy as np
 from collections import OrderedDict
 from random import shuffle, randint
-try:
-    from PyQt4.QtCore import (pyqtSignal, QItemSelectionModel, QThread)
-    from PyQt4.QtGui import (QPushButton, QWidget, QLabel,
-        QGridLayout, QLineEdit, QDoubleValidator, QIntValidator, 
-        QComboBox, QListWidget, QListWidgetItem, QTabWidget, QVBoxLayout, QInputDialog,
-        QTableWidget, QTableWidgetItem, QScrollArea, QMessageBox,
-        QFileDialog, QApplication, QMainWindow) 
-except ImportError:
-    from PyQt5.QtCore import (pyqtSignal, QItemSelectionModel, QThread, Qt,
-                                QRect, QCoreApplication)
-    from PyQt5.QtGui import QDoubleValidator, QIntValidator
-    from PyQt5.QtWidgets import (QVBoxLayout, QWidget, QComboBox,
-        QLineEdit, QGridLayout, QPushButton, QListWidget, QListWidgetItem, 
-        QScrollArea, QLabel, QTableWidget, QTableWidgetItem, QMessageBox,
-        QFileDialog, QApplication, QMainWindow)
+from PyQt5.QtCore import (pyqtSignal, QItemSelectionModel, QThread, Qt,
+                            QRect, QCoreApplication, QTimer)
+from PyQt5.QtGui import QDoubleValidator, QIntValidator
+from PyQt5.QtWidgets import (QVBoxLayout, QWidget, QComboBox,
+    QLineEdit, QGridLayout, QPushButton, QListWidget, QListWidgetItem, 
+    QScrollArea, QLabel, QTableWidget, QTableWidgetItem, QMessageBox,
+    QFileDialog, QApplication, QMainWindow)
 if '.' not in sys.path: sys.path.append('.')
 if '..' not in sys.path: sys.path.append('..')
 from mythread import reset_slot # for dis- and re-connecting slots
@@ -651,9 +643,12 @@ class multirun_widget(QWidget):
     #### save and load parameters ####
 
     def view_mr_queue(self):
-        """Show the window for editing the multirun queue"""
+        """Show the window for editing the multirun queue, but close it after 10
+        minutes so that it doesn't hold up multiruns"""
         self.queue_ui.updateList()
         self.QueueWindow.show()
+        QTimer.singleShot(int(1e3*10*60), self.QueueWindow.close)
+        
 
     def try_browse(self, title='Select a File', file_type='all (*)', 
                 open_func=QFileDialog.getOpenFileName):

@@ -12,9 +12,12 @@ from scipy.interpolate import interp1d
 from mpl_toolkits.mplot3d import Axes3D
 
 fdir = r'Z:\Tweezer\Experimental\Setup and characterisation\Settings and calibrations\tweezer calibrations\AWG calibrations'
-filename = fdir + r'\814_H_calFile_17.02.2022.txt'
+# filename = fdir + r'\938_calFile_06.04.2022.txt'
+# calibration = load_calibration(filename,
+#             fs = np.linspace(135,195,150), power = np.linspace(0,1,200))
+filename = fdir + r'\814_V_calFile_17.02.2022'
 calibration = load_calibration(filename,
-            fs = np.linspace(85,110,100), power = np.linspace(0,1,200))
+            fs = np.linspace(85,115,100), power = np.linspace(0,1,200))
 
 with open(filename) as json_file:
         calFile = json.load(json_file) 
@@ -41,19 +44,20 @@ plt.ylabel('RF Amplitude (mV)')
 
 #%%
 #### for a given frequency and RF power in, what is the expected output optical power?
-f, rf, de = get_de(100, 140, calFile["DE_RF_calibration"])
+f, rf, de = get_de(101.375, 140, calFile["DE_RF_calibration"])
 print('Expected output power at %s MHz, %.4g mV: %.4g %%'%(f, rf, de*100))
 
 
 
 #### for a given frequency and desired output optical power, what is the required RF power in mV?
 
-f = 100 # AWG frequency in MHz
+f = 101.375 # AWG frequency in MHz
 p = 1 # optical power as a fraction of that at the reference value (166 MHz, 220mV for 938, 100MHz, 150mV for 814)
 print('Required RF power to get %.3g%% output at %s MHz: %.4g mV'%(p*100, f, ampAdjuster2d(f, p, calibration)))
 
+#%%
 ## for multiple frequencies
-freqs = np.linspace(85, 110, 200) # frequency in MHz
+freqs = np.linspace(135, 195, 200) # frequency in MHz
 power = 0.3 
 plt.figure(0)
 plt.plot(freqs, ampAdjuster2d(freqs, power, calibration))

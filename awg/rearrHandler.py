@@ -243,7 +243,7 @@ class rearrange():
             # has to be moving so that the duration of data is right (static does loops)
             data2 = self.awg.dataGen(seg, chan2, 'moving', duration, 
                         f3, f3, 1, # frequencies
-                        self.rParam['alt_amp_[mV]'], [1]*len(f3), [1]*len(f3), # amps
+                        self.rParam['alt_amp_[mV]'], [self.rParam['alt_freq_amp']]*len(f3), [self.rParam['alt_freq_amp']]*len(f3), # amps
                         phase, #phase
                         self.rParam['freq_adjust'], self.rParam['amp_adjust'])
             self.movesDict[key].insert(chan2, data2)
@@ -353,6 +353,8 @@ class rearrange():
         
         with open(self.rr_config) as json_file:
             self.rParam = json.load(json_file)
+        if not 'alt_freq_amp' in self.rParam.keys():
+            self.rParam['alt_freq_amp'] = 1.
         self.rearrMode = self.rParam["rearrMode"]
         self.initial_freqs = self.rParam['initial_freqs']
         self.target_freqs = self.rParam['target_freqs']

@@ -25,3 +25,4 @@ boss.rr.awg.start()
 boss.show()
 if standalone: # if an app instance was made, execute it
     sys.exit(app.exec_())
+    

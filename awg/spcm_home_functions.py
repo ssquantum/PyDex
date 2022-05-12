@@ -148,7 +148,7 @@ def chirp(t,d,T,a):
 # Values that normally go above 1, are limited to 1.
 ########################################################
 
-def load_calibration(filename, fs = np.linspace(135,190,150), power = np.linspace(0,1,50)):
+def load_calibration(filename, fs = np.linspace(135,190,150), power = np.linspace(0,1,100)):
     """Convert saved diffraction efficiency data into a 2D freq/amp calibration"""
     with open(filename) as json_file:
         calFile = json.load(json_file) 
@@ -183,7 +183,7 @@ def load_calibration(filename, fs = np.linspace(135,190,150), power = np.linspac
     
 
 importPath="Z:\\Tweezer\Experimental\\Setup and characterisation\\Settings and calibrations\\tweezer calibrations\\AWG calibrations\\"
-importFile = "calFile_08.06.2021.txt"
+importFile = "938_calFile_06.04.2022.txt"
 
 with open(importPath+importFile) as json_file:
     calFile1 = json.load(json_file) 
@@ -595,6 +595,61 @@ def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=22
     
     return y
 
+def exp_ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tau=0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz, cal=cal2d):
+    """
+    freqs         : Defined in [MHz]. Accepts int, list and np.arrays()
+    numberOfTraps : Defines the total number of traps including the central frequency.
+    distance      : Defines the relative distance between each of the trap in [MICROmeters]. Can accept negative values.
+    duration      : Defines the duration of the static trap in [MILLIseconds]. The actual duration is handled by the number of loops.
+    tau           : 1/e time of expon
+    tot_amp       : Defines the global amplitude of the sine waves [mV]
+    startAmp      : Defines the individual frequency starting amplitude as a fraction of the global (ranging from 0 to 1).
+    endAmp        : Defines the individual frequency ending amplitude as a fraction of the global (ranging from 0 to 1).
+    freq_phase    : Defines the individual frequency phase in degrees [deg].
+    freqAdjust    : On/Off switch for whether the frequency should be adjusted to full number of cycles [Bool].
+    ampAdjust     : On/Off switch for whether the amplitude should be adjusted to create a diffraction flattened profile.
+    sampleRate    : Defines the sample rate by which the data will read [in Hz].
+    umPerMHz      : Conversion rate for the AWG card.
+    """
+    Samplerounding = 1024 # Reference number of samples
+    if type(freqs)==list or type(freqs)==np.ndarray:
+        freqs = np.array(freqs)
+        numberOfTraps = len(freqs)
+    else:
+        separation = distance/umPerMHz *10**6
+        freqs = np.linspace(freqs,freqs+numberOfTraps*separation,numberOfTraps, endpoint=False)
+    ################
+    # Calculate the number of samples
+    ######################################### 
+    memBytes = round(sampleRate * (duration*10**-3)/Samplerounding) #number of bytes as a multiple of kB
+    if memBytes <1:
+        memBytes =1
+    numOfSamples = int(memBytes*Samplerounding) # number of samples
+    #########
+    # Adjust the frequencies to full number of cycles for the 
+    # given number of samples if requested.
+    ###############################################
+    if freqAdjust == True:
+        adjFreqs = adjuster(freqs,sampleRate,numOfSamples)
+    else:
+        adjFreqs = freqs
+    #########
+    # Generate the data 
+    ##########################   
+    t =np.arange(numOfSamples)
+    endAmp = np.array(endAmp)
+    startAmp = np.array(startAmp)
+    amps = np.exp(-t*duration/tau) * (startAmp - endAmp) + endAmp
+    if ampAdjust:
+        y = 1./282*0.5*2**16*\
+            np.sum([ampAdjuster2d(adjFreqs[Y]*1e-6, amps, cal=cal) * 
+                np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+    else:
+        y = 1.*tot_amp/282/len(freqs)*0.5*2**16*\
+            np.sum([amps * 
+                np.sin(2.*np.pi*t*adjFreqs[Y]/sampleRate + 2*np.pi*freq_phase[Y]/360) for Y in range(numberOfTraps)],axis=0)
+    
+    return y
 
 def ampModulation(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1,tot_amp=10,freq_amp = [1],mod_freq=100e3,mod_depth=0.2,freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz, cal=cal2d):
     """

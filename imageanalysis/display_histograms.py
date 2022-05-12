@@ -15,13 +15,13 @@ from imageanalysis.histoHandler import histo_handler
 from scipy.optimize import curve_fit
 
 # choose all of the options to plot
-fdir = r'Z:\Tweezer\Experimental Results\2020\October\22\Measure1' # directory files are stored in 
+fdir = r'Z:\Tweezer\Experimental Results\2022\March\17\Measure11' # directory files are stored in 
 hh = histo_handler()
-hh.load(fdir+r'\ROI0.Im0.Measure1.dat') # load the log/measure file containing histogram statistics to plot
+hh.load(fdir+r'\ROI2.Im0.Measure11.dat') # load the log/measure file containing histogram statistics to plot
 # hh.sort_dict() # sort the histograms in ascending order of user_var measured
-prestring = r'\ROI0.Im0.' # prestring at the start of the histogram csv files
+prestring = r'\ROI2.Im0.' # prestring at the start of the histogram csv files
 num_bins = 25   # number of bins to make the histograms with
-var_unit = 'kHz' # units for the user variable
+var_unit = 'MHz' # units for the user variable
 def conv(x): 
     """conversion function for the user variable"""
     return x#-2*(16.41*x + 65.04-95.12) 
@@ -71,8 +71,8 @@ for i in range(8):#len(hh.stats['File ID'])):
 for i in range(len(ax)): # update the horizontal axis limits
     ax[i].set_xlim(xlim)
     # add text with the user variable
-    ax[i].text(np.mean(xlim),np.mean(ax[i].get_ylim()),'%.3g'%(conv(hh.stats['User variable'][i]))+' '+var_unit)
-    print('var: %.4g'%(conv(hh.stats['User variable'][i]))+' '+var_unit+ '   -- S/N: %.3g +/- %.1g'%(SN[i],SNerr[i]))
+    ax[i].text(np.mean(xlim),np.mean(ax[i].get_ylim()),'%.4f'%(conv(hh.stats['User variable'][i]))+' '+var_unit)
+    print('var: %.4f'%(conv(hh.stats['User variable'][i]))+' '+var_unit+ '   -- S/N: %.3g +/- %.1g'%(SN[i],SNerr[i]))
   
 plt.show()
 

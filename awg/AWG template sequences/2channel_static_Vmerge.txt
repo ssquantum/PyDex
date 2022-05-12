@@ -32,8 +32,8 @@
                 "freq_adjust": "False",
                 "freq_amp": "[0.91]",
                 "freq_phase_[deg]": "[0]",
-                "freqs_input_[MHz]": "[100]",
-                "freqs_output_[Hz]": "[10000000]",
+                "freqs_input_[MHz]": "[98.725]",
+                "freqs_output_[Hz]": "[98725000]",
                 "num_of_samples": 1024,
                 "num_of_traps": 1,
                 "segment": 0,
@@ -48,14 +48,14 @@
                 "distance_[um]": 9,
                 "duration_[ms]": 1,
                 "freq_adjust": "False",
-                "freq_amp": "[0.91]",
+                "freq_amp": "[0]",
                 "freq_phase_[deg]": "[0]",
-                "freqs_input_[MHz]": "[102]",
-                "freqs_output_[Hz]": "[1020000]",
+                "freqs_input_[MHz]": "[140]",
+                "freqs_output_[Hz]": "[140]",
                 "num_of_samples": 1024,
                 "num_of_traps": 1,
                 "segment": 0,
-                "tot_amp_[mV]": 150
+                "tot_amp_[mV]": 0
             }
         }
     },

@@ -120,7 +120,7 @@ class runnum(QThread):
         """Change the Dexter run number to the new value.
         If it's during a multirun, check that the right number of 
         images were taken in the last run."""
-        if self._k != self._m and self.seq.mr.ind > 1:
+        if self._k != self._m and self.seq.mr.ind > 1 and self._k > 0:
             warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
         self._n = int(dxn)
         self._k = 0 # reset image count --- each run should start with im0

@@ -1,9 +1,9 @@
 {
  "rearrMode":"use_exact",
  "headroom_segs":10,
- "final_freq_amp":0.91,
+ "final_freq_amp":1,
  "target_freqs":[
-  100
+  98.725
  ],
  "channel":0,
  "tot_amp_[mV]":150,
@@ -19,6 +19,7 @@
  "static_duration_[ms]":0.04,
  "phase_adjust":true,
  "rearr_freq_amps":0.3,
- "alt_freqs":[102],
- "alt_amp_[mV]":150
+ "alt_freqs":[101.329],
+ "alt_amp_[mV]":150,
+ "alt_freq_amp":1
 }

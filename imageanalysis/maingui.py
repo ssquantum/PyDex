@@ -686,6 +686,7 @@ class main_window(QMainWindow):
         widgets.
         If the toggle is No Display, processes files but doesn't show on histogram
         If the toggle is No Update, files are not processed for the histogram."""
+        reset_slot(self.event_im, self.image_handler.process, False)
         if self.bin_actions[1].isChecked(): # manual
             self.swap_signals()  # disconnect image handler, reconnect plot
             self.bins_text_edit('reset')            

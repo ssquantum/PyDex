@@ -36,12 +36,13 @@ def plot_playback(data):
     """Display the timed sequence on a plot. Produces a Frequency and Amplitude plot
     of the consecutive segments for each channel."""
     sample_rate = data['properties']['card_settings']['sample_rate_Hz']
+    plt.close('all')
     for chan in eval(data['properties']['card_settings']['active_channels']):
-        fig0 = plt.figure(2*chan)
+        fig0 = plt.figure(2*chan, figsize=(6,4))
         ax0  = fig0.add_subplot(111)
         ax0.set_ylabel('Frequency (MHz)')
         ax0.set_xlabel('Step Duration (ms)')
-        fig1 = plt.figure(2*chan+1, figsize=(5,8))
+        fig1 = plt.figure(2*chan+1, figsize=(6,8))
         ax1  = fig1.add_subplot(211)
         ax1.set_ylabel('Amplitude (mV)')
         ax2  = fig1.add_subplot(212)
@@ -73,7 +74,7 @@ def plot_playback(data):
                     fadjust = seg['freq_adjust']
                     tot_amp = seg['tot_amp_[mV]']
                     if eval(fadjust):
-                        freqs_input = adjuster(freqs_input*1e6, sample_rate, seg['num_of_samples'])
+                        freqs_input = adjuster(freqs_input*1e6, sample_rate, seg['num_of_samples'])/1e6
                     ax0.plot([[i]*N, [i+1]*N], [freqs_input]*2)
                     # amp - would be faster to use arrays but difficult with power calibration
                     if 'static' in action_type or 'switch' in action_type:
@@ -148,7 +149,7 @@ def plot_playback(data):
 if __name__ == "__main__":
     import json
     t0 = time.time()
-    with open(r"Z:\Tweezer\Experimental Results\2021\August\06\AWGRandR.txt") as f:
+    with open(r"Z:\Tweezer\Experimental\Useful experimental sequences and settings\AWG2\Axial_2DScan.txt") as f:
         filedata = json.load(f)
     t1 = time.time()
     print(t1 - t0)

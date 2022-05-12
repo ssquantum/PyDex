@@ -171,7 +171,7 @@ def dataj(data,segVal,chVal,action,duration,*args):
         else:
             print('wrong number of arguments')
 
-    if action ==6: 
+    elif action ==6: 
         data["segments"][seg][ch] = {
             'segment'             :segVal,
             'channel_out'         :chVal,
@@ -185,7 +185,31 @@ def dataj(data,segVal,chVal,action,duration,*args):
             'num_of_samples'      :args[3]
             }
            
-            
+    elif action == 7:
+
+        if len(args)==12:
+            data["segments"][seg][ch] = {
+            'segment'             :segVal,
+            'channel_out'         :chVal,
+            'action_type'         :'1/e amp ramping trap',
+            'action_code'         :'exp_ramp',
+            'action_val'          :action,
+            'duration_[ms]'       :duration,
+            'freqs_input_[MHz]'   :args[0],
+            'num_of_traps'        :args[1],
+            'distance_[um]'       :args[2],
+            '1/e_time_[ms]'       :args[3],
+            'tot_amp_[mV]'        :args[4],
+            'start_amp'           :args[5],
+            'end_amp'             :args[6],
+            'freq_phase_[deg]'    :args[7],
+            'freq_adjust'         :args[8],
+            'amp_adjust'          :args[9],
+            'freqs_output_[Hz]'   :args[10],
+            'num_of_samples'      :args[11]
+            }
+        else:
+            print("wrong number of arguments")
            
 def stepj(data,stepVal,segVal,loopNum,nextStep,condition):
     
