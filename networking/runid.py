@@ -101,13 +101,14 @@ class runnum(QThread):
         self.clientmwg.start()
         self.clientmwg.textin.connect(self.add_mr_msgs) # msg from MW generator control starts next multirun step
         
+        self.server_list = [self.server, self.trigger, self.monitor, self.awgtcp1, self.ddstcp1, 
+                self.slmtcp, self.seqtcp, self.awgtcp2, self.ddstcp2, self.mwgtcp]
         
     def reset_server(self, force=False):
         """Check if the server is running. If it is, don't do anything, unless 
         force=True, then stop and restart the server. If the server isn't 
         running, then start it."""
-        for server in [self.server, self.trigger, self.monitor, self.awgtcp1, self.ddstcp1, 
-                self.slmtcp, self.seqtcp, self.awgtcp2, self.ddstcp2, self.mwgtcp]:
+        for server in self.server_list:
             if server.isRunning():
                 if force:
                     server.close()
@@ -489,3 +490,5 @@ class runnum(QThread):
         self.seq.mr.progress.emit(       # update progress label
             'Finished measure %s: %s.'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label']))
         self.seq.mr.multirun = False
+        for server in self.server_list[2:]:
+                server.clear_queue() # otherwise messages to save params build up
