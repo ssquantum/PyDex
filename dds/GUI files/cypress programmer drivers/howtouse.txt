@@ -1,0 +1,1 @@
+DPInst /Q /SW /SE

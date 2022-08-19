@@ -118,13 +118,22 @@ class multirun_widget(QWidget):
             ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'), 
             ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'),
             ('# omitted', 5), ('# in hist', 100), ('list index', ['0']*ncols)])
-        self.awg_args = ['duration_[ms]','off_time_[us]','freqs_input_[MHz]','start_freq_[MHz]','end_freq_[MHz]','hybridicity',
-        'num_of_traps','distance_[um]','tot_amp_[mV]','dc_offset_[mV]','start_amp','end_amp','start_output_[Hz]','end_output_[Hz]',
-        'freq_amp','mod_freq_[kHz]','mod_depth','freq_phase_[deg]','freq_adjust','amp_adjust','freqs_output_[Hz]',
-        'num_of_samples','duration_loop_[ms]','number_of_cycles']
+        self.awg_args = ['duration_ms','start_freq_MHz','end_freq_MHz',
+                         'hybridicity','start_amp','end_amp','drop_amp',
+                         'drop_time_us','mod_amp','mod_freq_kHz',
+                         'index','start_phase','-------',
+                         'duration_[ms]','off_time_[us]','freqs_input_[MHz]',
+                         'start_freq_[MHz]','end_freq_[MHz]','hybridicity',
+                         'num_of_traps','distance_[um]','tot_amp_[mV]',
+                         'dc_offset_[mV]','start_amp','end_amp',
+                         'start_output_[Hz]','end_output_[Hz]','freq_amp',
+                         'mod_freq_[kHz]','mod_depth','freq_phase_[deg]',
+                         'freq_adjust','amp_adjust','freqs_output_[Hz]',
+                         'num_of_samples','duration_loop_[ms]',
+                         'number_of_cycles']
         self.dds_args = ['Freq', 'Phase', 'Amp', 'Start_add', 'End_add', 'Step_rate', 'Sweep_start', 
         'Sweep_end', 'Pos_step', 'Neg_step', 'Pos_step_rate', 'Neg_step_rate']
-        self.slm_args = ['f','period','angle','radius','gradient','shift','radial','azimuthal','amplitude']
+        self.slm_args = ['f','period','angle','radius','gradient','shift','radial','azimuthal','amplitude','max_mod_depth']
         self.mwg_args = ['freq (MHz)','amp (dBm)']
         self.column_options = ['Analogue voltage', 'AWG1 chan : seg', 'AWG2 chan : seg',
             'DDS1 port : profile', 'DDS2 module : profile', 'SLM holograms','MWG tones'] # these analogue types require the analogue options 

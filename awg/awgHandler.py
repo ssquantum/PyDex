@@ -661,6 +661,8 @@ class AWG:
             # Set the buffer memory
             ################################# 
             
+            #print('\nsegment',segment)
+            #print(multi[:6])
             
             lib = ctypes.cdll.LoadLibrary(r"Z:\Tweezer\Code\Python 3.5\PyDex\awg\memCopier\bin\Debug\memCopier.dll")
             
@@ -1525,7 +1527,7 @@ class AWG:
                 flag =1
         
         #####################################################################
-        # 1/e decay RAMPED TRAPS - ACTION 7
+        # smoothed decay RAMPED TRAPS - ACTION 7
         #####################################################################
         
         
@@ -1535,18 +1537,17 @@ class AWG:
             ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tau=0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =0.329)
             """
             
-            if len(args)==10:
+            if len(args)==9:
                 
                 f1         = typeChecker(args[0])
                 numOfTraps = typeChecker(args[1])
                 distance   = typeChecker(args[2])
-                eTime      = typeChecker(args[3])
-                tot_amp    = typeChecker(args[4])
-                startAmp   = typeChecker(args[5])
-                endAmp     = typeChecker(args[6])
-                freq_phase = typeChecker(args[7])
-                fAdjust    = typeChecker(args[8])
-                aAdjust    = typeChecker(args[9])
+                tot_amp    = typeChecker(args[3])
+                startAmp   = typeChecker(args[4])
+                endAmp     = typeChecker(args[5])
+                freq_phase = typeChecker(args[6])
+                fAdjust    = typeChecker(args[7])
+                aAdjust    = typeChecker(args[8])
                     
                 if type(f1) == list or type(f1)==np.ndarray:
                     """
@@ -1610,8 +1611,8 @@ class AWG:
                     flag = 1  
                 self.exp_freqs = getFrequencies(action,self.f1,numOfTraps,distance,self.duration,self.fAdjust,self.sample_rate.value,AWG.umPerMHz)
                 if flag==0:
-                    outData = exp_ramp(self.f1,numOfTraps,distance,self.duration,eTime,self.tot_amp,self.startAmp,self.endAmp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz,cal=self.cals[channel])
-                    dataj(self.filedata,self.segment,channel,action,self.duration, str(f1),numOfTraps,distance,eTime,\
+                    outData = exp_ramp(self.f1,numOfTraps,distance,self.duration,self.tot_amp,self.startAmp,self.endAmp,self.freq_phase,self.fAdjust,self.aAdjust,self.sample_rate.value,AWG.umPerMHz,cal=self.cals[channel])
+                    dataj(self.filedata,self.segment,channel,action,self.duration, str(f1),numOfTraps,distance,\
                     self.tot_amp,str(self.startAmp),str(self.endAmp),str(self.freq_phase),str(self.fAdjust),str(self.aAdjust),\
                     str(self.exp_freqs),self.numOfSamples)
                     
@@ -1838,7 +1839,7 @@ class AWG:
                     6:('segment','channel_out','action_val','duration_[ms]','mod_freq_[kHz]',
                     'dc_offset_[mV]','mod_depth'),
                     7:('segment','channel_out','action_val','duration_[ms]','freqs_input_[MHz]','num_of_traps','distance_[um]',
-                    '1/e_time_[ms]','tot_amp_[mV]','start_amp','end_amp','freq_phase_[deg]','freq_adjust','amp_adjust')}
+                    'tot_amp_[mV]','start_amp','end_amp','freq_phase_[deg]','freq_adjust','amp_adjust')}
     
     stepOrder = ("step_value","segment_value","num_of_loops","next_step","condition")
     

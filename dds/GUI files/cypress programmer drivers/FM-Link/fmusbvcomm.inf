@@ -1,0 +1,219 @@
+;************************************************************
+; Windows USB CDC ACM Setup File
+; Copyright (c) 2000 Microsoft Corporation
+
+
+[Version]
+Signature="$Windows NT$"
+;Class=HIDClass  
+;ClassGuid={745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+;Class=USBDevice
+;ClassGuid={88BAE032-5A81-49f0-BC3D-A4FF138216D6}
+Class=Ports
+ClassGuid={4D36E978-E325-11CE-BFC1-08002BE10318}
+Provider=%MFGNAME%
+LayoutFile=layout.inf
+CatalogFile=%MFGFILENAME%.cat
+DriverVer=09/07/2015,7.4.0000.0
+
+[DefaultInstall]
+;CopyINF=fmusbvcomm.inf
+
+[Manufacturer]
+%MFGNAME%=DeviceList, NTamd64, NTia64
+
+[DestinationDirs]
+FakeModemCopyFileSection=12
+DefaultDestDir=12
+
+
+;------------------------------------------------------------------------------
+;  Windows 2000/XP/Vista-32bit Sections
+;------------------------------------------------------------------------------
+
+
+[DriverInstall.nt]
+include=mdmcpq.inf
+CopyFiles= FakeModemCopyFileSection
+AddReg=DriverInstall.nt.AddReg
+
+[DriverCopyFiles.nt]
+usbser.sys,,,0x20
+
+[DriverInstall.nt.AddReg]
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,usbser.sys
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider"
+HKR,,,,Ports
+
+[DriverInstall.nt.Services]
+AddService=usbser, 0x00000002, DriverService.nt
+
+[DriverService.nt]
+DisplayName=%SERVICE%
+ServiceType=1
+StartType=3
+ErrorControl=1
+ServiceBinary=%12%\usbser.sys
+
+
+[DriverCmsisDapInstall.nt]
+include=input.inf
+AddReg=DriverCmsisDapInstall.nt.AddReg
+
+[DriverHidInstall.nt]
+include=input.inf
+AddReg=DriverHidInstall.nt.AddReg
+
+[DriverCmsisDapInstall.nt.AddReg]
+HKR,,LocationInformationOverride,,"Cypress CMSIS-DAP"
+HKR,,DeviceInterfaceGUIDs,0x10000,"{745a17a0-74d3-11d0-b6fe-00a0c90f57da}"
+HKR,,DeviceInterfaceGUID,0x10000,"{745a17a0-74d3-11d0-b6fe-00a0c90f57da}"
+
+[DriverHidInstall.nt.AddReg]
+HKR,,LocationInformationOverride,,"Cypress HID Com"
+HKR,,DeviceInterfaceGUIDs,0x10000,"{745a17a0-74d3-11d0-b6fe-00a0c90f57da}"
+HKR,,DeviceInterfaceGUID,0x10000,"{745a17a0-74d3-11d0-b6fe-00a0c90f57da}"
+
+[DriverHidInstall.nt.Services]
+Include=INPUT.INF
+Needs=HID_Inst.NT.Services
+
+[DriverCmsisDapInstall.nt.Services]
+Include=INPUT.INF
+Needs=HID_Inst.NT.Services
+
+
+;------------------------------------------------------------------------------
+;  Vista-64bit Sections
+;------------------------------------------------------------------------------
+
+[DriverCmsisDapInstall.NTamd64]
+include=input.inf
+Needs=HID_Inst.NT
+AddReg=DriverCmsisDapInstall.NTamd64.AddReg
+
+
+[DriverHidInstall.NTamd64]
+include=input.inf
+Needs=HID_Inst.NT
+AddReg=DriverHidInstall.NTamd64.AddReg
+
+[DriverInstall.NTamd64]
+include=mdmcpq.inf
+CopyFiles= FakeModemCopyFileSection
+AddReg=DriverInstall.NTamd64.AddReg
+
+[DriverCopyFiles.NTamd64]
+usbser.sys,,,0x20
+
+[DriverCmsisDapInstall.NTamd64.AddReg]
+HKR,,LocationInformationOverride,,"Cypress CMSIS-DAP"
+HKR,,DeviceInterfaceGUIDs,0x10000,"{745a17a0-74d3-11d0-b6fe-00a0c90f57da}"
+HKR,,DeviceInterfaceGUID,0x10000,"{745a17a0-74d3-11d0-b6fe-00a0c90f57da}"
+
+[DriverHidInstall.NTamd64.AddReg]
+HKR,,LocationInformationOverride,,"Cypress HID Com"
+HKR,,DeviceInterfaceGUIDs,0x10000,"{745a17a0-74d3-11d0-b6fe-00a0c90f57da}"
+HKR,,DeviceInterfaceGUID,0x10000,"{745a17a0-74d3-11d0-b6fe-00a0c90f57da}"
+
+
+[DriverHidInstall.NTamd64.Services]
+Include=INPUT.INF
+Needs=HID_Inst.NTamd64.Services
+
+[DriverCmsisDapInstall.NTamd64.Services]
+Include=INPUT.INF
+Needs=HID_Inst.NT.Services
+
+[DriverInstall.NTamd64.AddReg]
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,usbser.sys
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider"
+HKR,,,,Ports
+
+[DriverInstall.NTamd64.Services]
+AddService=usbser, 0x00000002, DriverService.NTamd64
+
+[DriverService.NTamd64]
+DisplayName=%SERVICE%
+ServiceType=1
+StartType=3
+ErrorControl=1
+ServiceBinary=%12%\usbser.sys
+
+;[HID_Inst.NTamd64.Services]
+;AddService = HidUsb,%SPSVCINST_ASSOCSERVICE%,HID_Service_Inst
+
+;------------------------------------------------------------------------------
+;  Vendor and Product ID Definitions
+;------------------------------------------------------------------------------
+; When developing your USB device, the VID and PID used in the PC side
+; application program and the firmware on the microcontroller must match.
+; Modify the below line to use your VID and PID.  Use the format as shown below.
+; Note: One INF file can be used for multiple devices with different VID and PIDs.
+; For each supported device, append ",USB\VID_xxxx&PID_yyyy" to the end of the line.
+;------------------------------------------------------------------------------
+[SourceDisksNames]
+
+[DeviceList]
+%DESCRIPTION%=DriverInstall, USB\VID_1F55&PID_0004
+%DESCRIPTION%=DriverInstall, USB\VID_1F55&PID_0005
+%DESCRIPTION%=DriverInstall, USB\VID_1A6A&PID_2001
+
+
+%COMPOSITEDAPCOM%=DriverInstall, USB\VID_1F55&PID_0014&MI_01
+%COMPOSITEDAPCOM%=DriverInstall, USB\VID_1A6A&PID_2000&MI_01
+%COMPOSITECOM%=   DriverInstall, USB\VID_1F55&PID_0017&MI_01
+%COMPOSITECOM%=   DriverInstall, USB\VID_1F55&PID_0018&MI_01
+%COMPOSITECOM%=   DriverInstall, USB\VID_1A6A&PID_2009&MI_01
+%COMPOSITECOM%=   DriverInstall, USB\VID_1A6A&PID_200B&MI_01
+%COMPOSITECOM%=   DriverInstall, USB\VID_1A6A&PID_2002&MI_01
+
+;%COMPOSITECMSISDAP%=DriverCmsisDapInstall, USB\VID_1F55&PID_0014&MI_00
+;%COMPOSITECMSISDAP%=DriverCmsisDapInstall, USB\VID_1A6A&PID_2000&MI_00
+
+;%COMPOSITEHID%=     DriverHidInstall,      USB\VID_1F55&PID_0017&MI_00
+;%COMPOSITEHID%=     DriverHidInstall,      USB\VID_1A6A&PID_2002&MI_00 
+;%COMPOSITEMSD%=     DriverHidInstall,      USB\VID_1A6A&PID_2002&MI_00
+
+[DeviceList.NTamd64]
+%DESCRIPTION%=DriverInstall, USB\VID_1F55&PID_0004
+%DESCRIPTION%=DriverInstall, USB\VID_1F55&PID_0005
+
+
+%COMPOSITEDAPCOM%=DriverInstall, USB\VID_1F55&PID_0014&MI_01
+%COMPOSITEDAPCOM%=DriverInstall, USB\VID_1A6A&PID_2000&MI_01
+%COMPOSITECOM%=   DriverInstall, USB\VID_1F55&PID_0017&MI_01
+%COMPOSITECOM%=   DriverInstall, USB\VID_1F55&PID_0018&MI_01
+%COMPOSITECOM%=   DriverInstall, USB\VID_1A6A&PID_2009&MI_01
+%COMPOSITECOM%=   DriverInstall, USB\VID_1A6A&PID_200B&MI_01
+%COMPOSITECOM%=   DriverInstall, USB\VID_1A6A&PID_2002&MI_01
+
+;%COMPOSITECMSISDAP%=DriverCmsisDapInstall, USB\VID_1F55&PID_0014&MI_00
+;%COMPOSITECMSISDAP%=DriverCmsisDapInstall, USB\VID_1A6A&PID_2000&MI_00
+
+;%COMPOSITEHID%=     DriverHidInstall,      USB\VID_1F55&PID_0017&MI_00
+;%COMPOSITEHID%=     DriverHidInstall,      USB\VID_1A6A&PID_2002&MI_00
+;%COMPOSITEMSD%=     DriverHidInstall,      USB\VID_1A6A&PID_2002&MI_00
+
+;------------------------------------------------------------------------------
+;  String Definitions
+;------------------------------------------------------------------------------
+;Modify these strings to customize your device
+;------------------------------------------------------------------------------
+[Strings]
+MFGFILENAME="cdc_fm_mcu"
+DRIVERFILENAME ="usbser"
+MFGNAME="Cypress"
+INSTDISK="Cypress, CDC Installation Disc for FM MCUs"
+
+DESCRIPTION="Cypress FM Communications Port"
+COMPOSITECOM="Cypress FM Communications Port"
+COMPOSITEDAPCOM="FM-Link/CMSIS-DAP Cypress FM Communications Port"
+
+SERVICE="USB RS-232 Emulation Driver"
+
+COMPOSITECMSISDAP="Cypress CMSIS-DAP"
+COMPOSITEMSD="Cypress Mass Storage"
+COMPOSITEHID="Cypress HID Com"

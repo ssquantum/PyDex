@@ -2419,8 +2419,11 @@ class Ui_MainWindow(object):
         
     def set_stp_amp(self):
         val = self.dbl_fixup(self.MainWindow.sender().text())
-        self.amp[self.ind, self.MainWindow.sender().i] = abs(float(val))
-        self.MainWindow.sender().setText(val)
+        try: 
+            self.amp[self.ind, self.MainWindow.sender().i] = abs(float(val))
+            self.MainWindow.sender().setText(val)
+        except ValueError: 
+            pass
         
     def set_ram_start(self):
         try:

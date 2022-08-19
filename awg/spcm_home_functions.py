@@ -486,6 +486,8 @@ def static(centralFreq=170*10**6,numberOfTraps=4,distance=0.329*5,duration = 0.1
         
     else:
         adjFreqs = freqs
+        
+    #print('adjusted freqs',adjFreqs)
     
     #########
     # Generate the data 
@@ -595,13 +597,12 @@ def ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=22
     
     return y
 
-def exp_ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tau=0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz, cal=cal2d):
+def exp_ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tot_amp=220,startAmp=[1],endAmp=[0],freq_phase=[0],freqAdjust=True,ampAdjust=True,sampleRate = 625*10**6,umPerMHz =cal_umPerMHz, cal=cal2d):
     """
     freqs         : Defined in [MHz]. Accepts int, list and np.arrays()
     numberOfTraps : Defines the total number of traps including the central frequency.
     distance      : Defines the relative distance between each of the trap in [MICROmeters]. Can accept negative values.
     duration      : Defines the duration of the static trap in [MILLIseconds]. The actual duration is handled by the number of loops.
-    tau           : 1/e time of expon
     tot_amp       : Defines the global amplitude of the sine waves [mV]
     startAmp      : Defines the individual frequency starting amplitude as a fraction of the global (ranging from 0 to 1).
     endAmp        : Defines the individual frequency ending amplitude as a fraction of the global (ranging from 0 to 1).
@@ -636,10 +637,10 @@ def exp_ramp(freqs=[170e6],numberOfTraps=4,distance=0.329*5,duration =0.1,tau=0.
     #########
     # Generate the data 
     ##########################   
-    t =np.arange(numOfSamples)
+    t = np.arange(numOfSamples)
     endAmp = np.array(endAmp)
     startAmp = np.array(startAmp)
-    amps = np.exp(-t*duration/tau) * (startAmp - endAmp) + endAmp
+    amps = np.flip(20**(t/(numOfSamples-1)) - 1)/19 * (startAmp - endAmp) + endAmp
     if ampAdjust:
         y = 1./282*0.5*2**16*\
             np.sum([ampAdjuster2d(adjFreqs[Y]*1e-6, amps, cal=cal) * 

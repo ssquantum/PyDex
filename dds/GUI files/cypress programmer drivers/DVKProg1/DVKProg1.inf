@@ -1,0 +1,76 @@
+; Installation INF for the Cypress USB Driver for Windows Vista
+; Processor support for AMD64 and Intel EM64T based platforms.
+;
+; (c) Copyright 2009 Cypress Semiconductor Corporation
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=USB
+ClassGUID={36FC9E60-C465-11CF-8056-444553540000}
+provider=%PSoCUSB_Provider%
+CatalogFile=PSoCUSB.cat
+DriverVer=06/05/2009,3.4.1.20
+DriverPackageDisplayName=%PSoCUSB_Description%
+
+[SourceDisksNames]
+1=%PSoCUSB_Install%,,,
+
+[SourceDisksFiles]
+PSoCUSB.sys = 1
+
+[DestinationDirs]
+PSoCUSB.Files.Ext = 10,system32\drivers\cypress\DVKProg1
+
+[ControlFlags]
+ExcludeFromSelect = *
+
+[Manufacturer]
+%PSoCUSB_Provider%=Device, NTAMD64
+
+[Device.NTAMD64]
+%VID_04B4&PID_F13C&MI_01.DeviceDesc%=PSoCUSB, USB\VID_04B4&PID_F13C&MI_01
+
+[PSoCUSB.NT]
+CopyFiles=PSoCUSB.Files.Ext
+AddReg=PSoCUSB.AddReg
+
+[PSoCUSB.NT.HW]
+AddReg=PSoCUSB.AddReg.Guid
+
+[PSoCUSB.NT.Services]
+Addservice = PSoCUSB,2,PSoCUSB.AddService
+
+[PSoCUSB.AddReg]
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,PSoCUSB.sys
+; You may optionally include a check for DriverBase in your application to check for a CYUSB driver
+HKR,,DriverBase,,CYUSB.sys
+HKR,"Parameters","MaximumTransferSize",0x10001,4096
+HKR,"Parameters","DebugLevel",0x10001,2
+HKR,,FriendlyName,,%PSoCUSB_Description%
+
+[PSoCUSB.AddService]
+DisplayName    = %PSoCUSB_Description%
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 3                  ; SERVICE_DEMAND_START
+ErrorControl   = 1                  ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %10%\System32\Drivers\Cypress\DVKProg1\PSoCUSB.sys
+AddReg         = PSoCUSB.AddReg
+LoadOrderGroup = Base
+
+[PSoCUSB.Files.Ext]
+PSoCUSB.sys
+
+[PSoCUSB.AddReg.Guid]
+HKR,,DriverGUID,,%PSoCUSB.GUID%
+
+[Strings]
+PSoCUSB_Provider    = "Cypress"
+PSoCUSB_Company     = "Cypress Semiconductor Corporation"
+PSoCUSB_Description = "USB Driver for CY8CKIT-100 DVK"
+PSoCUSB_DisplayName = "PSoCUSB Device Driver"
+PSoCUSB_Install     = "Cypress USB Driver Installation Disk"
+VID_04B4&PID_F13C&MI_01.DeviceDesc="DVKProg1 Programmer (3.4.1.20)"
+PSoCUSB.GUID="{43FEF108-580F-11D8-B22B-00B0D0C6A8DC}"
+PSoCUSB_Unused      = "."

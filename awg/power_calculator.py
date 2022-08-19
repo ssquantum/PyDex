@@ -15,7 +15,7 @@ fdir = r'Z:\Tweezer\Experimental\Setup and characterisation\Settings and calibra
 # filename = fdir + r'\938_calFile_06.04.2022.txt'
 # calibration = load_calibration(filename,
 #             fs = np.linspace(135,195,150), power = np.linspace(0,1,200))
-filename = fdir + r'\814_V_calFile_17.02.2022'
+filename = fdir + r'\814_V_calFile_17.02.2022.txt'
 calibration = load_calibration(filename,
             fs = np.linspace(85,115,100), power = np.linspace(0,1,200))
 

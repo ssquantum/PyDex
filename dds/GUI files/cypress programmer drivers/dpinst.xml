@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<dpInst>
+        <dpinstTitle>Cypress PSoC tools USB driver Installer</dpinstTitle>
+    
+        <welcomeTitle>Welcome to the Cypress PSoC Tools USB driverInstaller!</welcomeTitle>
+        <welcomeIntro>This wizard will walk you through updating the drivers for your PSoC USB driver.</welcomeIntro>
+    
+        <eulaHeaderTitle>End User License Agreement</eulaHeaderTitle>
+        <eulaYesButton>I &amp;accept this EULA</eulaYesButton>
+        <eulaNoButton>I do &amp;not accept this EULA</eulaNoButton>
+
+        <installHeaderTitle>Installing the software for your PSoC tool USB driver...</installHeaderTitle>
+
+        <finishTitle>Congratulations! You are finished installing your PSoC tool USB driver.</finishTitle>
+        <finishText>PSoC tools USB driver is ready for use.</finishText>
+
+        <eula type="txt" path="eula.txt" />
+    <icon>psoc3.ico</icon>
+    <watermarkPath>PSoC.bmp</watermarkPath>
+    <search>
+	    <subDirectory>*</subDirectory>
+    </search>
+</dpInst>
