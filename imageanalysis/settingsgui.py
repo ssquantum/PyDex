@@ -33,7 +33,7 @@ from networking.client import simple_msg
 class settings_window(QMainWindow):
     """Main GUI window managing settings for all instances of SAIA.
 
-    Keyword arguments:
+    Keyword arguments:F
     nsaia         -- number of maingui.main_window instances to create
     nreim         -- number of reimage.reim_window instances to create
     results_path  -- the directory where result csv or dat files are saved.
@@ -135,7 +135,7 @@ class settings_window(QMainWindow):
         self.fit_options = QActionGroup(fit_menu)  # group together the options
         self.fit_methods = []
         for action_label in ['separate gaussians', 'double poissonian', 
-                            'single gaussian', 'double gaussian']:
+                            'single gaussian', 'double gaussian','quick']:
             self.fit_methods.append(QAction(action_label, fit_menu, checkable=True, 
                 checked=action_label=='double gaussian')) # set default
             fit_menu.addAction(self.fit_methods[-1])
@@ -599,15 +599,17 @@ class settings_window(QMainWindow):
         var            -- the user variable associated with this histogram
         hist_id        -- unique ID for histogram"""
         # get best fit on histograms, doing reimage last since their fits depend on the main hists
-        for mw in self.mw[:self._a] + self.rw[:len(self.rw_inds)] + self.cw: 
+        for mw in self.mw[:self._a] + self.rw[:len(self.rw_inds)] + self.cw:
             mw.var_edit.setText(var) # also updates histo_handler temp vals
             mw.set_user_var() # just in case not triggered by the signal
             mw.bins_text_edit(text='reset') # set histogram bins 
-            success = mw.display_fit(fit_method='check action') # get best fit
-            success = mw.display_fit(fit_method='check action') # get best fit
+            if mw.bin_actions[2].isChecked() or mw.bin_actions[3].isChecked():
+                f = mw.update_fit # don't display the fit
+            else:
+                f = mw.display_fit
+            success = f(fit_method='check action') # get best fit
             if not success:                   # if fit fails, use peak search
-                mw.display_fit(fit_method='quick')
-                mw.display_fit(fit_method='quick')
+                f(fit_method='quick')
             mw.update()
             # append histogram stats to measure log file:
             try:
@@ -940,7 +942,7 @@ class settings_window(QMainWindow):
                     self.stats['ROIs'].append([1,1,1,1,1])
         self._a = a
         for mw in self.mw[:self._a]:
-            mw.swap_signals() # reconnect signals
+            mw.set_bins() # reconnect signals
         for mw in self.mw[self._a:]:
             mw.deleteLater() # remove unused windows
         self.mw = self.mw[:self._a]

@@ -190,7 +190,7 @@ class main_window(QMainWindow):
         self.fit_options = QActionGroup(fit_menu)  # group together the options
         self.fit_methods = []
         for action_label in ['separate gaussians', 'double poissonian', 
-                            'single gaussian', 'double gaussian']:
+                            'single gaussian', 'double gaussian','quick']:
             self.fit_methods.append(QAction(action_label, fit_menu, checkable=True, 
                 checked=action_label=='double gaussian')) # set default
             fit_menu.addAction(self.fit_methods[-1])
@@ -586,9 +586,11 @@ class main_window(QMainWindow):
                 self.image_handler.thresh = float(self.thresh_edit.text())
                 self.stat_labels['Threshold'].setText(str(int(self.image_handler.thresh)))
             except (KeyError, ValueError): pass # user switched toggle before inputing text
-            self.plot_current_hist(self.image_handler.histogram, self.hist_canvas) # doesn't update thresh
+            if not (self.bin_actions[2].isChecked() or self.bin_actions[3].isChecked()):
+                self.plot_current_hist(self.image_handler.histogram, self.hist_canvas) # doesn't update thresh
         else:
-            self.plot_current_hist(self.image_handler.hist_and_thresh, self.hist_canvas) # updates thresh
+            if not (self.bin_actions[2].isChecked() or self.bin_actions[3].isChecked()):
+                self.plot_current_hist(self.image_handler.hist_and_thresh, self.hist_canvas) # updates thresh
             
     #### #### toggle functions #### #### 
 
