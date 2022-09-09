@@ -415,10 +415,14 @@ class multirun_widget(QWidget):
         in the multirun values array. The function is chosen by the user.
         Values are repeated a set number of times, ordered according to the 
         ComboBox text. The selected channels are stored in lists."""
+        prevent_shuffle = False
         try: # make the list of values
             table = np.array(self.get_table()).T
-            c = [column.astype(float) for column in table if '' not in column]
+            table = np.array([[val if val != '' else '0' for val in column] for column in table])
+            c = [column.astype(float) for column in table]
             vals = eval(self.col_range.text())
+            if 'c[' in self.col_range.text():
+                prevent_shuffle = True
         except Exception as e: 
             warning('Add column to multirun: invalid syntax "'+self.col_range.text()+'".\n'+str(e))
             return 0
@@ -429,11 +433,12 @@ class multirun_widget(QWidget):
             if self.measures[key].text(): # don't do anything if the line edit is empty
                 self.ui_param[key] = self.types[key](self.measures[key].text())
         # order the list of values
-        if self.ui_param['Order'] == 'descending':
-            vals = list(reversed(vals))
-        elif 'random' in self.ui_param['Order']:
-            vals = list(vals)
-            shuffle(vals)
+        if not prevent_shuffle:
+            if self.ui_param['Order'] == 'descending':
+                vals = list(reversed(vals))
+            elif 'random' in self.ui_param['Order']:
+                vals = list(vals)
+                shuffle(vals)
         for i in range(self.table.rowCount()): 
             try: # set vals in table cells
                 self.table.item(i, col).setText('%.4f'%vals[i])
