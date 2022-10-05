@@ -139,7 +139,7 @@ class multirun_widget(QWidget):
             'DDS1 port : profile', 'DDS2 module : profile', 'SLM holograms','MWG tones'] # these analogue types require the analogue options 
         self.col_range_text = ['']*ncols
         self.COM = ['RB1A', 'RB2', 'RB3', 'RB4', 'RB1B'] # DDS COM port connections
-        self.COM2 = ['1557', '977', '1013', '420'] # DDS2 module connections
+        self.COM2 = ['977', '1557', '1013', '420'] # DDS2 module connections
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
         self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
