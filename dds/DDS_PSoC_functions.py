@@ -14,10 +14,10 @@ from PyQt5 import QtWidgets
 # power calibration accounting for AOM nonlinearity
 from scipy.interpolate import interp1d
 try:
-    # cal = np.loadtxt('dds/power_calibration.csv', delimiter=',').T
-    # cals = [interp1d(cal[i+1], cal[0], fill_value='extrapolate') for i in range(len(cal)-1)]
-    cals = [interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
-            for i in range(5)]
+    cal = np.loadtxt('dds/dds2_power_calibration.csv', delimiter=',').T
+    cals = [interp1d(cal[i+1], cal[0], fill_value='extrapolate') for i in range(len(cal)-1)]
+    # cals = [interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
+    #         for i in range(5)]
     alim = 1.0
 except OSError as e:
     print('\033[31m' + '####\tERROR\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))
@@ -703,7 +703,8 @@ class PSoC(object):
                     self.Display_Message_DDS("Aliasing is likely to occur. Limiting frequency to 400 MHz.")
                     f = 2**31
 
-                a = int(np.around(2**14 * abs(amp[ic]), decimals = 0))
+                # a = int(np.around(2**14 * abs(amp[ic]), decimals = 0))
+                a = int(np.around(2**14 * abs(self.powercal(amp[ic])), decimals = 0)) # power calibration
                 if a == 2**14:
                     a =2**14 -1
                 if a > 2**14:
