@@ -10,6 +10,6 @@ rem -- activate the Python environment to load modules
 call conda activate pydexenv
 
 rem -- now start the monitoring program in a separate shell, and the main PyDex script in this shell
-start cmd /k run_monitor.bat & python master.py
+start cmd /k python master.py & run_monitor.bat
 
 conda deactivate
