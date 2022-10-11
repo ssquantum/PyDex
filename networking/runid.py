@@ -35,7 +35,7 @@ class runnum(QThread):
     im_save = pyqtSignal(np.ndarray) # send an incoming image to saver
     Dxstate = 'unknown' # current state of DExTer
 
-    def __init__(self, camra, saver, saiaw, check, seq, n=0, m=1, k=0):
+    def __init__(self, camra, saver, saiaw, check, seq, n=0, m=1, k=0, dev_mode=False):
         super().__init__()
         self._n = n # the run number
         self._m = m # # images per run
@@ -82,25 +82,27 @@ class runnum(QThread):
         self.seqtcp.start()
         self.slmtcp = PyServer(host='', port=8627, name='SLM') # SLM program runs separately
         self.slmtcp.start()
-        self.client = PyClient(host='129.234.190.235', port=8626, name='AWG1 recv') # incoming from AWG
-        # self.client = PyClient(host='localhost', port=8626, name='AWG1 recv') # incoming from AWG
+        if not dev_mode:
+            self.client = PyClient(host='129.234.190.235', port=8626, name='AWG1 recv') # incoming from AWG
+            self.clien2 = PyClient(host='129.234.190.233', port=8629, name='AWG2 recv') # incoming from AWG2
+            self.clientmwg = PyClient(host='129.234.190.235', port=8632, name='MW recv') # incoming from MW generator control
+        else:
+            self.client = PyClient(host='localhost', port=8626, name='AWG1 recv') # incoming from AWG
+            self.clien2 = PyClient(host='localhost', port=8629, name='AWG2 recv') # incoming from AWG2
+            self.clientmwg = PyClient(host='localhost', port=8632, name='MW recv') # incoming from MW generator control
         self.client.start()
         self.client.textin.connect(self.add_mr_msgs) # msg from AWG starts next multirun step
-        self.awgtcp2 = PyServer(host='', port=8628, name='AWG2') # AWG program runs separately
-        self.awgtcp2.start()
-        self.clien2 = PyClient(host='129.234.190.233', port=8629, name='AWG2 recv') # incoming from AWG
-        # self.clien2 = PyClient(host='localhost', port=8629, name='AWG2 recv') # incoming from AWG
         self.clien2.start()
         self.clien2.textin.connect(self.add_mr_msgs) # msg from AWG starts next multirun step
+        self.clientmwg.start()
+        self.clientmwg.textin.connect(self.add_mr_msgs) # msg from MW generator control starts next multirun step
+
+        self.awgtcp2 = PyServer(host='', port=8628, name='AWG2') # AWG program runs separately
+        self.awgtcp2.start()
         self.ddstcp2 = PyServer(host='', port=8630, name='DDS2') # DDS program runs separately
         self.ddstcp2.start()
         self.mwgtcp = PyServer(host='', port=8631, name='MWG') # MW generator control program runs separately
         self.mwgtcp.start()
-        self.clientmwg = PyClient(host='129.234.190.235', port=8632, name='MW recv') # incoming from MW generator control
-        # self.clientmwg = PyClient(host='localhost', port=8632, name='MWG recv') # incoming from MW generator control
-        self.clientmwg.start()
-        self.clientmwg.textin.connect(self.add_mr_msgs) # msg from MW generator control starts next multirun step
-        
         self.server_list = [self.server, self.trigger, self.monitor, self.awgtcp1, self.ddstcp1, 
                 self.slmtcp, self.seqtcp, self.awgtcp2, self.ddstcp2, self.mwgtcp]
         

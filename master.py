@@ -108,8 +108,9 @@ class Master(QMainWindow):
     image_analysis -- a class inheriting QMainWindow that can perform all of the
                     required image analysis methods
     """
-    def __init__(self, state_config='.\\state', image_analysis=settings_window):
+    def __init__(self, dev_mode=False, state_config='.\\state', image_analysis=settings_window):
         super().__init__()
+        self.dev_mode = dev_mode
         self.types = OrderedDict([('File#',int), ('Date',str), ('CameraConfig',str), 
             ('SaveConfig',str), ('AnalysisConfig',eval), ('MasterGeometry',intstrlist), 
             ('AtomCheckerROIs', eval), ('AnalysisGeometry',intstrlist), 
@@ -153,9 +154,10 @@ class Master(QMainWindow):
         QTimer.singleShot(0, self.idle_state) # takes a while for other windows to load
         
         # self.rn.check.showMaximized()
-        self.rn.seq.setGeometry(*self.stats['SequencesGeometry'])
+        if not self.dev_mode:
+            self.rn.seq.setGeometry(*self.stats['SequencesGeometry'])
+            self.rn.sw.setGeometry(*self.stats['AnalysisGeometry'])
         self.rn.seq.show()
-        self.rn.sw.setGeometry(*self.stats['AnalysisGeometry'])
         self.rn.sw.show()
         self.rn.sw.show_analyses(show_all=True)
         
@@ -360,7 +362,8 @@ class Master(QMainWindow):
         self.centre_widget.layout.addWidget(self.action_button, 2,1, 1,1)
 
         #### choose main window position, dimensions: (xpos,ypos,width,height)
-        self.setGeometry(*self.stats['MasterGeometry'])
+        if not self.dev_mode:
+            self.setGeometry(*self.stats['MasterGeometry'])
         self.setWindowTitle('PyDex Master')
         self.setWindowIcon(QIcon('docs/pydexicon.png'))
 
@@ -829,12 +832,14 @@ class Master(QMainWindow):
 def run():
     """Initiate an app to run the program
     if running in Pylab/IPython then there may already be an app instance"""
+    dev_mode = 'dev' in sys.argv
+
     app = QApplication.instance()
     standalone = app is None # false if there is already an app instance
     if standalone: # if there isn't an instance, make one
         app = QApplication(sys.argv) 
         
-    boss = Master()
+    boss = Master(dev_mode=dev_mode)
     boss.show()
     if standalone: # if an app instance was made, execute it
         sys.exit(app.exec_()) # when the window is closed, python code stops
