@@ -95,7 +95,7 @@ class multirun_widget(QWidget):
     multirun_vals = pyqtSignal(np.ndarray) # the array of multirun values
     progress = pyqtSignal(str) # string detailing the progress of the multirun
 
-    def __init__(self, tr, nrows=1, ncols=1, order='ascending'):
+    def __init__(self, tr, nrows=1, ncols=1, order='random'):
         super().__init__()
         self.tr = tr # translator for the current sequence
         self.mrtr = tr.copy() # translator for multirun sequence
@@ -203,7 +203,7 @@ class multirun_widget(QWidget):
 
         # choose the order
         self.order_edit = QComboBox(self)
-        self.order_edit.addItems(['ascending', 'descending', 'random', 'coarse random', 'unsorted']) 
+        self.order_edit.addItems(['random', 'ascending', 'descending', 'coarse random', 'unsorted']) 
         self.grid.addWidget(self.order_edit, 0,8, 1,1)
 
         #### create multirun list of values ####

@@ -1,0 +1,198 @@
+{
+    "File#": 24,
+    "Date": "11,October,2022",
+    "CameraConfig": "Z:/Tweezer/Code/Python 3.5/PyDex/andorcamera/roi_1x1.dat",
+    "SaveConfig": "./config/config.dat",
+    "AnalysisConfig": {
+        "num_saia": 4,
+        "pic_height": 65,
+        "last_image": ".",
+        "bias": 697,
+        "results_path": "Z:\\Tweezer\\Experimental Results",
+        "num_images": 2,
+        "num_coim": 1,
+        "pic_width": 65,
+        "window_pos": [
+            600,
+            50,
+            10,
+            200,
+            600,
+            400
+        ],
+        "num_reim": 2,
+        "ROIs": [
+            [
+                26,
+                30,
+                4,
+                4,
+                155
+            ],
+            [
+                28,
+                21,
+                4,
+                4,
+                0
+            ],
+            [
+                21,
+                21,
+                4,
+                4,
+                893
+            ],
+            [
+                35,
+                21,
+                4,
+                4,
+                900
+            ],
+            [
+                51,
+                23,
+                4,
+                4,
+                1
+            ]
+        ],
+        "image_path": "."
+    },
+    "AtomCheckerROIs": [
+        [
+            [
+                26,
+                31,
+                4,
+                4,
+                1,
+                true,
+                true
+            ],
+            [
+                33,
+                31,
+                4,
+                4,
+                1,
+                true,
+                true
+            ],
+            [
+                40,
+                31,
+                4,
+                4,
+                1,
+                true,
+                true
+            ],
+            [
+                47,
+                31,
+                4,
+                4,
+                1,
+                true,
+                true
+            ]
+        ],
+        [
+            [
+                8,
+                23,
+                4,
+                4,
+                1,
+                true,
+                true
+            ],
+            [
+                15,
+                23,
+                4,
+                4,
+                1,
+                true,
+                true
+            ],
+            [
+                22,
+                23,
+                4,
+                4,
+                1,
+                true,
+                true
+            ],
+            [
+                29,
+                23,
+                4,
+                4,
+                1,
+                true,
+                true
+            ],
+            [
+                36,
+                23,
+                4,
+                4,
+                1,
+                true,
+                true
+            ],
+            [
+                43,
+                23,
+                4,
+                4,
+                1,
+                true,
+                true
+            ],
+            [
+                50,
+                23,
+                4,
+                4,
+                1,
+                true,
+                true
+            ],
+            [
+                57,
+                23,
+                4,
+                4,
+                1,
+                true,
+                true
+            ]
+        ]
+    ],
+    "ControllerGeometry": [
+        1320,
+        103,
+        438,
+        100
+    ],
+    "AtomCheckerGeometry": [
+        283,
+        72,
+        723,
+        480
+    ],
+    "SequencesGeometry": [
+        76,
+        108,
+        875,
+        884
+    ],
+    "TempXMLPath": "X:/Sequence Log/temp.xml",
+    "Rearrange ROIs": true,
+    "Multirun ordering": "random"
+}

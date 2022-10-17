@@ -161,13 +161,13 @@ class atom_window(QMainWindow):
         viewbox = im_widget.addViewBox() # plot area to display image
         self.im_canvas = pg.ImageItem() # the image
         viewbox.addItem(self.im_canvas)
-        layout.addWidget(im_widget, 1,0, 4,4)
+        layout.addWidget(im_widget, 1,0,4,5)
         
         #### table has all of the values for the ROIs ####
         self.tables = {'Cs':QTableWidget(len(self.rh['Cs'].ROIs), 7),
                     'Rb':QTableWidget(len(self.rh['Rb'].ROIs), 7)}
-        layout.addWidget(self.tables['Cs'], 1,5, 4,4)
-        layout.addWidget(self.tables['Rb'], 3,5, 4,4)
+        layout.addWidget(self.tables['Cs'], 1,5,2,5)
+        layout.addWidget(self.tables['Rb'], 3,5,2,5)
         
         self.plots = {} # display plots of counts for each ROI         
         for atom in ['Cs', 'Rb']:
@@ -176,7 +176,7 @@ class atom_window(QMainWindow):
                 self.make_checkbox(r, i, atom)
                 # line edits with ROI x, y, w, h, threshold, auto update threshold
                 for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh, r.plottoggle]): 
-                    self.tables[atom].setCellWidget(i, j, label)   
+                    self.tables[atom].setCellWidget(i, j, label)
                   
             # plots  
             pw = pg.PlotWidget() # main subplot of histogram
@@ -187,8 +187,6 @@ class atom_window(QMainWindow):
                 'thresh':[pw.addLine(y=1, pen=pg.intColor(j)) for j in range(len(self.rh[atom].ROIs))]}
             pw.getAxis('bottom').tickFont = font
             pw.getAxis('left').tickFont = font             
-        
-            
             
         hbox = QHBoxLayout()
         hbox.addWidget(self.plots['Cs']['plot'])
@@ -208,7 +206,6 @@ class atom_window(QMainWindow):
         self.trigger_button.clicked.connect(self.send_trigger)
         layout.addWidget(self.trigger_button, 10,0, 1,2)
         
-
         button = QPushButton('Display masks', self) # button to display masks
         button.clicked.connect(self.show_ROI_masks)
         button.resize(button.sizeHint())
@@ -259,11 +256,11 @@ class atom_window(QMainWindow):
 
     def emit_rois(self, toggle=0, atom='Cs'):
         """Emit the signal with the list of ROIs"""
-        self.roi_values.emit([[r.x, r.y, r.w, r.h, r.t] for r in self.rh[atom].ROIs])
+        self.roi_values.emit(self.get_rois(atom))
         
     def get_rois(self, atom='Cs'):
         """Return list of ROIs"""
-        return [[r.x, r.y, r.w, r.h, r.t] for r in self.rh[atom].ROIs]
+        return [[r.x, r.y, r.w, r.h, r.t, r.autothresh.isChecked(), r.plottoggle.isChecked()] for r in self.rh[atom].ROIs]
 
     def send_trigger(self, toggle=0):
         """Emit the roi_handler's trigger signal to start the experiment"""

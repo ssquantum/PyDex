@@ -13,7 +13,9 @@ os.system("color") # allows error/warning/info messages to print in colour
 import sys
 import time
 import copy
+import json
 import numpy as np
+from functools import reduce
 from collections import OrderedDict
 from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
 from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
@@ -99,7 +101,7 @@ class Master(QMainWindow):
     signal to the image analysis and the image saving modules.
     Uses the queue module to create the list of sequences to run,
     and the bridge module to communicate with Dexter.
-    This master module will define the run number. It must confirm that
+    This controller module will define the run number. It must confirm that
     each Dexter sequence has run successfully in order to stay synchronised.
     Keyword arguments:
     state_config -- path to the file that saved the previous state.
@@ -108,29 +110,16 @@ class Master(QMainWindow):
     image_analysis -- a class inheriting QMainWindow that can perform all of the
                     required image analysis methods
     """
-    def __init__(self, dev_mode=False, state_config='.\\state', image_analysis=settings_window):
+    def __init__(self, dev_mode=False, state_config='.\\state.pds', image_analysis=settings_window):
         super().__init__()
         self.dev_mode = dev_mode
-        self.types = OrderedDict([('File#',int), ('Date',str), ('CameraConfig',str), 
-            ('SaveConfig',str), ('AnalysisConfig',eval), ('MasterGeometry',intstrlist), 
-            ('AtomCheckerROIs', eval), ('AnalysisGeometry',intstrlist), 
-            ('SequencesGeometry',intstrlist), ('TempXMLPath', str)])
-        self.stats = OrderedDict([('File#', 0), ('Date', time.strftime("%d,%B,%Y")), 
-            ('CameraConfig', '.\\andorcamera\\Standard modes\\ExExposure_config.dat'), 
-            ('SaveConfig', '.\\config\\config.dat'), ('AnalysisConfig', {'pic_width':512,
-                'pic_height':512,'ROIs':'[[1, 1, 1, 1, 1], [1, 1, 1, 1, 1]]','bias':697,'image_path':'.',
-                'results_path':'.','last_image':'.','window_pos':'[550, 20, 10, 200, 600, 400]','num_images':2,
-                'num_saia':4,'num_reim':1,'num_coim':0}), 
-            ('AtomCheckerROIs',[[1, 1, 1, 1, 1], [1, 1, 1, 1, 1]]),
-            ('MasterGeometry', [10, 10, 500, 150]), ('AnalysisGeometry', [1400, 400, 600, 500]), 
-            ('SequencesGeometry', [20, 100, 1000, 800]), 
-            ('TempXMLPath', r'X:\\Sequence Log\\temp.xml')])
+        self.subwindows = [['rn.seq','SequencesGeometry'],['rn.check','AtomCheckerGeometry']] # [attribute, geometry]
+        startn = self.restore_state(file_name=state_config) # loads self.stats from the PyDex state file
+
         self.camera_pause = 0 # time in seconds to wait for camera to start acquisition.
         self.ts = {label:time.time() for label in ['init', 'waiting', 'blocking',
             'msg start', 'msg end']}
         sv_dirs = event_handler.get_dirs(self.stats['SaveConfig'])
-        # if not any(os.path.exists(svd) for svd in sv_dirs.values()): # ask user to choose valid config file
-        startn = self.restore_state(file_name=state_config)
         # choose which image analyser to use from number images in sequence
         self.init_UI(startn)
         # initialise the thread controlling run # and emitting images
@@ -154,9 +143,6 @@ class Master(QMainWindow):
         QTimer.singleShot(0, self.idle_state) # takes a while for other windows to load
         
         # self.rn.check.showMaximized()
-        if not self.dev_mode:
-            self.rn.seq.setGeometry(*self.stats['SequencesGeometry'])
-            self.rn.sw.setGeometry(*self.stats['AnalysisGeometry'])
         self.rn.seq.show()
         self.rn.sw.show()
         self.rn.sw.show_analyses(show_all=True)
@@ -174,7 +160,8 @@ class Master(QMainWindow):
         self.date_reset = 0 # whether the dates are waiting to be reset or not
         QTimer.singleShot((29*3600 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates)
-            
+
+        self.restore_state(file_name=state_config)
 
     def idle_state(self):
         """When the master thread is not processing user events, it is in the idle states.
@@ -186,21 +173,18 @@ class Master(QMainWindow):
         synchronisation if it is the same day, and use the same config files."""
         if not file_name:
             try:
-                file_name, _ = QFileDialog.getOpenFileName(self, 'Load the PyDex Master State', '', 'all (*)')
+                file_name, _ = QFileDialog.getOpenFileName(self, 'Load the PyDex Master State', '', 'PyDex states (*.pds)')
             except OSError: return 0
+        if not file_name: return 0 #don't load a state if the user has cancelled in the GUI
         try:
             with open(file_name, 'r') as f:
-                for line in f:
-                    if len(line.split('=')) == 2: # there should only be one = per line
-                        key, val = line.replace('\n','').split('=') 
-                        try:
-                            self.stats[key] = self.types[key](val)
-                        except KeyError as e:
-                            warning('Failed to load PyDex state line: '+line+'\n'+str(e))
-        except FileNotFoundError as e: 
-            warning('PyDex master settings could not find the state file.\n'+str(e))
+                self.stats = json.load(f)
+        except FileNotFoundError as e:
+            error('Could not find the PyDex mstate file "{}"'.format(file_name))
+            return 0
         d = self.stats['Date']
         self.apply_state()
+        info('PyDex state loaded from "{}"'.format(file_name))
         if d == time.strftime("%d,%B,%Y"): # restore file number
             return self.stats['File#'] # [Py]DExTer file number
         else: return 0
@@ -218,6 +202,8 @@ class Master(QMainWindow):
         """Reset the date, camera config, image analysis config, and geometries"""
         try:
             self.reset_dates(savestate=False) # date
+            self.rearr_rois.setChecked(self.stats['Rearrange ROIs'])
+            self.set_geometries()
             self.rn.sv.reset_dates(self.stats['SaveConfig']) # image saver
             sv_dirs = self.rn.sv.get_dirs(self.stats['SaveConfig'])
             self.stats['AnalysisConfig']['results_path'] = sv_dirs['Results Path: ']
@@ -236,9 +222,24 @@ class Master(QMainWindow):
                 else:
                     self.status_label.setText('Failed to update camera settings.')
             else: self.reset_camera(self.stats['CameraConfig'])
+            self.rn.seq.mr.order_edit.setCurrentText(self.stats['Multirun ordering'])
         except AttributeError: pass # haven't made runid yet 
-        except Exception as e: print('Master could not set state:\n'+str(e))
-            
+        except Exception as e: print('Could not set state:\n'+str(e))
+
+    def set_geometries(self):
+        # if not self.dev_mode: #geometries not set in dev mode to avoid windows going off screen
+            self.setGeometry(*self.stats['ControllerGeometry'])
+            for attribute, geometry_key in self.subwindows:
+                try:
+                    reduce(getattr, attribute.split("."), self).setGeometry(*self.stats[geometry_key])
+                except AttributeError: pass
+
+    def get_geometries(self):
+        self.stats['ControllerGeometry'] = list(self.geometry().getRect())
+        for attribute, geometry_key in self.subwindows:
+            try:
+                self.stats[geometry_key] = list(reduce(getattr, attribute.split("."), self).geometry().getRect())
+            except AttributeError: pass
         
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
             default_text='', validator=False):
@@ -304,7 +305,7 @@ class Master(QMainWindow):
 
         self.rearr_rois = QAction('Rearrange ROIs', sync_menu, 
                 checkable=True, checked=False)
-        self.rearr_rois.setChecked(False)
+        self.rearr_rois.setChecked(self.stats['Rearrange ROIs'])
         self.rearr_rois.toggled[bool].connect(self.set_rearranging)
         sync_menu.addAction(self.rearr_rois) 
 
@@ -362,9 +363,7 @@ class Master(QMainWindow):
         self.centre_widget.layout.addWidget(self.action_button, 2,1, 1,1)
 
         #### choose main window position, dimensions: (xpos,ypos,width,height)
-        if not self.dev_mode:
-            self.setGeometry(*self.stats['MasterGeometry'])
-        self.setWindowTitle('PyDex Master')
+        self.setWindowTitle('PyDex controller')
         self.setWindowIcon(QIcon('docs/pydexicon.png'))
 
     def reset_dates(self, auto=True, savestate=True):
@@ -381,7 +380,7 @@ class Master(QMainWindow):
             info(time.strftime("Date reset: %d %B %Y", t0))
             results_path = os.path.join(self.stats['AnalysisConfig']['results_path'], *time.strftime('%Y,%B,%d').split(','))
             os.makedirs(results_path, exist_ok=True)
-            if savestate: self.save_state(os.path.join(results_path, 'PyDexState'+time.strftime("%d%b%y")+'.txt'))
+            if savestate: self.save_state(os.path.join(results_path, 'PyDexState'+time.strftime("%d%b%y")+'.pds'))
         else:
             self.date_reset = 1 # whether the dates are waiting to be reset or not
 
@@ -549,7 +548,7 @@ class Master(QMainWindow):
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam() # wait for camera to initialise before running
                 self.status_label.setText('Camera acquiring')
-            else: warning('Master: Tried to start camera acquisition but camera is not initialised.')
+            else: warning('Controller: Tried to start camera acquisition but camera is not initialised.')
         elif action_text == 'Start acquisition' and self.action_button.text() == 'Stop acquisition':
             self.actions.setEnabled(True)
             self.action_button.setText('Go')
@@ -793,19 +792,28 @@ class Master(QMainWindow):
         can be loaded again when the program is next started."""
         if not file_name:
             try:
-                file_name, _ = QFileDialog.getSaveFileName(self, 'Save the PyDex Master State', '', 'all (*)')
+                file_name, _ = QFileDialog.getSaveFileName(self, 'Save the PyDex state', '', 'PyDex state (*.pds)')
             except OSError: return ''
-        if not file_name: file_name = './state' # in case user cancels
+        if not file_name: return # in case user cancels don't save any state file
+
         self.stats['File#'] = self.rn._n
         self.stats['AnalysisConfig'] = dict(self.rn.sw.stats)
+        self.stats['Rearrange ROIs'] = self.rearr_rois.isChecked()
         self.stats['AtomCheckerROIs'] = [self.rn.check.get_rois('Cs'), self.rn.check.get_rois('Rb')]
         self.rn.sw.save_settings()
-        for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
-            ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:
-            self.stats[key] = [g.x(), g.y(), g.width(), g.height()]
-        with open(file_name, 'w+') as f:
-            for key, val in self.stats.items():
-                f.write(key+'='+str(val)+'\n')
+        self.stats['Multirun ordering'] = self.rn.seq.mr.order_edit.currentText()
+
+        self.get_geometries()
+
+        try:
+            os.makedirs(os.path.dirname(file_name),exist_ok=True)
+        except FileExistsError as e:
+            warning('FileExistsError thrown when saving PyDex state file',e)
+            
+        with open(file_name, 'w', encoding='utf-8') as f:
+            json.dump(self.stats, f, ensure_ascii=False, indent=4)
+            
+        info('PyDex state saved to "{}"'.format(file_name))
 
     def closeEvent(self, event):
         """Proper shut down procedure"""
@@ -824,7 +832,7 @@ class Master(QMainWindow):
                     self.rn.awgtcp2, self.rn.ddstcp1, self.rn.ddstcp2, self.rn.mwgtcp,
                     self.rn.check, self.mon_win, self.dds_win, self.rn.seq.mr.QueueWindow]:
                 obj.close()
-            self.save_state('./state')
+            self.save_state('./state.pds')
             event.accept()
         
 ####    ####    ####    #### 

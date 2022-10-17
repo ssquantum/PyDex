@@ -179,14 +179,14 @@ class roi_handler(QWidget):
     For each of the ROIs, keep a list of counts to compare to
     threshold to discern if an atom is present.
     Keyword arguments:
-    rois     -- list of ROI (xc,yc,wwidth,height)
+    rois     -- list of ROI (xc,yc,wwidth,height,autothresh,plot)
     im_shape -- dimensions of the image in pixels"""
     trigger = pyqtSignal(int)
     rearrange = pyqtSignal(str)
 
     def __init__(self, rois=[(1,1,1,1,1)], im_shape=(512,512), label=''):
         super().__init__()
-        self.ROIs = [ROI(im_shape,*r, ID=i, label=label) for i, r in enumerate(rois)]
+        self.ROIs = [ROI(im_shape,*r[:4],autothresh=r[4], ID=i, label=label) for i, r in enumerate(rois)]
         self.shape = im_shape # image dimensions in pixels
         self.bias  = 697      # bias offset to subtract from image counts
         self.delim = ' '      # delimiter used to save/load files
@@ -201,9 +201,18 @@ class roi_handler(QWidget):
         """Convenience function for setting multiple ROIs"""
         for i, roi in enumerate(ROIlist):
             try: 
-                self.ROIs[i].resize(*roi[:-1])
-                self.ROIs[i].t = roi[-1]
-                self.ROIs[i].threshedit.setText(str(roi[-1]))
+                self.ROIs[i].resize(*roi[:4])
+                self.ROIs[i].t = roi[4]
+                self.ROIs[i].threshedit.setText(str(roi[4]))
+                try:
+                    self.ROIs[i].autothresh.setChecked(roi[5])
+                    self.ROIs[i].plottoggle.setChecked(roi[6])
+                except IndexError as e:
+                    warning("Couldn't load auto-thresh and plot toggles for "
+                    "AtomChecker ROI {} (probably old state file). "
+                    "Set to False.".format(i))
+                    self.ROIs[i].autothresh.setChecked(False)
+                    self.ROIs[i].plottoggle.setChecked(False)
             except (IndexError, ValueError) as e: warning(
                 "Failed to resize ROI "+str(i)+": %s\n"%roi + str(e))
 
