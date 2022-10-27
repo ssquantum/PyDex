@@ -16,7 +16,7 @@ Included modules:
 	Initiates all of the modules and provides an interface to display their respective windows or adjust their settings. 
 
 - Networking (networker.py client.py) (server runs on a separate thread, but some functions remain on the main thread)
-	Communicates with DExTer: sending commands to run/load sequences and synchronise the run number at the start/end of every run.
+	Communicates with other modules by sending TCP messages.
 
 - Andorcamera (cameraHandler.py) (runs a separate thread)
 	Control the Andor iXon camera using AndorSDK. Initialise the camera with given acquisition settings. Set the camera running so that it takes acquisitions triggered by DExTer, and then emits the acquired image as an array to be processed and saved. 
@@ -35,6 +35,12 @@ Included modules:
 
 - Atom checker (atomChecker.py) (on the main thread, takes images in place of the image analysis)
 	Create ROIs on an image and compare them to threshold. When all of the ROIs are occupied, send a trigger. The idea is that you could trigger the experiment once all of the tweezers are loaded.
+
+- DDS (ddsgui.py) (runs a separate program, communicates by TCP)
+	Sends serial USB commands to a Direct Digital Synthesiser. The user can change DDS parameters in the PyDex multirun.
+
+- AWG (awgMaster.py) (runs a separate program, communicates by TCP)
+	Controls an Arbitrary Waveform Generator to generate RF signals for the tweezer AODs. The user can change AWG parameters in the PyDex multirun.
 	
 ### Master
 A master script manages the independent modules:
@@ -161,8 +167,8 @@ In between these synchronisation messages, PyDex will count the number of images
 ### Experimental sequence XML <-> dictionary
 
 In order to edit sequences in python and LabVIEW, we choose the XML format that can be accessed by both and is clear to read.
-Functions in the translator.py script allow to convert from XML to a python dictionary, which is much less verbose and much easier to edit.
-In Python the sequence is stored in an ordered dictionary where the keys correspond to the names of the clusters/arrays in DExTer. Note: the fast digital channels are stored in lists of lists with shape (# steps, # channels), but the analogue channels are stored in transposed lists of dictionaries of lists with shape (# channels, {voltage:(# steps), ramp?:(# steps)})
+Functions in the translator.py script allow to convert from XML to an lxml etree, which is an efficient data structure when converting from XML.
+In Python the sequence is stored in an lxml etree. The tree structure can be a little convoluted, see exampleSequenceEdit.py for usage.
 
 ## Andor camera
 We use an Andor iXon Ultra 897 EMCCD (SN: 11707). It comes with Andor SDK written in C to control the camera. Python wrapper functions are found in AndorFunctions.py.
@@ -243,6 +249,8 @@ Single atom image analysis: create histograms from collections to images, collec
 
 - reimage.reim_window(): GUI for calculating survival probability
 
+- compimage.compim_window(): GUI for comparing histograms from several different main_windows
+
 - atomChecker.atom_window(): GUI for analysing when multiple ROIs in an image are loaded with atoms
 
 - roiHandler.roi_handler(): make collections of ROIs and process images to determine if they contain atoms
@@ -252,6 +260,7 @@ Single atom image analysis: create histograms from collections to images, collec
 - histoHandler.histo_handler() inherits Analysis class: for collections of histograms in a multirun that build up a plot.
 	Fit a function to the histogram in order to determine statistics like the mean count, standard deviation, ratio of counts in each peak (loading probability), etc.
 
+- compHandler.comp_handler() inherits Analysis class: calculates generic survival probabilities by comparing several histograms.
 
 A generic Analysis class is used to standardise the structure that all analyses will take. It provides a structure of:
 
@@ -405,32 +414,11 @@ The plan is that a trace will be saved as representative of a multirun. When PyD
 - Choose slices of the trace to take an average (e.g. tweezer power during imaging step). For each run, save the slice average and build up values. These will be displayed in the graph tab, and saved at the end of the multirun as DAQgraph.csv
 
 ## Sequences
-DExTer sequences were originally stored in binary .seq files. Since these are inaccessible to Python, we choose .xml format instead. These can be converted to python dictionaries which are much simpler to edit, after several long functions reformatting the structure. A generic sequence has the format:
-
-- ('Event list array in', ({'Event name', 'Routine specific event?', 'Event indices', 'Event path'})*number_of_events )
-
-- ('Routine name in', ''),
-
-- ('Routine description in', ''),
-
-- ('Experimental sequence cluster in', 
-		('Sequence header top', (header_cluster)*number_of_steps),
-		('Fast digital names', ({'Hardware ID', 'Name'})*number_of_fast_digital_channels),
-		('Fast digital channels', ((Bool)*number_of_fast_digital_channels)*number_of_steps),
-		('Fast analogue names', ({'Hardware ID', 'Name'})*number_of_fast_analogue_channels),
-		('Fast analogue array', (({'Voltage', 'Ramp?'})*number_of_steps)
-												*number_of_fast_analogue_channels),
-		('Sequence header middle', (header cluster)*number_of_steps),
-		('Slow digital names', ({'Hardware ID', 'Name'})*number_of_slow_digital_channels),
-		('Slow digital channels', ((Bool)*number_of_slow_digital_channels)*number_of_steps),
-		('Slow analogue names', ({'Hardware ID', 'Name'})*number_of_slow_analogue_channels),
-		('Slow analogue array', (({'Voltage', 'Ramp?'})*number_of_steps)
-												*number_of_slow_analogue_channels))
-
-Note that the order of indexing between digital and analogue channels is transposed.
+DExTer sequences were originally stored in binary .seq files. Since these are inaccessible to Python, we choose .xml format instead. For efficient access and editing, the sequence is stored as an lxml etree in Python memory. 
+The tree structure can be convoluted, but the translator class provides set and get functions for common operations. See exampleSequenceEdit.py for more detailed instructions.
 
 - Translator
-	- Converts sequences XML <-> python dictionary
+	- Converts sequences XML <-> lxml etree
 
 - Sequence Previewer
 	- Uses the translator to display a sequence.
@@ -487,7 +475,7 @@ A multirun is a series of runs, changing a list of variables in the sequence. Th
 
 	- Save a multirun parameters file with the variable list and associated run numbers. Save the plot data from each of the image analysis windows. Reset the signals to show that the multirun has finished.
 
-You can queue up multiruns: the parameters displayed in the multirun editor are saved to a list and to a file when the master window passes the command to run a multirun. You can use the display to create another multirun.
+You can queue up multiruns: the parameters displayed in the multirun editor are saved to a list and to a file when the master window passes the command to run a multirun. You can use the display to create another multirun. Note that the next multirun will only start if the multirun queue window is closed.
 
 
 ## Atom Checker
