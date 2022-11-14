@@ -1081,7 +1081,7 @@ class PSoC(object):
         self.MainWindow.setWindowTitle(
             'DDS2 GUI -- '+self.port+': '+self.COMlabels[self.ind])
         self.redisplay_profiles()
-        self.reload_RAM()
+        # self.reload_RAM() # removed so that the DDS doesn't resend RAM data unnecessarily
                 
     def search_dic(self, iterable, value):
         for i, x in enumerate(iterable):
