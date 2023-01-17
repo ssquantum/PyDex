@@ -229,9 +229,9 @@ class image_handler(Analysis):
         Then set the threshold as 5 standard deviations above background.
         Sort the counts in ascending order, then split at the threshold, take means and widths."""
         # split histograms at threshold then get mean and stdev:
-        ascend = np.sort(self.stats['Counts'])
-        bg = ascend[ascend < self.thresh]     # background
-        signal = ascend[ascend > self.thresh] # signal above threshold
+        counts = np.array(self.stats['Counts'])
+        bg = counts[counts < self.thresh]     # background
+        signal = counts[counts > self.thresh] # signal above threshold
         try:
             1//np.size(bg) # raises ZeroDivisionError if size == 0
             1//(np.size(bg)-1) # need > 1 images to get std dev
