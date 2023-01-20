@@ -65,6 +65,7 @@ class ROI():
 
         self.counts = [[]] # List to store the counts in. Each element is the list for each image.
         self.update_num_images(num_images)
+        self.next_image = 0
 
     def get_gui_elements(self):
         """Create objects that will be used by the MAIA class to populate the 
@@ -113,22 +114,23 @@ class ROI():
 
     def update_num_images(self,num_images):
         """Creates the correct number of elements in the counts list to 
-        reflect the number of images set. Data is preserved if the number of
-        images is increased.
+        reflect the number of images set. Data is deleted if the number of 
+        images is changed to avoid things going out of sync..
         
         Parameters
         ----------
         num_images : int
             The number of images the roi should expect to recieve in a sequence.
         """        
-        print('update to images:',num_images)
-        self.counts = self.counts[:num_images]
-        for i in range(len(self.counts), num_images): # make new ROIs
-            self.counts.append([])
+        self.counts = [[] for _ in range(num_images)]
+        self.num_images = num_images
         
     def clear_data(self):
-        """Deletes all current counts data."""
+        """Deletes all current counts data and resets the ROI to expect the 
+        next image to be image 0 (data will be ignored until this is true).
+        """
         self.counts = [[] for _ in range(len(self.counts))]
+        self.next_image = 0
 
     def calculate_occupancy(self):
         """Processess the counts and determines if the roi was occupied or
@@ -141,6 +143,26 @@ class ROI():
         """
         self.occupancy = [list(x > self.t for x in y) for y in self.counts]
         return self.occupancy
+    
+    def add_counts(self, counts, image):
+        """Adds a counts value to the corresponding list in the `counts` 
+        attribute which is a list of lists.
+        
+        Parameters
+        ----------
+        counts : int
+            The number of counts to store in the list.
+            
+        image : int
+            The image number that the counts corresponds to. This is checked 
+            against the `next_image` attribute, and nothing will be stored if 
+            this does not match to prevent the images getting out of sync."""
+        
+        if image == self.next_image:
+            self.counts[image].append(counts)
+            self.next_image = (self.next_image+1)%self.num_images
+        else:
+            print('ignoring counts because next_image is {}'.format(self.next_image))
 
 # main GUI window contains all the widgets                
 class main_window(QMainWindow):
@@ -173,7 +195,10 @@ class main_window(QMainWindow):
         
         self.num_images = 2
         self.rois = [ROI(1,1,4,4,1000,num_images=self.num_images)]
-        self.counts_plots = []
+        self.single_atom_analysers = [SingleAtomAnalyser(self.rois,0),SingleAtomAnalyser(self.rois,1,conditions=[[0,True]])]
+
+        self.file_id = 0
+        self.user_variable = 0
 
         self.init_log(results_path) # write header to the log file that collects histograms
         self.image_storage_path = im_store_path # used for loading image files
@@ -183,7 +208,11 @@ class main_window(QMainWindow):
         # self.plot_time = 0    # time taken to plot the graph
         # self.set_bins() # connect signals
 
+        self.set_file_id(self.file_id)
+        self.set_user_variable(self.user_variable)
+        
         self.event_im.connect(self.process_image)
+        
 
     def init_log(self, results_path='.'):
         """Create a directory for today's date as a subdirectory in the log file path
@@ -208,7 +237,6 @@ class main_window(QMainWindow):
                 f.write('#include --[]\n')
                 f.write('#'+', '.join(self.histo_handler.stats.keys())+'\n')
        
-
     def init_UI(self, edit_ROI=True):
         """Create all of the widget objects required
         edit_ROI - toggle whether the user can change the ROI"""
@@ -236,11 +264,21 @@ class main_window(QMainWindow):
         self.button_clear_data = QPushButton('Clear all data')
         self.button_clear_data.clicked.connect(self.clear_data)
         layout_options.addWidget(self.button_clear_data)
-
         self.button_test_image = QPushButton('Generate test image')
         self.button_test_image.clicked.connect(self.generate_test_image)
         layout_options.addWidget(self.button_test_image)
         self.centre_widget.layout.addLayout(layout_options)
+
+        layout_runids = QHBoxLayout()
+        layout_runids.addWidget(QLabel('File ID:'))
+        self.box_file_id = QLineEdit()
+        self.box_file_id.setReadOnly(True)
+        layout_options.addWidget(self.box_file_id)
+        layout_runids.addWidget(QLabel('User variable:'))
+        self.box_user_variable = QLineEdit()
+        self.box_user_variable.setReadOnly(True)
+        layout_runids.addWidget(self.box_user_variable)
+        self.centre_widget.layout.addLayout(layout_runids)
 
         layout_image_rois = QGridLayout()
         layout_image_options = QHBoxLayout()
@@ -271,16 +309,15 @@ class main_window(QMainWindow):
         self.centre_widget.layout.addLayout(self.layout_plots)
 
         self.update_num_images()
-        self.create_counts_plots()
-
-        return
+        self.create_single_atom_analysers()
 
     def create_new_rois(self):
         """Update number of ROIs then display them. ROI data is cleared to 
         avoid images being out of sync between ROIs."""
         n = int(self.box_number_rois.text())
-        self.rois = self.rois[:n]
-        for i in range(len(self.rois), n): # make new ROIs
+        for _ in range(n,len(self.rois)): # delete unneeded ROIs
+            self.rois.pop()
+        for _ in range(len(self.rois), n): # make new ROIs
             self.rois.append(ROI(1,1,4,4,num_images=self.num_images))
         
         for r in self.rois:
@@ -288,7 +325,7 @@ class main_window(QMainWindow):
 
         self.update_table()
         self.display_rois()
-        self.redraw_counts_plots()
+        self.redraw_single_atom_analysers()
 
     def update_table(self):
         self.table_rois.setRowCount(len(self.rois))
@@ -305,7 +342,7 @@ class main_window(QMainWindow):
         if all([r.update_params() for r in self.rois]): # only triggers if there is not an empty box
             self.update_table()
         self.display_rois()
-        self.redraw_counts_plots()
+        self.redraw_single_atom_analysers()
 
     def generate_test_image(self):
         self.event_im.emit(np.random.rand(100,50)*1000, True)
@@ -313,22 +350,27 @@ class main_window(QMainWindow):
     def process_image(self,image,include):
         if self.next_image == int(self.box_display_image_num.text()):
             self.im_canvas.setImage(image)
-        plot_x_offset = np.random.uniform(-counts_plot_roi_offset,counts_plot_roi_offset)
         for i, r in enumerate(self.rois):
             xmin = np.max([0,r.x])
             ymin = np.max([0,r.y])
             xmax = np.min([image.shape[0],r.x+r.w])
             ymax = np.min([image.shape[1],r.y+r.h])
             counts = image[xmin:xmax,ymin:ymax].sum()  # numpy sum far more efficient that python's sum(array)
-            r.counts[self.next_image].append(counts)
-            if r.plot:
-                plot = self.counts_plots[self.next_image].scatter_plot
-                if counts < r.t:
-                    plot.addPoints(x=[i+plot_x_offset],y=[counts],pen=pg.intColor(i),brush=pg.mkColor(0.95))
-                else:
-                    plot.addPoints(x=[i+plot_x_offset],y=[counts],pen=pg.intColor(i),brush=pg.intColor(i))
+            r.add_counts(counts,self.next_image)
+            # if r.plot:
+            #     plot = self.counts_plots[self.next_image].scatter_plot
+            #     if counts < r.t:
+            #         plot.addPoints(x=[i+plot_x_offset],y=[counts],pen=pg.intColor(i),brush=pg.mkColor(0.95))
+            #     else:
+            #         plot.addPoints(x=[i+plot_x_offset],y=[counts],pen=pg.intColor(i),brush=pg.intColor(i))
 
         self.advance_next_image()
+
+        if self.next_image == 0:
+            for r in self.rois: r.calculate_occupancy()
+            for analyser in self.single_atom_analysers:
+                analyser.add_previous_run()
+
         self.display_rois()
 
     def advance_next_image(self):
@@ -354,23 +396,9 @@ class main_window(QMainWindow):
             viewbox.addItem(image_label)
             image_roi.sigRegionChangeFinished.connect(self.set_rois_from_image)
 
-    def redraw_counts_plots(self):
-        for image, plot in enumerate(self.counts_plots):
-            for line in plot.threshold_lines:
-                plot.removeItem(line)
-            plot.threshold_lines = []
-            plot.scatter_plot.clear() # replot all points
-
-            for i, r in enumerate(self.rois):
-                line = pg.PlotDataItem([i-counts_plot_roi_offset,i+counts_plot_roi_offset],[r.t,r.t],pen={'color': 'k', 'width': 2})
-                plot.addItem(line)
-                plot.threshold_lines.append(line)
-                plot_x_offsets = np.random.uniform(-counts_plot_roi_offset,counts_plot_roi_offset, size=len(r.counts[image]))
-                for counts, plot_x_offset in zip(r.counts[image],plot_x_offsets):
-                    if counts < r.t:
-                        plot.scatter_plot.addPoints(x=[i+plot_x_offset],y=[counts],pen=pg.intColor(i),brush=pg.mkColor(0.95))
-                    else:
-                        plot.scatter_plot.addPoints(x=[i+plot_x_offset],y=[counts],pen=pg.intColor(i),brush=pg.intColor(i))
+    def redraw_single_atom_analysers(self):
+        for analyser in self.single_atom_analysers:
+            analyser.redraw()
 
     def set_rois_from_image(self):
         """Sets the location of the ROIs in the table by the values currently
@@ -389,57 +417,149 @@ class main_window(QMainWindow):
             return
         if int(self.box_number_images.text()) < 1:
             self.box_number_images.setText(str(1))
-        self.num_images = int(self.box_number_images.text())
-        for r in self.rois:
-            r.update_num_images(self.num_images)
-        self.create_counts_plots()
+        
+        if self.num_images != int(self.box_number_images.text()):
+            self.num_images = int(self.box_number_images.text())
+            for r in self.rois:
+                r.update_num_images(self.num_images)
+            self.create_single_atom_analysers()
 
-    def create_counts_plots(self):
-        font = QFont()
-        font.setPixelSize(14)
-        num_images = self.num_images
-
-        for i in range(len(self.counts_plots)-1,num_images-1,-1): # stop displaying unneeded widgets
+    def create_single_atom_analysers(self, num_analysers=2):
+        for i in reversed(range(self.layout_plots.count())): 
             self.layout_plots.itemAt(i).widget().setParent(None)
 
-        self.counts_plots = self.counts_plots[:num_images] # remove unneeded widgets
-        
-        for i in range(len(self.counts_plots), num_images): # make new widgets if needed
-            counts_plot = pg.PlotWidget()
-            counts_plot.setTitle('Image {}'.format(i))
-            counts_plot.getAxis('bottom').tickFont = font
-            counts_plot.getAxis('left').tickFont = font
-            counts_plot.scatter_plot = pg.ScatterPlotItem()
-            counts_plot.addItem(counts_plot.scatter_plot)
-            counts_plot.threshold_lines = []
-            self.layout_plots.addWidget(counts_plot)
-            self.counts_plots.append(counts_plot)
+        self.single_atom_analysers = self.single_atom_analysers[:num_analysers]
 
-        self.redraw_counts_plots()
+        for _ in range(len(self.single_atom_analysers),num_analysers):
+            analyser = SingleAtomAnalyser(rois=self.rois)
+            self.single_atom_analysers.append(analyser)
+
+        for analyser in self.single_atom_analysers:
+            self.layout_plots.addWidget(analyser)
+            
+        self.redraw_single_atom_analysers()
 
     def clear_data(self):
         for r in self.rois:
             r.clear_data()
-        self.redraw_counts_plots()
+        self.redraw_single_atom_analysers()
 
-class SingleAtomImageAnalyser(pg.PlotWidget):
+    def set_file_id(self, file_id):
+        self.file_id = file_id
+        self.box_file_id.setText(str(self.file_id))
+
+    def set_user_variable(self, user_variable):
+        self.user_variable = user_variable
+        self.box_user_variable.setText(str(self.user_variable))
+
+# class ComparisonAnalyser():
+#     """Class to compare attributes of different roi count lists to extract 
+#     e.g. recapture probabilities."""
+#     def __init__(self, rois, image=0, conditions=None):
+
+class SingleAtomAnalyser(QWidget):
     """Class to show display relating to individual ROIs (e.g. loading 
     probability, single-site recapture probability)."""
     def __init__(self, rois, image=0, conditions=None):
         """Initiates the class with the list of rois so that the SAIA can 
         obtain needed data."""
         super().__init__()
+        layout = QVBoxLayout()
         self.rois = rois
-        self.
-    
-    def create_counts_plots(self):
+        self.image = image
+        self.conditions = conditions
+        
+        layout_options = QFormLayout()
+        self.box_image = QLineEdit()
+        self.box_conditions = QLineEdit()
+        if conditions != None:
+            self.box_conditions.setText('{}'.format(self.conditions)[1:-1])
+        self.button_apply_conditions = QPushButton('Apply conditions: ')
+        self.button_apply_conditions.clicked.connect(self.apply_conditions)
+        layout_options.addRow('Image:',self.box_image)
+        layout_options.addRow('Conditions [image,loaded]',self.box_conditions)
+        layout_options.addRow(self.button_apply_conditions)
+
+        layout.addLayout(layout_options)
+
         self.plot = pg.PlotWidget()
         self.plot.scatter_plot = pg.ScatterPlotItem()
         self.plot.addItem(self.plot.scatter_plot)
         self.plot.threshold_lines = []
-        self.layout_plots.addWidget(self.plot)
+        layout.addWidget(self.plot)
 
-        self.redraw_counts_plots()
+        self.setLayout(layout)
+        self.apply_conditions()
+
+    def check_conditions(self, r):
+        # condition format [image,loaded]
+        print('conditions',self.conditions)
+        print('counts',r.counts)
+        print('occupancy',r.occupancy)
+        if self.conditions == None:
+            return [True for _ in r.counts[self.image]]
+        check = [all(r.occupancy[condition[0]][i] == condition[1] for condition in self.conditions) for i,_ in enumerate(r.occupancy[0])]
+        print('check conditions',check)
+        return check
+
+    def apply_conditions(self):
+        conditions_str = self.box_conditions.text()
+        conditions_str = '['+conditions_str+']'
+
+        try:
+            conditions = eval(conditions_str)
+        except Exception:
+            error('Failed to evaluate "{}" as a list.'.format(conditions_str))
+            self.box_conditions.setStyleSheet('background-color: red')
+            self.conditions = None
+        else:
+            try:
+                if (all(type(x) == list for x in conditions) and 
+                    all(type(x[0]) == int for x in conditions)):
+                    [x[1] for x in conditions]
+                    self.box_conditions.setStyleSheet('')
+                    self.conditions = conditions
+            except Exception:
+                error('Failed to evaluate conditions "{}".'.format(conditions))
+                self.box_conditions.setStyleSheet('background-color: red')
+                self.conditions = None
+
+        self.button_apply_conditions.setText('Apply conditions: {}'.format(self.conditions))
+        self.redraw()
+
+    def redraw(self):
+        for line in self.plot.threshold_lines:
+            self.plot.removeItem(line)
+        self.plot.threshold_lines = []
+        self.plot.scatter_plot.clear() # replot all points
+
+        for r in self.rois: r.calculate_occupancy()
+
+        for i, r in enumerate(self.rois):
+            line = pg.PlotDataItem([i-counts_plot_roi_offset,i+counts_plot_roi_offset],[r.t,r.t],pen={'color': 'k', 'width': 2})
+            self.plot.addItem(line)
+            self.plot.threshold_lines.append(line)
+            plot_x_offsets = np.random.uniform(-counts_plot_roi_offset,counts_plot_roi_offset, size=len(r.counts[self.image]))
+            for counts, condition_met, plot_x_offset in zip(r.counts[self.image],self.check_conditions(r),plot_x_offsets):
+                print('len counts, cond, plt_x_offsets',len(r.counts[self.image]),len(self.check_conditions(r)),len(plot_x_offsets))
+                if condition_met:
+                    if counts < r.t:
+                        self.plot.scatter_plot.addPoints(x=[i+plot_x_offset],y=[counts],pen=pg.intColor(i),brush=pg.mkColor(0.95))
+                    else:
+                        self.plot.scatter_plot.addPoints(x=[i+plot_x_offset],y=[counts],pen=pg.intColor(i),brush=pg.intColor(i))
+
+    def add_previous_run(self):
+        plot_x_offset = np.random.uniform(-counts_plot_roi_offset,counts_plot_roi_offset)
+        for i, r in enumerate(self.rois):
+            try:
+                if self.check_conditions(r)[-1]:
+                    counts = r.counts[self.image][-1]
+                    if counts < r.t:
+                        self.plot.scatter_plot.addPoints(x=[i+plot_x_offset],y=[counts],pen=pg.intColor(i),brush=pg.mkColor(0.95))
+                    else:
+                        self.plot.scatter_plot.addPoints(x=[i+plot_x_offset],y=[counts],pen=pg.intColor(i),brush=pg.intColor(i))
+            except IndexError:
+                pass
 
 '''
     #### #### user input functions #### #### 
