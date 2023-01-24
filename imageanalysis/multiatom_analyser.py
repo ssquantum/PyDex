@@ -50,7 +50,7 @@ def reset_slot(signal, slot, reconnect=True):
 ####    ####    ####    ####
 
 class ROI():
-    """Container ROI class containing the bear minimum information needed 
+    """Container ROI class containing the bare minimum information needed 
     by the MAIA to ensure efficiency.
     """
     def __init__(self, x, y, width, height, threshold=1000, autothresh = True,
