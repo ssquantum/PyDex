@@ -33,12 +33,14 @@ class MultiAtomImageAnalyser(QObject):
     edit_ROI      -- whether the user can edit the ROI"""
     event_im = pyqtSignal([np.ndarray, bool]) # [numpy array, include in hists?]
 
-    signal_next_image_num = pyqtSignal(int) # send the image number that will be assigned to the correct image to GUI
+    signal_next_image_num = pyqtSignal(int) # send the image number that will be assigned to the next image to GUI
+    signal_file_id = pyqtSignal(int) # send the file ID that will be assigned to the next image to GUI
     signal_draw_image = pyqtSignal([np.ndarray, int]) # used to send image back to GUI for drawing
     signal_status_message = pyqtSignal([str]) # send string back to GUI to display on status bar
     signal_roi_coords = pyqtSignal([list]) # send ROI coords back to the GUI
     signal_num_roi_groups = pyqtSignal(int) # send the number of ROI groups back to the GUI
     signal_num_rois_per_group = pyqtSignal(int) # send the number of ROIs per group back to the GUI
+    signal_data_for_stefan = pyqtSignal(list,int) # send the roi counts to the iGUI for forwarding to a STEFAN (counts,stefan_index)
 
     queue = deque() # Double-ended queue to handle images. Images are processed when ready.
     timer = QTimer() # Timer to trigger the updating of queue events
@@ -46,11 +48,12 @@ class MultiAtomImageAnalyser(QObject):
     def __init__(self, results_path='.', num_roi_groups=2, 
                  num_rois_per_group=3,num_images=2):
         super().__init__()
-        self.set_results_path(results_path)
+        # self.set_results_path(results_path)
         self.new_roi_coords = None
         # self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.next_image = 0 # image number to assign the next incoming array to
-        
+        self.file_id = 3000 # the file ID to start on. This is iterated once every image cycle.
+
         self.roi_groups = []
         self.update_num_roi_groups(num_roi_groups)
 
@@ -59,7 +62,6 @@ class MultiAtomImageAnalyser(QObject):
         self.num_rois_per_group = None
         self.update_num_rois_per_group(num_rois_per_group)
 
-        self.file_id = 0
         self.user_variable = 0
        
         # self.event_im.connect(self.process_image)
@@ -74,7 +76,6 @@ class MultiAtomImageAnalyser(QObject):
         """
         self.timer.blockSignals(True) # prevent runaway condition if timer adds more events to loop during processing
         QCoreApplication.processEvents() # process all incoming signals before going onto next image
-
         """ 
         During the processEvents call, all incoming signals will be processed 
         before moving onto the next image. Events processed here include:
@@ -117,7 +118,6 @@ class MultiAtomImageAnalyser(QObject):
     def send_roi_coords(self):
         """Returns the current ROI coordinates back to the GUI."""
         new_roi_coords = [group.get_roi_coords() for group in self.roi_groups]
-        print(new_roi_coords)
         self.signal_status_message.emit('Updated ROI coords.: {}'.format(new_roi_coords))
         self.signal_roi_coords.emit(new_roi_coords)
     
@@ -125,7 +125,8 @@ class MultiAtomImageAnalyser(QObject):
     def recieve_image(self,image):
         """Recieves an image from the iGUI and adds it to the processing queue."""
         image_num = self.next_image
-        self.queue.append([image,image_num])
+        file_id = self.file_id
+        self.queue.append([image,file_id,image_num])
         self.signal_status_message.emit('Recieved image {} and placed in queue'.format(image_num))
         self.signal_draw_image.emit(image,image_num)
         self.advance_image_count()
@@ -135,9 +136,13 @@ class MultiAtomImageAnalyser(QObject):
         """Advances the image count so that the MAIA knows what the next image number is.
         This can either be triggered programatically or by the button on the GUI.
         """
-        self.next_image = (self.next_image+1) % self.num_images
+        # self.next_image = (self.next_image+1) % self.num_images
+        self.next_image += 1
+        if self.next_image >= self.num_images:
+            self.next_image = 0
+            self.file_id += 1
         self.signal_next_image_num.emit(self.next_image)
-
+        self.signal_file_id.emit(self.file_id)
 
     @pyqtSlot(object)
     def update_num_roi_groups(self,num_roi_groups):
@@ -153,7 +158,7 @@ class MultiAtomImageAnalyser(QObject):
             ROI groups is not changed but the current value is still passed to 
             the iGUI. The default is None.
         """
-        print('MAIA: num roi groups {}'.format(num_roi_groups))
+        # print('MAIA: num roi groups {}'.format(num_roi_groups))
         if num_roi_groups is not None:
             for _ in range(num_roi_groups,len(self.roi_groups)): # delete unneeded ROIs
                 self.roi_groups.pop()
@@ -186,22 +191,40 @@ class MultiAtomImageAnalyser(QObject):
     def process_next_image(self):
         """Move through the next image in the processing queue and processes it."""
         if self.queue:
-            [image,image_num] = self.queue.popleft()
-            if image_num == self.next_image: # discard the image if the image number isn't the next expected number
-                self.signal_status_message.emit('Started processing image {}'.format(image_num))
-                for group in self.roi_groups:
-                    for roi in group.rois:
-                        roi.counts[image_num].append(image[roi.x:roi.x+roi.w,roi.y:roi.y+roi.h].sum())
-                        print(roi.counts)
-                self.signal_status_message.emit('Finished processing image {}'.format(image_num))
+            [image,file_id,image_num] = self.queue.popleft()
+            # print('image_num',image_num)
+            # print('next image',self.next_image)
+            self.signal_status_message.emit('Started processing image {}'.format(image_num))
+            for group in self.roi_groups:
+                for roi in group.rois:
+                    roi.counts[image_num].append(image[roi.x:roi.x+roi.w,roi.y:roi.y+roi.h].sum())
+            self.signal_status_message.emit('Finished processing image {}'.format(image_num))
     
-    def set_results_path(self,results_path):
-        """Sets the results path where data will be outputted in csv files."""
-        self.results_path = results_path
+    def get_roi_counts(self):
+        """Extracts the ROI counts lists from the ROI objects contained within
+        the ROI group objects."""
+        counts = [[roi.counts for roi in group.rois] for group in self.roi_groups]
+        return counts
 
-    def set_next_image(self,next_image):
-        """Sets the number of the next image that will be used for analysis."""
-        self.next_image = next_image
+    @pyqtSlot(int)
+    def recieve_data_request(self,stefan_index):
+        """Recieves a data request from the iGUI for data to be passed to the
+        STEFANs.
+        
+        Parameters
+        ----------
+        stefan_index : int
+            The index of the STEFAN that the data should be sent to when it is 
+            returned.
+        """
+        self.signal_status_message.emit('Recieved data request for STEFAN {}'.format(stefan_index))
+        counts = self.get_roi_counts()
+        self.signal_data_for_stefan.emit(counts,stefan_index)
+        self.signal_status_message.emit('Forwarded all data for STEFAN {} to SIMON'.format(stefan_index))
+        
+    # def set_results_path(self,results_path):
+    #     """Sets the results path where data will be outputted in csv files."""
+    #     self.results_path = results_path
     
     def set_num_images(self,num_images):
         """Sets the number of images that the MAIA should expect in a 
@@ -211,162 +234,18 @@ class MultiAtomImageAnalyser(QObject):
                 group.set_num_images(num_images)
             self.num_images = num_images
 
-    def get_num_images(self):
-        """Returns the number of images that the MAIA expects to be passed in
-        an experimental run."""
-        pass
+    # def get_num_images(self):
+    #     """Returns the number of images that the MAIA expects to be passed in
+    #     an experimental run."""
+    #     pass
 
-    def get_num_roi_groups(self):
-        """Returns the number of ROI groups in the MAIA."""
-        return len(self.roi_groups)
+    # def get_num_roi_groups(self):
+    #     """Returns the number of ROI groups in the MAIA."""
+    #     return len(self.roi_groups)
 
-    def get_num_rois_per_group(self):
-        """Returns the number of ROIs per group in the MAIA."""
-        return self.num_rois_per_group
-
-    def process_image_old(self,image,include):
-        print('processing')
-        time.sleep(5)
-        # if self.next_image == int(self.box_display_image_num.text()):
-        #     self.im_canvas.setImage(image)
-        # for i, r in enumerate(self.rois):
-        #     xmin = np.max([0,r.x])
-        #     ymin = np.max([0,r.y])
-        #     xmax = np.min([image.shape[0],r.x+r.w])
-        #     ymax = np.min([image.shape[1],r.y+r.h])
-        #     counts = image[xmin:xmax,ymin:ymax].sum()  # numpy sum far more efficient that python's sum(array)
-        #     r.add_counts(counts,self.next_image)
-            # if r.plot:
-            #     plot = self.counts_plots[self.next_image].scatter_plot
-            #     if counts < r.t:
-            #         plot.addPoints(x=[i+plot_x_offset],y=[counts],pen=pg.intColor(i),brush=pg.mkColor(0.95))
-            #     else:
-            #         plot.addPoints(x=[i+plot_x_offset],y=[counts],pen=pg.intColor(i),brush=pg.intColor(i))
-
-    
-    # def create_new_rois(self):
-    #     """Update number of ROIs then display them. ROI data is cleared to 
-    #     avoid images being out of sync between ROIs."""
-    #     n = int(self.box_number_rois.text())
-    #     for _ in range(n,len(self.rois)): # delete unneeded ROIs
-    #         self.rois.pop()
-    #     for _ in range(len(self.rois), n): # make new ROIs
-    #         self.rois.append(ROI(1,1,4,4,num_images=self.num_images))
-        
-    #     for r in self.rois:
-    #         r.clear_data()
-
-    #     self.update_table()
-    #     self.display_rois()
-    #     self.redraw_single_atom_analysers()
-
-    # def update_table(self):
-    #     self.table_rois.setRowCount(len(self.rois))
-    #     for i, r in enumerate(self.rois):
-    #         for j, label in enumerate(list(r.get_gui_elements())):
-    #             try:
-    #                 label.editingFinished.connect(self.set_rois_from_table)
-    #             except AttributeError:
-    #                 label.stateChanged.connect(self.set_rois_from_table)
-    #             self.table_rois.setCellWidget(i, j, label)
-    #     self.table_rois.setVerticalHeaderLabels([str(x) for x in list(range(len(self.rois)))])
-        
-    # def set_rois_from_table(self):
-    #     if all([r.update_params() for r in self.rois]): # only triggers if there is not an empty box
-    #         self.update_table()
-    #     self.display_rois()
-    #     self.redraw_single_atom_analysers()
-
-    # def generate_test_image(self):
-    #     self.event_im.emit(np.random.rand(100,50)*1000, True)
-
-    #     self.advance_next_image()
-
-    #     if self.next_image == 0:
-    #         for r in self.rois: r.calculate_occupancy()
-    #         for analyser in self.single_atom_analysers:
-    #             analyser.add_previous_run()
-
-    #     self.display_rois()
-
-    # def advance_next_image(self):
-    #     self.next_image += 1
-    #     if self.next_image >= self.num_images:
-    #         self.next_image = 0
-    #     self.label_next_image.setText('Next image: {}'.format(self.next_image))
-
-    # def display_rois(self):
-    #     viewbox = self.im_canvas.getViewBox()
-    #     for item in viewbox.allChildren(): # remove unused ROIs
-    #         if ((type(item) == pg.graphicsItems.ROI.ROI or 
-    #                 type(item) == pg.graphicsItems.TextItem.TextItem)):
-    #             viewbox.removeItem(item)
-
-    #     for i, r in enumerate(self.rois):
-    #         image_roi, image_label = r.get_image_roi(i)
-    #             # reset_slot(r.roi.sigRegionChangeFinished, self.user_roi, True) 
-    #             # reset_slot(r.threshedit.textEdited, self.update_plots, True)
-    #         image_roi.setZValue(10)   # make sure the ROI is drawn above the image
-    #         image_roi.setPen(pg.intColor(i), width=3)
-    #         viewbox.addItem(image_roi)
-    #         viewbox.addItem(image_label)
-    #         image_roi.sigRegionChangeFinished.connect(self.set_rois_from_image)
-
-    # def redraw_single_atom_analysers(self):
-    #     for analyser in self.single_atom_analysers:
-    #         analyser.redraw()
-
-    # def set_rois_from_image(self):
-    #     """Sets the location of the ROIs in the table by the values currently
-    #     drawn on the image.
-    #     """
-    #     for r in self.rois:
-    #         [r.x,r.y] = [int(x) for x in r.image_roi.pos()]
-    #         [r.w,r.h] = [int(x) for x in r.image_roi.size()]
-    #     self.display_rois()
-    #     self.update_table()
-
-    # def update_num_images(self):
-    #     try:
-    #         int(self.box_number_images.text())
-    #     except ValueError:
-    #         return
-    #     if int(self.box_number_images.text()) < 1:
-    #         self.box_number_images.setText(str(1))
-        
-    #     if self.num_images != int(self.box_number_images.text()):
-    #         self.num_images = int(self.box_number_images.text())
-    #         for r in self.rois:
-    #             r.update_num_images(self.num_images)
-    #         self.create_single_atom_analysers()
-
-    # def create_single_atom_analysers(self, num_analysers=2):
-    #     for i in reversed(range(self.layout_plots.count())): 
-    #         self.layout_plots.itemAt(i).widget().setParent(None)
-
-    #     self.single_atom_analysers = self.single_atom_analysers[:num_analysers]
-
-    #     for _ in range(len(self.single_atom_analysers),num_analysers):
-    #         analyser = SingleAtomAnalyser(rois=self.rois)
-    #         self.single_atom_analysers.append(analyser)
-
-    #     for analyser in self.single_atom_analysers:
-    #         self.layout_plots.addWidget(analyser)
-            
-    #     self.redraw_single_atom_analysers()
-
-    # def clear_data(self):
-    #     for r in self.rois:
-    #         r.clear_data()
-    #     self.redraw_single_atom_analysers()
-
-    # def set_file_id(self, file_id):
-    #     self.file_id = file_id
-    #     self.box_file_id.setText(str(self.file_id))
-
-    # def set_user_variable(self, user_variable):
-    #     self.user_variable = user_variable
-    #     self.box_user_variable.setText(str(self.user_variable))
+    # def get_num_rois_per_group(self):
+    #     """Returns the number of ROIs per group in the MAIA."""
+    #     return self.num_rois_per_group
 
 class ROIGroup():
     """Container ROIGroup class used by the MAIA. This stores multiple ROIs

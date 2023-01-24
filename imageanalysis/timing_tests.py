@@ -7,8 +7,8 @@ from multiAtomImageAnalyser import ROI, ROIGroup
 # Generate the initial image and 4 ROI groups with 4 ROIs each
 image = np.random.rand(100,100)*1000
 
-roi_groups = [ROIGroup() for _ in range(4)]
-[group.set_num_rois(4) for group in roi_groups]
+roi_groups = [ROIGroup() for _ in range(50)]
+[group.set_num_rois(50) for group in roi_groups]
 
 for group in roi_groups:
     for roi in group.rois:
@@ -29,5 +29,6 @@ for _ in range(iterations):
 end_time = time.perf_counter_ns()
 time_per_iteration = (end_time - start_time)/iterations
 print('time_per_iteration = {:.1f} ms'.format(time_per_iteration/1e6))
+
 
 

@@ -29,13 +29,15 @@ import fitCurve as fc   # custom class to get best fit parameters using curve_fi
 from datetime import datetime
 
 from multiAtomImageAnalyser import MultiAtomImageAnalyser
+from stefan import StefanGUI
+from roi_colors import get_group_roi_color
 
 ####    ####    ####    ####
 
 # validators for user input
 double_validator = QDoubleValidator() # floats
 int_validator    = QIntValidator()    # integers
-int_validator.setBottom(0) # don't allow -ve numbers
+int_validator.setBottom(-1) # don't allow -ve numbers
 nat_validator    = QIntValidator()    # natural numbers 
 nat_validator.setBottom(1) # > 0
 
@@ -50,6 +52,8 @@ def reset_slot(signal, slot, reconnect=True):
         try: signal.disconnect(slot)
         except TypeError: break
     if reconnect: signal.connect(slot)
+
+
 
 ####    ####    ####    ####
 
@@ -71,6 +75,7 @@ class ImagerGUI(QMainWindow):
     signal_send_maia_image = pyqtSignal(np.ndarray)
     signal_set_num_roi_groups = pyqtSignal(object) # used to set the number of ROI groups
     signal_set_num_rois_per_group = pyqtSignal(object) # used to set the number of ROIs per group
+    signal_request_maia_data = pyqtSignal(int) # request all data from MAIA for use in STEFANs
 
     def __init__(self):
         super().__init__()
@@ -79,6 +84,8 @@ class ImagerGUI(QMainWindow):
 
         self.init_UI()
         self.init_maia_thread()
+
+        self.stefans = []
 
         # pg.setConfigOption('background', 'w') # set graph background default white
         # pg.setConfigOption('foreground', 'k') # set graph foreground default black
@@ -91,6 +98,11 @@ class ImagerGUI(QMainWindow):
 
         # self.init_UI()  # make the widgets
     
+    def closeEvent(self, event):
+        """Events to do when this main window is closed."""
+        self.destroy_all_stefans()
+        self.maia_thread.quit()
+
     def init_maia_thread(self):
         self.maia_thread = QThread()
         self.maia = MultiAtomImageAnalyser()
@@ -106,13 +118,16 @@ class ImagerGUI(QMainWindow):
         self.signal_send_maia_image.connect(self.maia.recieve_image)
         self.signal_set_num_roi_groups.connect(self.maia.update_num_roi_groups)
         self.signal_set_num_rois_per_group.connect(self.maia.update_num_rois_per_group)
+        self.signal_request_maia_data.connect(self.maia.recieve_data_request)
 
+        self.maia.signal_file_id.connect(self.recieve_file_id_from_maia)
         self.maia.signal_next_image_num.connect(self.recieve_next_image_num)
         self.maia.signal_draw_image.connect(self.draw_image)
         self.maia.signal_status_message.connect(self.status_bar_message)
         self.maia.signal_roi_coords.connect(self.recieve_roi_coords)
         self.maia.signal_num_roi_groups.connect(self.recieve_num_roi_groups)
         self.maia.signal_num_rois_per_group.connect(self.recieve_num_rois_per_group)
+        self.maia.signal_data_for_stefan.connect(self.recieve_maia_data_for_stefan)
         
         # Start MAIA thread
         self.maia_thread.start()    
@@ -191,7 +206,7 @@ class ImagerGUI(QMainWindow):
         self.button_advance_image.clicked.connect(self.signal_advance_image_count.emit)
         layout_image_options.addRow('',self.button_advance_image)
                 
-        self.button_test_image = QPushButton('Generate test image')
+        self.button_test_image = QPushButton('Generate 100 test images')
         self.button_test_image.clicked.connect(self.generate_test_image)
         layout_image_options.addRow('',self.button_test_image)
 
@@ -208,12 +223,19 @@ class ImagerGUI(QMainWindow):
         layout_stefans_options = QHBoxLayout()
 
         self.button_new_stefan = QPushButton('Launch new STEFAN')
+        self.button_new_stefan.clicked.connect(self.launch_new_stefan)
         layout_stefans_options.addWidget(self.button_new_stefan)
 
+        self.button_update_stefans = QPushButton('Update all STEFANs')
+        self.button_update_stefans.clicked.connect(self.update_all_stefans)
+        layout_stefans_options.addWidget(self.button_update_stefans)
+
         self.button_show_stefans = QPushButton('Show all STEFANs')
+        self.button_show_stefans.clicked.connect(self.show_all_stefans)
         layout_stefans_options.addWidget(self.button_show_stefans)
 
         self.button_destroy_stefans = QPushButton('Destroy all STEFANs')
+        self.button_destroy_stefans.clicked.connect(self.destroy_all_stefans)
         layout_stefans_options.addWidget(self.button_destroy_stefans)
         
         layout_stefans.addLayout(layout_stefans_options)
@@ -231,17 +253,18 @@ class ImagerGUI(QMainWindow):
 
     @pyqtSlot(str)
     def status_bar_message(self,message):
-        self.status_bar.setStyleSheet('background-color : #EEEEBB')
+        self.status_bar.setStyleSheet('background-color : #BBCCEE')
         time_str = datetime.now().strftime('%H:%M:%S')
         self.status_bar.showMessage('MAIA @ {}: {}'.format(time_str,message))
         print('MAIA @ {}: {}'.format(time_str,message))
 
     def generate_test_image(self):
-        image = np.random.rand(100,50)*1000
-        atom = np.zeros_like(image)
-        atom[30:32,30:32] = 2000
-        image += atom
-        self.signal_send_maia_image.emit(image)
+        for _ in range(100):
+            image = np.random.rand(100,50)*1000
+            atom = np.zeros_like(image)
+            atom[30:32,30:32] = 2000
+            image += atom
+            self.signal_send_maia_image.emit(image)
 
     def update_rois(self,new_roi_coords=None):
         if new_roi_coords == False: # seems like button press is sending False so add this to fix
@@ -260,9 +283,12 @@ class ImagerGUI(QMainWindow):
         image : array
             The image to draw in array format.
         """
-        print('image_num:',image_num)
         self.im_canvas.setImage(image)
         self.box_current_image_num.setText(str(image_num))
+
+    @pyqtSlot(int)
+    def recieve_file_id_from_maia(self,file_id):
+        self.box_current_file_id.setText(str(file_id))
 
     @pyqtSlot(int)
     def recieve_next_image_num(self,next_image_num):
@@ -289,13 +315,17 @@ class ImagerGUI(QMainWindow):
             group_boxes = []
             for roi_num, [x,y,w,h] in enumerate(group):
                 
+                color = get_group_roi_color(group_num,roi_num)
                 roi_box = pg.ROI([x,y],[w,h],translateSnap=True)
-                roi_label = pg.TextItem('{}:{}'.format(group_num,roi_num), pg.intColor(roi_num), anchor=(0,1))
+                roi_label = pg.TextItem('{}:{}'.format(group_num,roi_num), color, anchor=(0.5,1))
                 font = QFont()
                 font.setPixelSize(16)
                 roi_label.setFont(font)
-                roi_label.setPos(x+w//2,y+h//2) # in bottom left corner
-                roi_box.setPen(pg.intColor(roi_num), width=3)
+                roi_label.setPos(x+w//2,y+h) # in bottom left corner
+                if (self.button_lock_roi_groups.isChecked()) and (roi_num*group_num != 0):
+                    roi_box.setPen(color, width=1)
+                else:
+                    roi_box.setPen(color, width=3)
                 viewbox.addItem(roi_box)
                 viewbox.addItem(roi_label)
                 roi_box.sigRegionChangeFinished.connect(self.set_rois_from_image)
@@ -352,6 +382,43 @@ class ImagerGUI(QMainWindow):
         if num_rois_per_group < 1:
             num_rois_per_group = 1
         self.signal_set_num_rois_per_group.emit(num_rois_per_group)
+
+    #%% iGUI <-> Stefan methods
+    def status_bar_stefan_message(self,message,stefan_index=None):
+        if stefan_index == None:
+            stefan_index = '?'
+        self.status_bar.setStyleSheet('background-color : #CCDDAA')
+        time_str = datetime.now().strftime('%H:%M:%S')
+        self.status_bar.showMessage('STEFAN {} @ {}: {}'.format(stefan_index,time_str,message))
+        print('STEFAN {} @ {}: {}'.format(stefan_index,time_str,message))
+
+    def launch_new_stefan(self):
+        """Creates a new STEFAN"""
+        stefan = StefanGUI(self,len(self.stefans))
+        stefan.show()
+        self.stefans.append(stefan)
+
+    def update_all_stefans(self):
+        """Forces all STEFANs (shown or hidden) to request an update."""
+        [stefan.request_update() for stefan in self.stefans]
+
+    def show_all_stefans(self):
+        """Forces all STEFANs to redisplay on the GUI."""
+        [stefan.show() for stefan in self.stefans]
+
+    def destroy_all_stefans(self):
+        """Destroys all open STEFANs."""
+        self.stefans = []
+    
+    def recieve_stefan_data_request(self,stefan):
+        stefan_index = self.stefans.index(stefan)
+        # self.status_bar_stefan_message('Requested MAIA data.',stefan_index)
+        self.signal_request_maia_data.emit(stefan_index)
+
+    @pyqtSlot(list,int)
+    def recieve_maia_data_for_stefan(self,counts,stefan_index):
+        stefan = self.stefans[stefan_index]
+        stefan.update(counts)
 
 def run():
     """Initiate an app to run the program
