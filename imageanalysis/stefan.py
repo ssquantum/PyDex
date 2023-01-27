@@ -41,6 +41,8 @@ import pyqtgraph as pg
 from datetime import datetime
 import time
 from roi_colors import get_group_roi_color
+from dataanalysis import Analyser
+import pickle
 
 double_validator = QDoubleValidator() # floats
 int_validator    = QIntValidator()    # integers
@@ -63,10 +65,14 @@ class StefanGUI(QMainWindow):
         self.iGUI = imagerGUI # the parent class of this object. Used to refer to methods in that class.
 
         self.mode = 'counts'
-        self.image = 0
-        self.roi = 0
 
         self.init_UI()
+
+        # Set the values used in the Stefan to the default values populated in self.init_UI()
+        self.update_image_num()
+        self.update_roi()
+        self.update_post_selection()
+        self.update_condition()
         
         self.threadpool = QThreadPool()
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
@@ -89,8 +95,8 @@ class StefanGUI(QMainWindow):
         layout_mode_select.addWidget(self.button_counts)
 
         self.button_occupancy = QRadioButton('plot occupancy')
+        
         mode_group.addButton(self.button_occupancy)
-        self.button_occupancy.setCheckable(False)
         layout_mode_select.addWidget(self.button_occupancy)
 
         self.centre_widget.layout.addLayout(layout_mode_select)
@@ -125,14 +131,21 @@ class StefanGUI(QMainWindow):
         layout_graph_options.addRow('ROI:', self.box_roi)
 
         self.box_post_selection = QLineEdit()
-        self.box_post_selection.setText(str(1))
+        self.box_post_selection.setText('[11],[xx]')
         self.box_post_selection.setEnabled(False)
+        self.box_post_selection.editingFinished.connect(self.update_post_selection)
+        self.box_post_selection.returnPressed.connect(self.request_update)
         layout_graph_options.addRow('Post-selection:', self.box_post_selection)
 
         self.box_condition = QLineEdit()
-        self.box_condition.setText(str(1))
+        self.box_condition.setText('[xx],[11]')
         self.box_condition.setEnabled(False)
+        self.box_condition.editingFinished.connect(self.update_condition)
+        self.box_condition.returnPressed.connect(self.request_update)
         layout_graph_options.addRow('Condition:', self.box_condition)
+
+        self.stats_label = QLabel()
+        layout_graph_options.addRow(self.stats_label)
 
         layout_graph.addLayout(layout_graph_options)
         self.centre_widget.layout.addLayout(layout_graph)
@@ -141,8 +154,24 @@ class StefanGUI(QMainWindow):
         self.button_update.clicked.connect(self.request_update)
         self.centre_widget.layout.addWidget(self.button_update)
 
+        self.button_counts.toggled.connect(self.change_mode)
+
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
+
+    def change_mode(self):
+        if self.button_counts.isChecked():
+            self.mode = 'counts'
+            self.box_image.setEnabled(True)
+            self.box_roi.setEnabled(True)
+            self.box_post_selection.setEnabled(False)
+            self.box_condition.setEnabled(False)
+        else: # assume occupancy button is pressed if the counts button isn't
+            self.mode = 'occupancy'
+            self.box_image.setEnabled(False)
+            self.box_roi.setEnabled(False)
+            self.box_post_selection.setEnabled(True)
+            self.box_condition.setEnabled(True)
 
     def init_stefan_thread(self):
         self.stefan_thread = QThread()
@@ -171,6 +200,12 @@ class StefanGUI(QMainWindow):
         new_image_num = int(self.box_image.text())
         self.image = new_image_num
 
+    def update_post_selection(self):
+        self.post_selection = self.box_post_selection.text()
+
+    def update_condition(self):
+        self.condition = self.box_condition.text()
+
     def request_update(self):
         self.button_update.setEnabled(False)
         self.status_bar_message('Requested MAIA data.')
@@ -178,33 +213,54 @@ class StefanGUI(QMainWindow):
 
     def update(self,maia_data):
         self.status_bar_message('Recieved MAIA data.')
-        print(maia_data)
+        pickle.dump(maia_data,open('sample_maia_data.p','wb'))
 
-        if self.mode == 'counts':
+        if self.button_counts.isChecked():
+            self.mode = 'counts'
             self.name = 'STEFAN {}: counts: Im{} ROI{}'.format(self.index,self.image,self.roi)
         else:
-            self.name = 'STEFAN {}'.format(self.index)
+            self.mode = 'occupancy'
+            self.name = 'STEFAN {}: occupancy'.format(self.index)
         self.setWindowTitle(self.name)
 
-        worker = StefanWorker(maia_data,image=self.image,roi=self.roi) # Any other args, kwargs are passed to the run function
-        self.threadpool.start(worker)
+        worker = StefanWorker(maia_data,mode=self.mode,image=self.image,roi=self.roi,
+                              post_selection=self.post_selection, condition=self.condition)
         worker.signals.status_bar.connect(self.status_bar_message)
         worker.signals.return_data.connect(self.plot_data)
+        self.threadpool.start(worker)
         # worker.signals.result.connect(self.print_output)
         # worker.signals.finished.connect(self.thread_complete)
         # worker.signals.progress.connect(self.progress_fn)
     
-    @pyqtSlot(list)
-    def plot_data(self,data):
-        print('plot_data')
+    @pyqtSlot(list,str)
+    def plot_data(self,data,label):
+        """Recieves fully processed data from the worker to display on the 
+        plot.
+        
+        Parameters
+        ----------
+        data : list
+            list of the form [[[group0x,group0y],[group1x,group1y],...]]
+            Multiple datasets can be included in this list to plot them on the
+            same graph.
+        label : string
+            string to be shown in the STEFAN stats pane
+        """
         # print(data)
         self.graph.clear()
         self.graph.scene().removeItem(self.graph_legend)
         self.graph_legend = self.graph.addLegend()
 
-        for group_num, group in enumerate(data):
-            pen = pg.mkPen(color=get_group_roi_color(group_num,self.roi))
-            self.graph.plot(np.arange(len(group)),group,pen=pen,name='Group {}'.format(group_num))
+        for data_num, dataset in enumerate(data):
+            for group_num, group in enumerate(dataset):
+                pen = pg.mkPen(color=get_group_roi_color(group_num,self.roi))
+                print('group',group)
+                [x,y] = group # allow for multiple things to be plotted per group
+                if data_num == 0:
+                    self.graph.plot(x,y,pen=pen,name='Group {}'.format(group_num),symbol='x')
+                else:
+                    self.graph.plot(x,y,pen=pen,symbol='x')
+        self.stats_label.setText(label)
         
         self.button_update.setEnabled(True)
 
@@ -214,6 +270,45 @@ class StefanWorker(QRunnable):
     Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
     """
     def __init__(self,maia_data,mode='counts',image=0,roi=0,post_selection=None,condition=None):
+        """Initialise the worker object.
+
+        Parameters
+        ----------
+        maia_data : list
+            MAIA data that is passed to the StefanWorker for analysis. This 
+            data is in the raw MAIA data format that data is stored in 
+            mid-run; it has not yet been formatted in a DataFrame.
+
+            The list should be of the format [counts,threshold_data] where 
+            counts is the list returned by maia.get_roi_counts() and the 
+            threshold_data is the list returned by maia.get_roi_thresholds() 
+            (this list also includes the Autothresh information).
+
+            As this is the mid-run MAIA data format, counts data has not yet 
+            been converted into occupancy data. If this is needed then the 
+            StefanWorker must perform this calculation to prevent MAIA having 
+            to work on this during a run. 
+        mode : ['counts','occupancy'], optional
+            The mode of the StefanWorker. This can either be 'counts' to have 
+            the worker just display the counts for a single ROI in each group, 
+            or 'occupancy' if more complex post-selection analysis is required. 
+            By default 'counts'
+        image : int, optional
+            The index of the images that the StefanWorker should analyse. Only 
+            used if the mode is 'counts'. By default 0
+        roi : int, optional
+            The index of the ROI that the StefanWorker should analyse. Only 
+            used if mode is 'counts'. By default 0
+        post_selection : list or None, optional
+            List of strings describing the post-selection parameters used by 
+            the StefanWorker. Only used if the mode is 'occupancy'. By default 
+            None, which will apply no post-selection criteria.
+        condition : list or None, optional
+            List of strings describing the condition parameters used by the
+            StefanWorker. Only used if the mode is 'occupancy'. By default None
+            None, which will apply no condition criteria (i.e. all events will
+            match the condition).
+        """
         super().__init__()
         self.data = maia_data
         self.mode = mode
@@ -228,28 +323,72 @@ class StefanWorker(QRunnable):
     def run(self):
         print('started analysis')
         self.signals.status_bar.emit('STEFANWorker beginning analysis')
-        analysed_data = self.analysis()
-        self.signals.return_data.emit(analysed_data)
+        analysed_data, analysis_string = self.analysis()
+        self.signals.return_data.emit(analysed_data,analysis_string)
         print('finished analysis')
         time.sleep(0.5) # prevents the thread being closed before data has been sent
 
     def analysis(self):
+        """Returns data to the STEFAN to be plotted. The val is what should be
+        shown in the STEFAN statistics pane.
+        
+        The data list is set when the worker class is initialised; for details
+        of its format see the `self.__init__()` docstring.
+
+        Returns
+        -------
+        list : list of data to be plotted in the form [[[group0x,group0y],[group1x,...],...]].
+               Multiple dataset can be plotted on a single graph; this is 
+               passed to the Stefan by passing multiple datasets in the list.
+        str : string that should be displayed in the STEFAN stats page.
+        """
+        counts, thresholds_and_autothreshs, roi_coords = self.data
+        data = [[[[],[]]]]
+        string = ''
         if self.mode == 'counts':
             try:
-                data = [group[self.roi][self.image] for group in self.data]
+                group_dicts = [group[self.roi][self.image] for group in counts]
+                counts_data = [list(zip(*group.items())) for group in group_dicts]
+                counts_data = [np.asarray(x) for x in counts_data]
+                thresholds = [group[self.roi][self.image][0] for group in thresholds_and_autothreshs]
+                threshold_plotting_data = []
+                for group_num, (group, threshold) in enumerate(zip(counts_data,thresholds)):
+                    xmin = min(group[0])
+                    xmax = max(group[0])
+                    thresholdx = [xmin,xmax]
+                    thresholdy = [threshold,threshold]
+                    threshold_plotting_data.append([thresholdx,thresholdy])
+                    print(group)
+                    loading_prob = (group[1] > threshold).sum()/len(group[1])
+                    string += 'Group {} LP = {:.3f}\n'.format(group_num,loading_prob)
+                print('threshold_plotting_data',threshold_plotting_data)
+                data = [counts_data,threshold_plotting_data]
                 self.signals.status_bar.emit('STEFANWorker analysis complete')
-            except IndexError as e:
-                data = [[]]
+            except IndexError as e: # no data has been collected yet
                 self.signals.status_bar.emit('STEFANWorker analysis failed: {}'.format(e))
         else:
-            data = [[]]
-        return data
+            print('Analysis mode occupancy')
+            print('Post selection', self.post_selection)
+            print('Condition', self.condition)
+
+            analyser = Analyser(self.data)
+            post_select_probs_errs = analyser.apply_post_selection_criteria(self.post_selection)
+            condition_probs_errs = analyser.apply_condition_criteria(self.condition)
+            print(analyser.ps_counts_df_split_by_roi_group)
+            data[0] = analyser.get_condition_met_plotting_data()
+            for group_num, (post_select_prob_err,condition_prob_err) in enumerate(zip(post_select_probs_errs,condition_probs_errs)):
+                post_select_prob_err_string = analyser.uncert_to_str(post_select_prob_err['probability'],post_select_prob_err['error in probability']) 
+                condition_prob_err_string = analyser.uncert_to_str(condition_prob_err['probability'],condition_prob_err['error in probability']) 
+                string += 'Group {}: PS = {}; CM = {}\n'.format(group_num,post_select_prob_err_string,condition_prob_err_string)
+            
+        print(string)
+        return data, string
 
 class StefanWorkerSignals(QObject):
     """Defines the signals available from a running StefanWorker thread.
     """
     status_bar = pyqtSignal(str)
-    return_data = pyqtSignal(list)
+    return_data = pyqtSignal(list,str)
 
 
 

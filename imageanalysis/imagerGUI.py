@@ -13,24 +13,28 @@ import sys
 import time
 import numpy as np
 import pyqtgraph as pg    # not as flexible as matplotlib but works a lot better with qt
-from PyQt5.QtCore import pyqtSignal, QThread, pyqtSlot
+from PyQt5.QtCore import pyqtSignal, QThread, pyqtSlot, Qt, QEvent
 from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
-        QFont, QRegExpValidator)
+        QFont, QRegExpValidator, QColor)
 from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
         QFileDialog, QComboBox, QMessageBox, QLineEdit, QGridLayout, 
         QApplication, QPushButton, QAction, QMainWindow, QWidget,
         QLabel, QTabWidget, QInputDialog, QHBoxLayout, QTableWidget,
-        QCheckBox, QFormLayout, QCheckBox, QStatusBar)
+        QCheckBox, QFormLayout, QCheckBox, QStatusBar,QTableWidgetItem, 
+        QSizePolicy,QAbstractScrollArea)
 if '..' not in sys.path: sys.path.append('..')
 from strtypes import error, warning, info
 import imageHandler as ih # process images to build up a histogram
 import histoHandler as hh # collect data from histograms together
 import fitCurve as fc   # custom class to get best fit parameters using curve_fit
 from datetime import datetime
+from copy import deepcopy
 
 from multiAtomImageAnalyser import MultiAtomImageAnalyser
 from stefan import StefanGUI
 from roi_colors import get_group_roi_color
+import resources
+
 
 ####    ####    ####    ####
 
@@ -40,6 +44,8 @@ int_validator    = QIntValidator()    # integers
 int_validator.setBottom(-1) # don't allow -ve numbers
 nat_validator    = QIntValidator()    # natural numbers 
 nat_validator.setBottom(1) # > 0
+non_neg_validator    = QIntValidator()    # integers
+non_neg_validator.setBottom(0) # don't allow -ve numbers
 
 counts_plot_roi_offset = 0.2 # the +/- value that the counts plotting can use so that points don't all bunch up
 
@@ -72,12 +78,21 @@ class ImagerGUI(QMainWindow):
     
     signal_advance_image_count = pyqtSignal() # advances the image count in the MAIA
     signal_send_new_rois = pyqtSignal(object,bool) # new rois to send to coords. bool is whether to lock to group zero
+    signal_send_new_num_images = pyqtSignal(object) # send new number of images to the MAIA
     signal_send_maia_image = pyqtSignal(np.ndarray)
     signal_set_num_roi_groups = pyqtSignal(object) # used to set the number of ROI groups
     signal_set_num_rois_per_group = pyqtSignal(object) # used to set the number of ROIs per group
     signal_request_maia_data = pyqtSignal(int) # request all data from MAIA for use in STEFANs
+    signal_tv_data_refresh = pyqtSignal() # requests an information update for the Threshold Viewer from MAIA
+    signal_tv_data_to_maia = pyqtSignal(list) # sends updated threshold data from the TV back to MAIA
+    signal_send_results_path = pyqtSignal(str) # sends results path to MAIA
+    signal_send_hist_id = pyqtSignal(int) # sends hist ID to MAIA
+    signal_send_file_id = pyqtSignal(int) # sends the file ID to MAIA
+    signal_send_user_variables = pyqtSignal(list) # sends user variables to MAIA
+    signal_send_measure_prefix = pyqtSignal(str) # sends the measure prefix to MAIA
+    signal_save = pyqtSignal() # asks MAIA to save the data when the queue is empty
 
-    def __init__(self):
+    def __init__(self, results_path='.', hist_id=0, file_id=2000, user_variables=[0], measure_prefix='Measure0'):
         super().__init__()
         self.name = 'SIMON: Simple Image MONitoring'  # name is displayed in the window title
         self.setWindowTitle(self.name)
@@ -86,22 +101,25 @@ class ImagerGUI(QMainWindow):
         self.init_maia_thread()
 
         self.stefans = []
+        self.tv = None # ThresholdViewer
 
-        # pg.setConfigOption('background', 'w') # set graph background default white
-        # pg.setConfigOption('foreground', 'k') # set graph foreground default black
+        self.update_rois()
 
-        # self.next_image = self.maia.next_image # image number to assign the next incoming array to
-        # self.num_images = self.maia.get_num_images()
+        self.set_results_path(results_path)
+        self.set_hist_id(hist_id)
+        self.set_file_id(file_id)
+        self.set_user_variables(user_variables)
+        self.set_measure_prefix(measure_prefix)
 
-        # self.file_id = 0
-        # self.user_variable = 0
-
-        # self.init_UI()  # make the widgets
+        self.debug = DebugWindow(self)
+        self.debug.show()
     
     def closeEvent(self, event):
         """Events to do when this main window is closed."""
         self.destroy_all_stefans()
         self.maia_thread.quit()
+        self.destroy_threshold_viewer()
+        self.debug = None
 
     def init_maia_thread(self):
         self.maia_thread = QThread()
@@ -119,6 +137,15 @@ class ImagerGUI(QMainWindow):
         self.signal_set_num_roi_groups.connect(self.maia.update_num_roi_groups)
         self.signal_set_num_rois_per_group.connect(self.maia.update_num_rois_per_group)
         self.signal_request_maia_data.connect(self.maia.recieve_data_request)
+        self.signal_tv_data_refresh.connect(self.maia.recieve_tv_data_request)
+        self.signal_tv_data_to_maia.connect(self.maia.recieve_tv_threshold_data)
+        self.signal_send_new_num_images.connect(self.maia.update_num_images)
+        self.signal_send_results_path.connect(self.maia.update_results_path)
+        self.signal_send_hist_id.connect(self.maia.update_hist_id)
+        self.signal_send_file_id.connect(self.maia.update_file_id)
+        self.signal_send_user_variables.connect(self.maia.update_user_variables)
+        self.signal_send_measure_prefix.connect(self.maia.update_measure_prefix)
+        self.signal_save.connect(self.maia.request_save)
 
         self.maia.signal_file_id.connect(self.recieve_file_id_from_maia)
         self.maia.signal_next_image_num.connect(self.recieve_next_image_num)
@@ -128,9 +155,15 @@ class ImagerGUI(QMainWindow):
         self.maia.signal_num_roi_groups.connect(self.recieve_num_roi_groups)
         self.maia.signal_num_rois_per_group.connect(self.recieve_num_rois_per_group)
         self.maia.signal_data_for_stefan.connect(self.recieve_maia_data_for_stefan)
-        
+        self.maia.signal_data_for_tv.connect(self.recieve_maia_data_for_tv)
+        self.maia.signal_num_images.connect(self.recieve_num_images)
+        self.maia.signal_results_path.connect(self.recieve_results_path)
+        self.maia.signal_hist_id.connect(self.recieve_hist_id)
+        self.maia.signal_user_variables.connect(self.recieve_user_variables)
+        self.maia.signal_measure_prefix.connect(self.recieve_measure_prefix)
+
         # Start MAIA thread
-        self.maia_thread.start()    
+        self.maia_thread.start()
 
     def init_UI(self):
         """Create all of the widget objects required"""
@@ -140,7 +173,27 @@ class ImagerGUI(QMainWindow):
         self.centre_widget.setLayout(self.centre_widget.layout)
         self.setCentralWidget(self.centre_widget)
 
+        layout_save_locations = QHBoxLayout()
+        layout_save_locations.addWidget(QLabel('Results path:'))
+        self.box_results_path = QLineEdit()
+        self.box_results_path.setReadOnly(True)
+        layout_save_locations.addWidget(self.box_results_path)
+
+        layout_save_locations.addWidget(QLabel('Measure prefix:'))
+        self.box_measure_prefix = QLineEdit()
+        self.box_measure_prefix.setReadOnly(True)
+        layout_save_locations.addWidget(self.box_measure_prefix)
+
+        self.centre_widget.layout.addLayout(layout_save_locations)
+
+
         layout_options = QHBoxLayout()
+
+        layout_options.addWidget(QLabel('Hist. ID:'))
+        self.box_hist_id = QLineEdit()
+        self.box_hist_id.setReadOnly(True)
+        layout_options.addWidget(self.box_hist_id)
+
         layout_options.addWidget(QLabel('Current File ID:'))
         self.box_current_file_id = QLineEdit()
         self.box_current_file_id.setReadOnly(True)
@@ -168,10 +221,11 @@ class ImagerGUI(QMainWindow):
         layout_roi_options.addWidget(self.box_number_rois)
 
         self.button_lock_roi_groups = QCheckBox('Lock ROI group geometry to group 0')
+        self.button_lock_roi_groups.clicked.connect(self.update_rois)
         layout_roi_options.addWidget(self.button_lock_roi_groups)
 
-        self.button_show_roi_details = QPushButton('Show ROI details')
-        # self.button_clear_data.clicked.connect(self.clear_data)
+        self.button_show_roi_details = QPushButton('Show Threshold Viewer')
+        self.button_show_roi_details.clicked.connect(self.create_threshold_viewer)
         layout_roi_options.addWidget(self.button_show_roi_details)
         self.centre_widget.layout.addLayout(layout_roi_options)
 
@@ -186,7 +240,7 @@ class ImagerGUI(QMainWindow):
         self.box_number_images = QLineEdit()
         self.box_number_images.setValidator(int_validator)
         self.box_number_images.setText(str(2))
-        # self.box_number_images.editingFinished.connect(self.update_num_images)
+        self.box_number_images.editingFinished.connect(self.update_num_images)
         layout_image_options.addRow('Number of images/run:', self.box_number_images)
 
         self.box_display_image_num = QLineEdit()
@@ -244,6 +298,46 @@ class ImagerGUI(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
 
+    def set_results_path(self,results_path):
+        """Forwards a results path to MAIA to be set."""
+        self.signal_send_results_path.emit(results_path)
+    
+    @pyqtSlot(str)
+    def recieve_results_path(self,results_path):
+        """Recieves the results path from MAIA to set in the GUI."""
+        self.box_results_path.setText(results_path)
+
+    def set_hist_id(self,hist_id):
+        """Forwards a hist ID to MAIA to be set. The hist ID is used when 
+        saving the files. In runid.py > runnum it is called runnum._n."""
+        self.signal_send_hist_id.emit(hist_id)
+    
+    @pyqtSlot(int)
+    def recieve_hist_id(self,hist_id):
+        """Recieves the hist ID from MAIA to set in the GUI."""
+        self.box_hist_id.setText(str(hist_id))
+
+    def set_user_variables(self,user_variables):
+        """Forwards the user variables to MAIA to be set. The hist ID is used 
+        when saving the files."""
+        self.signal_send_user_variables.emit(user_variables)
+    
+    @pyqtSlot(list)
+    def recieve_user_variables(self,user_variables):
+        """Recieves the user variables from MAIA to set in the GUI."""
+        self.box_user_variables.setText(str(user_variables))
+
+    def set_measure_prefix(self,measure_prefix):
+        """Forwards a measure prefix to MAIA to be set. The is for display 
+        purposes only."""
+        self.signal_send_measure_prefix.emit(measure_prefix)
+    
+    @pyqtSlot(str)
+    def recieve_measure_prefix(self,measure_prefix):
+        """Recieves the measure prefix from MAIA to set in the GUI."""
+        self.box_measure_prefix.setText(str(measure_prefix))
+
+
     @pyqtSlot(str)
     def status_bar_error(self,message):
         self.status_bar.setStyleSheet('background-color : pink')
@@ -259,32 +353,62 @@ class ImagerGUI(QMainWindow):
         print('MAIA @ {}: {}'.format(time_str,message))
 
     def generate_test_image(self):
+        atom_xs = [1,10,20,30]
+        atom_ys = [1,10,20,30]
         for _ in range(100):
             image = np.random.rand(100,50)*1000
-            atom = np.zeros_like(image)
-            atom[30:32,30:32] = 2000
-            image += atom
+            atoms = np.zeros_like(image)
+            for x in atom_xs:
+                for y in atom_ys:
+                    if np.random.random_sample() > 0.5:
+                        atoms[x:x+2,y:y+2] = 2000
+            image += atoms
             self.signal_send_maia_image.emit(image)
 
     def update_rois(self,new_roi_coords=None):
-        if new_roi_coords == False: # seems like button press is sending False so add this to fix
+        if type(new_roi_coords) is bool: # button presses send their boolean in the signal so ignore this
             new_roi_coords = None
         lock_to_group_zero = self.button_lock_roi_groups.isChecked()
         print('iGUI update ROIs:',new_roi_coords,lock_to_group_zero)
         self.signal_send_new_rois.emit(new_roi_coords,lock_to_group_zero)
 
+    def update_num_images(self,new_num_images=None):
+        try:
+            new_num_images = int(self.box_number_images.text())
+        except ValueError:
+            print('num images "{}" is not valid'.format(self.box_number_images.text()))
+            new_num_images = None
+        self.signal_send_new_num_images.emit(new_num_images)
+
+    @pyqtSlot(int)
+    def recieve_num_images(self,num_images):
+        self.box_number_images.setText(str(num_images))
+
     @pyqtSlot(np.ndarray,int)
     def draw_image(self,image,image_num):
         """Draws an image array in the main image window. The ROIs are then
-        redrawn.
+        redrawn. Only draws the image if the correct index is displayed in 
+        the GUI. Set to -1 to draw all images.
 
         Parameters
         ----------
         image : array
             The image to draw in array format.
+        image_num : int
+            The index of the image, used to decide whether it is drawn in the 
+            GUI or not.
         """
-        self.im_canvas.setImage(image)
+        try:
+            draw_image_num = int(self.box_display_image_num.text())
+        except ValueError: # not a valid number in the box
+            self.box_display_image_num.setText(str(-1))
+            draw_image_num = int(self.box_display_image_num.text())
+        if (image_num == draw_image_num) or (draw_image_num < 0):
+            self.im_canvas.setImage(image)
         self.box_current_image_num.setText(str(image_num))
+
+    def set_file_id(self,file_id):
+        self.signal_send_file_id.emit(file_id)
 
     @pyqtSlot(int)
     def recieve_file_id_from_maia(self,file_id):
@@ -383,6 +507,10 @@ class ImagerGUI(QMainWindow):
             num_rois_per_group = 1
         self.signal_set_num_rois_per_group.emit(num_rois_per_group)
 
+    def save(self):
+        """Sends save request to MAIA."""
+        self.signal_save.emit()
+
     #%% iGUI <-> Stefan methods
     def status_bar_stefan_message(self,message,stefan_index=None):
         if stefan_index == None:
@@ -420,6 +548,278 @@ class ImagerGUI(QMainWindow):
         stefan = self.stefans[stefan_index]
         stefan.update(counts)
 
+    #%% iGUI <-> ThresholdViewer methods
+    def create_threshold_viewer(self):
+        self.tv = ThresholdViewer(self)
+        self.tv.show()
+    
+    def destroy_threshold_viewer(self):
+        self.tv = None
+
+    def tv_request_data_refresh(self):
+        """Triggered by the Threshold Viewer to request an update on the 
+        threshold information from the MAIA."""
+        self.signal_tv_data_refresh.emit()
+    
+    @pyqtSlot(list)
+    def recieve_maia_data_for_tv(self,threshold_data):
+        try:
+            self.tv.recieve_maia_threshold_data(threshold_data)
+        except AttributeError: # threshold viewer no longer exists
+            pass
+
+    def tv_send_data_to_maia(self,threshold_data):
+        """Recieves threshold data from the Threshold Viewer and sends it to
+        the MAIA."""
+        self.signal_tv_data_to_maia.emit(threshold_data)
+
+class ThresholdViewer(QMainWindow):
+    """Class to view the thresholds of the ROIs. Launched from the iGUI when
+    the 'Show Thresholds' button pressed. Runs in the same thread as the 
+    iGUI because it is only a display widget.
+    """
+
+    def __init__(self,imagerGUI):
+        super().__init__()
+        self.name = 'Threshold Viewer'
+        self.setWindowTitle(self.name)
+        self.iGUI = imagerGUI
+
+        self.manualthresh_icon = QIcon(":manualthresh.svg")
+        self.autothresh_icon = QIcon(":autothresh.svg")
+
+        self.init_UI()
+        self.refresh()
+
+    def init_UI(self):
+        self.centre_widget = QWidget()
+        self.centre_widget.layout = QVBoxLayout()
+        self.centre_widget.setLayout(self.centre_widget.layout)
+        self.setCentralWidget(self.centre_widget)
+
+        self.button_refresh = QPushButton('Refresh')
+        self.button_refresh.clicked.connect(self.refresh)
+        self.centre_widget.layout.addWidget(self.button_refresh)
+
+        self.centre_widget.layout.addWidget(QLabel('ROIs sorted by ROI index. IDs are group:ROI.'))
+        self.centre_widget.layout.addWidget(QLabel('Right click to toggle Autothresh or Manualthresh.'))
+
+        self.button_show_only_group_zero = QCheckBox('Copy group 0 settings across groups')
+        self.centre_widget.layout.addWidget(self.button_show_only_group_zero)
+        self.button_show_only_group_zero.stateChanged.connect(self.toggle_show_only_group_zero)
+
+        self.table = QTableWidget()
+        self.table.itemChanged.connect(self.get_data_from_table)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self.table_right_clicked)
+        self.centre_widget.layout.addWidget(self.table)
+
+        self.button_toggle_all_autothresh = QPushButton('Toggle all Autothresh')
+        self.button_toggle_all_autothresh.clicked.connect(self.toggle_all_autothresh)
+        self.centre_widget.layout.addWidget(self.button_toggle_all_autothresh)
+
+        self.button_update = QPushButton('Send to MAIA')
+        self.button_update.clicked.connect(self.update)
+        self.centre_widget.layout.addWidget(self.button_update)
+
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+
+    def status_bar_message(self,message):
+        self.status_bar.setStyleSheet('background-color : #EEEEBB')
+        time_str = datetime.now().strftime('%H:%M:%S')
+        self.status_bar.showMessage('{}: {}'.format(time_str,message))
+        print('TV @ {}: {}'.format(time_str,message))
+
+    def refresh(self):
+        """Sends a request to the MAIA via the iGUI to get the latest 
+        information about the ROIs that exist and their current thresholds."""
+        self.status_bar_message('Requesting information update from MAIA')
+        self.iGUI.tv_request_data_refresh()
+
+    def recieve_maia_threshold_data(self,data):
+        """Processing to be performed after the MAIA has send back the 
+        threshold data. This involves populating the table."""
+        self.status_bar_message('Recieved threshold data from MAIA')
+        self.data = data
+        self.populate_table_with_data()
+
+    def toggle_show_only_group_zero(self):
+        """After showing/hiding all other groups, the data is recollected 
+        from the table to overwrite any groups with data different to group
+        zero."""
+        self.populate_table_with_data()
+        self.get_data_from_table()
+
+    def populate_table_with_data(self):
+        data = self.data
+        self.table.blockSignals(True) # don't want signalling to happen whilst we're populating the table
+        self.table.clear()
+
+        self.num_roi_groups = len(data)
+        self.num_rois_per_group = len(data[0])
+        self.num_images = len(data[0][0])
+        
+        data_sorted_by_roi = list(map(list, zip(*data))) # transpose the data array to sort it by ROI rather than ROI group
+
+        if self.button_show_only_group_zero.isChecked():
+            self.table.setRowCount(self.num_rois_per_group)
+        else:
+            self.table.setRowCount(self.num_roi_groups*self.num_rois_per_group)
+        self.table.setColumnCount(self.num_images)
+
+        horizontal_headers = ['Image {}'.format(i) for i in range(self.num_images)]
+        self.table.setHorizontalHeaderLabels(horizontal_headers)
+
+        vertical_header_labels = []
+        for roi_num, roi in enumerate(data_sorted_by_roi):
+            for group_num, roi_data in enumerate(roi):
+                if (self.button_show_only_group_zero.isChecked()) and (group_num != 0):
+                    continue
+                for image_num, threshold_data in enumerate(roi_data):
+                    # newVal = QTableWidgetItem(str('{}:{} Im{}'.format(group_num,roi_num,image_num)))
+                    newVal = QTableWidgetItem(str(threshold_data[0]))
+                    if threshold_data[1]: # autothresh is enabled
+                        newVal.setIcon(self.autothresh_icon)
+                    else:
+                        newVal.setIcon(self.manualthresh_icon)
+                    newVal.setBackground(QColor(get_group_roi_color(group_num,roi_num)))
+                    self.table.setItem(self.get_table_index(group_num,roi_num), image_num, newVal)
+                vertical_header_labels.append('{}:{}'.format(group_num,roi_num))
+        self.table.setVerticalHeaderLabels(vertical_header_labels)
+
+        self.table.blockSignals(False)
+
+    def get_table_index(self,group_num,roi_num):
+        """Returns the index corresponding to the correct row in the table for 
+        given group and ROI indicies.
+        """
+        if self.button_show_only_group_zero.isChecked():
+            return roi_num
+        else:
+            return roi_num*self.num_roi_groups+group_num
+
+    def get_roi_group_nums_from_index(self,index):
+        if self.button_show_only_group_zero.isChecked():
+            group_num = 0
+            roi_num = index
+        else:
+            group_num = index % self.num_roi_groups
+            roi_num = index // self.num_roi_groups
+        return group_num, roi_num
+
+    def get_data_from_table(self):
+        new_data = deepcopy(self.data)
+        for group in range(self.num_roi_groups):
+            for roi in range(self.num_rois_per_group):
+                for image in range(self.num_images):
+                    if self.button_show_only_group_zero.isChecked():
+                        table_index = self.get_table_index(0,roi)
+                    else:
+                        table_index = self.get_table_index(group,roi)
+                    try:
+                        value = round(float(self.table.item(table_index,image).text()))
+                    except ValueError:
+                        self.populate_table_with_data() # ignore the new data if a value is invalid
+                        return
+                    new_data[group][roi][image][0] = value
+        self.data = new_data
+        self.populate_table_with_data()
+        self.button_update.setStyleSheet('background-color: #BBCCEE')
+
+    def table_right_clicked(self):
+        image_num = self.table.currentColumn()
+        group_num, roi_num = self.get_roi_group_nums_from_index(self.table.currentRow())
+        # print('right clicked {}:{} Im{}'.format(group_num,roi_num,image_num))
+        self.set_autothresh(group_num,roi_num,image_num)
+        self.populate_table_with_data()
+
+    def set_autothresh(self,group_num,roi_num,image_num,value=None):
+        if value == None:
+            self.data[group_num][roi_num][image_num][1] = not self.data[group_num][roi_num][image_num][1]
+        else:
+            self.data[group_num][roi_num][image_num][1] = value
+
+    def toggle_all_autothresh(self):
+        value = not self.data[0][0][0][1]
+        for group_num in range(self.num_roi_groups):
+            for roi_num in range(self.num_rois_per_group):
+                for image_num in range(self.num_images):
+                    self.set_autothresh(group_num,roi_num,image_num,value)
+        self.populate_table_with_data()
+
+    def update(self):
+        self.iGUI.tv_send_data_to_maia(self.data)
+        self.status_bar_message('Sent threshold data to MAIA')
+        self.button_update.setStyleSheet('')
+        # self.iGUI.destroy_threshold_viewer()
+
+class DebugWindow(QMainWindow):
+    """Class to allow simple debugging of the iGUI by triggering commands that 
+    will come from the rest of Pydex when needed.
+    """
+
+    def __init__(self,imagerGUI):
+        super().__init__()
+        self.name = 'Debug Window'
+        self.setWindowTitle(self.name)
+        self.iGUI = imagerGUI
+
+        self.init_UI()
+
+    def init_UI(self):
+        self.centre_widget = QWidget()
+        self.centre_widget.layout = QVBoxLayout()
+        self.centre_widget.setLayout(self.centre_widget.layout)
+        self.setCentralWidget(self.centre_widget)
+
+        self.button_end_multirun = QPushButton('End multirun')
+        # self.button_end_multirun.clicked.connect(self.refresh)
+        self.centre_widget.layout.addWidget(self.button_end_multirun)
+
+        self.button_set_results_path = QPushButton('Set results path')
+        self.button_set_results_path.clicked.connect(self.set_test_results_path)
+        self.centre_widget.layout.addWidget(self.button_set_results_path)
+
+        self.button_set_hist_id = QPushButton('Set hist. ID')
+        self.button_set_hist_id.clicked.connect(self.set_test_hist_id)
+        self.centre_widget.layout.addWidget(self.button_set_hist_id)
+
+        self.button_set_file_id = QPushButton('Set file ID')
+        self.button_set_file_id.clicked.connect(self.set_test_file_id)
+        self.centre_widget.layout.addWidget(self.button_set_file_id)
+
+        self.button_set_user_variables = QPushButton('Set user variables')
+        self.button_set_user_variables.clicked.connect(self.set_test_user_variables)
+        self.centre_widget.layout.addWidget(self.button_set_user_variables)
+
+        self.button_set_measure_prefix = QPushButton('Set measure prefix')
+        self.button_set_measure_prefix.clicked.connect(self.set_test_measure_prefix)
+        self.centre_widget.layout.addWidget(self.button_set_measure_prefix)
+
+        self.button_save_data = QPushButton('Save data')
+        self.button_save_data.clicked.connect(self.save)
+        self.centre_widget.layout.addWidget(self.button_save_data)
+
+    def set_test_results_path(self):
+        self.iGUI.set_results_path('output.csv')
+
+    def set_test_hist_id(self):
+        self.iGUI.set_hist_id(7)
+
+    def set_test_file_id(self):
+        self.iGUI.set_file_id(1998)
+
+    def set_test_user_variables(self):
+        self.iGUI.set_user_variables([200,100,50])
+
+    def set_test_measure_prefix(self):
+        self.iGUI.set_measure_prefix('Measure18')
+
+    def save(self):
+        self.iGUI.set_results_path('newdir/output.csv')
+        self.iGUI.save()
+
 def run():
     """Initiate an app to run the program
     if running in Pylab/IPython then there may already be an app instance"""
@@ -437,3 +837,4 @@ if __name__ == "__main__":
     # change directory to this file's location
     os.chdir(os.path.dirname(os.path.realpath(__file__))) 
     run()
+    

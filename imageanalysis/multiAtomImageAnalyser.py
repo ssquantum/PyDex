@@ -14,6 +14,8 @@ import time
 from copy import copy,deepcopy
 # from queue import Queue
 from collections import deque
+from skimage.filters import threshold_minimum
+from dataanalysis import Analyser
 
 class MultiAtomImageAnalyser(QObject):
     """Multi Atom Image Analyser (MAIA).
@@ -37,10 +39,16 @@ class MultiAtomImageAnalyser(QObject):
     signal_file_id = pyqtSignal(int) # send the file ID that will be assigned to the next image to GUI
     signal_draw_image = pyqtSignal([np.ndarray, int]) # used to send image back to GUI for drawing
     signal_status_message = pyqtSignal([str]) # send string back to GUI to display on status bar
+    signal_num_images = pyqtSignal(int) # sends the number of images back to the GUI
     signal_roi_coords = pyqtSignal([list]) # send ROI coords back to the GUI
     signal_num_roi_groups = pyqtSignal(int) # send the number of ROI groups back to the GUI
     signal_num_rois_per_group = pyqtSignal(int) # send the number of ROIs per group back to the GUI
     signal_data_for_stefan = pyqtSignal(list,int) # send the roi counts to the iGUI for forwarding to a STEFAN (counts,stefan_index)
+    signal_data_for_tv = pyqtSignal(list) # send the threshold data to the iGUI for forwarding to the TV
+    signal_results_path = pyqtSignal(str) # send the results path to the iGUI
+    signal_hist_id = pyqtSignal(int) # send the hist ID to the iGUI
+    signal_user_variables = pyqtSignal(list) # send the user variables back to the iGUI
+    signal_measure_prefix = pyqtSignal(str) # send the measure prefix to the iGUI
 
     queue = deque() # Double-ended queue to handle images. Images are processed when ready.
     timer = QTimer() # Timer to trigger the updating of queue events
@@ -53,12 +61,13 @@ class MultiAtomImageAnalyser(QObject):
         # self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.next_image = 0 # image number to assign the next incoming array to
         self.file_id = 3000 # the file ID to start on. This is iterated once every image cycle.
+        self.should_save = False # whether MAIA should save the data on the next iteration of the event loop
 
         self.roi_groups = []
         self.update_num_roi_groups(num_roi_groups)
 
         self.num_images = None
-        self.set_num_images(num_images)
+        self.update_num_images(num_images)
         self.num_rois_per_group = None
         self.update_num_rois_per_group(num_rois_per_group)
 
@@ -85,7 +94,8 @@ class MultiAtomImageAnalyser(QObject):
             - updating the number of ROIs per group with self.update_num_rois_per_group()
         """
 
-        self.process_next_image()
+        self.process_next_image() # 
+        self.save() # only saves data if queue is empty and self.should_save = True
 
         self.timer.blockSignals(False) # allow the timer to trigger the event loop again
 
@@ -104,7 +114,9 @@ class MultiAtomImageAnalyser(QObject):
             Whether to lock the geometry of additional ROI groups to group
             zero. Default is False.
         """
-        if new_roi_coords != None:
+        if (new_roi_coords != None) or (lock_to_group_zero):
+            if new_roi_coords == None:
+                new_roi_coords = self.get_roi_coords()
             if lock_to_group_zero:
                 x_offsets = [[roi[0]-group[0][0] for roi in group] for group in new_roi_coords]
                 y_offsets = [[roi[1]-group[0][1] for roi in group] for group in new_roi_coords]
@@ -112,15 +124,60 @@ class MultiAtomImageAnalyser(QObject):
                 offsets = np.array([[x+[0,0] for x in offsets[0]] for _ in offsets])
                 new_roi_coords = [[group[0] for _ in group] for group in new_roi_coords]
                 new_roi_coords = list(np.array(offsets)+np.array(new_roi_coords))
-            [group.set_roi_coords(coords) for group,coords in zip(self.roi_groups,new_roi_coords)]
+            self.set_roi_coords(new_roi_coords)
         self.send_roi_coords()
+
+    def get_roi_coords(self):
+        """Gets the ROI coords from the ROIgroups."""
+        return [group.get_roi_coords() for group in self.roi_groups]
+
+    def set_roi_coords(self,new_roi_coords):
+        """Sets the ROI coords from a list of new ROI coords by passing the 
+        coords through to the relevant ROIgroups.
+        
+        Parameters
+        ----------
+        new_roi_coords : list
+            List of ROI coords [[[x,y,w,h],...]] for each ROI, sorted by group.
+        """
+        [group.set_roi_coords(coords) for group,coords in zip(self.roi_groups,new_roi_coords)]
 
     def send_roi_coords(self):
         """Returns the current ROI coordinates back to the GUI."""
         new_roi_coords = [group.get_roi_coords() for group in self.roi_groups]
         self.signal_status_message.emit('Updated ROI coords.: {}'.format(new_roi_coords))
         self.signal_roi_coords.emit(new_roi_coords)
+
+    @pyqtSlot(str)
+    def update_results_path(self,results_path):
+        self.results_path = results_path
+        self.signal_results_path.emit(results_path)
+        self.signal_status_message.emit('Set results path to {}'.format(self.results_path))
     
+    @pyqtSlot(int)
+    def update_hist_id(self,hist_id):
+        self.hist_id = hist_id
+        self.signal_hist_id.emit(hist_id)
+        self.signal_status_message.emit('Set hist. ID to {}'.format(self.hist_id))
+
+    @pyqtSlot(int)
+    def update_file_id(self,file_id):
+        self.file_id = file_id
+        self.signal_file_id.emit(file_id)
+        self.signal_status_message.emit('Set file ID to {}'.format(self.file_id))
+
+    @pyqtSlot(list)
+    def update_user_variables(self,user_variables):
+        self.user_variables = user_variables
+        self.signal_user_variables.emit(user_variables)
+        self.signal_status_message.emit('Set user variables to {}'.format(self.user_variables))
+
+    @pyqtSlot(str)
+    def update_measure_prefix(self,measure_prefix):
+        self.measure_prefix = measure_prefix
+        self.signal_measure_prefix.emit(measure_prefix)
+        self.signal_status_message.emit('Set measure prefix to {}'.format(self.measure_prefix))
+
     @pyqtSlot(np.ndarray)
     def recieve_image(self,image):
         """Recieves an image from the iGUI and adds it to the processing queue."""
@@ -170,6 +227,7 @@ class MultiAtomImageAnalyser(QObject):
         self.signal_num_roi_groups.emit(num_roi_groups)
         # self.send_roi_coords() # this will be send when updating the number of ROIs per group anyway
     
+    @pyqtSlot(object)
     def update_num_rois_per_group(self,num_rois_per_group=None):
         """Sets the number of ROIs per ROI group. First the number of ROIs in
         the first group is updated if needed, the all ROI groups are set to 
@@ -197,14 +255,45 @@ class MultiAtomImageAnalyser(QObject):
             self.signal_status_message.emit('Started processing image {}'.format(image_num))
             for group in self.roi_groups:
                 for roi in group.rois:
-                    roi.counts[image_num].append(image[roi.x:roi.x+roi.w,roi.y:roi.y+roi.h].sum())
+                    roi.counts[image_num][file_id] = image[roi.x:roi.x+roi.w,roi.y:roi.y+roi.h].sum()
             self.signal_status_message.emit('Finished processing image {}'.format(image_num))
-    
+            self.calculate_thresholds()
+
     def get_roi_counts(self):
         """Extracts the ROI counts lists from the ROI objects contained within
         the ROI group objects."""
         counts = [[roi.counts for roi in group.rois] for group in self.roi_groups]
         return counts
+
+    def get_roi_thresholds(self):
+        """Extracts the ROI counts lists from the ROI objects contained within
+        the ROI group objects."""
+        thresholds = [group.get_threshold_data() for group in self.roi_groups]
+        return thresholds
+
+    def calculate_thresholds(self):
+        """Calculates the thresholds for ROIs that have Autothresh enabled. 
+        This uses the same method as the old code with the exception of not 
+        requiring that the threshold be positive. This will be performed after 
+        every image for ROIs that need it."""
+        
+        for group in self.roi_groups:
+            for roi in group.rois:
+                for image in range(len(roi.counts)):
+                    if roi.autothreshs[image]:
+                        values = np.fromiter(roi.counts[image].values(), dtype=float)
+                        roi.thresholds[image] = self.calculate_threshold(values)
+
+    def calculate_threshold(self,counts_data):
+        """Automatically choose a threshold based on the counts"""
+        try:
+            thresh = int(threshold_minimum(np.array(counts_data), 25))
+        except (ValueError, RuntimeError, OverflowError):
+            try:
+                thresh = int(0.5*(max(counts_data) + min(counts_data)))
+            except ValueError: # will be triggered if counts_data is empty
+                thresh = 1000
+        return thresh
 
     @pyqtSlot(int)
     def recieve_data_request(self,stefan_index):
@@ -218,34 +307,103 @@ class MultiAtomImageAnalyser(QObject):
             returned.
         """
         self.signal_status_message.emit('Recieved data request for STEFAN {}'.format(stefan_index))
-        counts = self.get_roi_counts()
-        self.signal_data_for_stefan.emit(counts,stefan_index)
+        data = self.get_analyser_data()
+        self.signal_data_for_stefan.emit(data,stefan_index)
         self.signal_status_message.emit('Forwarded all data for STEFAN {} to SIMON'.format(stefan_index))
-        
+    
+    def get_analyser_data(self):
+        """Prepares the MAIA data in the format expected by the Analysers 
+        used by the STEFANs and when exporting the data."""
+        counts = self.get_roi_counts()
+        thresholds = self.get_roi_thresholds()
+        roi_coords = self.get_roi_coords()
+        return [counts,thresholds,roi_coords]
+
     # def set_results_path(self,results_path):
     #     """Sets the results path where data will be outputted in csv files."""
     #     self.results_path = results_path
     
-    def set_num_images(self,num_images):
+    def update_num_images(self,num_images):
         """Sets the number of images that the MAIA should expect in a 
         sequence."""
-        if num_images != self.num_images:
+        if (num_images != None) and (num_images != self.num_images):
             for group in self.roi_groups:
                 group.set_num_images(num_images)
             self.num_images = num_images
+            self.signal_status_message.emit('Set number of images to {}'.format(self.num_images))
+        self.signal_num_images.emit(self.num_images)
 
-    # def get_num_images(self):
-    #     """Returns the number of images that the MAIA expects to be passed in
-    #     an experimental run."""
-    #     pass
+    @pyqtSlot()
+    def recieve_tv_data_request(self):
+        self.signal_status_message.emit('Recieved Threshold Viewer data request')
+        tv_data = self.get_roi_thresholds()
+        self.signal_data_for_tv.emit(tv_data)
+        self.signal_status_message.emit('Sent Threshold Viewer data to SIMON')
+    
+    @pyqtSlot(list)
+    def recieve_tv_threshold_data(self,threshold_data):
+        """Recieves threhold data from the Threshold Viewer to update the 
+        ROIs with."""
+        self.signal_status_message.emit('Recieved threshold data from Threshold Viewer')
+        
+        # First check that the threshold data is of the correct format.
+        if len(threshold_data) != len(self.roi_groups):
+            self.signal_status_message.emit('Threshold Viewer data did not have the correct number of ROI groups. Ignoring.')
+            return
+        elif len(threshold_data[0]) != len(self.roi_groups[0].rois):
+            self.signal_status_message.emit('Threshold Viewer data did not have the correct number of ROIs/group. Ignoring.')
+            return
+        elif len(threshold_data[0][0]) != self.num_images:
+            self.signal_status_message.emit('Threshold Viewer data did not have the correct number of images. Ignoring.')
+            return
+        
+        # Now apply the data to the ROIs and recalculate any thresholds that need to be recalculated.
+        for group, group_thresh in zip(self.roi_groups,threshold_data):
+            group.set_threshold_data(group_thresh)
+        self.calculate_thresholds()
 
-    # def get_num_roi_groups(self):
-    #     """Returns the number of ROI groups in the MAIA."""
-    #     return len(self.roi_groups)
+        # Send updated data back to TV.
+        self.recieve_tv_data_request()
 
-    # def get_num_rois_per_group(self):
-    #     """Returns the number of ROIs per group in the MAIA."""
-    #     return self.num_rois_per_group
+    # def get_roi_dict
+
+    @pyqtSlot()
+    def request_save(self):
+        """Sets the flag self.should_save to true, which will result in the 
+        data being saved when the image queue is empty."""
+        self.should_save = True
+        self.signal_status_message.emit('Recieved save request')
+
+    def save(self):
+        """Saves the current ROI data to the path specified by the results 
+        path and hist ID. This function actually saves the data; during a
+        multirun the request_save function should be used to set the flag
+        self.should_save to true, but this will only be done once the image 
+        queue is empty."""
+        if (self.should_save) and (not self.queue): # only save if should_save is True and queue is empty
+            filename = self.results_path # TODO might need to add hist ID in here
+            data = self.get_analyser_data()
+            analyser = Analyser(data)
+            additional_data = self.get_user_variable_dict()
+            additional_data['Hist ID'] = self.hist_id
+            try:
+                analyser.save_data(filename,additional_data)
+                self.signal_status_message.emit('Saved data to {}'.format(filename))
+                self.clear()
+                self.should_save = False
+            except PermissionError:
+                self.signal_status_message.emit('Could not save data to {} due to PermissionError. Data has not been cleared. Will keep retrying.'.format(filename))
+
+    def get_user_variable_dict(self):
+        """Converts the list of user variables to a dict to be saved with the 
+        rest of the output data."""
+        user_variable_keys = ['User variable {}'.format(i) for i in range(len(self.user_variables))]
+        return dict(zip(user_variable_keys, self.user_variables))
+
+    def clear(self):
+        """Clears the counts data stored in the ROIs."""
+        [group.clear() for group in self.roi_groups]
+
 
 class ROIGroup():
     """Container ROIGroup class used by the MAIA. This stores multiple ROIs
@@ -305,6 +463,7 @@ class ROIGroup():
         """
         for roi in self.rois:
             roi.set_num_images(num_images)
+        self.num_images = num_images
 
     def get_roi_coords(self):
         """Returns a list of lists containing the coordinates of ROIs in this
@@ -328,6 +487,32 @@ class ROIGroup():
         """
         [roi.set_coords(coords) for roi,coords in zip(self.rois,coords)]
 
+    def get_threshold_data(self):
+        """Returns a list of lists containing the threshold data of ROIs in 
+        this ROIGroup. See ROI.get_threshold_data() for format.
+
+        Returns
+        -------
+        list : list of threshold data
+        """
+        return [roi.get_threshold_data() for roi in self.rois]
+
+    def set_threshold_data(self,threshold_data):
+        """Applies a list of lists containing the threshold data of ROIs in 
+        this ROIGroup. See ROI.set_threshold_data() for format.
+
+        Parameters
+        ----------
+        threshold_data : list 
+            list of threshold data for this ROI group
+        """
+        for roi, roi_thresh in zip(self.rois,threshold_data):
+            roi.set_threshold_data(roi_thresh)
+
+    def clear(self):
+        """Clears the counts data stored in the ROIs."""
+        [roi.clear() for roi in self.rois]
+
 class ROI():
     """Container ROI class used by the MAIA. This class should perform no 
     analysis and should only be used to easily store and retrieve data. It will
@@ -339,13 +524,17 @@ class ROI():
         self.y = y
         self.w = width
         self.h = height
-        self.t = threshold
-        self.autothresh = autothresh
         self.plot = plot
+        self.default_threshold = threshold
+        self.default_autothresh = autothresh
 
-        self.counts = [[]] # List to store the counts in. Each element is the list for each image.
+        self.counts = [{}] # List to store the counts in. Each element is the dictionary for each image. Key is the file ID.
+        self.thresholds = []
+        self.autothreshs = []
+        
         self.num_images = None
         self.set_num_images(num_images)
+
 
     def get_coords(self):
         """Returns the coordinates of the ROI.
@@ -377,13 +566,45 @@ class ROI():
             The number of images the roi should expect to recieve in a sequence.
         """
         if num_images != self.num_images:
-            self.counts = [[] for _ in range(num_images)]
+            self.counts = [{} for _ in range(num_images)]
+
+            for _ in range(num_images,len(self.thresholds)): # delete unneeded thresholds
+                self.thresholds.pop()
+            for _ in range(len(self.thresholds), num_images): # make new thresholds
+                self.thresholds.append(self.default_threshold)
+
+            for _ in range(num_images,len(self.autothreshs)): # delete unneeded autothreshs
+                self.autothreshs.pop()
+            for _ in range(len(self.autothreshs), num_images): # make new autothreshs
+                self.autothreshs.append(self.default_autothresh)
+
             self.num_images = num_images
         
-    def clear_data(self):
+    def clear(self):
         """Deletes all current counts data stored in the ROI.
         """
-        self.counts = [[] for _ in range(len(self.counts))]
+        self.counts = [{} for _ in range(len(self.counts))]
+
+    def get_threshold_data(self):
+        """Returns the thresholds of the ROI alongside whether the thresholds are
+        automatic or not.
+
+        Returns
+        -------
+        list : list of the format [[Im0 thresh, Im0 autothresh], [Im1 thresh, Im1 autothresh], ...]
+        """
+        return [list(x) for x in list(zip(self.thresholds,self.autothreshs))]
+
+    def set_threshold_data(self,threshold_data):
+        """Sets the thresholds of the images in the ROI alongside whether they
+        are Autothreshing or not.
+        
+        Parameters
+        ----------
+        threshold_data : list
+            List of the format [[Im0 thresh, Im0 autothresh], [Im1 thresh, Im1 autothresh], ...]
+        """
+        [self.thresholds, self.autothreshs] = np.array(threshold_data).T.tolist()
 
     def calculate_occupancy(self):
         """Processess the counts and determines if the roi was occupied or
@@ -394,25 +615,6 @@ class ROI():
         list of list
             Same format as the ROI.counts list but in binary occupations.
         """
+        # TODO will need to be fixed now that using a dict and changed thresholds
         self.occupancy = [list(x > self.t for x in y) for y in self.counts]
         return self.occupancy
-    
-    def add_counts(self, counts, image):
-        """Adds a counts value to the corresponding list in the `counts` 
-        attribute which is a list of lists.
-        
-        Parameters
-        ----------
-        counts : int
-            The number of counts to store in the list.
-            
-        image : int
-            The image number that the counts corresponds to. This is checked 
-            against the `next_image` attribute, and nothing will be stored if 
-            this does not match to prevent the images getting out of sync."""
-        
-        if image == self.next_image:
-            self.counts[image].append(counts)
-            self.next_image = (self.next_image+1)%self.num_images
-        else:
-            print('ignoring counts because next_image is {}'.format(self.next_image))
