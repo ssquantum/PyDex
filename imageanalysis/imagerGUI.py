@@ -1,4 +1,5 @@
 """Multi Atom Image Analysis Interface [imagerGUI (iGUI)]
+Referred to as SIMON: Simple Image MONitoring in GUI, but iGUI throughout code.
 Dan Ruttley 2023-01-20
 Code written to follow PEP8 conventions with max line length 120 characters.
 
@@ -21,7 +22,7 @@ from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu,
         QApplication, QPushButton, QAction, QMainWindow, QWidget,
         QLabel, QTabWidget, QInputDialog, QHBoxLayout, QTableWidget,
         QCheckBox, QFormLayout, QCheckBox, QStatusBar,QTableWidgetItem, 
-        QSizePolicy,QAbstractScrollArea)
+        QSizePolicy,QAbstractScrollArea,QFileDialog)
 if '..' not in sys.path: sys.path.append('..')
 from strtypes import error, warning, info
 import imageHandler as ih # process images to build up a histogram
@@ -76,10 +77,11 @@ class ImagerGUI(QMainWindow):
     edit_ROI      -- whether the user can edit the ROI"""
     event_im = pyqtSignal([np.ndarray, bool]) # [numpy array, include in hists?]
     
-    signal_advance_image_count = pyqtSignal() # advances the image count in the MAIA
+    signal_advance_image_count = pyqtSignal(object,object) # advances the image count in the MAIA
     signal_send_new_rois = pyqtSignal(object,bool) # new rois to send to coords. bool is whether to lock to group zero
     signal_send_new_num_images = pyqtSignal(object) # send new number of images to the MAIA
-    signal_send_maia_image = pyqtSignal(np.ndarray)
+    signal_send_maia_image = pyqtSignal(np.ndarray,object,object)
+    signal_send_emccd_bias =pyqtSignal(object) # send EMCCD bias to the MAIA
     signal_set_num_roi_groups = pyqtSignal(object) # used to set the number of ROI groups
     signal_set_num_rois_per_group = pyqtSignal(object) # used to set the number of ROIs per group
     signal_request_maia_data = pyqtSignal(int) # request all data from MAIA for use in STEFANs
@@ -91,8 +93,9 @@ class ImagerGUI(QMainWindow):
     signal_send_user_variables = pyqtSignal(list) # sends user variables to MAIA
     signal_send_measure_prefix = pyqtSignal(str) # sends the measure prefix to MAIA
     signal_save = pyqtSignal() # asks MAIA to save the data when the queue is empty
+    signal_clear_data_and_queue = pyqtSignal() # asks MAIA to immediately clear its data and queue
 
-    def __init__(self, results_path='.', hist_id=0, file_id=2000, user_variables=[0], measure_prefix='Measure0'):
+    def __init__(self, num_images=2, results_path='.', hist_id=0, file_id=2000, user_variables=[0], measure_prefix='Measure0'):
         super().__init__()
         self.name = 'SIMON: Simple Image MONitoring'  # name is displayed in the window title
         self.setWindowTitle(self.name)
@@ -110,9 +113,7 @@ class ImagerGUI(QMainWindow):
         self.set_file_id(file_id)
         self.set_user_variables(user_variables)
         self.set_measure_prefix(measure_prefix)
-
-        self.debug = DebugWindow(self)
-        self.debug.show()
+        self.update_emccd_bias(670)
     
     def closeEvent(self, event):
         """Events to do when this main window is closed."""
@@ -136,6 +137,7 @@ class ImagerGUI(QMainWindow):
         self.signal_send_maia_image.connect(self.maia.recieve_image)
         self.signal_set_num_roi_groups.connect(self.maia.update_num_roi_groups)
         self.signal_set_num_rois_per_group.connect(self.maia.update_num_rois_per_group)
+        self.signal_send_emccd_bias.connect(self.maia.update_emccd_bias)
         self.signal_request_maia_data.connect(self.maia.recieve_data_request)
         self.signal_tv_data_refresh.connect(self.maia.recieve_tv_data_request)
         self.signal_tv_data_to_maia.connect(self.maia.recieve_tv_threshold_data)
@@ -146,6 +148,7 @@ class ImagerGUI(QMainWindow):
         self.signal_send_user_variables.connect(self.maia.update_user_variables)
         self.signal_send_measure_prefix.connect(self.maia.update_measure_prefix)
         self.signal_save.connect(self.maia.request_save)
+        self.signal_clear_data_and_queue.connect(self.maia.clear_data_and_queue)
 
         self.maia.signal_file_id.connect(self.recieve_file_id_from_maia)
         self.maia.signal_next_image_num.connect(self.recieve_next_image_num)
@@ -154,6 +157,7 @@ class ImagerGUI(QMainWindow):
         self.maia.signal_roi_coords.connect(self.recieve_roi_coords)
         self.maia.signal_num_roi_groups.connect(self.recieve_num_roi_groups)
         self.maia.signal_num_rois_per_group.connect(self.recieve_num_rois_per_group)
+        self.maia.signal_emccd_bias.connect(self.recieve_emccd_bias)
         self.maia.signal_data_for_stefan.connect(self.recieve_maia_data_for_stefan)
         self.maia.signal_data_for_tv.connect(self.recieve_maia_data_for_tv)
         self.maia.signal_num_images.connect(self.recieve_num_images)
@@ -167,6 +171,7 @@ class ImagerGUI(QMainWindow):
 
     def init_UI(self):
         """Create all of the widget objects required"""
+        stylesheet_read_only = 'QLineEdit {background-color: #DDDDDD}'
 
         self.centre_widget = QWidget()
         self.centre_widget.layout = QVBoxLayout()
@@ -177,31 +182,36 @@ class ImagerGUI(QMainWindow):
         layout_save_locations.addWidget(QLabel('Results path:'))
         self.box_results_path = QLineEdit()
         self.box_results_path.setReadOnly(True)
+        self.box_results_path.setStyleSheet(stylesheet_read_only)
         layout_save_locations.addWidget(self.box_results_path)
 
         layout_save_locations.addWidget(QLabel('Measure prefix:'))
         self.box_measure_prefix = QLineEdit()
         self.box_measure_prefix.setReadOnly(True)
+        self.box_measure_prefix.setStyleSheet(stylesheet_read_only)
         layout_save_locations.addWidget(self.box_measure_prefix)
 
         self.centre_widget.layout.addLayout(layout_save_locations)
-
 
         layout_options = QHBoxLayout()
 
         layout_options.addWidget(QLabel('Hist. ID:'))
         self.box_hist_id = QLineEdit()
         self.box_hist_id.setReadOnly(True)
+        self.box_hist_id.setStyleSheet(stylesheet_read_only)
+        # self.box_hist_id.setEnabled(True)
         layout_options.addWidget(self.box_hist_id)
 
         layout_options.addWidget(QLabel('Current File ID:'))
         self.box_current_file_id = QLineEdit()
         self.box_current_file_id.setReadOnly(True)
+        self.box_current_file_id.setStyleSheet(stylesheet_read_only)
         layout_options.addWidget(self.box_current_file_id)
 
         layout_options.addWidget(QLabel('User variables:'))
         self.box_user_variables = QLineEdit()
         self.box_user_variables.setReadOnly(True)
+        self.box_user_variables.setStyleSheet(stylesheet_read_only)
         layout_options.addWidget(self.box_user_variables)
         self.centre_widget.layout.addLayout(layout_options)
 
@@ -250,23 +260,27 @@ class ImagerGUI(QMainWindow):
         
         self.box_current_image_num = QLineEdit()
         self.box_current_image_num.setReadOnly(True)
+        self.box_current_image_num.setStyleSheet(stylesheet_read_only)
         layout_image_options.addRow('current image #:',self.box_current_image_num)
 
         self.box_next_image_num = QLineEdit()
         self.box_next_image_num.setReadOnly(True)
+        self.box_next_image_num.setStyleSheet(stylesheet_read_only)
         layout_image_options.addRow('next image #:',self.box_next_image_num)
 
         self.button_advance_image = QPushButton('Advance image count')
-        self.button_advance_image.clicked.connect(self.signal_advance_image_count.emit)
+        self.button_advance_image.clicked.connect(self.advance_image_count)
         layout_image_options.addRow('',self.button_advance_image)
-                
-        self.button_test_image = QPushButton('Generate 100 test images')
-        self.button_test_image.clicked.connect(self.generate_test_image)
-        layout_image_options.addRow('',self.button_test_image)
 
-        self.button_update_rois = QPushButton('Update ROIs')
-        self.button_update_rois.clicked.connect(self.update_rois)
-        layout_image_options.addRow('',self.button_update_rois)
+        self.box_emccd_bias = QLineEdit()
+        self.box_emccd_bias.setValidator(double_validator)
+        # self.box_emccd_bias.setText(600)
+        self.box_emccd_bias.editingFinished.connect(self.update_emccd_bias)
+        layout_image_options.addRow('EMCCD bias',self.box_emccd_bias)
+
+        self.button_debug = QPushButton('Show Debug Window')
+        self.button_debug.clicked.connect(self.create_debug_window)
+        layout_image_options.addRow('',self.button_debug)
 
         layout_image.addLayout(layout_image_options)
         self.centre_widget.layout.addLayout(layout_image)
@@ -301,6 +315,13 @@ class ImagerGUI(QMainWindow):
     def set_results_path(self,results_path):
         """Forwards a results path to MAIA to be set."""
         self.signal_send_results_path.emit(results_path)
+
+    def advance_image_count(self,file_id=None,image_num=None):
+        """Requests the MAIA to update the File ID and image count. None can
+        be passed for either value to let MAIA iterate from the values it 
+        already has stored, otherwise it will iterate from the specified 
+        values."""
+        self.signal_advance_image_count.emit(file_id,image_num)
     
     @pyqtSlot(str)
     def recieve_results_path(self,results_path):
@@ -363,7 +384,7 @@ class ImagerGUI(QMainWindow):
                     if np.random.random_sample() > 0.5:
                         atoms[x:x+2,y:y+2] = 2000
             image += atoms
-            self.signal_send_maia_image.emit(image)
+            self.recieve_image(image)
 
     def update_rois(self,new_roi_coords=None):
         if type(new_roi_coords) is bool: # button presses send their boolean in the signal so ignore this
@@ -373,16 +394,24 @@ class ImagerGUI(QMainWindow):
         self.signal_send_new_rois.emit(new_roi_coords,lock_to_group_zero)
 
     def update_num_images(self,new_num_images=None):
-        try:
-            new_num_images = int(self.box_number_images.text())
-        except ValueError:
-            print('num images "{}" is not valid'.format(self.box_number_images.text()))
-            new_num_images = None
+        if new_num_images is None:
+            try:
+                new_num_images = int(self.box_number_images.text())
+            except ValueError:
+                print('num images "{}" is not valid'.format(self.box_number_images.text()))
+                new_num_images = None
         self.signal_send_new_num_images.emit(new_num_images)
 
     @pyqtSlot(int)
     def recieve_num_images(self,num_images):
         self.box_number_images.setText(str(num_images))
+
+    def recieve_image(self,image,file_id=None,image_num=None):
+        """Recieves an image from the rest of PyDex and forwards it to the 
+        MAIA. The file ID and image number can be manually specified 
+        or can just be left as None to let the MAIA assign the file ID 
+        and image number."""
+        self.signal_send_maia_image.emit(image,file_id,image_num)
 
     @pyqtSlot(np.ndarray,int)
     def draw_image(self,image,image_num):
@@ -507,9 +536,29 @@ class ImagerGUI(QMainWindow):
             num_rois_per_group = 1
         self.signal_set_num_rois_per_group.emit(num_rois_per_group)
 
+    def update_emccd_bias(self,new_emccd_bias=None):
+        if new_emccd_bias is None:
+            try:
+                new_emccd_bias = int(self.box_emccd_bias.text())
+            except ValueError:
+                print('EMCCD bias "{}" is not valid'.format(self.box_emccd_bias.text()))
+                new_emccd_bias = None
+        self.signal_send_emccd_bias.emit(new_emccd_bias)
+
+    @pyqtSlot(int)
+    def recieve_emccd_bias(self,emccd_bias):
+        self.box_emccd_bias.setText(str(emccd_bias))
+
     def save(self):
         """Sends save request to MAIA."""
         self.signal_save.emit()
+    
+    def clear_data_and_queue(self):
+        """Requests MAIA immediately clears all its data and queue. This 
+        function should only really be used if a multirun is cancelled. 
+        Normally data will be cleared once MAIA has finished saving it.
+        """
+        self.signal_clear_data_and_queue.emit()
 
     #%% iGUI <-> Stefan methods
     def status_bar_stefan_message(self,message,stefan_index=None):
@@ -572,6 +621,38 @@ class ImagerGUI(QMainWindow):
         """Recieves threshold data from the Threshold Viewer and sends it to
         the MAIA."""
         self.signal_tv_data_to_maia.emit(threshold_data)
+
+    #%% iGUI <-> DebugWindow functions
+    def create_debug_window(self):
+        self.debug = DebugWindow(self)
+        self.debug.show()
+
+    #%% legacy functions used elsewhere in PyDex that were stored in the old settings_window
+    def try_browse(self, title='Select a File', file_type='all (*)', 
+                   open_func=QFileDialog.getOpenFileName, defaultpath='.'):
+        """Opens a file dialog and retrieves a file name from the browser.
+        This function is taken from the old SettingsWindow class and is used 
+        when navigating for new camera parameters.
+
+        Parameters
+        ----------
+        title : string
+            String to display at the top of the file browser window
+        defaultpath : string
+            directory to open first
+        file_type : string
+            types of files that can be selected
+        open_func : function
+            the function to use to open the file browser
+        """
+        try:
+            if 'PyQt4' in sys.modules:
+                file_name = open_func(self, title, defaultpath, file_type)
+            elif 'PyQt5' in sys.modules:
+                file_name, _ = open_func(self, title, defaultpath, file_type)
+            if type(file_name) == str: self.last_path = file_name 
+            return file_name
+        except OSError: return '' # probably user cancelled
 
 class ThresholdViewer(QMainWindow):
     """Class to view the thresholds of the ROIs. Launched from the iGUI when
@@ -773,10 +854,6 @@ class DebugWindow(QMainWindow):
         self.centre_widget.setLayout(self.centre_widget.layout)
         self.setCentralWidget(self.centre_widget)
 
-        self.button_end_multirun = QPushButton('End multirun')
-        # self.button_end_multirun.clicked.connect(self.refresh)
-        self.centre_widget.layout.addWidget(self.button_end_multirun)
-
         self.button_set_results_path = QPushButton('Set results path')
         self.button_set_results_path.clicked.connect(self.set_test_results_path)
         self.centre_widget.layout.addWidget(self.button_set_results_path)
@@ -797,12 +874,24 @@ class DebugWindow(QMainWindow):
         self.button_set_measure_prefix.clicked.connect(self.set_test_measure_prefix)
         self.centre_widget.layout.addWidget(self.button_set_measure_prefix)
 
+        self.button_test_image = QPushButton('Generate 100 test images')
+        self.button_test_image.clicked.connect(self.iGUI.generate_test_image)
+        self.centre_widget.layout.addWidget(self.button_test_image)
+
+        self.button_update_rois = QPushButton('Update ROIs')
+        self.button_update_rois.clicked.connect(self.iGUI.update_rois)
+        self.centre_widget.layout.addWidget(self.button_update_rois)
+
         self.button_save_data = QPushButton('Save data')
         self.button_save_data.clicked.connect(self.save)
         self.centre_widget.layout.addWidget(self.button_save_data)
 
+        self.button_clear_data_and_queue = QPushButton('Clear data and queue')
+        self.button_clear_data_and_queue.clicked.connect(self.iGUI.clear_data_and_queue)
+        self.centre_widget.layout.addWidget(self.button_clear_data_and_queue)
+
     def set_test_results_path(self):
-        self.iGUI.set_results_path('output.csv')
+        self.iGUI.set_results_path(r'Z:\Tweezer\People\Dan\code\pydex test dump')
 
     def set_test_hist_id(self):
         self.iGUI.set_hist_id(7)
@@ -817,7 +906,6 @@ class DebugWindow(QMainWindow):
         self.iGUI.set_measure_prefix('Measure18')
 
     def save(self):
-        self.iGUI.set_results_path('newdir/output.csv')
         self.iGUI.save()
 
 def run():

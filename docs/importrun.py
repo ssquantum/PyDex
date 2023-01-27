@@ -17,8 +17,8 @@ except ImportError:
         QTabWidget, QAction, QMainWindow, QLabel, QInputDialog, QGridLayout,
         QMessageBox, QLineEdit, QFileDialog, QComboBox, QActionGroup, QMenu,
         QVBoxLayout)
-# change directory to this file's location
-os.chdir(r'Z:\Tweezer\Code\Python 3.5\PyDex')
+# change directory to this Pydex folder location
+os.chdir(os.path.dirname(os.path.dirname(__file__)))
 import master
 app = QApplication.instance()
 standalone = app is None # false if there is already an app instance

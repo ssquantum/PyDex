@@ -29,7 +29,6 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 import warnings
 warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
 sys.path.append('./imageanalysis')
-from imageanalysis.settingsgui import settings_window
 from imageanalysis.atomChecker2 import atom_window
 sys.path.append('./andorcamera')
 from andorcamera.cameraHandler import camera # manages Andor camera
@@ -107,10 +106,8 @@ class Master(QMainWindow):
     state_config -- path to the file that saved the previous state.
                     Default directories for camera settings and image 
                     saving are also saved in this file.
-    image_analysis -- a class inheriting QMainWindow that can perform all of the
-                    required image analysis methods
     """
-    def __init__(self, dev_mode=False, state_config='.\\state.pds', image_analysis=settings_window):
+    def __init__(self, dev_mode=False, state_config='.\\state.pds'):
         super().__init__()
         self.dev_mode = dev_mode
         self.subwindows = [['rn.seq','SequencesGeometry'],['rn.check','AtomCheckerGeometry']] # [attribute, geometry]
@@ -125,14 +122,11 @@ class Master(QMainWindow):
         # initialise the thread controlling run # and emitting images
         CsROIs, RbROIs = self.get_atomchecker_rois()
         self.rn = runnum(camera(config_file=self.stats['CameraConfig']), # Andor camera
-                event_handler(self.stats['SaveConfig']), # image saver
-                image_analysis(results_path =sv_dirs['Results Path: '],
-                    im_store_path=sv_dirs['Image Storage Path: '],
-                    config_settings=self.stats['AnalysisConfig']), # image analysis
-                atom_window(last_im_path=sv_dirs['Image Storage Path: '],
-                    Cs_rois=CsROIs, Rb_rois=RbROIs), # check if atoms are in ROIs to trigger experiment
-                Previewer(), # sequence editor
-                n=startn, m=2, k=0) 
+                         event_handler(self.stats['SaveConfig']), # image saver
+                         atom_window(last_im_path=sv_dirs['Image Storage Path: '],
+                                     Cs_rois=CsROIs, Rb_rois=RbROIs), # check if atoms are in ROIs to trigger experiment
+                         Previewer(), # sequence editor
+                         n=startn, m=2, k=0) 
         # now the signals are connected, send camera settings to image analysis
         if self.rn.cam.initialised > 2:
             check = self.rn.cam.ApplySettingsFromConfig(self.stats['CameraConfig'])
@@ -144,8 +138,7 @@ class Master(QMainWindow):
         
         # self.rn.check.showMaximized()
         self.rn.seq.show()
-        self.rn.sw.show()
-        self.rn.sw.show_analyses(show_all=True)
+        self.rn.iGUI.show()
         
         self.mon_win = MonitorStatus() # display communication with DAQ monitor
         self.mon_win.start_button.clicked.connect(self.start_monitor)
@@ -161,6 +154,7 @@ class Master(QMainWindow):
         QTimer.singleShot((29*3600 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates)
 
+        self.set_rearranging(self.rearr_rois.isChecked()) # setting rearranging forces rn to update rn.rearranging for correct image assignment
         self.restore_state(file_name=state_config)
 
     def idle_state(self):
@@ -208,11 +202,11 @@ class Master(QMainWindow):
             sv_dirs = self.rn.sv.get_dirs(self.stats['SaveConfig'])
             self.stats['AnalysisConfig']['results_path'] = sv_dirs['Results Path: ']
             self.stats['AnalysisConfig']['image_path'] = sv_dirs['Image Storage Path: ']
-            self.rn.sw.load_settings(stats=self.stats['AnalysisConfig'])
+            # self.rn.sw.load_settings(stats=self.stats['AnalysisConfig'])
             CsROIs, RbROIs = self.get_atomchecker_rois()
             self.rn.check.set_rois(CsROIs, 'Cs')
             self.rn.check.set_rois(RbROIs, 'Rb')
-            self.rn.sw.reset_analyses()
+            self.rn.iGUI.clear_data_and_queue()
             if self.rn.cam.initialised > 2: # camera
                 if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
                     self.rn.cam.AF.AbortAcquisition()
@@ -278,7 +272,7 @@ class Master(QMainWindow):
 
         show_windows = menubar.addMenu('Windows')
         menu_items = []
-        for window_title in ['Image Analyser', 'Camera Status', 
+        for window_title in ['SIMON', 'Camera Status', 
             'Image Saver', 'TCP Server', 'Multirun',
             'Atom Checker', 'Monitor', 'DDS', 'Show all']:
             menu_items.append(QAction(window_title, self)) 
@@ -386,16 +380,17 @@ class Master(QMainWindow):
 
     def show_window(self):
         """Show the window of the submodule or adjust its settings."""
-        if self.sender().text() == 'Image Analyser':
-            self.rn.sw.show()
+        if self.sender().text() == 'SIMON':
+            self.rn.iGUI.show()
 
         elif self.sender().text() == 'Camera Status':
             if self.rn.cam.initialised:
                 msg = 'Current state: ' + self.rn.cam.AF.GetStatus() + '\nChoose a new config file: '
-            else: msg = 'Camera not initialised. See log file for details. Press OK to retry.'
-            newfile = self.rn.sw.try_browse(title='Choose new config file', 
-                    file_type='config (*.dat);;all (*)', 
-                    defaultpath=os.path.dirname(self.stats['CameraConfig']))
+            else: 
+                msg = 'Camera not initialised. See log file for details. Press OK to retry.'
+            newfile = self.rn.iGUI.try_browse(title='Choose new config file', 
+                                             file_type='config (*.dat);;all (*)', 
+                                             defaultpath=os.path.dirname(self.stats['CameraConfig']))
             text, ok = QInputDialog.getText( self, 'Camera Status', msg, 
                     text=newfile if newfile else self.stats['CameraConfig'])
             if text and ok:
@@ -469,7 +464,7 @@ class Master(QMainWindow):
         elif self.sender().text() == 'DDS':
             self.dds_win.show()
         elif self.sender().text() == 'Show all':
-            for obj in [self.mon_win, self.rn.sw, self.rn.seq] + self.rn.sw.mw + self.rn.sw.rw:
+            for obj in [self.mon_win, self.rn.iGUI, self.rn.seq]:
                 obj.close()
                 obj.show()
             
@@ -488,7 +483,7 @@ class Master(QMainWindow):
         self.rn.rearranging = toggle
         reset_slot(self.rn.check.rh['Cs'].rearrange, self.rn.send_rearr_msg, toggle)
         reset_slot(self.rn.check.rh['Rb'].rearrange, self.rn.send_rearr2_msg, toggle)
-        self.rn.set_m(self.rn.sw._m)
+        self.rn.set_m()
 
     def browse_sequence(self, toggle=True):
         """Open the file browser to search for a sequence file, then insert
@@ -568,6 +563,7 @@ class Master(QMainWindow):
                         warning('Multirun has changed the "sync with DExTer" setting.')
                     status = self.rn.seq.mr.check_mr_params(self.rn.sv.results_path) # add to queue if valid
                     self.check_mr_queue() # prevent multiple multiruns occurring simultaneously
+                    self.rn.iGUI.clear_data_and_queue() # clear any existing data when starting a multirun
                     if self.rn.seq.mr.QueueWindow.isVisible():
                         self.rn.seq.mr.queue_ui.updateList()
                 else: 
@@ -590,6 +586,7 @@ class Master(QMainWindow):
                     self.rn.multirun_go(False)
                     self.rn.seq.mr.ind = 0
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
+                    self.rn.iGUI.clear_data_and_queue()
             elif 'Skip multirun histogram' in action_text:
                 if self.rn.seq.mr.multirun:
                     self.rn.skip_mr_hist()
@@ -646,7 +643,8 @@ class Master(QMainWindow):
 
     def set_inflxdb_toggle(self, toggle=False):
         """Whether to send data to influxdb database"""
-        self.rn.sw.send_data = toggle
+        # self.rn.sw.send_data = toggle
+        pass
                 
     def wait_for_cam(self, timeout=10):
         """Wait (timeout / 10) ms, periodically checking whether the camera
@@ -771,11 +769,11 @@ class Master(QMainWindow):
     def check_sizes(self, reset=False):
         """Print the length of lists and arrays to help find where memory is being used.
         reset: whether to clear all of the arrays."""
-        print("Image analysis:")
-        for mw in self.rn.sw.mw + self.rn.sw.rw:
-            print(mw.name, '\t', 
-                "image_handler max length: ", max(map(np.size, mw.image_handler.stats.values())),
-                "\thisto_handler max length: ", max(map(np.size, mw.histo_handler.stats.values())))
+        # print("Image analysis:")
+        # for mw in self.rn.sw.mw + self.rn.sw.rw:
+        #     print(mw.name, '\t', 
+        #         "image_handler max length: ", max(map(np.size, mw.image_handler.stats.values())),
+        #         "\thisto_handler max length: ", max(map(np.size, mw.histo_handler.stats.values())))
         print("TCP Network:")
         for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG1', 'AWG2', 'DDS1', 'DDS2', 'SLM', 'MWG'],
                 [self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, self.rn.awgtcp2, 
@@ -783,9 +781,10 @@ class Master(QMainWindow):
             print(label, ': %s messages'%len(tcp.get_queue()))
         print("Mutlirun queue length: ", len(self.rn.seq.mr.mr_queue))
         if reset:
-            for mw in self.rn.sw.mw + self.rn.sw.rw:
-                mw.image_handler.reset_arrays()
-                mw.histo_handler.reset_arrays()
+            pass
+            # for mw in self.rn.sw.mw + self.rn.sw.rw:
+            #     mw.image_handler.reset_arrays()
+            #     mw.histo_handler.reset_arrays()
 
     def save_state(self, file_name=''):
         """Save the file number and date and config file paths so that they
@@ -797,10 +796,10 @@ class Master(QMainWindow):
         if not file_name: return # in case user cancels don't save any state file
 
         self.stats['File#'] = self.rn._n
-        self.stats['AnalysisConfig'] = dict(self.rn.sw.stats)
+        # self.stats['AnalysisConfig'] = dict(self.rn.sw.stats)
         self.stats['Rearrange ROIs'] = self.rearr_rois.isChecked()
         self.stats['AtomCheckerROIs'] = [self.rn.check.get_rois('Cs'), self.rn.check.get_rois('Rb')]
-        self.rn.sw.save_settings()
+        # self.rn.sw.save_settings()
         self.stats['Multirun ordering'] = self.rn.seq.mr.order_edit.currentText()
 
         self.get_geometries()
@@ -827,10 +826,11 @@ class Master(QMainWindow):
                 self.rn.cam.SafeShutdown()
             except Exception as e: warning('camera safe shutdown failed.\n'+str(e))
             # self.rn.check.send_rois() # give ROIs from atom checker to image analysis
-            for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, 
-                    self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, 
-                    self.rn.awgtcp2, self.rn.ddstcp1, self.rn.ddstcp2, self.rn.mwgtcp,
-                    self.rn.check, self.mon_win, self.dds_win, self.rn.seq.mr.QueueWindow]:
+            for obj in [self.rn.iGUI, self.rn.seq, self.rn.server, 
+                        self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, 
+                        self.rn.awgtcp2, self.rn.ddstcp1, self.rn.ddstcp2, 
+                        self.rn.mwgtcp, self.rn.check, self.mon_win, 
+                        self.dds_win, self.rn.seq.mr.QueueWindow]:
                 obj.close()
             self.save_state('./state.pds')
             event.accept()

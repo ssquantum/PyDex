@@ -348,7 +348,7 @@ class StefanWorker(QRunnable):
         if self.mode == 'counts':
             try:
                 group_dicts = [group[self.roi][self.image] for group in counts]
-                counts_data = [list(zip(*group.items())) for group in group_dicts]
+                counts_data = [list(zip(*sorted(group.items()))) for group in group_dicts] # sort to make sure plot is in order
                 counts_data = [np.asarray(x) for x in counts_data]
                 thresholds = [group[self.roi][self.image][0] for group in thresholds_and_autothreshs]
                 threshold_plotting_data = []

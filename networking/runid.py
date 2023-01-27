@@ -8,13 +8,14 @@ Stefan Spence 11/10/19
 import time
 import os
 import numpy as np
-from PyQt5.QtCore import QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot
 from PyQt5.QtWidgets import QMessageBox
 from networker import PyServer, reset_slot, TCPENUM
 from client import PyClient
 import sys
 if '..' not in sys.path: sys.path.append('..')
 from strtypes import error, warning, info
+from imageanalysis.imagerGUI import ImagerGUI
 
 class runnum(QThread):
     """Take ownership of the run number that is
@@ -26,7 +27,6 @@ class runnum(QThread):
     keyword arguments:
     camra - an instance of ancam.cameraHandler.camera
     saver - an instance of savim.imsaver.event_handler
-    saiaw - an instance of settingsgui.settings_window
     check - an instance of atomChecker.atom_window
     seq   - an instance of sequencePreviewer.Previewer
     n     - the initial run ID number
@@ -35,10 +35,14 @@ class runnum(QThread):
     im_save = pyqtSignal(np.ndarray) # send an incoming image to saver
     Dxstate = 'unknown' # current state of DExTer
 
-    def __init__(self, camra, saver, saiaw, check, seq, n=0, m=1, k=0, dev_mode=False):
+    def __init__(self, camra, saver, check, seq, n=0, m=1, k=0, dev_mode=False):
         super().__init__()
-        self._n = n # the run number
-        self._m = m # # images per run
+        self.iGUI = ImagerGUI()  # ImagerGUI managing the Multi-Atom Image Analyser (MAIA)
+        self.iGUI.maia.signal_num_images.connect(self.set_m)
+        self.iGUI.update_num_images(m) # updating the number of images in the iGUI also sets self._n due to connection above
+        
+
+        self._n = n # # images per run
         self._k = k # # images received
         self.next_mr = [] # queue of messages for the next multirun
         self.rearranging = False # whether the first image is being used for rearrangement.
@@ -48,23 +52,25 @@ class runnum(QThread):
         self.sv = saver  # image saver
         self.im_save.connect(self.sv.add_item) # separate signal to avoid risk of the slot being disconnected elsewhere
         self.sv.start()  # constantly checks queue, when an image to save is added to the queue, it saves it to a file.
-        self.sw = saiaw  # image analysis settings gui
-        self.sw.m_changed.connect(self.set_m)
-        self.sw.CCD_stat_edit(self.cam.emg, self.cam.pag, self.cam.Nr, True) # give image analysis the camera settings
-        self.sw.reset_analyses() # make sure the loaded config settings are applied
-        self.cam.SettingsChanged.connect(self.sw.CCD_stat_edit)
-        self.cam.ROIChanged.connect(self.sw.cam_pic_size_changed) # triggers pic_size_text_edit()
+
+        # self.sw.m_changed.connect(self.set_m)
+        # self.sw.CCD_stat_edit(self.cam.emg, self.cam.pag, self.cam.Nr, True) # give image analysis the camera settings
+        # self.sw.reset_analyses() # make sure the loaded config settings are applied
+        # self.cam.SettingsChanged.connect(self.sw.CCD_stat_edit)
+        # self.cam.ROIChanged.connect(self.sw.cam_pic_size_changed) # triggers pic_size_text_edit()
         self.check = check  # atom checker for ROIs, trigger experiment
         self.check.recv_rois_action.triggered.connect(self.get_rois_from_analysis)
         # self.get_rois_from_analysis()
         for rh in self.check.rh.values():
             self.cam.ROIChanged.connect(rh.cam_pic_size_changed)
-            self.sw.bias_changed.connect(rh.set_bias)
-        self.check.roi_values.connect(self.sw.set_rois)
+            # self.sw.bias_changed.connect(rh.set_bias)
+            self.iGUI.maia.signal_emccd_bias.connect(rh.set_bias)
+        # self.check.roi_values.connect(self.sw.set_rois)
         self.seq = seq   # sequence editor
         
         self.server = PyServer(host='', port=8620, name='DExTer', verbosity=1) # server will run continuously on a thread
         self.server.dxnum.connect(self.set_n) # signal gives run number
+        self.iGUI.maia.signal_finished_saving.connect(self.server.unpause) # lets MAIA unlock multirun after it has finished saving
         self.server.start()
         if self.server.isRunning():
             self.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000)
@@ -126,15 +132,28 @@ class runnum(QThread):
         if self._k != self._m and self.seq.mr.ind > 1 and self._k > 0:
             warning('Run %s took %s / %s images.'%(self._n, self._k, self._m))
         self._n = int(dxn)
+        self.iGUI.set_file_id(self._n)
         self._k = 0 # reset image count --- each run should start with im0
     
-    def set_m(self, newm):
-        """Change the number of images per run"""
-        if newm > 0:
-            self._m = int(newm)
-        elif newm == 0:
-            self._m = 2
-        if self.rearranging: self._m += 1
+    @pyqtSlot(int)
+    def set_m(self, newm=None):
+        """Change the number of images per run.
+        
+        Parameters
+        ----------
+        newm : int or None
+            The new number of images to set in the run. If None the value from
+            MAIA is requested which will then  retrigger this function with 
+            the updated value. This ensures that the rearranging image is 
+            correctly reapplied.
+        """
+        if newm is None:
+            self.iGUI.update_num_images() # ask the iGUI to find out the number of images. 
+                                          # This function will then be retriggered with an int when the MAIA checks.
+            return
+        self._m = int(newm)
+        if self.rearranging: 
+            self._m += 1
 
     def receive(self, im=0):
         """Update the Dexter file number in all associated modules,
@@ -147,9 +166,10 @@ class runnum(QThread):
         if imn < 0:
             self.check.event_im.emit(im)
         else:
-            for i in self.sw.find(imn): # find the histograms that use this image
-                self.sw.mw[i].image_handler.fid = self._n
-                self.sw.mw[i].event_im.emit(im, self._k < self._m and not self.check.checking)
+            self.iGUI.recieve_image(im,self._n,self._k) # the images File ID and image num are specified here when added to the MAIA queue.
+            # for i in self.sw.find(imn): # find the histograms that use this image
+            #     self.sw.mw[i].image_handler.fid = self._n
+            #     self.sw.mw[i].event_im.emit(im, self._k < self._m and not self.check.checking)
         self._k += 1 # another image was taken
 
     def unsync_receive(self, im=0):
@@ -168,15 +188,13 @@ class runnum(QThread):
         self.sv.dfn = str(self._n) # Dexter file number
         imn = self._k % self._m # ID number of image in sequence
         if self.rearranging: imn -= 1 # for rearranging, the 1st image doesn't go to analysis
-        self.sv.imn = str(imn) 
+        self.sv.imn = str(imn)
         self.im_save.emit(im)
         if imn < 0:
             self.check.event_im.emit(im)
         else:
             if self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) >= self.seq.mr.mr_param['# omitted']:
-                for i in self.sw.find(imn):
-                    self.sw.mw[i].image_handler.fid = self._n
-                    self.sw.mw[i].event_im.emit(im, self._k < self._m and not self.check.checking)
+                self.iGUI.recieve_image(im,self._n,self._k) # the images File ID and image num are specified here when added to the MAIA queue.
         self._k += 1 # another image was taken
 
     def check_receive(self, im=0):
@@ -188,14 +206,14 @@ class runnum(QThread):
         programs are correct."""
         date = time.strftime("%d %b %B %Y", t0).split(" ")
         self.sv.reset_dates(self.sv.config_fn, date=date)
-        self.sw.reset_dates(date)
         return ' '.join([date[0]] + date[2:])
     
     #### atom checker ####
 
     def get_rois_from_analysis(self, atom='Cs'):
-        self.check.rh[atom].cam_pic_size_changed(self.sw.stats['pic_width'], self.sw.stats['pic_height'])
-        self.check.rh[atom].resize_rois(self.sw.stats['ROIs'])
+        # self.check.rh[atom].cam_pic_size_changed(self.sw.stats['pic_width'], self.sw.stats['pic_height'])
+        # self.check.rh[atom].resize_rois(self.sw.stats['ROIs'])
+        pass
 
     def send_rearr_msg(self, msg=''):
         """Send the command to the AWG for rearranging traps"""
@@ -315,7 +333,8 @@ class runnum(QThread):
                 self.seq.mr.get_all_sequences(save_dir=os.path.join(results_path, 'sequences'))
                 self.seq.mr.save_mr_params(os.path.join(results_path, self.seq.mr.mr_param['measure_prefix'] + 
                     'params' + str(self.seq.mr.mr_param['1st hist ID']) + '.csv'))
-                self.sw.init_analysers_multirun(results_path, str(self.seq.mr.mr_param['measure_prefix']), self.seq.mr.appending)
+                self.iGUI.set_results_path(results_path)
+                self.iGUI.set_measure_prefix(str(self.seq.mr.mr_param['measure_prefix']))
             except FileNotFoundError as e:
                 error('Multirun could not start because of invalid directory %s\n'%results_path+str(e))
                 return 0
@@ -386,8 +405,8 @@ class runnum(QThread):
             if not stillrunning: 
                 self.seq.mr.ind = 0
                 self._k = 0
-                for mw in self.sw.mw + self.sw.rw:
-                    mw.multirun = ''
+                # for mw in self.sw.mw + self.sw.rw:
+                #     mw.multirun = ''
             status = ' paused.' if stillrunning else ' ended.'
             self.mr_paused = stillrunning
             text = 'STOPPED. Multirun measure %s: %s is'%(self.seq.mr.mr_param['measure'], self.seq.mr.mr_param['Variable label'])
@@ -421,7 +440,9 @@ class runnum(QThread):
                 if 'save and reset histogram' in item[1]:
                     break
             self.next_mr = [[TCPENUM['TCP read'], '||||||||'+'0'*2000]] + queue[i+1:]
-            self.sw.all_hists(action='Reset')
+            self.seq.mr.progress.emit('Waiting for MAIA to finish processing queue...')
+            self.server.pause() # server is paused to allow MAIA to go through the queue and finish analysing all the images before continuing
+            self.iGUI.save() # iGUI still saves the output of the hists so that we can skip if something looks clear already
             r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist'])
             self.seq.mr.ind += self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist'] - r
             self.add_mr_msgs()
@@ -463,6 +484,9 @@ class runnum(QThread):
                 r if r < self.seq.mr.mr_param['# omitted'] else self.seq.mr.mr_param['# omitted'], self.seq.mr.mr_param['# omitted'], 
                 r - self.seq.mr.mr_param['# omitted'] if r > self.seq.mr.mr_param['# omitted'] else 0, self.seq.mr.mr_param['# in hist'], 
                 self.seq.mr.ind / (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) / len(self.seq.mr.mr_vals)*100))
+        self.iGUI.set_measure_prefix(self.seq.mr.mr_param['measure_prefix'])
+        self.iGUI.set_hist_id(v+self.seq.mr.mr_param['1st hist ID'])
+        self.iGUI.set_user_variables(self.seq.mr.mr_vals[v])
                 
     def multirun_save(self, msg):
         """end of histogram: fit, save, and reset --- check this doesn't miss an image if there's lag"""
@@ -472,16 +496,16 @@ class runnum(QThread):
         except AttributeError as e:     
             error('Multirun step could not extract user variable from table at row %s.\n'%v+str(e))
             prv = ''
-        # fit and save data
-        self.sw.multirun_save(self.sv.results_path, 
-            self.seq.mr.mr_param['measure_prefix'], 
-            self._n, prv, str(v+self.seq.mr.mr_param['1st hist ID']))
+
+        # save data
+        self.seq.mr.progress.emit('Waiting for MAIA to finish processing queue...')
+        self.server.pause() # server is paused to allow MAIA to go through the queue and finish analysing all the images before continuing
+        self.iGUI.save() # server will be unpaused at the end of a successful save (see self.iGUI.maia.save())
         
     def multirun_end(self, msg):
         """At the end of the multirun, save the plot data and reset"""
         self.monitor.add_message(self._n, 'DAQtrace.csv=trace_file')
         self.monitor.add_message(self._n, 'save trace') # get the monitor to save the last acquired trace
-        self.sw.end_multirun() # reconnect signals and display empty hist
         self.monitor.add_message(self._n, 'save graph') # get the monitor to save the graph  
         self.monitor.add_message(self._n, 'stop') # stop monitoring
         self.multirun_go(False) # reconnect signals

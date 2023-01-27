@@ -49,6 +49,8 @@ class MultiAtomImageAnalyser(QObject):
     signal_hist_id = pyqtSignal(int) # send the hist ID to the iGUI
     signal_user_variables = pyqtSignal(list) # send the user variables back to the iGUI
     signal_measure_prefix = pyqtSignal(str) # send the measure prefix to the iGUI
+    signal_finished_saving = pyqtSignal() # lets the MAIA unlock the multirun queue when it has finished saving data
+    signal_emccd_bias = pyqtSignal(int) # sends the EMCCD bias to the iGUI
 
     queue = deque() # Double-ended queue to handle images. Images are processed when ready.
     timer = QTimer() # Timer to trigger the updating of queue events
@@ -56,12 +58,13 @@ class MultiAtomImageAnalyser(QObject):
     def __init__(self, results_path='.', num_roi_groups=2, 
                  num_rois_per_group=3,num_images=2):
         super().__init__()
-        # self.set_results_path(results_path)
+        # most of these settings get overwritten by the iGUI when initalised, but they are here just to prevent errors 
+        # if this class is run independently
         self.new_roi_coords = None
-        # self.date = time.strftime("%d %b %B %Y", time.localtime()).split(" ") # day short_month long_month year
         self.next_image = 0 # image number to assign the next incoming array to
         self.file_id = 3000 # the file ID to start on. This is iterated once every image cycle.
         self.should_save = False # whether MAIA should save the data on the next iteration of the event loop
+        self.emccd_bias = 0
 
         self.roi_groups = []
         self.update_num_roi_groups(num_roi_groups)
@@ -94,7 +97,7 @@ class MultiAtomImageAnalyser(QObject):
             - updating the number of ROIs per group with self.update_num_rois_per_group()
         """
 
-        self.process_next_image() # 
+        self.process_next_image() # processes one image from the queue if it is not empty
         self.save() # only saves data if queue is empty and self.should_save = True
 
         self.timer.blockSignals(False) # allow the timer to trigger the event loop again
@@ -168,8 +171,8 @@ class MultiAtomImageAnalyser(QObject):
 
     @pyqtSlot(list)
     def update_user_variables(self,user_variables):
-        self.user_variables = user_variables
-        self.signal_user_variables.emit(user_variables)
+        self.user_variables = [float(x) for x in user_variables]
+        self.signal_user_variables.emit(self.user_variables)
         self.signal_status_message.emit('Set user variables to {}'.format(self.user_variables))
 
     @pyqtSlot(str)
@@ -178,23 +181,38 @@ class MultiAtomImageAnalyser(QObject):
         self.signal_measure_prefix.emit(measure_prefix)
         self.signal_status_message.emit('Set measure prefix to {}'.format(self.measure_prefix))
 
-    @pyqtSlot(np.ndarray)
-    def recieve_image(self,image):
-        """Recieves an image from the iGUI and adds it to the processing queue."""
+    @pyqtSlot(np.ndarray,object,object)
+    def recieve_image(self,image,file_id=None,image_num=None):
+        """Recieves an image from the iGUI and adds it to the processing queue.
+        If the file_id and image num are set then these will be added to the
+        queue along with the image and used to set the values for the next 
+        image.
+        """
+        if file_id is None:
+            file_id = self.file_id
+        if image_num is None:
+            image_num = self.next_image
         image_num = self.next_image
         file_id = self.file_id
         self.queue.append([image,file_id,image_num])
-        self.signal_status_message.emit('Recieved image {} and placed in queue'.format(image_num))
+        self.signal_status_message.emit('Recieved ID {} Im {} and placed in queue'.format(file_id,image_num))
         self.signal_draw_image.emit(image,image_num)
-        self.advance_image_count()
+        self.advance_image_count(file_id,image_num)
     
-    @pyqtSlot()
-    def advance_image_count(self):
+    @pyqtSlot(object,object)
+    def advance_image_count(self,file_id=None,image_num=None):
         """Advances the image count so that the MAIA knows what the next image number is.
         This can either be triggered programatically or by the button on the GUI.
+        If the file ID and image number are manually specified, then these 
+        values will be used to update the next image.
         """
         # self.next_image = (self.next_image+1) % self.num_images
-        self.next_image += 1
+        if file_id is not None:
+            self.file_id = file_id
+        if image_num is None:
+            self.next_image += 1
+        else:
+            self.next_image = image_num + 1
         if self.next_image >= self.num_images:
             self.next_image = 0
             self.file_id += 1
@@ -252,11 +270,14 @@ class MultiAtomImageAnalyser(QObject):
             [image,file_id,image_num] = self.queue.popleft()
             # print('image_num',image_num)
             # print('next image',self.next_image)
-            self.signal_status_message.emit('Started processing image {}'.format(image_num))
+            self.signal_status_message.emit('Started processing ID {} Im {}'.format(file_id,image_num))
+            image = image - self.emccd_bias # don't edit in place because this seemed to cause an issue with images not showing in GUI. Maybe not thread safe?
+            # print('image min',np.min(image))
+            # print('image max',np.max(image))
             for group in self.roi_groups:
                 for roi in group.rois:
                     roi.counts[image_num][file_id] = image[roi.x:roi.x+roi.w,roi.y:roi.y+roi.h].sum()
-            self.signal_status_message.emit('Finished processing image {}'.format(image_num))
+            self.signal_status_message.emit('Finished processing ID {} Im {}'.format(file_id,image_num))
             self.calculate_thresholds()
 
     def get_roi_counts(self):
@@ -323,6 +344,7 @@ class MultiAtomImageAnalyser(QObject):
     #     """Sets the results path where data will be outputted in csv files."""
     #     self.results_path = results_path
     
+    @pyqtSlot(object)
     def update_num_images(self,num_images):
         """Sets the number of images that the MAIA should expect in a 
         sequence."""
@@ -332,6 +354,15 @@ class MultiAtomImageAnalyser(QObject):
             self.num_images = num_images
             self.signal_status_message.emit('Set number of images to {}'.format(self.num_images))
         self.signal_num_images.emit(self.num_images)
+
+    @pyqtSlot(object)
+    def update_emccd_bias(self,emccd_bias):
+        """Sets the EMCCD bias that the MAIA should subtract from all recieved 
+        images."""
+        if (emccd_bias != None):
+            self.emccd_bias = emccd_bias
+            self.signal_status_message.emit('Set EMCCD bias to {}'.format(self.emccd_bias))
+        self.signal_emccd_bias.emit(self.emccd_bias)
 
     @pyqtSlot()
     def recieve_tv_data_request(self):
@@ -381,16 +412,21 @@ class MultiAtomImageAnalyser(QObject):
         self.should_save to true, but this will only be done once the image 
         queue is empty."""
         if (self.should_save) and (not self.queue): # only save if should_save is True and queue is empty
-            filename = self.results_path # TODO might need to add hist ID in here
+            filename = self.results_path+'\{}\MAIA.{}.csv'.format(self.measure_prefix,self.hist_id) # TODO might need to add hist ID in here
             data = self.get_analyser_data()
             analyser = Analyser(data)
             additional_data = self.get_user_variable_dict()
             additional_data['Hist ID'] = self.hist_id
+            additional_data['EMCCD bias'] = self.emccd_bias
             try:
                 analyser.save_data(filename,additional_data)
                 self.signal_status_message.emit('Saved data to {}'.format(filename))
                 self.clear()
                 self.should_save = False
+                # self.signal_status_message.emit('Sleeping for 10s before unlocking queue (for testing)')
+                # time.sleep(10)
+                self.signal_status_message.emit('Unlocking multirun queue')
+                self.signal_finished_saving.emit()
             except PermissionError:
                 self.signal_status_message.emit('Could not save data to {} due to PermissionError. Data has not been cleared. Will keep retrying.'.format(filename))
 
@@ -403,6 +439,12 @@ class MultiAtomImageAnalyser(QObject):
     def clear(self):
         """Clears the counts data stored in the ROIs."""
         [group.clear() for group in self.roi_groups]
+
+    @pyqtSlot()
+    def clear_data_and_queue(self):
+        self.queue.clear()
+        self.clear()
+        self.signal_status_message.emit('Cleared data and image queue')
 
 
 class ROIGroup():
