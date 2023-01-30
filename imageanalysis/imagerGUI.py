@@ -14,9 +14,9 @@ import sys
 import time
 import numpy as np
 import pyqtgraph as pg    # not as flexible as matplotlib but works a lot better with qt
-from PyQt5.QtCore import pyqtSignal, QThread, pyqtSlot, Qt, QEvent
+from PyQt5.QtCore import pyqtSignal, QThread, pyqtSlot, Qt, QEvent, QRegularExpression
 from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
-        QFont, QRegExpValidator, QColor)
+        QFont, QRegExpValidator, QColor, QRegularExpressionValidator)
 from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
         QFileDialog, QComboBox, QMessageBox, QLineEdit, QGridLayout, 
         QApplication, QPushButton, QAction, QMainWindow, QWidget,
@@ -42,11 +42,17 @@ import resources
 # validators for user input
 double_validator = QDoubleValidator() # floats
 int_validator    = QIntValidator()    # integers
-int_validator.setBottom(-1) # don't allow -ve numbers
+int_validator.setBottom(-1) # don't allow -ve numbers apart from -1
 nat_validator    = QIntValidator()    # natural numbers 
 nat_validator.setBottom(1) # > 0
 non_neg_validator    = QIntValidator()    # integers
 non_neg_validator.setBottom(0) # don't allow -ve numbers
+
+non_neg_int_or_empty_string_regexp = QRegularExpression('(^[0-9]+$|^$)')
+non_neg_int_or_empty_string_validator = QRegularExpressionValidator(non_neg_int_or_empty_string_regexp) # used so that an empty string still triggers editingFinished
+
+int_or_empty_string_regexp = QRegularExpression('((^-?[1])|(^[0-9])+$|^$)')
+int_or_empty_string_validator = QRegularExpressionValidator(int_or_empty_string_regexp) # used so that an empty string still triggers editingFinished
 
 counts_plot_roi_offset = 0.2 # the +/- value that the counts plotting can use so that points don't all bunch up
 
@@ -94,6 +100,9 @@ class ImagerGUI(QMainWindow):
     signal_send_measure_prefix = pyqtSignal(str) # sends the measure prefix to MAIA
     signal_save = pyqtSignal() # asks MAIA to save the data when the queue is empty
     signal_clear_data_and_queue = pyqtSignal() # asks MAIA to immediately clear its data and queue
+    signal_get_state = pyqtSignal(dict,str) # asks MAIA to get its current state and send it back
+    signal_set_state = pyqtSignal(dict) # asks MAIA to set the state parameters
+    signal_cleanup = pyqtSignal() # connects the close event to the cleanup function if the iGUI is the main window
 
     def __init__(self, num_images=2, results_path='.', hist_id=0, file_id=2000, user_variables=[0], measure_prefix='Measure0'):
         super().__init__()
@@ -113,10 +122,23 @@ class ImagerGUI(QMainWindow):
         self.set_file_id(file_id)
         self.set_user_variables(user_variables)
         self.set_measure_prefix(measure_prefix)
+
+        self.update_num_images(num_images)
+        self.set_num_roi_groups()
+        self.set_num_rois_per_group()
         self.update_emccd_bias(670)
     
     def closeEvent(self, event):
-        """Events to do when this main window is closed."""
+        """Processing performed when the iGUI window is closed. This calls 
+        the events for iGUI cleanup iff the iGUI window is the main 
+        application.
+        """
+        self.signal_cleanup.emit()
+
+    def cleanup(self):
+        """Events to do when this main window is closed. This only fires 
+        if the self.signal_cleanup is connected at runtime (to avoid this 
+        firing in the usual PyDex methods)."""
         self.destroy_all_stefans()
         self.maia_thread.quit()
         self.destroy_threshold_viewer()
@@ -149,6 +171,8 @@ class ImagerGUI(QMainWindow):
         self.signal_send_measure_prefix.connect(self.maia.update_measure_prefix)
         self.signal_save.connect(self.maia.request_save)
         self.signal_clear_data_and_queue.connect(self.maia.clear_data_and_queue)
+        self.signal_get_state.connect(self.maia.get_state)
+        self.signal_set_state.connect(self.maia.set_state)
 
         self.maia.signal_file_id.connect(self.recieve_file_id_from_maia)
         self.maia.signal_next_image_num.connect(self.recieve_next_image_num)
@@ -165,6 +189,7 @@ class ImagerGUI(QMainWindow):
         self.maia.signal_hist_id.connect(self.recieve_hist_id)
         self.maia.signal_user_variables.connect(self.recieve_user_variables)
         self.maia.signal_measure_prefix.connect(self.recieve_measure_prefix)
+        self.maia.signal_state.connect(self.save_state) # generally will be disconnected in favour of PyDex controller
 
         # Start MAIA thread
         self.maia_thread.start()
@@ -218,15 +243,15 @@ class ImagerGUI(QMainWindow):
         layout_roi_options = QHBoxLayout()
         layout_roi_options.addWidget(QLabel('Number of ROI groups:'))
         self.box_number_roi_groups = QLineEdit()
-        self.box_number_roi_groups.setValidator(int_validator)
-        self.box_number_roi_groups.setText(str(1))
+        self.box_number_roi_groups.setValidator(non_neg_int_or_empty_string_validator)
+        self.box_number_roi_groups.setText(str(3))
         self.box_number_roi_groups.editingFinished.connect(self.set_num_roi_groups)
         layout_roi_options.addWidget(self.box_number_roi_groups)
 
         layout_roi_options.addWidget(QLabel('Number of ROIs/group:'))
         self.box_number_rois = QLineEdit()
-        self.box_number_rois.setValidator(int_validator)
-        self.box_number_rois.setText(str(3))
+        self.box_number_rois.setValidator(non_neg_int_or_empty_string_validator)
+        self.box_number_rois.setText(str(2))
         self.box_number_rois.editingFinished.connect(self.set_num_rois_per_group)
         layout_roi_options.addWidget(self.box_number_rois)
 
@@ -248,13 +273,13 @@ class ImagerGUI(QMainWindow):
 
         layout_image_options = QFormLayout()
         self.box_number_images = QLineEdit()
-        self.box_number_images.setValidator(int_validator)
+        self.box_number_images.setValidator(non_neg_int_or_empty_string_validator)
         self.box_number_images.setText(str(2))
         self.box_number_images.editingFinished.connect(self.update_num_images)
         layout_image_options.addRow('Number of images/run:', self.box_number_images)
 
         self.box_display_image_num = QLineEdit()
-        self.box_display_image_num.setValidator(int_validator)
+        self.box_display_image_num.setValidator(int_or_empty_string_validator)
         self.box_display_image_num.setText(str(0))
         layout_image_options.addRow('display image #:',self.box_display_image_num)
         
@@ -397,6 +422,8 @@ class ImagerGUI(QMainWindow):
         if new_num_images is None:
             try:
                 new_num_images = int(self.box_number_images.text())
+                if new_num_images < 0:
+                    new_num_images = 0
             except ValueError:
                 print('num images "{}" is not valid'.format(self.box_number_images.text()))
                 new_num_images = None
@@ -413,6 +440,17 @@ class ImagerGUI(QMainWindow):
         and image number."""
         self.signal_send_maia_image.emit(image,file_id,image_num)
 
+    def get_draw_image_num(self):
+        """Returns the image number that the iGUI should show. Sets to -1 
+        (show all images) if there is not a valid number in the box."""
+        try:
+            draw_image_num = int(self.box_display_image_num.text())
+        except ValueError: # not a valid number in the box
+            self.box_display_image_num.setText(str(-1))
+            draw_image_num = int(self.box_display_image_num.text())
+        return draw_image_num
+
+
     @pyqtSlot(np.ndarray,int)
     def draw_image(self,image,image_num):
         """Draws an image array in the main image window. The ROIs are then
@@ -427,11 +465,7 @@ class ImagerGUI(QMainWindow):
             The index of the image, used to decide whether it is drawn in the 
             GUI or not.
         """
-        try:
-            draw_image_num = int(self.box_display_image_num.text())
-        except ValueError: # not a valid number in the box
-            self.box_display_image_num.setText(str(-1))
-            draw_image_num = int(self.box_display_image_num.text())
+        draw_image_num = self.get_draw_image_num()
         if (image_num == draw_image_num) or (draw_image_num < 0):
             self.im_canvas.setImage(image)
         self.box_current_image_num.setText(str(image_num))
@@ -511,9 +545,12 @@ class ImagerGUI(QMainWindow):
     def set_num_roi_groups(self):
         """Sets the number of ROI groups in the MAIA with the number in the GUI.
         """
-        num_roi_groups = int(self.box_number_roi_groups.text())
-        if num_roi_groups < 1:
-            num_roi_groups = 1
+        try:
+            num_roi_groups = int(self.box_number_roi_groups.text())
+            if num_roi_groups < 1:
+                num_roi_groups = 1
+        except ValueError: # invalid value in box
+            num_roi_groups = None
         self.signal_set_num_roi_groups.emit(num_roi_groups)
 
     @pyqtSlot(int)
@@ -531,9 +568,12 @@ class ImagerGUI(QMainWindow):
     def set_num_rois_per_group(self):
         """Sets the number of ROI groups in the MAIA with the number in the GUI.
         """
-        num_rois_per_group = int(self.box_number_rois.text())
-        if num_rois_per_group < 1:
-            num_rois_per_group = 1
+        try:
+            num_rois_per_group = int(self.box_number_rois.text())
+            if num_rois_per_group < 1:
+                num_rois_per_group = 1
+        except ValueError: # invalid value in box
+            num_rois_per_group = None
         self.signal_set_num_rois_per_group.emit(num_rois_per_group)
 
     def update_emccd_bias(self,new_emccd_bias=None):
@@ -559,6 +599,46 @@ class ImagerGUI(QMainWindow):
         Normally data will be cleared once MAIA has finished saving it.
         """
         self.signal_clear_data_and_queue.emit()
+
+    #%% state saving/loading methods
+    def request_get_state(self,filename=''):
+        """Requests the MAIA to return its state information that will then
+        be saved by the iGUI when the get_state_from_maia is called.
+        
+        Parameters
+        ----------
+        filename : str
+            The filename that the state should be saved to. This will be 
+            passed back to the state saving function.
+        """
+        params = {}
+        params['draw_image_num'] = self.get_draw_image_num()
+        params['lock_roi_groups'] = int(self.button_lock_roi_groups.isChecked())
+        print(params)
+        self.signal_get_state.emit(params,filename)
+        
+    @pyqtSlot(dict,str)
+    def save_state(self,state,filename):
+        """Gets a state from MAIA and saves it in the specified location. This
+        function will be disconnected in favor of the PyDex save_state function
+        when using the full PyDex program. It currently does nothing when 
+        just running the iGUI alone.
+
+        Parameters
+        ----------
+        state : list
+            MAIA state as returned by self.maia.get_state
+        filename : str
+            The filename to store the state to.
+        """
+        print('iGUI recieved state {} to be stored to {}'.format(state,filename))
+
+    def set_state(self,params):
+        """Sets the state of the iGUI and MAIA with the MAIA state dictionary.
+        """
+        self.box_display_image_num.setText(str(params['draw_image_num']))
+        self.button_lock_roi_groups.setChecked(params['lock_roi_groups'])
+        self.signal_set_state.emit(params)
 
     #%% iGUI <-> Stefan methods
     def status_bar_stefan_message(self,message,stefan_index=None):
@@ -890,6 +970,10 @@ class DebugWindow(QMainWindow):
         self.button_clear_data_and_queue.clicked.connect(self.iGUI.clear_data_and_queue)
         self.centre_widget.layout.addWidget(self.button_clear_data_and_queue)
 
+        self.button_save_state = QPushButton('Save state')
+        self.button_save_state.clicked.connect(self.save_state)
+        self.centre_widget.layout.addWidget(self.button_save_state)
+
     def set_test_results_path(self):
         self.iGUI.set_results_path(r'Z:\Tweezer\People\Dan\code\pydex test dump')
 
@@ -907,6 +991,9 @@ class DebugWindow(QMainWindow):
 
     def save(self):
         self.iGUI.save()
+    
+    def save_state(self):
+        self.iGUI.request_get_state('')
 
 def run():
     """Initiate an app to run the program
@@ -917,6 +1004,7 @@ def run():
         app = QApplication(sys.argv) 
     
     main_win = ImagerGUI()
+    main_win.signal_cleanup.connect(main_win.cleanup)
     main_win.show()
     if standalone: # if an app instance was made, execute it
         sys.exit(app.exec_()) # when the window is closed, the python code also stops

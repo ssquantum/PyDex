@@ -205,7 +205,7 @@ class runnum(QThread):
         """Make sure that the dates in the image saving and analysis 
         programs are correct."""
         date = time.strftime("%d %b %B %Y", t0).split(" ")
-        self.sv.reset_dates(self.sv.config_fn, date=date)
+        self.sv.reset_dates(date)
         return ' '.join([date[0]] + date[2:])
     
     #### atom checker ####

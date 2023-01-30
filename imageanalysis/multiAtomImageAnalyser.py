@@ -51,6 +51,7 @@ class MultiAtomImageAnalyser(QObject):
     signal_measure_prefix = pyqtSignal(str) # send the measure prefix to the iGUI
     signal_finished_saving = pyqtSignal() # lets the MAIA unlock the multirun queue when it has finished saving data
     signal_emccd_bias = pyqtSignal(int) # sends the EMCCD bias to the iGUI
+    signal_state = pyqtSignal(dict,str) # the state and filename to save it in. Either connects to the iGUI or the rest of PyDex.
 
     queue = deque() # Double-ended queue to handle images. Images are processed when ready.
     timer = QTimer() # Timer to trigger the updating of queue events
@@ -126,7 +127,7 @@ class MultiAtomImageAnalyser(QObject):
                 offsets = [[list(t) for t in zip(group_x,group_y)] for group_x,group_y in zip(x_offsets,y_offsets)]
                 offsets = np.array([[x+[0,0] for x in offsets[0]] for _ in offsets])
                 new_roi_coords = [[group[0] for _ in group] for group in new_roi_coords]
-                new_roi_coords = list(np.array(offsets)+np.array(new_roi_coords))
+                new_roi_coords = (np.array(offsets)+np.array(new_roi_coords)).tolist() # convert to list because np arrays not serializable when saving state in .jsons
             self.set_roi_coords(new_roi_coords)
         self.send_roi_coords()
 
@@ -396,8 +397,6 @@ class MultiAtomImageAnalyser(QObject):
         # Send updated data back to TV.
         self.recieve_tv_data_request()
 
-    # def get_roi_dict
-
     @pyqtSlot()
     def request_save(self):
         """Sets the flag self.should_save to true, which will result in the 
@@ -446,6 +445,41 @@ class MultiAtomImageAnalyser(QObject):
         self.clear()
         self.signal_status_message.emit('Cleared data and image queue')
 
+    @pyqtSlot(dict,str)
+    def get_state(self,params,filename):
+        """Gets the MAIA state and then emits the state and the filename it
+        should be stored in.
+        
+        Parameters
+        ----------
+        params : dict
+            The parameter dictionary to save the state to. This should already
+            contain some values from the iGUI, such as STEFAN behaviour and 
+            display image number.
+        filename : str
+            The path to the file that the state should be stored in. This
+            will be passed back to the saving function.
+        """
+        params['roi_coords'] = self.get_roi_coords()
+        params['thresholds'] = self.get_roi_thresholds()
+        params['emccd_bias'] = self.emccd_bias
+        params['num_images'] = self.num_images
+        self.signal_status_message.emit('Prepared state params {}'.format(params))
+        self.signal_state.emit(params,filename)
+
+    @pyqtSlot(dict)
+    def set_state(self,params):
+        """Sets the MAIA state from a params file."""
+        self.update_emccd_bias(params['emccd_bias'])
+        self.update_num_images(params['num_images'])
+        self.make_rois_from_lists(params['roi_coords'],params['thresholds'])
+
+    def make_rois_from_lists(self,roi_coords,thresholds):
+        """Makes the ROI groups and ROIs from a list of ROI coords."""
+        self.update_num_roi_groups(len(roi_coords))
+        self.update_num_rois_per_group(len(roi_coords[0]))
+        self.update_roi_coords(roi_coords)
+        self.recieve_tv_threshold_data(thresholds)
 
 class ROIGroup():
     """Container ROIGroup class used by the MAIA. This stores multiple ROIs
