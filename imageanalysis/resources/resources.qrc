@@ -1,0 +1,6 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+    <file alias="autothresh.svg">autothresh.svg</file>
+    <file alias="manualthresh.svg">manualthresh.svg</file>
+</qresource>
+</RCC>

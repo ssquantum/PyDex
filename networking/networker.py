@@ -13,7 +13,7 @@ Stefan Spence 21/10/19
 import socket
 import struct
 import time
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot, QCoreApplication
 from PyQt5.QtWidgets import QApplication 
 import sys
 if '..' not in sys.path: sys.path.append('..')
@@ -82,6 +82,7 @@ class PyServer(QThread):
         self.server_address = (host, port)
         self.__mq = []
         self.__lock  = False # message queue is locked
+        self.paused = False # message queue does not start paused
         self.ts = {label:[time.time()] for label in ['start', 'connect', 'waiting', 
             'sent', 'received', 'disconnect']}
         self.app = QApplication.instance() # the main application that's running
@@ -97,6 +98,18 @@ class PyServer(QThread):
     def unlockq(self):
         """Unlock the msg queue and add all the msgs from reserve"""
         self.__lock = False
+
+    @pyqtSlot()
+    def pause(self):
+        """Allows the message queue to be paused so that events aren't 
+        processed until unpaused.
+        """
+        self.paused = True
+    
+    @pyqtSlot()
+    def unpause(self):
+        """Unpauses the message queue to allow processing again."""
+        self.paused = False
 
     def add_message(self, enum, text, encoding=enco):
         """Append a message to the queue that will be sent by TCP connection.
@@ -149,9 +162,13 @@ class PyServer(QThread):
                 reset_slot(self.finished, self.reset_stop)
                 self.stop = True # stop the thread running
             while True:
-                self.app.processEvents() # hopefully helps prevent GUI lag
+                # self.app.processEvents() # hopefully helps prevent GUI lag
+                QCoreApplication.processEvents() # process all incoming signals before continuing
                 if self.check_stop():
                     break # toggle
+                elif self.paused:
+                    # print('server paused')
+                    continue # don't move on to the rest of the loop if processing is paused
                 elif len(self.__mq):
                     conn, addr = s.accept() # create a new socket
                     self.connected = True
