@@ -1009,7 +1009,11 @@ class PSoC(object):
                         label.setText('%s'%val)
                         success[i] = 1
                     except Exception as e: print(e) #pass # key could be for ST or RAM
+            modules_to_program = list(set([x[0] for x in value_list]))
+            for module in modules_to_program:
+                # quick hack to make DDS send message only after all GUI elements have been updated
                 # if we need to change port
+                print('have waited programming module {}',format(module))
                 if not self.connected or (module != self.Module_address.currentText() and 
                         module in [self.Module_address.itemText(i) for i in range(self.Module_address.count())]):
                     self.Disconnect_serial_port()
