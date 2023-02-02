@@ -845,6 +845,7 @@ class Master(QMainWindow):
             # self.rn.check.send_rois() # give ROIs from atom checker to image analysis
             self.save_state('./state_last_closed.pds') # don't overwrite the default state when closing
             time.sleep(1) # sleep to allow state to be saved
+            self.rn.iGUI.cleanup()
             for obj in [self.rn.iGUI, self.rn.seq, self.rn.server, 
                         self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, 
                         self.rn.awgtcp2, self.rn.ddstcp1, self.rn.ddstcp2, 

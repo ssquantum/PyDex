@@ -213,7 +213,7 @@ class StefanGUI(QMainWindow):
 
     def update(self,maia_data):
         self.status_bar_message('Recieved MAIA data.')
-        pickle.dump(maia_data,open('sample_maia_data.p','wb'))
+        # pickle.dump(maia_data,open('sample_maia_data.p','wb'))
 
         if self.button_counts.isChecked():
             self.mode = 'counts'

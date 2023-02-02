@@ -68,10 +68,11 @@ class MultiAtomImageAnalyser(QObject):
         self.emccd_bias = 0
 
         self.roi_groups = []
+        self.num_images = num_images
+
+        self.update_num_images(self.num_images)
         self.update_num_roi_groups(num_roi_groups)
 
-        self.num_images = None
-        self.update_num_images(num_images)
         self.num_rois_per_group = None
         self.update_num_rois_per_group(num_rois_per_group)
 
@@ -239,7 +240,7 @@ class MultiAtomImageAnalyser(QObject):
             for _ in range(num_roi_groups,len(self.roi_groups)): # delete unneeded ROIs
                 self.roi_groups.pop()
             for _ in range(len(self.roi_groups), num_roi_groups): # make new ROIs
-                self.roi_groups.append(ROIGroup())
+                self.roi_groups.append(ROIGroup(num_images=self.num_images))
             self.signal_status_message.emit('Updated number of ROI groups to {}'.format(num_roi_groups))
         self.update_num_rois_per_group() # ensures that newly created ROI groups have the right number of ROIs
         num_roi_groups = len(self.roi_groups)
@@ -302,6 +303,8 @@ class MultiAtomImageAnalyser(QObject):
         for group in self.roi_groups:
             for roi in group.rois:
                 for image in range(len(roi.counts)):
+                    print(roi.autothreshs)
+                    print('image',image)
                     if roi.autothreshs[image]:
                         values = np.fromiter(roi.counts[image].values(), dtype=float)
                         roi.thresholds[image] = self.calculate_threshold(values)
@@ -352,8 +355,10 @@ class MultiAtomImageAnalyser(QObject):
         if (num_images != None) and (num_images != self.num_images):
             for group in self.roi_groups:
                 group.set_num_images(num_images)
+            self.next_image = 0
             self.num_images = num_images
             self.signal_status_message.emit('Set number of images to {}'.format(self.num_images))
+        self.signal_next_image_num.emit(self.next_image)
         self.signal_num_images.emit(self.num_images)
 
     @pyqtSlot(object)
@@ -411,7 +416,8 @@ class MultiAtomImageAnalyser(QObject):
         self.should_save to true, but this will only be done once the image 
         queue is empty."""
         if (self.should_save) and (not self.queue): # only save if should_save is True and queue is empty
-            filename = self.results_path+'\{}\MAIA.{}.csv'.format(self.measure_prefix,self.hist_id) # TODO might need to add hist ID in here
+            # filename = self.results_path+'\{}\MAIA.{}.csv'.format(self.measure_prefix,self.hist_id) # TODO might need to add hist ID in here
+            filename = self.results_path+'\MAIA.{}.csv'.format(self.hist_id) # TODO might need to add hist ID in here
             data = self.get_analyser_data()
             analyser = Analyser(data)
             additional_data = self.get_user_variable_dict()
@@ -476,7 +482,7 @@ class MultiAtomImageAnalyser(QObject):
 
     def make_rois_from_lists(self,roi_coords,thresholds):
         """Makes the ROI groups and ROIs from a list of ROI coords."""
-        self.update_num_roi_groups(len(roi_coords))
+        self.update_num_roi_groups(len(roi_coords)) # num images set here
         self.update_num_rois_per_group(len(roi_coords[0]))
         self.update_roi_coords(roi_coords)
         self.recieve_tv_threshold_data(thresholds)

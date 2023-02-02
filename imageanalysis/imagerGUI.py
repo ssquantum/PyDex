@@ -876,14 +876,17 @@ class ThresholdViewer(QMainWindow):
                 for image in range(self.num_images):
                     if self.button_show_only_group_zero.isChecked():
                         table_index = self.get_table_index(0,roi)
+                        autothresh = self.data[0][roi][image][1]
                     else:
                         table_index = self.get_table_index(group,roi)
+                        autothresh = self.data[group][roi][image][1]
                     try:
                         value = round(float(self.table.item(table_index,image).text()))
                     except ValueError:
                         self.populate_table_with_data() # ignore the new data if a value is invalid
                         return
                     new_data[group][roi][image][0] = value
+                    new_data[group][roi][image][1] = autothresh
         self.data = new_data
         self.populate_table_with_data()
         self.button_update.setStyleSheet('background-color: #BBCCEE')
@@ -910,6 +913,7 @@ class ThresholdViewer(QMainWindow):
         self.populate_table_with_data()
 
     def update(self):
+        self.get_data_from_table() # forces the copy settings across groups checkbox to be updated
         self.iGUI.tv_send_data_to_maia(self.data)
         self.status_bar_message('Sent threshold data to MAIA')
         self.button_update.setStyleSheet('')
