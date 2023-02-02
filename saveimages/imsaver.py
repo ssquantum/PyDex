@@ -46,7 +46,7 @@ class event_handler(PyDexThread):
     event_path = pyqtSignal(str)        # the name of the saved file
     new_im     = pyqtSignal(np.ndarray) # the new incoming image array
             
-    def __init__(self, config_file='./config/config.dat'):
+    def __init__(self, config_dict):
         super().__init__()
         self.dfn     = "0"         # dexter file number
         self.imn     = "0"         # ID # for when there are several images in a sequence
@@ -58,64 +58,67 @@ class event_handler(PyDexThread):
         self.end_t   = time.time() # time at end of event
         self.idle_t  = 0           # time between events
         self.write_t = 0           # time taken to watch a file being written
-        self.config_fn = config_file  # remember which file was last used for config settings 
-        self.reset_dates(config_file) # create the required directories
+        self.set_dirs(config_dict) # create the required directories
 
-    def reset_dates(self, config_file='./config/config.dat', 
-            date=time.strftime("%d %b %B %Y", time.localtime()).split(" ")):
+    def reset_dates(self,date=time.strftime("%d %b %B %Y", time.localtime()).split(" ")):
         # load paths used from config.dat
-        self.dirs_dict = self.get_dirs(config_file) # handy dict contains them all
-        self.image_storage_path = self.dirs_dict['Image Storage Path: ']
-        self.dexter_sync_file_name = self.dirs_dict['Dexter Sync File: ']
-        self.results_path = self.dirs_dict['Results Path: ']
-        self.sequences_path = self.dirs_dict['Sequences path: ']
-        if self.image_storage_path: # =0 if get_dirs couldn't find config.dat, else continue
-            # get the date to be used for file labeling
-            self.date = date # day short_month long_month year
-            datepath = r'\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])
-            self.image_storage_path = self.check_path(self.image_storage_path, datepath)
-            self.results_path = self.check_path(self.results_path, datepath)
-            # self.sequences_path = self.check_path(self.sequences_path, datepath)
-        else: warning('Image saver could not load paths from config file: '+config_file)
+        self.set_dirs(self.get_dirs(),date)
 
-    def check_path(self, path, datepath):
+    def set_dirs(self,dirs_dict,
+                 date=time.strftime("%d %b %B %Y", time.localtime()).split(" ")):
+        """Sets the dirs used by the Image Saver from a dict such as that 
+        returned by self.get_dirs()
+        """
+        self.dirs_dict = dirs_dict
+        # self.image_storage_path = self.dirs_dict['Image Storage Path: ']
+        self.image_storage_path_base = self.dirs_dict['Image Storage Path: ']
+        self.dexter_sync_file_name = self.dirs_dict['Dexter Sync File: ']
+        self.results_path_base = self.dirs_dict['Results Path: ']
+        self.sequences_path = self.dirs_dict['Sequences path: ']
+
+        # get the date to be used for file labeling
+        self.date = date # day short_month long_month year
+        datepath = r'\%s\%s\%s'%(self.date[3],self.date[2],self.date[0])
+        self.image_storage_path_base, self.image_storage_path = self.check_path(self.image_storage_path_base, datepath)
+        self.results_path_base, self.results_path = self.check_path(self.results_path_base, datepath)
+
+    def check_path(self, base, datepath):
         """Check if Python has permission to write to the given directory, path.
         If so, make a dated directory from that path."""
         try: # create directory by date if it doesn't already exist
-            os.makedirs(path + datepath, exist_ok=True) # requies version > 3.2
-            return path + datepath
-        except PermissionError as e: 
+            os.makedirs(base + datepath, exist_ok=True) # requies version > 3.2
+        except (PermissionError, FileNotFoundError) as e: 
             warning('Image saver could not create directory: '+
-                path +'\nUsing current directory instead\n'+str(e))
-            os.makedirs('.' + datepath, exist_ok=True)
-            return '.' + datepath
+                base +'\nUsing current directory instead\n'+str(e))
+            base = '.'
+            os.makedirs(base + datepath, exist_ok=True)
+        return base, base + datepath
 
-    @staticmethod # static method can be accessed without making an instance of the class
-    def get_dirs(config_file='./config/config.dat'):
-        """Load the paths used from the config.dat file or prompt user if 
-        it can't be found"""
-        image_storage_path, dexter_sync_file_name = '', ''
-        sequences_path, results_path = '', ''
-        # load config file for directories or prompt user if first time setup
-        try:
-            with open(config_file, 'r') as config_file:
-                config_data = config_file.read().split("\n")
-        except (FileNotFoundError, OSError):
-            print("config.dat file not found. This file is required for directory references.")
-            return {'Image Storage Path: ':'', 'Dexter Sync File: ':'','Results Path: ':'', 'Sequences path: ':''}
-        for row in config_data:
-            if "image storage path" in row:
-                image_storage_path = checkdir(row) # where image files are saved
-            elif "dexter sync file" in row:
-                dexter_sync_file_name = checkdir(row) # where the txt from Dexter with the latest file # is saved
-            elif "results path" in row:
-                results_path = checkdir(row)   # where csv files and histograms will be saved
-            elif 'sequences path' in row:
-                sequences_path = checkdir(row) # where sequence xml files will be saved
-        return {'Image Storage Path: ':image_storage_path,
-                'Dexter Sync File: ':dexter_sync_file_name,
-                'Results Path: ':results_path,
-                'Sequences path: ':sequences_path}
+    # @staticmethod # static method can be accessed without making an instance of the class
+    def get_dirs(self):
+        return {'Image Storage Path: ': self.image_storage_path_base, # only store the base rather than the specific date folder
+                'Dexter Sync File: ': self.dexter_sync_file_name,
+                'Results Path: ': self.results_path_base,
+                'Sequences path: ': self.sequences_path}
+
+        # image_storage_path, dexter_sync_file_name = '', ''
+        # sequences_path, results_path = '', ''
+        # # load config file for directories or prompt user if first time setup
+        # try:
+        #     with open(config_file, 'r') as config_file:
+        #         config_data = config_file.read().split("\n")
+        # except (FileNotFoundError, OSError):
+        #     print("config.dat file not found. This file is required for directory references.")
+        #     return {'Image Storage Path: ':'', 'Dexter Sync File: ':'','Results Path: ':'', 'Sequences path: ':''}
+        # for row in config_data:
+        #     if "image storage path" in row:
+        #         image_storage_path = checkdir(row) # where image files are saved
+        #     elif "dexter sync file" in row:
+        #         dexter_sync_file_name = checkdir(row) # where the txt from Dexter with the latest file # is saved
+        #     elif "results path" in row:
+        #         results_path = checkdir(row)   # where csv files and histograms will be saved
+        #     elif 'sequences path' in row:
+        #         sequences_path = checkdir(row) # where sequence xml files will be saved
         
     @staticmethod
     def print_dirs(dict_items):

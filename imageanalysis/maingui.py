@@ -692,9 +692,11 @@ class main_window(QMainWindow):
         if self.bin_actions[1].isChecked(): # manual
             self.swap_signals()  # disconnect image handler, reconnect plot
             self.bins_text_edit('reset')            
+            self.image_handler.redo = False # use fixed bins and stored histogram
         elif self.bin_actions[0].isChecked(): # automatic
             self.swap_signals()  # disconnect image handler, reconnect plot
             self.image_handler.bin_array = []
+            self.image_handler.redo = True # recalculate histogram each time
             if self.image_handler.ind > 0:
                 if self.thresh_toggle.isChecked():
                     self.plot_current_hist(self.image_handler.histogram, self.hist_canvas)
@@ -756,8 +758,7 @@ class main_window(QMainWindow):
         t2 = time.time()
         self.int_time = t2 - t1
         # display the name of the most recent file
-        self.recent_label.setText('Just processed image '
-                            + str(self.image_handler.fid))
+        #self.recent_label.setText('Just processed image ' + str(self.image_handler.fid))
         self.plot_current_hist(self.image_handler.hist_and_thresh, self.hist_canvas) # update the displayed plot
         self.plot_time = time.time() - t2
 

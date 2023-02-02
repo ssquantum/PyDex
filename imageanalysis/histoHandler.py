@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 """Single Atom Image Analysis
 Stefan Spence 15/04/19
 
@@ -156,20 +157,24 @@ class histo_handler(Analysis):
             if self.bf.rchisq and abs(self.bf.rchisq) > 1e9: include = False # bad fit
         
             # update threshold to where fidelity is maximum if not set by user
-            if fix_thresh: 
-                ih.fidelity, ih.err_fidelity = np.around(ih.get_fidelity(), 4) # round to 4 d.p.
-            else:
+            if not fix_thresh: 
                 ih.hist_and_thresh()
+            if method != 'quick':
+                ih.fidelity, ih.err_fidelity = np.around(ih.get_fidelity(), 4) # round to 4 d.p.
+            else: # skip expensive calculation
+                ih.fidelity, ih.err_fidelity = 1, 0 
 
             # update atom statistics
-            ih.stats['Atom detected'] = [count // ih.thresh for count in ih.stats['Counts']]
+            counts = np.array(ih.stats['Counts'])
+            atom = np.where(counts > ih.thresh, 1, 0)
+            ih.stats['Atom detected'] = list(atom)
 
-            above_idxs = np.where(np.array(ih.stats['Atom detected']) > 0)[0] # index of images with counts above threshold
+            above_idxs = np.where(atom == 1)[0] # index of images with counts above threshold
             atom_count = np.size(above_idxs)  # number of images with counts above threshold
-            above = np.array(ih.stats['Counts'])[above_idxs] # counts above threshold
-            below_idxs = np.where(np.array(ih.stats['Atom detected']) <= 0)[0] # index of images with counts below threshold
+            above = counts[above_idxs] # counts above threshold
+            below_idxs = np.where(atom == 0)[0] # index of images with counts below threshold
             empty_count = np.size(below_idxs) # number of images with counts below threshold
-            below = np.array(ih.stats['Counts'])[below_idxs] # counts below threshold
+            below = counts[below_idxs] # counts below threshold
             # use the binomial distribution to get 1 sigma confidence intervals:
             conf = binom_conf_interval(atom_count, atom_count + empty_count, interval='jeffreys')
             loading_prob = atom_count/ih.ind # fraction of images above threshold
@@ -256,7 +261,7 @@ class histo_handler(Analysis):
         if ih.ind > 0: # only update if a histogram exists
             oldthresh = ih.thresh # store the last value
             diff = 1              # convergence criterion
-            for i in range(20):   # shouldn't need many iterations
+            for i in range(5):   # shouldn't need many iterations
                 if diff < 0.0015:
                     break
                 success = self.process(ih, user_var, fix_thresh, method)

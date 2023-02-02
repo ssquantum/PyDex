@@ -8,7 +8,6 @@ awg\AWG_power_calibration
 .vscode/
 
 # ignore the following files
-state
 log.txt
 log.txt*
 *.pyc

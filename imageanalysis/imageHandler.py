@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 """Single Atom Image Analysis
 Stefan Spence 14/03/19
 
@@ -77,6 +78,15 @@ class image_handler(Analysis):
         self.ind       = 0              # number of images processed
         self.im_vals   = np.array([])   # the data from the last image is accessible to an image_handler instance
         self.bin_array = []             # if bins for the histogram are supplied, plotting can be faster
+        self.bins = []                  # store histogram for quicker updating
+        self.occs = []
+        self.redo = True                # whether to recalculate histogram
+
+    def reset_arrays(self):
+        """Reset arrays and the stored histogram"""
+        super().reset_arrays()
+        self.bins = self.bin_array
+        self.occs = np.zeros(len(self.bins),dtype=int) if np.size(self.bins) else []
     
     def process(self, im, include=True):
         """Fill in the next index of counts by integrating over
@@ -118,6 +128,12 @@ class image_handler(Analysis):
         self.stats['Max xpos'].append(xmax)
         self.stats['Max ypos'].append(ymax)
         self.stats['Include'].append(include)
+        if np.size(self.bins):
+            index = np.where(self.bins > self.stats['Counts'][-1])
+            try:
+                self.occs[index[0]] += 1
+            except IndexError:
+                self.occs[-1] += 1
         self.ind += 1
             
     def get_fidelity(self, thresh=None):
@@ -183,25 +199,28 @@ class image_handler(Analysis):
         try:
             # atom is present if the counts are above threshold
             self.stats['Atom detected'] = [x // self.thresh for x in self.stats['Counts']]
-            self.fidelity, self. err_fidelity = np.around(self.get_fidelity(), 4)
+            # self.fidelity, self. err_fidelity = np.around(self.get_fidelity(), 4) # this is a relatively slow operation
         except (ValueError, OverflowError): pass
         return bins, occ, self.thresh
 
     def histogram(self):
-        """Make a histogram of the photon counts but don't update the threshold"""
+        """Make a histogram of the photon counts but don't update the threshold
+        [Bool] redo: whether to use stored histogram or recalculate"""
         if np.size(self.stats['Counts']): # don't do anything to an empty list
-            if np.size(self.bin_array) > 0: 
-                occ, bins = np.histogram(self.stats['Counts'], self.bin_array) # fixed bins. 
+            if np.size(self.bins) and not self.redo:
+                return self.bins, self.occs, self.thresh
+            elif np.size(self.bin_array) > 0: 
+                self.occs, self.bins = np.histogram(self.stats['Counts'], self.bin_array) # fixed bins. 
             else:
                 try:
                     lo, hi = min(self.stats['Counts'])*0.97, max(self.stats['Counts'])*1.02
                     # scale number of bins with number of files in histogram and with separation of peaks
                     num_bins = int(15 + self.ind//100 + (abs(hi - abs(lo))/hi)**2*15) 
-                    occ, bins = np.histogram(self.stats['Counts'], bins=np.linspace(lo, hi, num_bins+1)) # no bins provided by user
+                    self.occs, self.bins = np.histogram(self.stats['Counts'], bins=np.linspace(lo, hi, num_bins+1)) # no bins provided by user
                 except: 
-                    occ, bins = np.histogram(self.stats['Counts'])
-        else: occ, bins = np.zeros(10), np.arange(0,1.1,0.1)
-        return bins, occ, self.thresh
+                    self.occs, self.bins = np.histogram(self.stats['Counts'])
+        else: self.occs, self.bins = np.zeros(10), np.arange(0,1.1,0.1)
+        return self.bins, self.occs, self.thresh
 
     def est_peaks(self, bins, occ):
         """Use the given histogram bins and occurrences to estimate where peaks are using scipy find_peaks"""
@@ -229,9 +248,9 @@ class image_handler(Analysis):
         Then set the threshold as 5 standard deviations above background.
         Sort the counts in ascending order, then split at the threshold, take means and widths."""
         # split histograms at threshold then get mean and stdev:
-        ascend = np.sort(self.stats['Counts'])
-        bg = ascend[ascend < self.thresh]     # background
-        signal = ascend[ascend > self.thresh] # signal above threshold
+        counts = np.array(self.stats['Counts'])
+        bg = counts[counts < self.thresh]     # background
+        signal = counts[counts > self.thresh] # signal above threshold
         try:
             1//np.size(bg) # raises ZeroDivisionError if size == 0
             1//(np.size(bg)-1) # need > 1 images to get std dev

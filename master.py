@@ -13,9 +13,11 @@ os.system("color") # allows error/warning/info messages to print in colour
 import sys
 import time
 import copy
+import json
 import numpy as np
+from functools import reduce
 from collections import OrderedDict
-from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer
+from PyQt5.QtCore import QThread, pyqtSignal, QEvent, QRegExp, QTimer, pyqtSlot
 from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
         QFont, QRegExpValidator)
 from PyQt5.QtWidgets import (QApplication, QPushButton, QWidget, 
@@ -27,7 +29,6 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 import warnings
 warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
 sys.path.append('./imageanalysis')
-from imageanalysis.settingsgui import settings_window
 from imageanalysis.atomChecker2 import atom_window
 sys.path.append('./andorcamera')
 from andorcamera.cameraHandler import camera # manages Andor camera
@@ -99,50 +100,39 @@ class Master(QMainWindow):
     signal to the image analysis and the image saving modules.
     Uses the queue module to create the list of sequences to run,
     and the bridge module to communicate with Dexter.
-    This master module will define the run number. It must confirm that
+    This controller module will define the run number. It must confirm that
     each Dexter sequence has run successfully in order to stay synchronised.
     Keyword arguments:
     state_config -- path to the file that saved the previous state.
                     Default directories for camera settings and image 
                     saving are also saved in this file.
-    image_analysis -- a class inheriting QMainWindow that can perform all of the
-                    required image analysis methods
     """
-    def __init__(self, state_config='.\\state', image_analysis=settings_window):
+    def __init__(self, dev_mode=False, state_config='.\\state.pds'):
         super().__init__()
-        self.types = OrderedDict([('File#',int), ('Date',str), ('CameraConfig',str), 
-            ('SaveConfig',str), ('AnalysisConfig',eval), ('MasterGeometry',intstrlist), 
-            ('AtomCheckerROIs', eval), ('AnalysisGeometry',intstrlist), 
-            ('SequencesGeometry',intstrlist), ('TempXMLPath', str)])
-        self.stats = OrderedDict([('File#', 0), ('Date', time.strftime("%d,%B,%Y")), 
-            ('CameraConfig', '.\\andorcamera\\Standard modes\\ExExposure_config.dat'), 
-            ('SaveConfig', '.\\config\\config.dat'), ('AnalysisConfig', {'pic_width':512,
-                'pic_height':512,'ROIs':'[[1, 1, 1, 1, 1], [1, 1, 1, 1, 1]]','bias':697,'image_path':'.',
-                'results_path':'.','last_image':'.','window_pos':'[550, 20, 10, 200, 600, 400]','num_images':2,
-                'num_saia':4,'num_reim':1,'num_coim':0}), 
-            ('AtomCheckerROIs',[[1, 1, 1, 1, 1], [1, 1, 1, 1, 1]]),
-            ('MasterGeometry', [10, 10, 500, 150]), ('AnalysisGeometry', [1400, 400, 600, 500]), 
-            ('SequencesGeometry', [20, 100, 1000, 800]), 
-            ('TempXMLPath', r'X:\\Sequence Log\\temp.xml')])
+        self.dev_mode = dev_mode
+        self.subwindows = [['rn.seq','SequencesGeometry'],['rn.check','AtomCheckerGeometry']] # [attribute, geometry]
+        startn = self.restore_state(file_name=state_config) # loads self.stats from the PyDex state file
+
         self.camera_pause = 0 # time in seconds to wait for camera to start acquisition.
-        self.ts = {label:time.time() for label in ['init', 'waiting', 'blocking',
-            'msg start', 'msg end']}
-        sv_dirs = event_handler.get_dirs(self.stats['SaveConfig'])
-        # if not any(os.path.exists(svd) for svd in sv_dirs.values()): # ask user to choose valid config file
-        startn = self.restore_state(file_name=state_config)
+        self.ts = {label:time.time() for label in ['init', 'waiting', 'blocking','msg start', 'msg end']}
+        sv_dirs = self.stats['SaveConfig']
+
         # choose which image analyser to use from number images in sequence
         self.init_UI(startn)
+
         # initialise the thread controlling run # and emitting images
         CsROIs, RbROIs = self.get_atomchecker_rois()
         self.rn = runnum(camera(config_file=self.stats['CameraConfig']), # Andor camera
-                event_handler(self.stats['SaveConfig']), # image saver
-                image_analysis(results_path =sv_dirs['Results Path: '],
-                    im_store_path=sv_dirs['Image Storage Path: '],
-                    config_settings=self.stats['AnalysisConfig']), # image analysis
-                atom_window(last_im_path=sv_dirs['Image Storage Path: '],
-                    Cs_rois=CsROIs, Rb_rois=RbROIs), # check if atoms are in ROIs to trigger experiment
-                Previewer(), # sequence editor
-                n=startn, m=2, k=0) 
+                         event_handler(self.stats['SaveConfig']), # image saver
+                         atom_window(last_im_path=sv_dirs['Image Storage Path: '],
+                                     Cs_rois=CsROIs, Rb_rois=RbROIs), # check if atoms are in ROIs to trigger experiment
+                         Previewer(), # sequence editor
+                         n=startn, m=2, k=0) 
+
+        # redirect MAIA save state trigger to controller for state saving
+        reset_slot(self.rn.iGUI.maia.signal_state,self.rn.iGUI.save_state,False)
+        reset_slot(self.rn.iGUI.maia.signal_state,self.process_save_state,True)
+
         # now the signals are connected, send camera settings to image analysis
         if self.rn.cam.initialised > 2:
             check = self.rn.cam.ApplySettingsFromConfig(self.stats['CameraConfig'])
@@ -153,11 +143,8 @@ class Master(QMainWindow):
         QTimer.singleShot(0, self.idle_state) # takes a while for other windows to load
         
         # self.rn.check.showMaximized()
-        self.rn.seq.setGeometry(*self.stats['SequencesGeometry'])
         self.rn.seq.show()
-        self.rn.sw.setGeometry(*self.stats['AnalysisGeometry'])
-        self.rn.sw.show()
-        self.rn.sw.show_analyses(show_all=True)
+        self.rn.iGUI.show()
         
         self.mon_win = MonitorStatus() # display communication with DAQ monitor
         self.mon_win.start_button.clicked.connect(self.start_monitor)
@@ -172,7 +159,9 @@ class Master(QMainWindow):
         self.date_reset = 0 # whether the dates are waiting to be reset or not
         QTimer.singleShot((29*3600 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates)
-            
+
+        self.set_rearranging(self.rearr_rois.isChecked()) # setting rearranging forces rn to update rn.rearranging for correct image assignment
+        self.restore_state(file_name=state_config)
 
     def idle_state(self):
         """When the master thread is not processing user events, it is in the idle states.
@@ -184,21 +173,18 @@ class Master(QMainWindow):
         synchronisation if it is the same day, and use the same config files."""
         if not file_name:
             try:
-                file_name, _ = QFileDialog.getOpenFileName(self, 'Load the PyDex Master State', '', 'all (*)')
+                file_name, _ = QFileDialog.getOpenFileName(self, 'Load the PyDex state', '', 'PyDex states (*.pds)')
             except OSError: return 0
+        if not file_name: return 0 #don't load a state if the user has cancelled in the GUI
         try:
             with open(file_name, 'r') as f:
-                for line in f:
-                    if len(line.split('=')) == 2: # there should only be one = per line
-                        key, val = line.replace('\n','').split('=') 
-                        try:
-                            self.stats[key] = self.types[key](val)
-                        except KeyError as e:
-                            warning('Failed to load PyDex state line: '+line+'\n'+str(e))
-        except FileNotFoundError as e: 
-            warning('PyDex master settings could not find the state file.\n'+str(e))
+                self.stats = json.load(f)
+        except FileNotFoundError as e:
+            error('Could not find the PyDex state file "{}"'.format(file_name))
+            return 0
         d = self.stats['Date']
         self.apply_state()
+        info('PyDex state loaded from "{}"'.format(file_name))
         if d == time.strftime("%d,%B,%Y"): # restore file number
             return self.stats['File#'] # [Py]DExTer file number
         else: return 0
@@ -216,15 +202,14 @@ class Master(QMainWindow):
         """Reset the date, camera config, image analysis config, and geometries"""
         try:
             self.reset_dates(savestate=False) # date
-            self.rn.sv.reset_dates(self.stats['SaveConfig']) # image saver
-            sv_dirs = self.rn.sv.get_dirs(self.stats['SaveConfig'])
-            self.stats['AnalysisConfig']['results_path'] = sv_dirs['Results Path: ']
-            self.stats['AnalysisConfig']['image_path'] = sv_dirs['Image Storage Path: ']
-            self.rn.sw.load_settings(stats=self.stats['AnalysisConfig'])
+            self.rearr_rois.setChecked(self.stats['Rearrange ROIs'])
+            self.set_geometries()
+            self.rn.sv.set_dirs(self.stats['SaveConfig']) # date will be reset here
+            self.rn.iGUI.set_state(self.stats['MAIAConfig'])
             CsROIs, RbROIs = self.get_atomchecker_rois()
             self.rn.check.set_rois(CsROIs, 'Cs')
             self.rn.check.set_rois(RbROIs, 'Rb')
-            self.rn.sw.reset_analyses()
+            self.rn.iGUI.clear_data_and_queue()
             if self.rn.cam.initialised > 2: # camera
                 if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
                     self.rn.cam.AF.AbortAcquisition()
@@ -234,9 +219,24 @@ class Master(QMainWindow):
                 else:
                     self.status_label.setText('Failed to update camera settings.')
             else: self.reset_camera(self.stats['CameraConfig'])
+            self.rn.seq.mr.order_edit.setCurrentText(self.stats['Multirun ordering'])
         except AttributeError: pass # haven't made runid yet 
-        except Exception as e: print('Master could not set state:\n'+str(e))
-            
+        # except Exception as e: print('Could not set state:\n'+str(e))
+
+    def set_geometries(self):
+        if not self.dev_mode: #geometries not set in dev mode to avoid windows going off screen
+            self.setGeometry(*self.stats['ControllerGeometry'])
+            for attribute, geometry_key in self.subwindows:
+                try:
+                    reduce(getattr, attribute.split("."), self).setGeometry(*self.stats[geometry_key])
+                except AttributeError: pass
+
+    def get_geometries(self):
+        self.stats['ControllerGeometry'] = list(self.geometry().getRect())
+        for attribute, geometry_key in self.subwindows:
+            try:
+                self.stats[geometry_key] = list(reduce(getattr, attribute.split("."), self).geometry().getRect())
+            except AttributeError: pass
         
     def make_label_edit(self, label_text, layout, position=[0,0, 1,1],
             default_text='', validator=False):
@@ -275,7 +275,7 @@ class Master(QMainWindow):
 
         show_windows = menubar.addMenu('Windows')
         menu_items = []
-        for window_title in ['Image Analyser', 'Camera Status', 
+        for window_title in ['SIMON', 'Camera Status', 
             'Image Saver', 'TCP Server', 'Multirun',
             'Atom Checker', 'Monitor', 'DDS', 'Show all']:
             menu_items.append(QAction(window_title, self)) 
@@ -302,7 +302,7 @@ class Master(QMainWindow):
 
         self.rearr_rois = QAction('Rearrange ROIs', sync_menu, 
                 checkable=True, checked=False)
-        self.rearr_rois.setChecked(False)
+        self.rearr_rois.setChecked(self.stats['Rearrange ROIs'])
         self.rearr_rois.toggled[bool].connect(self.set_rearranging)
         sync_menu.addAction(self.rearr_rois) 
 
@@ -360,8 +360,7 @@ class Master(QMainWindow):
         self.centre_widget.layout.addWidget(self.action_button, 2,1, 1,1)
 
         #### choose main window position, dimensions: (xpos,ypos,width,height)
-        self.setGeometry(*self.stats['MasterGeometry'])
-        self.setWindowTitle('PyDex Master')
+        self.setWindowTitle('PyDex controller')
         self.setWindowIcon(QIcon('docs/pydexicon.png'))
 
     def reset_dates(self, auto=True, savestate=True):
@@ -376,24 +375,25 @@ class Master(QMainWindow):
                 QTimer.singleShot((29*3600 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
                     self.reset_dates) # set the next timer to reset dates
             info(time.strftime("Date reset: %d %B %Y", t0))
-            results_path = os.path.join(self.stats['AnalysisConfig']['results_path'], *time.strftime('%Y,%B,%d').split(','))
+            results_path = os.path.join(self.stats['SaveConfig']['Results Path: '], *time.strftime('%Y,%B,%d').split(','))
             os.makedirs(results_path, exist_ok=True)
-            if savestate: self.save_state(os.path.join(results_path, 'PyDexState'+time.strftime("%d%b%y")+'.txt'))
+            if savestate: self.save_state(os.path.join(results_path, 'PyDexState'+time.strftime("%d%b%y")+'.pds'))
         else:
             self.date_reset = 1 # whether the dates are waiting to be reset or not
 
     def show_window(self):
         """Show the window of the submodule or adjust its settings."""
-        if self.sender().text() == 'Image Analyser':
-            self.rn.sw.show()
+        if self.sender().text() == 'SIMON':
+            self.rn.iGUI.show()
 
         elif self.sender().text() == 'Camera Status':
             if self.rn.cam.initialised:
                 msg = 'Current state: ' + self.rn.cam.AF.GetStatus() + '\nChoose a new config file: '
-            else: msg = 'Camera not initialised. See log file for details. Press OK to retry.'
-            newfile = self.rn.sw.try_browse(title='Choose new config file', 
-                    file_type='config (*.dat);;all (*)', 
-                    defaultpath=os.path.dirname(self.stats['CameraConfig']))
+            else: 
+                msg = 'Camera not initialised. See log file for details. Press OK to retry.'
+            newfile = self.rn.iGUI.try_browse(title='Choose new config file', 
+                                             file_type='config (*.dat);;all (*)', 
+                                             defaultpath=os.path.dirname(self.stats['CameraConfig']))
             text, ok = QInputDialog.getText( self, 'Camera Status', msg, 
                     text=newfile if newfile else self.stats['CameraConfig'])
             if text and ok:
@@ -467,7 +467,7 @@ class Master(QMainWindow):
         elif self.sender().text() == 'DDS':
             self.dds_win.show()
         elif self.sender().text() == 'Show all':
-            for obj in [self.mon_win, self.rn.sw, self.rn.seq] + self.rn.sw.mw + self.rn.sw.rw:
+            for obj in [self.mon_win, self.rn.iGUI, self.rn.seq]:
                 obj.close()
                 obj.show()
             
@@ -486,7 +486,7 @@ class Master(QMainWindow):
         self.rn.rearranging = toggle
         reset_slot(self.rn.check.rh['Cs'].rearrange, self.rn.send_rearr_msg, toggle)
         reset_slot(self.rn.check.rh['Rb'].rearrange, self.rn.send_rearr2_msg, toggle)
-        self.rn.set_m(self.rn.sw._m)
+        self.rn.set_m()
 
     def browse_sequence(self, toggle=True):
         """Open the file browser to search for a sequence file, then insert
@@ -546,7 +546,7 @@ class Master(QMainWindow):
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam() # wait for camera to initialise before running
                 self.status_label.setText('Camera acquiring')
-            else: warning('Master: Tried to start camera acquisition but camera is not initialised.')
+            else: warning('Controller: Tried to start camera acquisition but camera is not initialised.')
         elif action_text == 'Start acquisition' and self.action_button.text() == 'Stop acquisition':
             self.actions.setEnabled(True)
             self.action_button.setText('Go')
@@ -566,6 +566,7 @@ class Master(QMainWindow):
                         warning('Multirun has changed the "sync with DExTer" setting.')
                     status = self.rn.seq.mr.check_mr_params(self.rn.sv.results_path) # add to queue if valid
                     self.check_mr_queue() # prevent multiple multiruns occurring simultaneously
+                    self.rn.iGUI.clear_data_and_queue() # clear any existing data when starting a multirun
                     if self.rn.seq.mr.QueueWindow.isVisible():
                         self.rn.seq.mr.queue_ui.updateList()
                 else: 
@@ -588,6 +589,7 @@ class Master(QMainWindow):
                     self.rn.multirun_go(False)
                     self.rn.seq.mr.ind = 0
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
+                    self.rn.iGUI.clear_data_and_queue()
             elif 'Skip multirun histogram' in action_text:
                 if self.rn.seq.mr.multirun:
                     self.rn.skip_mr_hist()
@@ -644,7 +646,8 @@ class Master(QMainWindow):
 
     def set_inflxdb_toggle(self, toggle=False):
         """Whether to send data to influxdb database"""
-        self.rn.sw.send_data = toggle
+        # self.rn.sw.send_data = toggle
+        pass
                 
     def wait_for_cam(self, timeout=10):
         """Wait (timeout / 10) ms, periodically checking whether the camera
@@ -769,11 +772,11 @@ class Master(QMainWindow):
     def check_sizes(self, reset=False):
         """Print the length of lists and arrays to help find where memory is being used.
         reset: whether to clear all of the arrays."""
-        print("Image analysis:")
-        for mw in self.rn.sw.mw + self.rn.sw.rw:
-            print(mw.name, '\t', 
-                "image_handler max length: ", max(map(np.size, mw.image_handler.stats.values())),
-                "\thisto_handler max length: ", max(map(np.size, mw.histo_handler.stats.values())))
+        # print("Image analysis:")
+        # for mw in self.rn.sw.mw + self.rn.sw.rw:
+        #     print(mw.name, '\t', 
+        #         "image_handler max length: ", max(map(np.size, mw.image_handler.stats.values())),
+        #         "\thisto_handler max length: ", max(map(np.size, mw.histo_handler.stats.values())))
         print("TCP Network:")
         for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG1', 'AWG2', 'DDS1', 'DDS2', 'SLM', 'MWG'],
                 [self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, self.rn.awgtcp2, 
@@ -781,28 +784,52 @@ class Master(QMainWindow):
             print(label, ': %s messages'%len(tcp.get_queue()))
         print("Mutlirun queue length: ", len(self.rn.seq.mr.mr_queue))
         if reset:
-            for mw in self.rn.sw.mw + self.rn.sw.rw:
-                mw.image_handler.reset_arrays()
-                mw.histo_handler.reset_arrays()
+            pass
+            # for mw in self.rn.sw.mw + self.rn.sw.rw:
+            #     mw.image_handler.reset_arrays()
+            #     mw.histo_handler.reset_arrays()
 
     def save_state(self, file_name=''):
         """Save the file number and date and config file paths so that they
         can be loaded again when the program is next started."""
         if not file_name:
             try:
-                file_name, _ = QFileDialog.getSaveFileName(self, 'Save the PyDex Master State', '', 'all (*)')
+                file_name, _ = QFileDialog.getSaveFileName(self, 'Save the PyDex state', '', 'PyDex state (*.pds)')
             except OSError: return ''
-        if not file_name: file_name = './state' # in case user cancels
+        if not file_name: return # in case user cancels don't save any state file
+
+        self.rn.iGUI.request_get_state(file_name) # sends request to the iGUI which will get state data from MAIA to trigger process_save_state
+
+    @pyqtSlot(dict,str)
+    def process_save_state(self,maia_state,file_name):
+        """Processes the state saving requested with self.save_state(). This 
+        function is called by self.rn.iGUI.maia once the MAIA has returned its
+        state (to ensure MAIA thread safety). In future if multiple threads 
+        need to have thread safety, this function should be modified to be 
+        triggered only once all have reported their states (e.g. set flags that 
+        are seperately set to True for each thread and then only run this 
+        function if all are True.
+        """
+
         self.stats['File#'] = self.rn._n
-        self.stats['AnalysisConfig'] = dict(self.rn.sw.stats)
+        self.stats['SaveConfig'] = self.rn.sv.get_dirs()
+        self.stats['MAIAConfig'] = maia_state
+
+        self.stats['Rearrange ROIs'] = self.rearr_rois.isChecked()
         self.stats['AtomCheckerROIs'] = [self.rn.check.get_rois('Cs'), self.rn.check.get_rois('Rb')]
-        self.rn.sw.save_settings()
-        for key, g in [['AnalysisGeometry', self.rn.sw.geometry()], 
-            ['SequencesGeometry', self.rn.seq.geometry()], ['MasterGeometry', self.geometry()]]:
-            self.stats[key] = [g.x(), g.y(), g.width(), g.height()]
-        with open(file_name, 'w+') as f:
-            for key, val in self.stats.items():
-                f.write(key+'='+str(val)+'\n')
+        self.stats['Multirun ordering'] = self.rn.seq.mr.order_edit.currentText()
+
+        self.get_geometries()
+
+        try:
+            os.makedirs(os.path.dirname(file_name),exist_ok=True)
+        except FileExistsError as e:
+            warning('FileExistsError thrown when saving PyDex state file',e)
+            
+        with open(file_name, 'w', encoding='utf-8') as f:
+            json.dump(self.stats, f, ensure_ascii=False, indent=4)
+            
+        info('PyDex state saved to "{}"'.format(file_name))
 
     def closeEvent(self, event):
         """Proper shut down procedure"""
@@ -816,12 +843,15 @@ class Master(QMainWindow):
                 self.rn.cam.SafeShutdown()
             except Exception as e: warning('camera safe shutdown failed.\n'+str(e))
             # self.rn.check.send_rois() # give ROIs from atom checker to image analysis
-            for obj in self.rn.sw.mw + self.rn.sw.rw + [self.rn.sw, self.rn.seq, 
-                    self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, 
-                    self.rn.awgtcp2, self.rn.ddstcp1, self.rn.ddstcp2, self.rn.mwgtcp,
-                    self.rn.check, self.mon_win, self.dds_win, self.rn.seq.mr.QueueWindow]:
+            self.save_state('./state_last_closed.pds') # don't overwrite the default state when closing
+            time.sleep(1) # sleep to allow state to be saved
+            self.rn.iGUI.cleanup()
+            for obj in [self.rn.iGUI, self.rn.seq, self.rn.server, 
+                        self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, 
+                        self.rn.awgtcp2, self.rn.ddstcp1, self.rn.ddstcp2, 
+                        self.rn.mwgtcp, self.rn.check, self.mon_win, 
+                        self.dds_win, self.rn.seq.mr.QueueWindow]:
                 obj.close()
-            self.save_state('./state')
             event.accept()
         
 ####    ####    ####    #### 
@@ -829,12 +859,14 @@ class Master(QMainWindow):
 def run():
     """Initiate an app to run the program
     if running in Pylab/IPython then there may already be an app instance"""
+    dev_mode = 'dev' in sys.argv
+
     app = QApplication.instance()
     standalone = app is None # false if there is already an app instance
     if standalone: # if there isn't an instance, make one
         app = QApplication(sys.argv) 
         
-    boss = Master()
+    boss = Master(dev_mode=dev_mode)
     boss.show()
     if standalone: # if an app instance was made, execute it
         sys.exit(app.exec_()) # when the window is closed, python code stops
