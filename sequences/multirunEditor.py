@@ -294,9 +294,17 @@ class multirun_widget(QWidget):
         self.last_step_run_edit = self.make_label_edit('Running: ', self.grid, position=[7,1, 1,3])[1]
         self.last_step_run_edit.setText(self.ui_param['Last time step run'])
         self.last_step_run_edit.textChanged[str].connect(self.update_last_step)
-        self.last_step_end_edit = self.make_label_edit('End: ', self.grid, position=[7,5, 1,3])[1]
+        self.last_step_end_edit = self.make_label_edit('End: ', self.grid, position=[7,5, 1,2])[1]
         self.last_step_end_edit.setText(self.ui_param['Last time step end'])
         self.last_step_end_edit.textChanged[str].connect(self.update_last_step)
+
+        self.last_step_lock_button = QPushButton('Lock', self)
+        self.last_step_lock_button.setCheckable(True)
+        self.last_step_lock_button.setChecked(True)
+        self.last_step_lock_button.resize(self.last_step_lock_button.sizeHint())
+        self.last_step_lock_button.clicked.connect(self.update_last_step_lock)
+        self.update_last_step_lock()
+        self.grid.addWidget(self.last_step_lock_button, 7,8, 1,1)
 
         # display current progress
         multirun_progress = QLabel(
@@ -310,6 +318,13 @@ class multirun_widget(QWidget):
         self.grid.addWidget(self.table, 9,0, 20, 12)
     
         scroll.setWidget(scroll_content)
+
+    def update_last_step_lock(self):
+        """Enables or disables the last step line edits based on whether the
+        last step lock button is pressed."""
+        locked = self.last_step_lock_button.isChecked()
+        self.last_step_run_edit.setEnabled(not locked)
+        self.last_step_end_edit.setEnabled(not locked)
 
     #### #### array editing functions #### #### 
 
@@ -713,7 +728,10 @@ class multirun_widget(QWidget):
             for i in range(len(header)):
                 if header[i] in self.ui_param:
                     try:
-                        self.ui_param[header[i]] = self.types[header[i]](params[i])
+                        if ((header[i] == 'Last time step run') | (header[i] == 'Last time step end')) & (self.last_step_lock_button.isChecked()):
+                            warning('Did not load MR param {} as the last step lock button is checked.'.format(header[i]))
+                        else:
+                            self.ui_param[header[i]] = self.types[header[i]](params[i])
                     except ValueError as e:
                         error('Multirun editor could not load parameter: %s\n'%params[i]+str(e))
             # store values in case they're overwritten after setText()
@@ -738,7 +756,10 @@ class multirun_widget(QWidget):
             for i in range(len(header)): # restore values as change_array_size loads defaults
                 if header[i] in self.ui_param:
                     try:
-                        self.ui_param[header[i]] = self.types[header[i]](params[i])
+                        if ((header[i] == 'Last time step run') | (header[i] == 'Last time step end')) & (self.last_step_lock_button.isChecked()):
+                            pass
+                        else:
+                            self.ui_param[header[i]] = self.types[header[i]](params[i])
                     except ValueError as e: pass
             
     def check_mr_params(self, save_results_path='.'):
