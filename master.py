@@ -333,6 +333,7 @@ class Master(QMainWindow):
             'Resync DExTer', 'Start acquisition'])
         self.actions.resize(self.actions.sizeHint())
         self.centre_widget.layout.addWidget(self.actions, 2,0,1,1)
+
         
         # shortcuts
         self.shortcuts=[QShortcut('F2', self)]
@@ -358,6 +359,9 @@ class Master(QMainWindow):
         self.action_button.clicked.connect(self.start_action)
         self.action_button.resize(self.action_button.sizeHint())
         self.centre_widget.layout.addWidget(self.action_button, 2,1, 1,1)
+
+        self.sync_label = QLabel('')
+        self.centre_widget.layout.addWidget(self.sync_label, 3,0, 1,3)
 
         #### choose main window position, dimensions: (xpos,ypos,width,height)
         self.setWindowTitle('PyDex controller')
@@ -556,11 +560,13 @@ class Master(QMainWindow):
             if 'Run sequence' in action_text:
                 # queue up messages: start acquisition, check run number
                 self.action_button.setEnabled(False) # only process 1 run at a time
-                self.rn._k = 0 # reset image per run count 
+                self.rn._k = 0 # reset image per run count
+                self.rn.set_n('0')
                 self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000) 
                 self.rn.monitor.add_message(self.rn._n, 'update run number')
             elif 'Multirun run' in action_text:
                 if self.rn.seq.mr.check_table():
+                    self.rn.set_n('0')
                     if not self.sync_toggle.isChecked():
                         self.sync_toggle.setChecked(True) # it's better to multirun in synced mode
                         warning('Multirun has changed the "sync with DExTer" setting.')
@@ -590,6 +596,7 @@ class Master(QMainWindow):
                     self.rn.seq.mr.ind = 0
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
                     self.rn.iGUI.clear_data_and_queue()
+                    self.sync_file_id_with_dexter(True)
             elif 'Skip multirun histogram' in action_text:
                 if self.rn.seq.mr.multirun:
                     self.rn.skip_mr_hist()
@@ -643,6 +650,14 @@ class Master(QMainWindow):
         number of images per sequence is received."""
         reset_slot(self.rn.cam.AcquireEnd, self.rn.receive, toggle) 
         reset_slot(self.rn.cam.AcquireEnd, self.rn.unsync_receive, not toggle)
+
+    def sync_file_id_with_dexter(self, toggle):
+        """Toggles whether the PyDex File ID should be synced with Dexter."""
+        if toggle:
+            self.sync_label.setText('Sync File ID with DExTer: on')
+        else:
+            self.sync_label.setText('Sync File ID with DExTer: off')
+        reset_slot(self.rn.server.dxnum,self.rn.set_n,toggle)
 
     def set_inflxdb_toggle(self, toggle=False):
         """Whether to send data to influxdb database"""
@@ -699,6 +714,7 @@ class Master(QMainWindow):
             else: warning('Run %s started without camera acquisition.'%(self.rn._n))
             if 'restart' not in msg: self.rn.multirun_go(msg) # might be resuming multirun instead of starting a new one
         elif 'multirun run' in msg:
+            self.sync_file_id_with_dexter(False)
             if self.check_rois.isChecked(): # start experiment when ROIs have atoms
                 reset_slot(self.rn.check.rh['Cs'].trigger, self.trigger_exp_start, True) 
                 self.rn.atomcheck_go() # start camera in internal trigger mode
@@ -763,6 +779,9 @@ class Master(QMainWindow):
         #         for im in unprocessed:
         #             # image dimensions: (# kscans, width pixels, height pixels)
         #             self.rn.receive(im[0]) 
+        
+        print('===reset ID slot===')
+        self.sync_file_id_with_dexter(True)
         self.idle_state()
         
     def print_times(self, keys=['waiting', 'blocking']):

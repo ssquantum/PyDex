@@ -29,7 +29,7 @@ class MeasureAnalyser():
     
     def load_from_directory(self,directory):
         maia_files = [x for x in os.listdir(directory) if x.split('.')[0] == 'MAIA']
-        # print(maia_files)
+        print(maia_files)
         
         self.analysers = {}
         for file in maia_files:
@@ -125,7 +125,8 @@ class Analyser():
     
         # use threshold data to calculate occupancy
         counts_df_occupancy_columns = [x+' occupancy' for x in roi_names]
-        for occupancy_col, counts_col, thresh_col in zip(counts_df_occupancy_columns,counts_df,threshold_df):
+        for occupancy_col, counts_col, thresh_col in zip(counts_df_occupancy_columns,counts_df_columns,threshold_df_columns):
+            # print(occupancy_col, counts_col, thresh_col)
             counts_df[occupancy_col] = np.where(counts_df[counts_col] > threshold_df[thresh_col][0],True,False)
         
         self.num_images = num_images
@@ -135,7 +136,9 @@ class Analyser():
         self.aux_df = pd.concat([threshold_df,roi_coords_df],axis=1)
         
     def load_dfs_from_file(self,filename):
-        self.aux_df = pd.read_csv(filename,nrows=2)
+        print(filename)
+        self.aux_df = pd.read_csv(filename,nrows=1)
+        print(self.aux_df)
         self.counts_df = pd.read_csv(filename,skiprows=2,index_col='File ID')
         roi_names = [x[:-7] for x in self.counts_df.columns if ' counts' in x]
         

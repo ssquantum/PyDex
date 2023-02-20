@@ -438,6 +438,7 @@ class ImagerGUI(QMainWindow):
         MAIA. The file ID and image number can be manually specified 
         or can just be left as None to let the MAIA assign the file ID 
         and image number."""
+        print('iGUI recieved image: file_id, image_num =',file_id,image_num)
         self.signal_send_maia_image.emit(image,file_id,image_num)
 
     def get_draw_image_num(self):

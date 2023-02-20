@@ -32,7 +32,7 @@ class runnum(QThread):
     n     - the initial run ID number
     m     - the number of images taken per sequence
     k     - the number of images taken already"""
-    im_save = pyqtSignal(np.ndarray) # send an incoming image to saver
+    im_save = pyqtSignal(list) # send an incoming image to saver
     Dxstate = 'unknown' # current state of DExTer
 
     def __init__(self, camra, saver, check, seq, n=0, m=1, k=0, dev_mode=False):
@@ -51,6 +51,7 @@ class runnum(QThread):
         self.cam.AcquireEnd.connect(self.receive) # receive the most recent image
         self.sv = saver  # image saver
         self.im_save.connect(self.sv.add_item) # separate signal to avoid risk of the slot being disconnected elsewhere
+
         self.sv.start()  # constantly checks queue, when an image to save is added to the queue, it saves it to a file.
 
         # self.sw.m_changed.connect(self.set_m)
@@ -69,7 +70,9 @@ class runnum(QThread):
         self.seq = seq   # sequence editor
         
         self.server = PyServer(host='', port=8620, name='DExTer', verbosity=1) # server will run continuously on a thread
-        self.server.dxnum.connect(self.set_n) # signal gives run number
+        # self.server.dxnum.connect(self.set_n) # signal gives run number
+        reset_slot(self.server.dxnum,self.set_n,True) # signal gives run number (this is deactivated during a MR)
+
         self.iGUI.maia.signal_finished_saving.connect(self.server.unpause) # lets MAIA unlock multirun after it has finished saving
         self.server.start()
         if self.server.isRunning():
@@ -161,12 +164,12 @@ class runnum(QThread):
         self.sv.dfn = str(self._n) # Dexter file number
         imn = self._k % self._m # ID number of image in sequence
         if self.rearranging: imn -= 1 # for rearranging, the 1st image doesn't go to analysis
-        self.sv.imn = str(imn) 
-        self.im_save.emit(im)
+        self.sv.imn = str(imn)
+        self.im_save.emit([im,self._n,imn])
         if imn < 0:
             self.check.event_im.emit(im)
         else:
-            self.iGUI.recieve_image(im,self._n,self._k) # the images File ID and image num are specified here when added to the MAIA queue.
+            self.iGUI.recieve_image(im,self._n,imn) # the images File ID and image num are specified here when added to the MAIA queue.
             # for i in self.sw.find(imn): # find the histograms that use this image
             #     self.sw.mw[i].image_handler.fid = self._n
             #     self.sw.mw[i].event_im.emit(im, self._k < self._m and not self.check.checking)
@@ -185,17 +188,21 @@ class runnum(QThread):
         """Receive an image as part of a multirun.
         Update the Dexter file number in all associated modules,
         then send the image array to be saved and analysed."""
+        
         self.sv.dfn = str(self._n) # Dexter file number
         imn = self._k % self._m # ID number of image in sequence
         if self.rearranging: imn -= 1 # for rearranging, the 1st image doesn't go to analysis
+        print('mr_recieve triggered: k, n, m, imn:',self._k,self._n,self._m,imn)
         self.sv.imn = str(imn)
-        self.im_save.emit(im)
+        self.im_save.emit([im,self._n,imn])
         if imn < 0:
             self.check.event_im.emit(im)
         else:
             if self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) >= self.seq.mr.mr_param['# omitted']:
-                self.iGUI.recieve_image(im,self._n,self._k) # the images File ID and image num are specified here when added to the MAIA queue.
+                self.iGUI.recieve_image(im,self._n,imn) # the images File ID and image num are specified here when added to the MAIA queue. Pass imn to compensate for rearrangement.
         self._k += 1 # another image was taken
+        if self._k >= self._m: # iterate to the next file ID if all images have been taken
+            self.set_n(str(self._n+1))
 
     def check_receive(self, im=0):
         """Receive image for atom checker, don't save but just pass on"""

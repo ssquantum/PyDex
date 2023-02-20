@@ -8,7 +8,7 @@ Stefan Spence 06/12/19
  - if the queue is empty, keep refreshing.
  - stop the thread by calling close()
 """
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import QApplication 
 enco = 'mbcs' # TCP message encoding
 
@@ -31,6 +31,7 @@ class PyDexThread(QThread):
         super().__init__()
         self.app = QApplication.instance()
 
+    @pyqtSlot(object)
     def add_item(self, new_item, *args, **kwargs):
         """Append a new item to the queue for processing."""
         self.queue.append(new_item)

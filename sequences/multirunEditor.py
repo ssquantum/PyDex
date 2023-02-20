@@ -115,8 +115,8 @@ class multirun_widget(QWidget):
             ('Order', order), ('Type', ['Time step length']*ncols), 
             ('Analogue type', ['Fast analogue']*ncols), ('Time step name', [[]]*ncols), 
             ('Analogue channel', [[]]*ncols), ('runs included', [[] for i in range(nrows)]),
-            ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'), 
-            ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\feb2020_940and812.evt'),
+            ('Last time step run', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\Feb2023_817_and_1065.evt'), 
+            ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\Feb2023_817_and_1065.evt'),
             ('# omitted', 5), ('# in hist', 100), ('list index', ['0']*ncols)])
         self.awg_args = ['duration_ms','start_freq_MHz','end_freq_MHz',
                          'hybridicity','start_amp','end_amp','drop_amp',

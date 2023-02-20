@@ -194,8 +194,6 @@ class MultiAtomImageAnalyser(QObject):
             file_id = self.file_id
         if image_num is None:
             image_num = self.next_image
-        image_num = self.next_image
-        file_id = self.file_id
         self.queue.append([image,file_id,image_num])
         self.signal_status_message.emit('Recieved ID {} Im {} and placed in queue'.format(file_id,image_num))
         self.signal_draw_image.emit(image,image_num)
@@ -276,9 +274,15 @@ class MultiAtomImageAnalyser(QObject):
             image = image - self.emccd_bias # don't edit in place because this seemed to cause an issue with images not showing in GUI. Maybe not thread safe?
             # print('image min',np.min(image))
             # print('image max',np.max(image))
+            image_num_too_big = False
             for group in self.roi_groups:
                 for roi in group.rois:
-                    roi.counts[image_num][file_id] = image[roi.x:roi.x+roi.w,roi.y:roi.y+roi.h].sum()
+                    try:
+                        roi.counts[image_num][file_id] = image[roi.x:roi.x+roi.w,roi.y:roi.y+roi.h].sum()
+                    except IndexError: # image_num was not valid for the number of images that MAIA is expecting
+                        image_num_too_big = True
+            if image_num_too_big:
+                self.signal_status_message.emit('Image number {} is greater than max expected images, so this image has been ignored (most likely cause is rearrangement toggle).')
             self.signal_status_message.emit('Finished processing ID {} Im {}'.format(file_id,image_num))
             self.calculate_thresholds()
 
@@ -303,8 +307,8 @@ class MultiAtomImageAnalyser(QObject):
         for group in self.roi_groups:
             for roi in group.rois:
                 for image in range(len(roi.counts)):
-                    print(roi.autothreshs)
-                    print('image',image)
+                    # print(roi.autothreshs)
+                    # print('image',image)
                     if roi.autothreshs[image]:
                         values = np.fromiter(roi.counts[image].values(), dtype=float)
                         roi.thresholds[image] = self.calculate_threshold(values)
@@ -416,13 +420,15 @@ class MultiAtomImageAnalyser(QObject):
         self.should_save to true, but this will only be done once the image 
         queue is empty."""
         if (self.should_save) and (not self.queue): # only save if should_save is True and queue is empty
-            # filename = self.results_path+'\{}\MAIA.{}.csv'.format(self.measure_prefix,self.hist_id) # TODO might need to add hist ID in here
-            filename = self.results_path+'\MAIA.{}.csv'.format(self.hist_id) # TODO might need to add hist ID in here
+            self.signal_status_message.emit('Beginning save process')
+            filename = self.results_path+'\MAIA.{}.csv'.format(self.hist_id)
             data = self.get_analyser_data()
+            self.signal_status_message.emit('Extracted analyser data')
             analyser = Analyser(data)
             additional_data = self.get_user_variable_dict()
             additional_data['Hist ID'] = self.hist_id
             additional_data['EMCCD bias'] = self.emccd_bias
+            self.signal_status_message.emit('Created Analyser, requesting data save')
             try:
                 analyser.save_data(filename,additional_data)
                 self.signal_status_message.emit('Saved data to {}'.format(filename))

@@ -145,24 +145,26 @@ class event_handler(PyDexThread):
             last_file_size = os.path.getsize(file_name)
             time.sleep(dt) # deliberately add pause so we don't loop too many times
 
-    def process(self, im_array, label='Im'):
+    def process(self, im_data, label='Im'):
         """On a new image signal being emitted, save it to a file with a 
         synced label into the image storage dir. File name format:
         [label]_[date]_[Dexter file #].asc
         """
+        [im_array, file_id, im_num] = im_data
+        print('ImSaver saving file_id, im_num:',file_id,im_num)
         self.t0 = time.time()
         self.idle_t = self.t0 - self.end_t   # duration between end of last event and start of current event
         # copy file with labeling: [label]_[date]_[Dexter file #]
         new_file_name = os.path.join(self.image_storage_path, 
                 '_'.join([label, 
                         self.date[0]+self.date[1]+self.date[3], 
-                        self.dfn, self.imn]) + '.asc')
+                        str(file_id), str(im_num)]) + '.asc')
         self.write_t = time.time()
         if os.path.isfile(new_file_name): # don't overwrite files
             new_file_name = os.path.join(self.image_storage_path, 
                 '_'.join([label, 
                         self.date[0]+self.date[1]+self.date[3], 
-                        self.dfn, self.imn, str(self.nfn)]) + '.asc')
+                        str(file_id), str(im_num), str(self.nfn)]) + '.asc')
             self.nfn += 1 # always a unique number
         out_arr = np.empty((im_array.shape[0],im_array.shape[1]+1))
         out_arr[:,1:] = im_array
