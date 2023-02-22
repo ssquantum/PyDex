@@ -129,6 +129,21 @@ class PyServer(QThread):
                             struct.pack("!L", len(bytes(text, encoding))), # msg length 
                             bytes(text, encoding)] for enum, text in message_list] + self.__mq
         
+    def force_add_message(self, enum, text, encoding=enco):
+        """Append a message to the queue that will be sent by TCP connection.
+        Message is added whether or not the queue is locked (the queue 
+        shouldn't really be locked anyway anymore because this leads to 
+        messages being lost; pause the server instead).
+        enum - (int) corresponding to the enum for DExTer's producer-
+                consumer loop.
+        text - (str) the message to send.
+        enum and message length are sent as unsigned long int (4 bytes)."""
+        self.__mq.append([struct.pack("!L", int(enum)), # enum 
+                            struct.pack("!L", len(bytes(text, encoding))), # msg length 
+                            bytes(text, encoding)]) # message
+        print('added message len',len(bytes(text, encoding)))
+        print('message read',text)
+
     def get_queue(self):
         """Return a list of the queued messages."""
         return [(str(int.from_bytes(enum, 'big')), str(text, enco)) for enum, tlen, text in self.__mq]

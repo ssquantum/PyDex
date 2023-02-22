@@ -23,18 +23,19 @@ class MeasureAnalyser():
     """Class to analyse the results of an entire measurement. Makes different
     instances of the Analyser class and then goes through a measure folder to
     extract relevant information."""
-    def __init__(self, directory=None):
+    def __init__(self, directory=None,ignore_ids=[]):
         if directory is not None:
-            self.load_from_directory(directory)
+            self.load_from_directory(directory,ignore_ids)
     
-    def load_from_directory(self,directory):
+    def load_from_directory(self,directory,ignore_ids=[]):
         maia_files = [x for x in os.listdir(directory) if x.split('.')[0] == 'MAIA']
         print(maia_files)
         
         self.analysers = {}
         for file in maia_files:
             hist_id = int(file.split('.')[1])
-            self.analysers[hist_id] = Analyser(directory+'\\'+file)
+            if not hist_id in ignore_ids:
+                self.analysers[hist_id] = Analyser(directory+'\\'+file)
             
     def apply_post_selection_criteria(self,post_selection_string):
         [x.apply_post_selection_criteria(post_selection_string) for x in self.analysers.values()]

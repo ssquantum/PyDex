@@ -537,8 +537,10 @@ class daq_window(QMainWindow):
             self.toggle.setChecked(False)
             self.activate()
         elif 'save trace' in msg:
+            os.makedirs(self.stats['save_dir'],exist_ok=True)
             self.save_trace(os.path.join(self.stats['save_dir'], self.stats['trace_file']))
         elif 'save graph' in msg:
+            os.makedirs(self.stats['save_dir'],exist_ok=True)
             self.save_graph(os.path.join(self.stats['save_dir'], self.stats['graph_file']))
         elif 'reset graph' in msg:
             self.reset_graph()
