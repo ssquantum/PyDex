@@ -70,6 +70,9 @@ class MultiAtomImageAnalyser(QObject):
         self.roi_groups = []
         self.num_images = num_images
 
+        self.copy_im_threshs = [None for _ in range(num_images)]
+        print('copy_im_threads',self.copy_im_threshs)
+
         self.update_num_images(self.num_images)
         self.update_num_roi_groups(num_roi_groups)
 
@@ -313,6 +316,13 @@ class MultiAtomImageAnalyser(QObject):
                         values = np.fromiter(roi.counts[image].values(), dtype=float)
                         roi.thresholds[image] = self.calculate_threshold(values)
 
+        for image, im_copy in enumerate(self.copy_im_threshs): # copy values from a different image and set to manual thresh if needed
+            if im_copy is not None:
+                for group in self.roi_groups:
+                    for roi in group.rois:
+                        roi.autothreshs[image] = False
+                        roi.thresholds[image] = roi.thresholds[im_copy]
+
     def calculate_threshold(self,counts_data):
         """Automatically choose a threshold based on the counts"""
         try:
@@ -359,6 +369,12 @@ class MultiAtomImageAnalyser(QObject):
         if (num_images != None) and (num_images != self.num_images):
             for group in self.roi_groups:
                 group.set_num_images(num_images)
+
+            for _ in range(num_images,len(self.copy_im_threshs)): # delete unneeded copy im data
+                self.copy_im_threshs.pop()
+            for _ in range(len(self.copy_im_threshs), num_images): # make new copy im data
+                self.roi_groups.append(None)
+
             self.next_image = 0
             self.num_images = num_images
             self.signal_status_message.emit('Set number of images to {}'.format(self.num_images))
@@ -378,15 +394,18 @@ class MultiAtomImageAnalyser(QObject):
     def recieve_tv_data_request(self):
         self.signal_status_message.emit('Recieved Threshold Viewer data request')
         tv_data = self.get_roi_thresholds()
-        self.signal_data_for_tv.emit(tv_data)
+        self.signal_data_for_tv.emit([tv_data,self.copy_im_threshs])
         self.signal_status_message.emit('Sent Threshold Viewer data to SIMON')
     
     @pyqtSlot(list)
-    def recieve_tv_threshold_data(self,threshold_data):
+    def recieve_tv_threshold_data(self,threshold_viewer_data):
         """Recieves threhold data from the Threshold Viewer to update the 
         ROIs with."""
         self.signal_status_message.emit('Recieved threshold data from Threshold Viewer')
         
+        threshold_data = threshold_viewer_data[0]
+        copy_im_threshs = threshold_viewer_data[1]
+
         # First check that the threshold data is of the correct format.
         if len(threshold_data) != len(self.roi_groups):
             self.signal_status_message.emit('Threshold Viewer data did not have the correct number of ROI groups. Ignoring.')
@@ -401,6 +420,18 @@ class MultiAtomImageAnalyser(QObject):
         # Now apply the data to the ROIs and recalculate any thresholds that need to be recalculated.
         for group, group_thresh in zip(self.roi_groups,threshold_data):
             group.set_threshold_data(group_thresh)
+
+        self.copy_im_threshs = []
+        for image, im_copy in enumerate(copy_im_threshs):
+            try:
+                im_copy = int(im_copy)
+                if image == im_copy:
+                    self.copy_im_threshs.append(None) # don't let an image reference itself
+                else:
+                    self.copy_im_threshs.append(int(im_copy))
+            except (TypeError, ValueError):
+                self.copy_im_threshs.append(None)
+
         self.calculate_thresholds()
 
         # Send updated data back to TV.
@@ -428,6 +459,7 @@ class MultiAtomImageAnalyser(QObject):
             additional_data = self.get_user_variable_dict()
             additional_data['Hist ID'] = self.hist_id
             additional_data['EMCCD bias'] = self.emccd_bias
+            additional_data['copy_im_threshs'] = self.copy_im_threshs
             self.signal_status_message.emit('Created Analyser, requesting data save')
             try:
                 analyser.save_data(filename,additional_data)
@@ -473,6 +505,7 @@ class MultiAtomImageAnalyser(QObject):
             will be passed back to the saving function.
         """
         params['roi_coords'] = self.get_roi_coords()
+        params['copy_im_threshs'] = self.copy_im_threshs
         params['thresholds'] = self.get_roi_thresholds()
         params['emccd_bias'] = self.emccd_bias
         params['num_images'] = self.num_images
@@ -485,13 +518,17 @@ class MultiAtomImageAnalyser(QObject):
         self.update_emccd_bias(params['emccd_bias'])
         self.update_num_images(params['num_images'])
         self.make_rois_from_lists(params['roi_coords'],params['thresholds'])
+        try: # add things here that don't exist in old state files (different try/except for each)
+            self.copy_im_threshs = params['copy_im_threshs']
+        except KeyError:
+            self.copy_im_threshs = [None for _ in range(self.num_images)]
 
     def make_rois_from_lists(self,roi_coords,thresholds):
         """Makes the ROI groups and ROIs from a list of ROI coords."""
         self.update_num_roi_groups(len(roi_coords)) # num images set here
         self.update_num_rois_per_group(len(roi_coords[0]))
         self.update_roi_coords(roi_coords)
-        self.recieve_tv_threshold_data(thresholds)
+        self.recieve_tv_threshold_data([thresholds,self.copy_im_threshs])
 
 class ROIGroup():
     """Container ROIGroup class used by the MAIA. This stores multiple ROIs

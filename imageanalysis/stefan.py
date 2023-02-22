@@ -28,7 +28,7 @@ performed entirely with slots/signals to ensure thread safety.
 
 import numpy as np
 from PyQt5.QtCore import (pyqtSignal, pyqtSlot, QObject, QThread, QTimer, 
-                          QCoreApplication, QRunnable, QThreadPool)
+                          QCoreApplication, QRunnable, QThreadPool, Qt)
 from PyQt5.QtGui import (QIcon, QDoubleValidator, QIntValidator, 
         QFont, QRegExpValidator)
 from PyQt5.QtWidgets import (QActionGroup, QVBoxLayout, QMenu, 
@@ -65,6 +65,7 @@ class StefanGUI(QMainWindow):
         self.iGUI = imagerGUI # the parent class of this object. Used to refer to methods in that class.
 
         self.mode = 'counts'
+        self.xmode = 'file_id'
 
         self.init_UI()
 
@@ -84,21 +85,29 @@ class StefanGUI(QMainWindow):
         self.centre_widget.layout = QVBoxLayout()
         self.centre_widget.setLayout(self.centre_widget.layout)
         self.setCentralWidget(self.centre_widget)
-        # self.layout = QVBoxLayout()
-        # self.setLayout(self.layout)
+
+        layout_xmode_select = QHBoxLayout()
+        layout_xmode_select.addWidget(QLabel('x axis:'))
+        self.xmode_group=QButtonGroup() # need to use self so that the group is not cleared from memory
+        self.button_file_id=QRadioButton('plot File ID')
+        self.xmode_group.addButton(self.button_file_id)
+        self.button_file_id.setChecked(True)
+        layout_xmode_select.addWidget(self.button_file_id)
+        self.button_group = QRadioButton('plot group')
+        self.xmode_group.addButton(self.button_group)
+        layout_xmode_select.addWidget(self.button_group)
+        self.centre_widget.layout.addLayout(layout_xmode_select)
 
         layout_mode_select = QHBoxLayout()
-        mode_group=QButtonGroup()
+        layout_mode_select.addWidget(QLabel('y axis:'))
+        self.mode_group=QButtonGroup()
         self.button_counts=QRadioButton('plot counts')
-        mode_group.addButton(self.button_counts)
+        self.mode_group.addButton(self.button_counts)
         self.button_counts.setChecked(True)
         layout_mode_select.addWidget(self.button_counts)
-
         self.button_occupancy = QRadioButton('plot occupancy')
-        
-        mode_group.addButton(self.button_occupancy)
+        self.mode_group.addButton(self.button_occupancy)
         layout_mode_select.addWidget(self.button_occupancy)
-
         self.centre_widget.layout.addLayout(layout_mode_select)
 
         layout_graph = QHBoxLayout()
@@ -159,7 +168,12 @@ class StefanGUI(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
 
-    def change_mode(self):
+    def change_mode(self,mode=None):
+        if mode == 'counts':
+            self.button_counts.setChecked(True)
+        elif mode == 'occupancy':
+            self.button_occupancy.setChecked(True)
+
         if self.button_counts.isChecked():
             self.mode = 'counts'
             self.box_image.setEnabled(True)
@@ -221,9 +235,15 @@ class StefanGUI(QMainWindow):
         else:
             self.mode = 'occupancy'
             self.name = 'STEFAN {}: occupancy'.format(self.index)
+        
+        if self.button_file_id.isChecked():
+            self.xmode = 'file_id'
+        else:
+            self.xmode = 'group'
+
         self.setWindowTitle(self.name)
 
-        worker = StefanWorker(maia_data,mode=self.mode,image=self.image,roi=self.roi,
+        worker = StefanWorker(maia_data,mode=self.mode,xmode=self.xmode,image=self.image,roi=self.roi,
                               post_selection=self.post_selection, condition=self.condition)
         worker.signals.status_bar.connect(self.status_bar_message)
         worker.signals.return_data.connect(self.plot_data)
@@ -232,8 +252,8 @@ class StefanGUI(QMainWindow):
         # worker.signals.finished.connect(self.thread_complete)
         # worker.signals.progress.connect(self.progress_fn)
     
-    @pyqtSlot(list,str)
-    def plot_data(self,data,label):
+    @pyqtSlot(list,str,str,str)
+    def plot_data(self,data,label,mode,xmode):
         """Recieves fully processed data from the worker to display on the 
         plot.
         
@@ -246,20 +266,31 @@ class StefanGUI(QMainWindow):
         label : string
             string to be shown in the STEFAN stats pane
         """
+        self.change_mode(mode)
+        self.xmode = xmode
+
+        print('data:')
         # print(data)
         self.graph.clear()
         self.graph.scene().removeItem(self.graph_legend)
         self.graph_legend = self.graph.addLegend()
 
-        for data_num, dataset in enumerate(data):
-            for group_num, group in enumerate(dataset):
-                pen = pg.mkPen(color=get_group_roi_color(group_num,self.roi))
-                print('group',group)
-                [x,y] = group # allow for multiple things to be plotted per group
-                if data_num == 0:
-                    self.graph.plot(x,y,pen=pen,name='Group {}'.format(group_num),symbol='x')
-                else:
-                    self.graph.plot(x,y,pen=pen,symbol='x')
+        if self.xmode == 'group': # expect data to be of the format [above_threshold_data,below_threshold_data,threshold_data]
+            [above_threshold_data,below_threshold_data,threshold_data] = data
+            for group_num, [above_threshs,below_threshs,threshold_data] in enumerate(zip(above_threshold_data,below_threshold_data,threshold_data)):
+                self.graph.plot(*above_threshs,pen=pg.mkPen(None),symbolBrush=get_group_roi_color(group_num,self.roi),symbol='o')
+                self.graph.plot(*below_threshs,pen=pg.mkPen(None),symbolBrush=get_group_roi_color(group_num,self.roi),symbol='x')
+                self.graph.plot(*threshold_data,pen=pg.mkPen(color=get_group_roi_color(group_num,self.roi),style=Qt.DashLine))
+        else:
+            for data_num, dataset in enumerate(data):
+                for group_num, group in enumerate(dataset):
+                    pen = pg.mkPen(color=get_group_roi_color(group_num,self.roi))
+                    # print('group',group)
+                    [x,y] = group # allow for multiple things to be plotted per group
+                    if data_num == 0:
+                        self.graph.plot(x,y,pen=pen,name='Group {}'.format(group_num),symbol='x')
+                    else:
+                        self.graph.plot(x,y,pen=pen,symbol='x')
         self.stats_label.setText(label)
         
         self.button_update.setEnabled(True)
@@ -269,7 +300,7 @@ class StefanWorker(QRunnable):
 
     Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
     """
-    def __init__(self,maia_data,mode='counts',image=0,roi=0,post_selection=None,condition=None):
+    def __init__(self,maia_data,mode='counts',xmode='file_id',image=0,roi=0,post_selection=None,condition=None):
         """Initialise the worker object.
 
         Parameters
@@ -293,6 +324,12 @@ class StefanWorker(QRunnable):
             the worker just display the counts for a single ROI in each group, 
             or 'occupancy' if more complex post-selection analysis is required. 
             By default 'counts'
+        xmode : ['file_id','group'], optional
+            The xmode of the StefanWorker. This can either be 'file_id' to have 
+            the worker produce data to be plotted with the file ID on the 
+            xaxis with the groups as different lines, or the xaxis to be the
+            groups with data scattered around the group point.
+            By default 'file_id'
         image : int, optional
             The index of the images that the StefanWorker should analyse. Only 
             used if the mode is 'counts'. By default 0
@@ -312,10 +349,14 @@ class StefanWorker(QRunnable):
         super().__init__()
         self.data = maia_data
         self.mode = mode
+        self.xmode = xmode
         self.image = image
         self.roi = roi
         self.post_selection = post_selection
         self.condition = condition
+
+        self.group_spread = 0.3 # amount that points are spread out +/- their group number
+        self.occupancy_spread = 0.3 # amount that points are spread out +/- their occupancy
 
         self.signals = StefanWorkerSignals()
 
@@ -323,8 +364,8 @@ class StefanWorker(QRunnable):
     def run(self):
         print('started analysis')
         self.signals.status_bar.emit('STEFANWorker beginning analysis')
-        analysed_data, analysis_string = self.analysis()
-        self.signals.return_data.emit(analysed_data,analysis_string)
+        analysed_data, analysis_string, analysis_mode, analysis_xmode = self.analysis()
+        self.signals.return_data.emit(analysed_data,analysis_string,analysis_mode,analysis_xmode)
         print('finished analysis')
         time.sleep(0.5) # prevents the thread being closed before data has been sent
 
@@ -375,20 +416,56 @@ class StefanWorker(QRunnable):
             post_select_probs_errs = analyser.apply_post_selection_criteria(self.post_selection)
             condition_probs_errs = analyser.apply_condition_criteria(self.condition)
             print(analyser.ps_counts_df_split_by_roi_group)
-            data[0] = analyser.get_condition_met_plotting_data()
+            data[0] = np.array(analyser.get_condition_met_plotting_data())
             for group_num, (post_select_prob_err,condition_prob_err) in enumerate(zip(post_select_probs_errs,condition_probs_errs)):
                 post_select_prob_err_string = analyser.uncert_to_str(post_select_prob_err['probability'],post_select_prob_err['error in probability']) 
                 condition_prob_err_string = analyser.uncert_to_str(condition_prob_err['probability'],condition_prob_err['error in probability']) 
                 string += 'Group {}: PS = {}; CM = {}\n'.format(group_num,post_select_prob_err_string,condition_prob_err_string)
-            
+        
+        print(data)
+        if self.xmode == 'group':
+            # sort data based on whether it is above or below threshold
+            try:
+                above_threshold_data = []
+                below_threshold_data = []
+                threshold_data = []
+                if self.mode == 'counts':
+                    for group, [group_counts_data,group_threshold_data] in enumerate(zip(data[0],data[1])):
+                        group_threshold_data[0] = [group-0.5,group+0.5] # change x to be around the group
+                        threshold = group_threshold_data[1][0]
+                        above_counts = group_counts_data[1][group_counts_data[1]>threshold]
+                        below_counts = group_counts_data[1][group_counts_data[1]<threshold]
+                        
+                        above_threshold_data.append([np.random.uniform(low=group-self.group_spread, high=group+self.group_spread, size=(len(above_counts),)),above_counts])
+                        below_threshold_data.append([np.random.uniform(low=group-self.group_spread, high=group+self.group_spread, size=(len(below_counts),)),below_counts])
+                        threshold_data.append(group_threshold_data)
+
+                else: # mode is occupancy so just set the 'threshold' to 0.5 as data is binary
+                    for group, group_occupancy_data in enumerate(data[0]):
+                        group_threshold_data = [[group-0.5,group+0.5],[0.5,0.5]] # change x to be around the group
+                        threshold = group_threshold_data[1][0]
+                        above_counts = group_occupancy_data[1][group_occupancy_data[1]>threshold]
+                        below_counts = group_occupancy_data[1][group_occupancy_data[1]<threshold]
+                        
+                        above_threshold_data.append([np.random.uniform(low=group-self.group_spread, high=group+self.group_spread, size=(len(above_counts),)),
+                                                     np.random.uniform(low=1-self.occupancy_spread, high=1, size=(len(above_counts),))])
+                        below_threshold_data.append([np.random.uniform(low=group-self.group_spread, high=group+self.group_spread, size=(len(below_counts),)),
+                                                     np.random.uniform(low=0, high=0+self.occupancy_spread, size=(len(below_counts),))])
+                        threshold_data.append(group_threshold_data)
+
+                data = [above_threshold_data,below_threshold_data,threshold_data]
+
+            except IndexError:
+                data = [[[],[]],[[],[]],[[],[]]] # no data yet
+
         print(string)
-        return data, string
+        return data, string, self.mode, self.xmode
 
 class StefanWorkerSignals(QObject):
     """Defines the signals available from a running StefanWorker thread.
     """
     status_bar = pyqtSignal(str)
-    return_data = pyqtSignal(list,str)
+    return_data = pyqtSignal(list,str,str,str)
 
 
 

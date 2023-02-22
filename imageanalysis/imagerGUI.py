@@ -803,7 +803,10 @@ class ThresholdViewer(QMainWindow):
         """Processing to be performed after the MAIA has send back the 
         threshold data. This involves populating the table."""
         self.status_bar_message('Recieved threshold data from MAIA')
-        self.data = data
+        print(data)
+        self.data = data[0]
+        self.copy_im_data = ['' if x is None else str(x) for x in data[1]]
+        print('TV recieved copy_image data',self.copy_im_data)
         self.populate_table_with_data()
 
     def toggle_show_only_group_zero(self):
@@ -825,15 +828,22 @@ class ThresholdViewer(QMainWindow):
         data_sorted_by_roi = list(map(list, zip(*data))) # transpose the data array to sort it by ROI rather than ROI group
 
         if self.button_show_only_group_zero.isChecked():
-            self.table.setRowCount(self.num_rois_per_group)
+            self.table.setRowCount(self.num_rois_per_group+1)
         else:
-            self.table.setRowCount(self.num_roi_groups*self.num_rois_per_group)
+            self.table.setRowCount(self.num_roi_groups*self.num_rois_per_group+1)
         self.table.setColumnCount(self.num_images)
 
         horizontal_headers = ['Image {}'.format(i) for i in range(self.num_images)]
         self.table.setHorizontalHeaderLabels(horizontal_headers)
 
         vertical_header_labels = []
+        roi_data = data_sorted_by_roi[0][0]
+        for image_num, copy_im_number in enumerate(self.copy_im_data):
+            newVal = QTableWidgetItem(str(copy_im_number))
+            newVal.setBackground(QColor('lightGray'))
+            self.table.setItem(0, image_num, newVal)
+        vertical_header_labels.append('Copy Im')
+
         for roi_num, roi in enumerate(data_sorted_by_roi):
             for group_num, roi_data in enumerate(roi):
                 if (self.button_show_only_group_zero.isChecked()) and (group_num != 0):
@@ -857,11 +867,12 @@ class ThresholdViewer(QMainWindow):
         given group and ROI indicies.
         """
         if self.button_show_only_group_zero.isChecked():
-            return roi_num
+            return roi_num + 1
         else:
-            return roi_num*self.num_roi_groups+group_num
+            return roi_num*self.num_roi_groups+group_num + 1
 
     def get_roi_group_nums_from_index(self,index):
+        index = index - 1 # remove copy im row
         if self.button_show_only_group_zero.isChecked():
             group_num = 0
             roi_num = index
@@ -872,6 +883,9 @@ class ThresholdViewer(QMainWindow):
 
     def get_data_from_table(self):
         new_data = deepcopy(self.data)
+        
+        self.copy_im_data = [self.table.item(0,image).text() for image in range(self.num_images)]
+
         for group in range(self.num_roi_groups):
             for roi in range(self.num_rois_per_group):
                 for image in range(self.num_images):
@@ -915,7 +929,7 @@ class ThresholdViewer(QMainWindow):
 
     def update(self):
         self.get_data_from_table() # forces the copy settings across groups checkbox to be updated
-        self.iGUI.tv_send_data_to_maia(self.data)
+        self.iGUI.tv_send_data_to_maia([self.data,self.copy_im_data])
         self.status_bar_message('Sent threshold data to MAIA')
         self.button_update.setStyleSheet('')
         # self.iGUI.destroy_threshold_viewer()
