@@ -11,6 +11,7 @@ Code written to follow PEP8 conventions with max line length 120 characters.
 import numpy as np
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QObject, QThread, QTimer, QCoreApplication
 import time
+import os
 from copy import copy,deepcopy
 # from queue import Queue
 from collections import deque
@@ -373,7 +374,7 @@ class MultiAtomImageAnalyser(QObject):
             for _ in range(num_images,len(self.copy_im_threshs)): # delete unneeded copy im data
                 self.copy_im_threshs.pop()
             for _ in range(len(self.copy_im_threshs), num_images): # make new copy im data
-                self.roi_groups.append(None)
+                self.copy_im_threshs.append(None)
 
             self.next_image = 0
             self.num_images = num_images
@@ -437,11 +438,20 @@ class MultiAtomImageAnalyser(QObject):
         # Send updated data back to TV.
         self.recieve_tv_data_request()
 
-    @pyqtSlot()
-    def request_save(self):
+    @pyqtSlot(object)
+    def request_save(self,hist_id):
         """Sets the flag self.should_save to true, which will result in the 
-        data being saved when the image queue is empty."""
+        data being saved when the image queue is empty.
+        
+        Parameters
+        ----------
+        hist_id : int or None
+            The file ID to save the data to. MAIA _should_ already know this,
+            but this can be respecified to ensure that nothing gets out of
+            sync.
+        """
         self.should_save = True
+        self.update_hist_id(hist_id)
         self.signal_status_message.emit('Recieved save request')
 
     def save(self):
@@ -453,6 +463,15 @@ class MultiAtomImageAnalyser(QObject):
         if (self.should_save) and (not self.queue): # only save if should_save is True and queue is empty
             self.signal_status_message.emit('Beginning save process')
             filename = self.results_path+'\MAIA.{}.csv'.format(self.hist_id)
+            if os.path.exists(filename):
+                self.signal_status_message.emit('Filename {} already exists!'.format(filename))
+                files = [f for f in os.listdir(self.results_path) if os.path.isfile(os.path.join(self.results_path, f))]
+                files = [f for f in files if 'MAIA.' in f]
+                hist_ids = [int(f.split('MAIA.')[1].split('.csv')[0]) for f in files]
+                max_hist_id = max(hist_ids)
+                self.update_hist_id(max_hist_id+1)
+                self.signal_status_message.emit('To avoid data overwrite, hist_id has been set to {}'.format(max_hist_id+1))
+                filename = self.results_path+'\MAIA.{}.csv'.format(self.hist_id)
             data = self.get_analyser_data()
             self.signal_status_message.emit('Extracted analyser data')
             analyser = Analyser(data)

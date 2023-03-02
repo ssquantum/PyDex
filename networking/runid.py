@@ -45,6 +45,7 @@ class runnum(QThread):
         self._n = n # # images per run
         self._k = k # # images received
         self.next_mr = [] # queue of messages for the next multirun
+        self.hist_id = 0 # hist id to save the next MR file to
         self.rearranging = False # whether the first image is being used for rearrangement.
         self.mr_paused = False # whether the current multirun has been paused
         self.cam = camra # Andor camera control
@@ -449,7 +450,7 @@ class runnum(QThread):
             self.next_mr = [[TCPENUM['TCP read'], '||||||||'+'0'*2000]] + queue[i+1:]
             self.seq.mr.progress.emit('Waiting for MAIA to finish processing queue...')
             self.server.pause() # server is paused to allow MAIA to go through the queue and finish analysing all the images before continuing
-            self.iGUI.save() # iGUI still saves the output of the hists so that we can skip if something looks clear already
+            self.iGUI.save(self.hist_id) # iGUI still saves the output of the hists so that we can skip if something looks clear already
             r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist'])
             self.seq.mr.ind += self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist'] - r
             self.add_mr_msgs()
@@ -492,7 +493,8 @@ class runnum(QThread):
                 r - self.seq.mr.mr_param['# omitted'] if r > self.seq.mr.mr_param['# omitted'] else 0, self.seq.mr.mr_param['# in hist'], 
                 self.seq.mr.ind / (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) / len(self.seq.mr.mr_vals)*100))
         self.iGUI.set_measure_prefix(self.seq.mr.mr_param['measure_prefix'])
-        self.iGUI.set_hist_id(v+self.seq.mr.mr_param['1st hist ID'])
+        self.hist_id = v+self.seq.mr.mr_param['1st hist ID']
+        self.iGUI.set_hist_id(self.hist_id)
         self.iGUI.set_user_variables(self.seq.mr.mr_vals[v])
                 
     def multirun_save(self, msg):
@@ -507,7 +509,7 @@ class runnum(QThread):
         # save data
         self.seq.mr.progress.emit('Waiting for MAIA to finish processing queue...')
         self.server.pause() # server is paused to allow MAIA to go through the queue and finish analysing all the images before continuing
-        self.iGUI.save() # server will be unpaused at the end of a successful save (see self.iGUI.maia.save())
+        self.iGUI.save(self.hist_id) # server will be unpaused at the end of a successful save (see self.iGUI.maia.save())
         
     def multirun_end(self, msg):
         """At the end of the multirun, save the plot data and reset"""

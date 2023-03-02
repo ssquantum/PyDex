@@ -98,7 +98,7 @@ class ImagerGUI(QMainWindow):
     signal_send_file_id = pyqtSignal(int) # sends the file ID to MAIA
     signal_send_user_variables = pyqtSignal(list) # sends user variables to MAIA
     signal_send_measure_prefix = pyqtSignal(str) # sends the measure prefix to MAIA
-    signal_save = pyqtSignal() # asks MAIA to save the data when the queue is empty
+    signal_save = pyqtSignal(object) # asks MAIA to save the data when the queue is empty
     signal_clear_data_and_queue = pyqtSignal() # asks MAIA to immediately clear its data and queue
     signal_get_state = pyqtSignal(dict,str) # asks MAIA to get its current state and send it back
     signal_set_state = pyqtSignal(dict) # asks MAIA to set the state parameters
@@ -590,9 +590,17 @@ class ImagerGUI(QMainWindow):
     def recieve_emccd_bias(self,emccd_bias):
         self.box_emccd_bias.setText(str(emccd_bias))
 
-    def save(self):
-        """Sends save request to MAIA."""
-        self.signal_save.emit()
+    def save(self,hist_id=None):
+        """Sends save request to MAIA.
+        
+        Parameters
+        ----------
+        hist_id : int or None
+            The file ID to save the data to. MAIA _should_ already know this,
+            but this can be respecified to ensure that nothing gets out of
+            sync.
+        """
+        self.signal_save.emit(hist_id)
     
     def clear_data_and_queue(self):
         """Requests MAIA immediately clears all its data and queue. This 

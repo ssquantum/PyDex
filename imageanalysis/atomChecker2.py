@@ -271,8 +271,13 @@ class atom_window(QMainWindow):
     def set_rois(self, ROIlist, atom='Cs'):
         """Set the ROI list as the new ROIs"""
         self.rh[atom].create_rois(len(ROIlist), label=atom+' ')
-        self.rh[atom].resize_rois(ROIlist)
         self.create_new_rois(atom=atom) # populates the table widget
+        self.rh[atom].resize_rois(ROIlist)
+        
+        self.rois_edit[atom].blockSignals(True)
+        self.rois_edit[atom].setText(str(len(ROIlist)))
+        self.rois_edit[atom].blockSignals(False)
+
         self.display_rois()
 
     def make_roi_grid(self, toggle=True, method='', atom='Cs'):

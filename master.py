@@ -122,6 +122,7 @@ class Master(QMainWindow):
 
         # initialise the thread controlling run # and emitting images
         CsROIs, RbROIs = self.get_atomchecker_rois()
+
         self.rn = runnum(camera(config_file=self.stats['CameraConfig']), # Andor camera
                          event_handler(self.stats['SaveConfig']), # image saver
                          atom_window(last_im_path=sv_dirs['Image Storage Path: '],
@@ -206,9 +207,6 @@ class Master(QMainWindow):
             self.set_geometries()
             self.rn.sv.set_dirs(self.stats['SaveConfig']) # date will be reset here
             self.rn.iGUI.set_state(self.stats['MAIAConfig'])
-            CsROIs, RbROIs = self.get_atomchecker_rois()
-            self.rn.check.set_rois(CsROIs, 'Cs')
-            self.rn.check.set_rois(RbROIs, 'Rb')
             self.rn.iGUI.clear_data_and_queue()
             if self.rn.cam.initialised > 2: # camera
                 if self.rn.cam.AF.GetStatus() == 'DRV_ACQUIRING':
@@ -220,8 +218,11 @@ class Master(QMainWindow):
                     self.status_label.setText('Failed to update camera settings.')
             else: self.reset_camera(self.stats['CameraConfig'])
             self.rn.seq.mr.order_edit.setCurrentText(self.stats['Multirun ordering'])
-        except AttributeError: pass # haven't made runid yet 
-        # except Exception as e: print('Could not set state:\n'+str(e))
+            CsROIs, RbROIs = self.get_atomchecker_rois()
+            self.rn.check.set_rois(CsROIs, 'Cs')
+            self.rn.check.set_rois(RbROIs, 'Rb')
+        # except AttributeError: pass # haven't made runid yet 
+        except Exception as e: print('Could not set state:\n'+str(e))
 
     def set_geometries(self):
         if not self.dev_mode: #geometries not set in dev mode to avoid windows going off screen
