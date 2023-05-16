@@ -19,6 +19,10 @@ from math import floor, log10
 import functools
 import os
 
+import sys
+if '.' not in sys.path: sys.path.append('.')
+from helpers import calculate_threshold
+
 class MeasureAnalyser():
     """Class to analyse the results of an entire measurement. Makes different
     instances of the Analyser class and then goes through a measure folder to
@@ -43,7 +47,7 @@ class MeasureAnalyser():
     def apply_condition_criteria(self,criteria_string):
         [x.apply_condition_criteria(criteria_string) for x in self.analysers.values()]
     
-    def get_data(self):
+    def get_data(self,groups_for_average=None):
         df = pd.DataFrame()
         
         for hist_id,analyser in self.analysers.items():
@@ -63,12 +67,44 @@ class MeasureAnalyser():
                     row['Group {} PS {}'.format(group,key)] = [val]
                 for key, val in cm_prob_err.items():
                     row['Group {} CM {}'.format(group,key)] = [val]
+            avg_condition_met_probs_errs = analyser.get_avg_condition_met_prob(groups_for_average)
+            for key, val in avg_condition_met_probs_errs.items():
+                row['Average CM {}'.format(key)] = [val]
             df = df.append(row)
         df = df.set_index('Hist ID')
         return df
         # [[list(x.index),list(x['condition met'].astype(int))] for x in self.ps_counts_df_split_by_roi_group]
         # df['']
         
+    def get_separations(self,**kwargs):
+        """Requests that the analysers analyse their counts lists to 
+        determine the upper/lower means and the separations that these give.
+        """
+        data = []
+        keys_to_keep = ['threshold', 'mean', 'upper mean', 'lower mean', 'separation']
+        
+        for hist_id,analyser in self.analysers.items():
+            # print(hist_id,analyser)
+            analyser_data = {}
+            
+            row = pd.DataFrame()
+            analyser_data['Hist ID'] = hist_id
+            
+            uvs = analyser.get_user_variables()
+            for uv_idx, uv_val in enumerate(uvs):
+                analyser_data['User variable {}'.format(uv_idx)] = uv_val
+            
+            
+            separation_data = analyser.get_separations(**kwargs)
+            
+            for key,value in separation_data.items():
+                for keyi in keys_to_keep:
+                    analyser_data[key+' '+keyi] = value[keyi]
+            data.append(analyser_data)
+            
+        df = pd.DataFrame(data)
+        df = df.set_index('Hist ID')
+        return df       
 
 class Analyser():
     def __init__(self, maia_data):
@@ -139,7 +175,7 @@ class Analyser():
     def load_dfs_from_file(self,filename):
         print(filename)
         self.aux_df = pd.read_csv(filename,nrows=1)
-        print(self.aux_df)
+        # print(self.aux_df)
         self.counts_df = pd.read_csv(filename,skiprows=2,index_col='File ID')
         roi_names = [x[:-7] for x in self.counts_df.columns if ' counts' in x]
         
@@ -211,7 +247,6 @@ class Analyser():
         each ROI group."""
         return [self.binomial_confidence_interval(len(x),len(y)) for x,y in zip(self.ps_counts_df_split_by_roi_group,self.counts_df_split_by_roi_group)]
         
-        
     def apply_condition_criteria(self,condition_criteria_string):
         condition_criteria = self.convert_criteria_string_to_list(condition_criteria_string)
         condition_column_keys = self.convert_criteria_list_to_column_keys(condition_criteria)
@@ -232,6 +267,17 @@ class Analyser():
         each ROI group."""
         return [self.binomial_confidence_interval(x['condition met'].sum(), len(x)) for x in self.ps_counts_df_split_by_roi_group]
         
+    def get_avg_condition_met_prob(self,groups_to_use=None):
+        """Calculate the average condition met prob across all ROI groups."""
+        conditions_met = 0
+        total = 0
+        for group, x in enumerate(self.ps_counts_df_split_by_roi_group):
+            if (groups_to_use is not None) and (group not in groups_to_use):
+                continue
+            conditions_met += x['condition met'].sum()
+            total += len(x)
+        return self.binomial_confidence_interval(conditions_met, total)
+    
     def convert_criteria_string_to_list(self,criterias_string):
         """Converts a string such as that got from a STEFAN to a list of 
         strings used in the rest of the analyser.
@@ -275,7 +321,7 @@ class Analyser():
         # print('len conditions',len(conditions))
         if len(conditions) > 1:
             condition = functools.reduce(np.logical_and, conditions)
-            print(condition)
+            # print(condition)
         else:
             try:
                 condition = conditions[0]
@@ -356,6 +402,36 @@ class Analyser():
         user_variable_vals = [float(self.aux_df['User variable {}'.format(x)][0]) for x in user_variable_idx]
         
         return user_variable_vals
+    
+    def get_separations(self,autothresh=True,**kwargs):
+        """Analyses the counts data to find the separation between events where 
+        atoms are and are not present in a particular image.
+        
+        Parameters
+        ----------
+        autothresh : bool [NOT CURRENTLY IMPLEMENTED]
+            Whether or not the autothresh should be reapplied to the histogram
+            before the separation is calculated. The default is True.
+        """
+        roi_names = [x[:-7] for x in self.counts_df.columns if ' counts' in x]
+        # print(roi_names)
+        counts = [self.counts_df[x+' counts'] for x in roi_names]
+        threshs = [self.aux_df[x+' threshold'].iloc[0] for x in roi_names]
+        
+        separation_data = {}
+        for name in roi_names:
+            roi_data = {}
+            roi_data['counts'] = np.array(self.counts_df[name+' counts'])
+            if autothresh:
+                roi_data['threshold'] = calculate_threshold(roi_data['counts'])
+            else:
+                roi_data['threshold'] = self.aux_df[name+' threshold'].iloc[0]
+            roi_data['mean'] = np.mean(roi_data['counts'])
+            roi_data['upper mean'] = np.mean(roi_data['counts'][roi_data['counts'] > roi_data['threshold']])
+            roi_data['lower mean'] = np.mean(roi_data['counts'][roi_data['counts'] < roi_data['threshold']])
+            roi_data['separation'] = roi_data['upper mean'] - roi_data['lower mean']
+            separation_data[name] = roi_data
+        return separation_data
 
 if __name__ == '__main__':
     import time
@@ -408,22 +484,22 @@ if __name__ == '__main__':
     for k in test: test[k] = [test[k]]
     """
     
-    filename = r"Z:\Tweezer\Experimental Results\2023\January\31\Measure1\MAIA.0.csv"
-    analyser = Analyser(filename)
-    counts_df = analyser.counts_df
-    aux_df = analyser.aux_df
+    # directory = r"Z:\Tweezer\Experimental Results\2023\January\31\Measure1"
+    # measure_analyser = MeasureAnalyser(directory)
+    # analysers = measure_analyser.analysers
+    # # measure_analyser.apply_post_selection_criteria('')
+    # measure_analyser.apply_condition_criteria('[1x]')
+    # df = measure_analyser.get_data()
+    # plt.scatter(df['User variable 0'],df['Group 2 CM probability'])
+    # plt.show()
     
     directory = r"Z:\Tweezer\Experimental Results\2023\January\31\Measure1"
     measure_analyser = MeasureAnalyser(directory)
     analysers = measure_analyser.analysers
     # measure_analyser.apply_post_selection_criteria('')
     measure_analyser.apply_condition_criteria('[1x]')
-    df = measure_analyser.get_data()
-    plt.scatter(df['User variable 0'],df['Group 2 CM probability'])
-    plt.show()
-    
-    # measure_analyser.apply_post_selection_criteria('')
-    measure_analyser.apply_condition_criteria('[x1]')
-    df = measure_analyser.get_data()
-    plt.scatter(df['User variable 1'],df['Group 0 CM probability'])
+    sep_df = measure_analyser.get_separations()
+    plt.scatter(sep_df['User variable 0'],sep_df['ROI0:1 Im0_separation'])
+    plt.xlabel('user variable 0')
+    plt.ylabel('separation')
     plt.show()

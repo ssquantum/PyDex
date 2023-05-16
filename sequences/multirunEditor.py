@@ -133,7 +133,7 @@ class multirun_widget(QWidget):
                          'number_of_cycles']
         self.dds_args = ['Freq', 'Phase', 'Amp', 'Start_add', 'End_add', 'Step_rate', 'Sweep_start', 
         'Sweep_end', 'Pos_step', 'Neg_step', 'Pos_step_rate', 'Neg_step_rate']
-        self.slm_args = ['f','period','angle','radius','gradient','shift','radial','azimuthal','amplitude','max_mod_depth']
+        self.slm_args = ['f','period','angle','radius','gradient','shift','radial','azimuthal','amplitude','max_mod_depth','radius_scale']
         self.mwg_args = ['freq (MHz)','amp (dBm)']
         self.column_options = ['Analogue voltage', 'AWG1 chan : seg', 'AWG2 chan : seg',
             'DDS1 port : profile', 'DDS2 module : profile', 'SLM holograms','MWG tones'] # these analogue types require the analogue options 
@@ -254,7 +254,7 @@ class multirun_widget(QWidget):
         self.grid.addWidget(label, 3,7,3,1)
         self.list_index = QLineEdit('0', self)
         self.grid.addWidget(self.list_index, 4,7,3,1)
-        self.list_index.setValidator(int_validator)
+        self.list_index.setValidator(msr_validator)
         self.list_index.textEdited[str].connect(self.save_chan_selection)
         
         
@@ -564,7 +564,7 @@ class multirun_widget(QWidget):
             self.chan_choices['Analogue channel'].addItems(self.dds_args)
         elif newtype == 'SLM holograms':
             self.chan_choices['Time step name'].clear()
-            slmoptions = ['Hologram %s'%(i) for i in range(9)]
+            slmoptions = ['Hologram %s'%(i) for i in range(20)]
             self.chan_choices['Time step name'].addItems(slmoptions)
             reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)
             self.chan_choices['Analogue type'].clear()

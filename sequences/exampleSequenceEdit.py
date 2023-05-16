@@ -18,7 +18,7 @@ except ImportError:
 import time
 t = translate()
 t0 = time.time()
-t.load_xml(r"Z:/Tweezer/Experimental Results/2022/August/09/1064RSC_test.xml")
+t.load_xml(r"Z:\Tweezer\Experimental Results\2023\May\03\\no_cs_rsc_but_still_op.xml")
 t1 = time.time()
 # t.set_routine_name("Dual RSC")
 # t.set_routine_description("Use only RB2 for RSC")
@@ -89,15 +89,13 @@ num_s = len(esc[tdict.get('Sequence header top')]) - 2 # total number of timeste
 # for timestep in range(521,1019,2):
 #     esc[tdict.get('Fast digital channels')][timestep + channel*num_s + 3][1].text = '1' # store booleans as int 0 = False, 1 = True
 
-channel = 29
-for timestep in range(24,1019):
-    esc[tdict.get('Fast digital channels')][timestep + channel*num_s + 3][1].text = '0' # store booleans as int 0 = False, 1 = True
+for channel in [6,7]:
+    for timestep in range(1032,1534):
+        esc[tdict.get('Fast digital channels')][timestep + channel*num_s + 3][1].text = '0' # store booleans as int 0 = False, 1 = True
 
-
-
-# channel = 54
-# for timestep in list(range(28, 225,4))+list(range(228, 520,20)) + list(range(236,520,20)):
-#     esc[tdict.get('Fast digital channels')][timestep + channel*num_s + 3][1].text = '1' # store booleans as int 0 = False, 1 = True
+channel = 7
+for timestep in range(1032,1534):
+    esc[tdict.get('Slow digital channels')][timestep + channel*num_s + 3][1].text = '1' # store booleans as int 0 = False, 1 = True
     
 # #change some analogue voltages
 # for timestep in range(24,1019):
@@ -115,7 +113,7 @@ for timestep in range(24,1019):
 #        esc[tdict.get('Slow analogue array')][timestep + channel*num_s + 3][3][1].text = str(shim_values[i])
 
 t2 = time.time()
-t.write_to_file(r"Z:/Tweezer/Experimental Results/2022/August/09/1064RSC.xml")
+t.write_to_file(r"Z:\Tweezer\Experimental Results\2023\May\03\\no_cs_rsc.xml")
 if len(sys.argv) > 1 and sys.argv[1] == '-timeit':
     t3 = time.time()
     t.write_to_str()

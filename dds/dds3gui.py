@@ -18,10 +18,8 @@ from collections import OrderedDict
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from DDS_PSoC_functions import PSoC
-
 import DDS_PSoC_functions
-DDS_PSoC_functions.load_calibration(2) # set DDS index here so that the correct calibration is loaded
+DDS_PSoC_functions.load_calibration(3) # set DDS index here so that the correct calibration is loaded
 PSoC = DDS_PSoC_functions.PSoC
 
 if '.' not in sys.path: sys.path.append('.')
@@ -69,9 +67,9 @@ class Ui_MainWindow(PSoC):
     
     DRG_modes = ['DRG Frequency', 'DRG Phase', 'DRG Amplitude']
 
-    COMlabels = ['', '977', '1557', '1013', '420']
+    COMlabels = ['0', '1', '2', '3', '4']
 
-    def __init__(self, port=8630, host='localhost', alim=1, Today_file='', 
+    def __init__(self, port=8633, host='localhost', alim=1, Today_file='', 
                  enable_print = False #Prints additional information such as the serial data to the terminal or command line
                  ):
         super(Ui_MainWindow, self).__init__()
@@ -155,7 +153,7 @@ class Ui_MainWindow(PSoC):
         self.MainWindow = MainWindow
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(837, 600)
-        MainWindow.setStyleSheet("background-color: rgb(255,220,255);")
+        MainWindow.setStyleSheet("background-color: rgb(153,255,187);")
         
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -1575,7 +1573,7 @@ class Ui_MainWindow(PSoC):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "DDS2 GUI -- disconnected"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "DDS3 GUI -- disconnected"))
         self.label_147.setText(_translate("MainWindow", "Device messages"))
         self.label_148.setText(_translate("MainWindow", "COM Port number"))
         self.Connect.setText(_translate("MainWindow", "Connect"))
@@ -1856,13 +1854,13 @@ if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_MainWindow(port=8630, host='129.234.190.164', alim=1, 
+    ui = Ui_MainWindow(port=8633, host='129.234.190.164', alim=1, 
                        Today_file=today_file_path, enable_print = True)
     ui.setupUi_coms(MainWindow)
     
     def closeEvent(event):
         """actions to carry out before closing the window"""
-        ui.save_all('dds/defaultDDS2.txt')
+        ui.save_all('dds/defaultDDS3.txt')
         event.accept()
     MainWindow.closeEvent = closeEvent
 

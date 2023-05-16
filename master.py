@@ -562,18 +562,16 @@ class Master(QMainWindow):
                 # queue up messages: start acquisition, check run number
                 self.action_button.setEnabled(False) # only process 1 run at a time
                 self.rn._k = 0 # reset image per run count
-                self.rn.set_n('0')
-                self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000) 
+                # self.rn.set_n('0')
+                self.rn.server.add_message(TCPENUM['TCP read'], 'start acquisition\n'+'0'*2000)
                 self.rn.monitor.add_message(self.rn._n, 'update run number')
             elif 'Multirun run' in action_text:
                 if self.rn.seq.mr.check_table():
-                    self.rn.set_n('0')
                     if not self.sync_toggle.isChecked():
                         self.sync_toggle.setChecked(True) # it's better to multirun in synced mode
                         warning('Multirun has changed the "sync with DExTer" setting.')
                     status = self.rn.seq.mr.check_mr_params(self.rn.sv.results_path) # add to queue if valid
                     self.check_mr_queue() # prevent multiple multiruns occurring simultaneously
-                    self.rn.iGUI.clear_data_and_queue() # clear any existing data when starting a multirun
                     if self.rn.seq.mr.QueueWindow.isVisible():
                         self.rn.seq.mr.queue_ui.updateList()
                 else: 
@@ -679,7 +677,7 @@ class Master(QMainWindow):
         This prevents multiple multiruns being sent to DExTer at the same time."""
         num_mrs = len(self.rn.seq.mr.mr_queue) # number of multiruns queued
         if num_mrs:
-            if not self.rn.seq.mr.multirun and not self.rn.seq.mr.QueueWindow.isVisible(): 
+            if not self.rn.seq.mr.multirun and not self.rn.seq.mr.QueueWindow.isVisible():
                 self.rn.seq.mr.multirun = True
                 self.rn.server.add_message(TCPENUM['TCP read'], # send the first multirun to DExTer
                     'start measure %s'%(self.rn.seq.mr.mr_param['measure'] + num_mrs - 1)+'\n'+'0'*2000)

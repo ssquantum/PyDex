@@ -13,23 +13,24 @@ from PyQt5 import QtWidgets
 
 # power calibration accounting for AOM nonlinearity
 from scipy.interpolate import interp1d
-try:
-    cal = np.loadtxt('dds/dds2_power_calibration.csv', delimiter=',').T
-    cals = [interp1d(cal[i+1], cal[0], fill_value='extrapolate') for i in range(len(cal)-1)]
-    # cals = [interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
-    #         for i in range(5)]
-    alim = 1.0
-except OSError as e:
-    print('\033[31m' + '####\tERROR\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))
-    print('\tCould not load power calibration file:\n' + str(e) + '\n', '\033[m')
-    cals = [interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
-            for i in range(5)]
-    alim = 0.5
-        
-        
+
+def load_calibration(dds_index):
+    global cal, cals, alim
+    try:
+        print('loading DDS calibration: '+'dds/dds{}_power_calibration.csv'.format(dds_index))
+        cal = np.loadtxt('dds/dds{}_power_calibration.csv'.format(dds_index), delimiter=',').T
+        cals = [interp1d(cal[i+1], cal[0], fill_value='extrapolate') for i in range(len(cal)-1)]
+        # cals = [interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
+        #         for i in range(5)]
+        alim = 1.0
+    except OSError as e:
+        print('\033[31m' + '####\tERROR\t' + time.strftime('%d.%m.%Y\t%H:%M:%S'))
+        print('\tCould not load power calibration file:\n' + str(e) + '\n', '\033[m')
+        cals = [interp1d(np.linspace(0,1,10), np.linspace(0,1,10), fill_value='extrapolate')
+                for i in range(5)]
+        alim = 0.5
 
 class PSoC(object):
-
     def Pydex_tcp_reset(self, force=False):
         if self.tcp.isRunning():
             if force:

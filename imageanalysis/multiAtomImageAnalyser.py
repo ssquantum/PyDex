@@ -18,6 +18,10 @@ from collections import deque
 from skimage.filters import threshold_minimum
 from dataanalysis import Analyser
 
+import sys
+if '.' not in sys.path: sys.path.append('.')
+from helpers import calculate_threshold
+
 class MultiAtomImageAnalyser(QObject):
     """Multi Atom Image Analyser (MAIA).
 
@@ -60,6 +64,8 @@ class MultiAtomImageAnalyser(QObject):
     def __init__(self, results_path='.', num_roi_groups=2, 
                  num_rois_per_group=3,num_images=2):
         super().__init__()
+        self.calculate_threshold = calculate_threshold
+        
         # most of these settings get overwritten by the iGUI when initalised, but they are here just to prevent errors 
         # if this class is run independently
         self.new_roi_coords = None
@@ -203,6 +209,12 @@ class MultiAtomImageAnalyser(QObject):
         self.signal_draw_image.emit(image,image_num)
         self.advance_image_count(file_id,image_num)
     
+    @pyqtSlot(str)
+    def add_request_to_queue(self,request):
+        """Adds a request to the queue to be processed with images.
+        """
+        self.queue.append(request)
+    
     @pyqtSlot(object,object)
     def advance_image_count(self,file_id=None,image_num=None):
         """Advances the image count so that the MAIA knows what the next image number is.
@@ -271,7 +283,13 @@ class MultiAtomImageAnalyser(QObject):
     def process_next_image(self):
         """Move through the next image in the processing queue and processes it."""
         if self.queue:
-            [image,file_id,image_num] = self.queue.popleft()
+            next_queue_item = self.queue.popleft()
+            if type(next_queue_item) == str:
+                if next_queue_item == 'clear':
+                    self.signal_status_message.emit('Clearing ROI data (from request in image queue)')
+                    self.clear()
+                return
+            [image,file_id,image_num] = next_queue_item
             # print('image_num',image_num)
             # print('next image',self.next_image)
             self.signal_status_message.emit('Started processing ID {} Im {}'.format(file_id,image_num))
@@ -323,17 +341,6 @@ class MultiAtomImageAnalyser(QObject):
                     for roi in group.rois:
                         roi.autothreshs[image] = False
                         roi.thresholds[image] = roi.thresholds[im_copy]
-
-    def calculate_threshold(self,counts_data):
-        """Automatically choose a threshold based on the counts"""
-        try:
-            thresh = int(threshold_minimum(np.array(counts_data), 25))
-        except (ValueError, RuntimeError, OverflowError):
-            try:
-                thresh = int(0.5*(max(counts_data) + min(counts_data)))
-            except ValueError: # will be triggered if counts_data is empty
-                thresh = 1000
-        return thresh
 
     @pyqtSlot(int)
     def recieve_data_request(self,stefan_index):
@@ -483,7 +490,7 @@ class MultiAtomImageAnalyser(QObject):
             try:
                 analyser.save_data(filename,additional_data)
                 self.signal_status_message.emit('Saved data to {}'.format(filename))
-                self.clear()
+                # self.clear() # don't clear data when saving, just manually clear when starting a new MR
                 self.should_save = False
                 # self.signal_status_message.emit('Sleeping for 10s before unlocking queue (for testing)')
                 # time.sleep(10)
@@ -501,6 +508,7 @@ class MultiAtomImageAnalyser(QObject):
     def clear(self):
         """Clears the counts data stored in the ROIs."""
         [group.clear() for group in self.roi_groups]
+        self.signal_status_message.emit('Cleared data')
 
     @pyqtSlot()
     def clear_data_and_queue(self):

@@ -103,6 +103,7 @@ class ImagerGUI(QMainWindow):
     signal_get_state = pyqtSignal(dict,str) # asks MAIA to get its current state and send it back
     signal_set_state = pyqtSignal(dict) # asks MAIA to set the state parameters
     signal_cleanup = pyqtSignal() # connects the close event to the cleanup function if the iGUI is the main window
+    signal_add_request_to_queue = pyqtSignal(str) # adds a request to the MAIA queue to be processed with the image queue
 
     def __init__(self, num_images=2, results_path='.', hist_id=0, file_id=2000, user_variables=[0], measure_prefix='Measure0'):
         super().__init__()
@@ -173,6 +174,7 @@ class ImagerGUI(QMainWindow):
         self.signal_clear_data_and_queue.connect(self.maia.clear_data_and_queue)
         self.signal_get_state.connect(self.maia.get_state)
         self.signal_set_state.connect(self.maia.set_state)
+        self.signal_add_request_to_queue.connect(self.maia.add_request_to_queue)
 
         self.maia.signal_file_id.connect(self.recieve_file_id_from_maia)
         self.maia.signal_next_image_num.connect(self.recieve_next_image_num)
@@ -609,6 +611,18 @@ class ImagerGUI(QMainWindow):
         """
         self.signal_clear_data_and_queue.emit()
 
+    def add_request_to_queue(self,request):
+        """Adds a request to MAIA that will be processed in the queue. This
+        means that the request will be carried in the order it was recieved
+        (i.e. after any images that came before it). This prevents situations
+        where the queue was occupied but the request was processed first.
+        
+        Parameters
+        request : ['clear']
+            The request MAIA should carry out.
+        """
+        self.signal_add_request_to_queue.emit(request)
+
     #%% state saving/loading methods
     def request_get_state(self,filename=''):
         """Requests the MAIA to return its state information that will then
@@ -666,7 +680,9 @@ class ImagerGUI(QMainWindow):
 
     def update_all_stefans(self):
         """Forces all STEFANs (shown or hidden) to request an update."""
-        [stefan.request_update() for stefan in self.stefans]
+        # [stefan.request_update() for stefan in self.stefans]
+        for stefan_index,_ in enumerate(self.stefans):
+            self.signal_request_maia_data.emit(stefan_index)
 
     def show_all_stefans(self):
         """Forces all STEFANs to redisplay on the GUI."""

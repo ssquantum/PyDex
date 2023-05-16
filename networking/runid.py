@@ -319,7 +319,8 @@ class runnum(QThread):
             except IndexError as e:
                 error('runid.py could not start multirun because no multirun was queued.\n'+str(e))
                 return 0
-                
+            
+            self.iGUI.add_request_to_queue('clear') # clear the MAIA data before another MR begins. The clear command will be added to the queue so no images are skipped.
             results_path = os.path.join(self.sv.results_path, self.seq.mr.mr_param['measure_prefix'])
             reset_slot(self.cam.AcquireEnd, self.receive, False) # only receive if not in '# omit'
             reset_slot(self.cam.AcquireEnd, self.mr_receive, True)
@@ -473,7 +474,9 @@ class runnum(QThread):
         based on the run number +1."""
         self.monitor.add_message(self._n, 'update run number')
         r = self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) # repeat
-        if r == 1:
+        if r == 0:
+            self.iGUI.add_request_to_queue('clear') # clear MAIA data at the start of a new run
+        elif r == 1:
             self.monitor.add_message(self._n, 'set fadelines') # keep the trace from the start of the histogram
         v = self.seq.mr.get_next_index(self.seq.mr.ind) # variable
         try:
@@ -510,6 +513,7 @@ class runnum(QThread):
         self.seq.mr.progress.emit('Waiting for MAIA to finish processing queue...')
         self.server.pause() # server is paused to allow MAIA to go through the queue and finish analysing all the images before continuing
         self.iGUI.save(self.hist_id) # server will be unpaused at the end of a successful save (see self.iGUI.maia.save())
+        self.iGUI.update_all_stefans() # update all the open STEFANs at the end of a multirun before the data is cleared. This command sends requests to MAIA that will be handled before it clears data.
         
     def multirun_end(self, msg):
         """At the end of the multirun, save the plot data and reset"""

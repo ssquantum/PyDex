@@ -1,11 +1,11 @@
-n=0
+n=34939
 config_file=Z:/Tweezer/Code/Python 3.5/PyDex/monitor/DEoptimiseConfig.dat
 trace_file=DAQtrace.csv
 graph_file=99.2MHz.csv
-save_dir=Z:\Tweezer\Experimental Results\2023\February\17\Measure0
+save_dir=Z:\Tweezer\Experimental Results\2023\May\10\Measure23
 Sample Rate (kS/s)=50.0
-Duration (ms)=600.0
+Duration (ms)=200.0
 Trigger Channel=/Dev4/PFI0
 Trigger Level (V)=1.0
 Trigger Edge=rising
-channels=[[Dev4/ai0, Cs MOT, 1.0, 0.0, 10.0, 1, 1], [Dev4/ai1, RB4, 1.0, 0.0, 1.0, 0, 0], [Dev4/ai2, 1065 power, 1.0, 0.0, 10.0, 0, 0], [Dev4/ai3, RB2, 1.0, 0.0, 1.0, 0, 0], [Dev4/ai4, jump coils, 1.0, 0.0, 10.0, 0, 0], [Dev4/ai5, 1013, 1.0, 0.0, 5.0, 0, 0], [Dev4/ai6, RB1, 1.0, 0.0, 5.0, 0, 0], [Dev4/ai7, 817, 1.0, 0.0, 5.0, 0, 0]]
+channels=[[Dev4/ai0, 420, 1.0, 0.0, 5.0, 0, 0], [Dev4/ai1, RB4, 1.0, 0.0, 5.0, 1, 1], [Dev4/ai2, op, 1.0, 0.0, 10.0, 0, 0], [Dev4/ai3, RB2, 1.0, 0.0, 1.0, 1, 1], [Dev4/ai4, probe, 1.0, 0.0, 10.0, 0, 0], [Dev4/ai5, , 1.0, 0.0, 5.0, 1, 1], [Dev4/ai6, RB1, 1.0, 0.0, 5.0, 1, 1], [Dev4/ai7, rb mot, 1.0, 0.0, 5.0, 0, 0]]
