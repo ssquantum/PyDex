@@ -297,11 +297,13 @@ class runnum(QThread):
                 except Exception as e: error('Invalid SLM parameter at (%s, %s)\n'%(v,col)+str(e))
             elif 'MWG' in self.seq.mr.mr_param['Type'][col] and module == 'MWG':
                 try: # argument: value
-                    for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen MWG tone
+                    for n in self.seq.mr.mr_param['Time step name'][col]: # COM port for MWG to edit
                         for m in self.seq.mr.mr_param['Analogue channel'][col]:
-                            msg += '[%s,"%s",%s],'%(n, # [tone index, parameter, value]
+                            msg += '["%s","%s",%s,%s],'%( # [COM port, parameter, value, tone index]
+                                self.seq.mr.mwg_coms[n], 
                                 self.seq.mr.mwg_args[m], 
-                                self.seq.mr.mr_vals[v][col])
+                                self.seq.mr.mr_vals[v][col],
+                                self.seq.mr.mr_param['list index'][col])
                 except Exception as e: error('Invalid MWG parameter at (%s, %s)\n'%(v,col)+str(e))
         if col > -1: msg = msg[:-1] + ']'
         else: msg += ']'

@@ -18,6 +18,8 @@ from astropy.stats import binom_conf_interval
 from math import floor, log10
 import functools
 import os
+import re
+import itertools
 
 import sys
 if '.' not in sys.path: sys.path.append('.')
@@ -234,12 +236,21 @@ class Analyser():
         each entry in the brakets specifies a given image and the entries 
         within the brakets specify the ROIs in a given group.
         """
-        post_selection_criteria = self.convert_criteria_string_to_list(post_selection_string)
-        post_selection_column_keys = self.convert_criteria_list_to_column_keys(post_selection_criteria)
-        
-        self.ps_counts_df_split_by_roi_group = [self.get_post_selected_dataframe(x,post_selection_column_keys,group_num) for group_num, x in enumerate(self.counts_df_split_by_roi_group)]
+        post_selection_permutations = self.get_criteria_permutations(post_selection_string)
+
+        ps_counts_df_split_by_roi_groups = []
+
+        for permutation in post_selection_permutations:
+            post_selection_criteria = self.convert_criteria_string_to_list(permutation)
+            post_selection_column_keys = self.convert_criteria_list_to_column_keys(post_selection_criteria)
+            
+            ps_counts_df_split_by_roi_groups.append([self.get_post_selected_dataframe(x,post_selection_column_keys,group_num) for group_num, x in enumerate(self.counts_df_split_by_roi_group)])
+            
+            # print(post_select_probs_errs)
+        ps_counts_df_split_by_roi_groups = list(map(list, zip(*ps_counts_df_split_by_roi_groups))) # now each entry is list of permutations for each ROI
+
+        self.ps_counts_df_split_by_roi_group = [pd.concat(x).drop_duplicates().reset_index(drop=True) for x in ps_counts_df_split_by_roi_groups]
         post_select_probs_errs = self.get_post_selection_probs()
-        # print(post_select_probs_errs)
         return post_select_probs_errs
     
     def get_post_selection_probs(self):
@@ -248,18 +259,26 @@ class Analyser():
         return [self.binomial_confidence_interval(len(x),len(y)) for x,y in zip(self.ps_counts_df_split_by_roi_group,self.counts_df_split_by_roi_group)]
         
     def apply_condition_criteria(self,condition_criteria_string):
-        condition_criteria = self.convert_criteria_string_to_list(condition_criteria_string)
-        condition_column_keys = self.convert_criteria_list_to_column_keys(condition_criteria)
+        condition_permutations = self.get_criteria_permutations(condition_criteria_string)
+
+        conditions_met_all_permutations = []
+
+        for permutation in condition_permutations:
+            condition_criteria = self.convert_criteria_string_to_list(permutation)
+            condition_column_keys = self.convert_criteria_list_to_column_keys(condition_criteria)
+            
+            try:
+                [self.calculate_condition_met(x,condition_column_keys,group_num) for group_num, x in enumerate(self.ps_counts_df_split_by_roi_group)]
+                conditions_met_all_permutations.append([list(x['condition met']) for x in self.ps_counts_df_split_by_roi_group])
+            except AttributeError: # post-selection criteria has not been applied
+                self.apply_post_selection_criteria('') # apply no post-selection criteria
+                [self.calculate_condition_met(x,condition_column_keys,group_num) for group_num, x in enumerate(self.ps_counts_df_split_by_roi_group)]
+                conditions_met_all_permutations.append([list(x['condition met']) for x in self.ps_counts_df_split_by_roi_group])
         
-        try:
-            [self.calculate_condition_met(x,condition_column_keys,group_num) for group_num, x in enumerate(self.ps_counts_df_split_by_roi_group)]
-        except AttributeError: # post-selection criteria has not been applied
-            self.apply_post_selection_criteria('') # apply no post-selection criteria
-            [self.calculate_condition_met(x,condition_column_keys,group_num) for group_num, x in enumerate(self.ps_counts_df_split_by_roi_group)]
-        
-        # print(self.ps_counts_df_split_by_roi_group[0].columns)
-        # print(self.ps_counts_df_split_by_roi_group[0].head())
-        
+        conditions_met_all_permutations = list(map(list, zip(*conditions_met_all_permutations))) # transpose so each entry is list of condition met for each ROI group
+        print(len(conditions_met_all_permutations[0]))
+        for df, conditions_met in zip(self.ps_counts_df_split_by_roi_group,conditions_met_all_permutations):
+            df['condition met'] = np.sum(conditions_met,axis=0).astype(bool)       
         return self.get_condition_met_probs()
     
     def get_condition_met_probs(self):
@@ -278,6 +297,35 @@ class Analyser():
             total += len(x)
         return self.binomial_confidence_interval(conditions_met, total)
     
+    def get_criteria_permutations(self,criterias_string):
+        splits = criterias_string.split(',')
+        
+        criteria = []
+        
+        for split in splits:
+            if '{' in split:
+                print(split)
+                res = re.findall(r'\{.*?\}', split)
+                if len(res) != 1:
+                    raise Exception('Maximum 1 {} per image')
+                subsplits = res[0][1:-1].split('][')
+                subsplits = [x.replace('[','').replace(']','') for x in subsplits]
+                criteria.append(subsplits)
+            else:
+                split = split.replace('[','')
+                split = split.replace(']','')
+                criteria.append([split])
+            
+        criteria_permutations =  [s for s in itertools.product(*criteria)]
+        criteria_strings = []
+        for criteria in criteria_permutations:
+            criteria_string = ''
+            for image_criteria in criteria:
+                criteria_string += ('['+image_criteria+'],')
+            criteria_strings.append(criteria_string[:-1])
+        
+        return criteria_strings
+
     def convert_criteria_string_to_list(self,criterias_string):
         """Converts a string such as that got from a STEFAN to a list of 
         strings used in the rest of the analyser.
@@ -484,22 +532,22 @@ if __name__ == '__main__':
     for k in test: test[k] = [test[k]]
     """
     
+    directory = r"Z:\Tweezer\Experimental Results\2023\January\31\Measure1"
+    measure_analyser = MeasureAnalyser(directory,ignore_ids=list(range(10,1000)))
+    analysers = measure_analyser.analysers
+    measure_analyser.apply_post_selection_criteria('')
+    measure_analyser.apply_condition_criteria('[1x]')
+    df = measure_analyser.get_data()
+    plt.scatter(df['User variable 0'],df['Group 2 CM probability'])
+    plt.show()
+    
     # directory = r"Z:\Tweezer\Experimental Results\2023\January\31\Measure1"
     # measure_analyser = MeasureAnalyser(directory)
     # analysers = measure_analyser.analysers
     # # measure_analyser.apply_post_selection_criteria('')
     # measure_analyser.apply_condition_criteria('[1x]')
-    # df = measure_analyser.get_data()
-    # plt.scatter(df['User variable 0'],df['Group 2 CM probability'])
+    # sep_df = measure_analyser.get_separations()
+    # plt.scatter(sep_df['User variable 0'],sep_df['ROI0:1 Im0_separation'])
+    # plt.xlabel('user variable 0')
+    # plt.ylabel('separation')
     # plt.show()
-    
-    directory = r"Z:\Tweezer\Experimental Results\2023\January\31\Measure1"
-    measure_analyser = MeasureAnalyser(directory)
-    analysers = measure_analyser.analysers
-    # measure_analyser.apply_post_selection_criteria('')
-    measure_analyser.apply_condition_criteria('[1x]')
-    sep_df = measure_analyser.get_separations()
-    plt.scatter(sep_df['User variable 0'],sep_df['ROI0:1 Im0_separation'])
-    plt.xlabel('user variable 0')
-    plt.ylabel('separation')
-    plt.show()
