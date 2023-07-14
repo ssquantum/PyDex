@@ -276,7 +276,7 @@ class Analyser():
                 conditions_met_all_permutations.append([list(x['condition met']) for x in self.ps_counts_df_split_by_roi_group])
         
         conditions_met_all_permutations = list(map(list, zip(*conditions_met_all_permutations))) # transpose so each entry is list of condition met for each ROI group
-        print(len(conditions_met_all_permutations[0]))
+        # print(len(conditions_met_all_permutations[0]))
         for df, conditions_met in zip(self.ps_counts_df_split_by_roi_group,conditions_met_all_permutations):
             df['condition met'] = np.sum(conditions_met,axis=0).astype(bool)       
         return self.get_condition_met_probs()
@@ -304,7 +304,7 @@ class Analyser():
         
         for split in splits:
             if '{' in split:
-                print(split)
+                # print(split)
                 res = re.findall(r'\{.*?\}', split)
                 if len(res) != 1:
                     raise Exception('Maximum 1 {} per image')
