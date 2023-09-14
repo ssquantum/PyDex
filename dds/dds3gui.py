@@ -67,7 +67,8 @@ class Ui_MainWindow(PSoC):
     
     DRG_modes = ['DRG Frequency', 'DRG Phase', 'DRG Amplitude']
 
-    COMlabels = ['0', '1', '2', '3', '4']
+    COMlabels = ['0', '1', '2', 'High field imaging', '4']
+    DDSName = '3'
 
     def __init__(self, port=8633, host='localhost', alim=1, Today_file='', 
                  enable_print = False #Prints additional information such as the serial data to the terminal or command line
@@ -1260,7 +1261,7 @@ class Ui_MainWindow(PSoC):
         self.setupUi_DRG(MainWindow)
         
         # load default profiles
-        self.load_all('dds/defaultDDS2.txt')
+        self.load_all('dds/defaultDDS3.txt')
         self.RAM_data.setCurrentText('Amplitude')
         
     def setupUi_DRG(self, MainWindow):

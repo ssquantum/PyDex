@@ -599,7 +599,7 @@ class ROIGroup():
         for _ in range(num_rois,len(self.rois)): # delete unneeded ROIs
             self.rois.pop()
         for _ in range(len(self.rois), num_rois): # make new ROIs
-            self.rois.append(ROI(1,1,4,4,num_images=self.num_images))
+            self.rois.append(ROI(1,1,2,2,num_images=self.num_images))
 
     def get_num_rois(self):
         return len(self.rois)

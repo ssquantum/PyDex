@@ -438,7 +438,6 @@ class Master(QMainWindow):
             info += 'AWG2 server is running.\n' if self.rn.awgtcp2.isRunning() else 'AWG2 server stopped.\n'
             info += 'DDS1 server is running.\n' if self.rn.ddstcp1.isRunning() else 'DDS1 server stopped.\n'
             info += 'DDS2 server is running.\n' if self.rn.ddstcp2.isRunning() else 'DDS2 server stopped.\n'
-            info += 'DDS3 server is running.\n' if self.rn.ddstcp3.isRunning() else 'DDS3 server stopped.\n'
             info += 'SLM server is running.\n' if self.rn.slmtcp.isRunning() else 'SLM server stopped.\n'
             info += 'MWG server is running.\n' if self.rn.mwgtcp.isRunning() else 'MWG server stopped.\n'
             info += 'BareDExTer server is running.\n' if self.rn.seqtcp.isRunning() else 'BareDExTer server stopped.\n'
@@ -739,8 +738,6 @@ class Master(QMainWindow):
             self.rn.ddstcp1.priority_messages([(self.rn._n, msg.replace('DDS1 ', '').split('||||||||')[0])])
         elif 'DDS2 ' in msg[:10]: # send command to DDS to set new data
             self.rn.ddstcp2.priority_messages([(self.rn._n, msg.replace('DDS2 ', '').split('||||||||')[0])])
-        elif 'DDS3 ' in msg[:10]: # send command to DDS to set new data
-            self.rn.ddstcp3.priority_messages([(self.rn._n, msg.replace('DDS3 ', '').split('||||||||')[0])])
         elif 'SLM ' in msg[:10]: # send command to SLM to set new data
             self.rn.slmtcp.priority_messages([(self.rn._n, msg.replace('SLM ', '').split('||||||||')[0])])
         elif 'MWG ' in msg[:10]: # send command to MW generator to set new data
@@ -799,9 +796,9 @@ class Master(QMainWindow):
         #         "image_handler max length: ", max(map(np.size, mw.image_handler.stats.values())),
         #         "\thisto_handler max length: ", max(map(np.size, mw.histo_handler.stats.values())))
         print("TCP Network:")
-        for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG1', 'AWG2', 'DDS1', 'DDS2', 'DDS3', 'SLM', 'MWG'],
+        for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG1', 'AWG2', 'DDS1', 'DDS2', 'SLM', 'MWG'],
                 [self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, self.rn.awgtcp2, 
-                    self.rn.ddstcp1, self.rn.ddstcp2, self.rn.ddstcp3, self.rn.slmtcp, self.rn.mwgtcp]):
+                    self.rn.ddstcp1, self.rn.ddstcp2, self.rn.slmtcp, self.rn.mwgtcp]):
             print(label, ': %s messages'%len(tcp.get_queue()))
         print("Mutlirun queue length: ", len(self.rn.seq.mr.mr_queue))
         if reset:
@@ -869,8 +866,8 @@ class Master(QMainWindow):
             self.rn.iGUI.cleanup()
             for obj in [self.rn.iGUI, self.rn.seq, self.rn.server, 
                         self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, 
-                        self.rn.awgtcp2, self.rn.ddstcp1, self.rn.ddstcp2,
-                        self.rn.ddstcp3, self.rn.mwgtcp, self.rn.check, self.mon_win, 
+                        self.rn.awgtcp2, self.rn.ddstcp1, self.rn.ddstcp2, 
+                        self.rn.mwgtcp, self.rn.check, self.mon_win, 
                         self.dds_win, self.rn.seq.mr.QueueWindow]:
                 obj.close()
             event.accept()

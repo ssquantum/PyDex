@@ -113,7 +113,7 @@ class PSoC(object):
 
             self.ser.close()
             self.Display_Message_DDS('Disconnected from ' + self.port)
-            self.MainWindow.setWindowTitle('DDS2 GUI -- disconnected')
+            self.MainWindow.setWindowTitle('DDS'+self.DDSName+' GUI -- disconnected')
         else:
             self.Display_Message_DDS("Disconnected. But from what? Make sure you're connected to a device first.")
 
@@ -1084,7 +1084,7 @@ class PSoC(object):
         except ValueError:
             self.ind = 1
         self.MainWindow.setWindowTitle(
-            'DDS2 GUI -- '+self.port+': '+self.COMlabels[self.ind])
+            'DDS'+self.DDSName+' GUI -- '+self.port+': '+self.COMlabels[self.ind])
         self.redisplay_profiles()
         # self.reload_RAM() # removed so that the DDS doesn't resend RAM data unnecessarily
                 

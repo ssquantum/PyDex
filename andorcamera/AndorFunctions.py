@@ -217,6 +217,8 @@ class Andor:
             self.shutterStatus = 0
         elif mode == 1:
             self.shutterStatus = 1
+        elif mode == 5:
+            self.shutterStatus = 5
         self.verbose(error, sys._getframe().f_code.co_name)
         return error
 

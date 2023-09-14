@@ -282,9 +282,9 @@ class camera(QThread):
         self.AF.verbosity = bool(cvals[21])
         self.AF.kscans = 1
         check_success = [e != 'DRV_SUCCESS' for e in errors]
-        if any(check_success):
-            warning("Didn't get DRV_SUCCESS for setting " + 
-                str(check_success.index(True)))
+        for i, e in enumerate(errors):
+            if e != 'DRV_SUCCESS':
+                warning("Didn't get DRV_SUCCESS for setting index" + str(i) + ", got " + e)
         self.SettingsChanged.emit(self.emg, self.pag, self.Nr, True)
         return check_success
 

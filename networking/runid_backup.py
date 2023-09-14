@@ -113,10 +113,8 @@ class runnum(QThread):
         self.ddstcp2.start()
         self.mwgtcp = PyServer(host='', port=8631, name='MWG') # MW generator control program runs separately
         self.mwgtcp.start()
-        self.ddstcp3 = PyServer(host='', port=8633, name='DDS3') # DDS program runs separately
-        self.ddstcp3.start()
         self.server_list = [self.server, self.trigger, self.monitor, self.awgtcp1, self.ddstcp1, 
-                self.slmtcp, self.seqtcp, self.awgtcp2, self.ddstcp2, self.mwgtcp, self.ddstcp3]
+                self.slmtcp, self.seqtcp, self.awgtcp2, self.ddstcp2, self.mwgtcp]
         
     def reset_server(self, force=False):
         """Check if the server is running. If it is, don't do anything, unless 
@@ -289,15 +287,6 @@ class runnum(QThread):
                                 self.seq.mr.dds_args[m], 
                                 self.seq.mr.mr_vals[v][col])
                 except Exception as e: error('Invalid DDS parameter at (%s, %s)\n'%(v,col)+str(e))
-            elif 'DDS3' in self.seq.mr.mr_param['Type'][col] and module == 'DDS3':
-                try: # argument: value
-                    for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen DDS COM port, profile
-                        for m in self.seq.mr.mr_param['Analogue channel'][col]:
-                            profile = '"P%s"'%(n%9) if (n%9)<8 else '"aux"'
-                            msg += '["%s", '%(n//9+1)+profile+', "%s", %s],'%(# don't specify COM port
-                                self.seq.mr.dds_args[m], 
-                                self.seq.mr.mr_vals[v][col])
-                except Exception as e: error('Invalid DDS parameter at (%s, %s)\n'%(v,col)+str(e))
             elif 'SLM' in self.seq.mr.mr_param['Type'][col] and module == 'SLM':
                 try: # argument: value
                     for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen SLM hologram
@@ -371,13 +360,12 @@ class runnum(QThread):
             self.awgtcp2.priority_messages([[self._n, 'save='+os.path.join(results_path,'AWG2param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.ddstcp1.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDS1param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.ddstcp2.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDS2param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
-            self.ddstcp3.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDS3param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.slmtcp.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'SLMparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.mwgtcp.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'MWGparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             mr_queue = []
             #print('make msg')
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
-                module_msgs = {'AWG1':'', 'AWG2':'', 'DDS1':'', 'DDS2':'', 'DDS3':'', 'SLM':'', 'MWG':''}
+                module_msgs = {'AWG1':'', 'AWG2':'', 'DDS1':'', 'DDS2':'', 'SLM':'', 'MWG':''}
                 for key in module_msgs.keys():
                     if any(key in x for x in self.seq.mr.mr_param['Type']): # send parameters by TCP
                         module_msgs[key] = self.get_params(v, key)
@@ -389,7 +377,6 @@ class runnum(QThread):
                     [TCPENUM['TCP read'], module_msgs['AWG2']+'||||||||'+'0'*2000], # set AWG parameters
                     [TCPENUM['TCP read'], module_msgs['DDS1']+'||||||||'+'0'*2000], # set DDS parameters
                     [TCPENUM['TCP read'], module_msgs['DDS2']+'||||||||'+'0'*2000], # set DDS parameters
-                    [TCPENUM['TCP read'], module_msgs['DDS3']+'||||||||'+'0'*2000], # set DDS parameters
                     [TCPENUM['TCP read'], module_msgs['SLM']+'||||||||'+'0'*2000], # set SLM parameters
                     [TCPENUM['TCP read'], module_msgs['MWG']+'||||||||'+'0'*2000], # set MWG parameters
                     [TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step run']+'0'*2000],

@@ -70,6 +70,7 @@ class Ui_MainWindow(PSoC):
     DRG_modes = ['DRG Frequency', 'DRG Phase', 'DRG Amplitude']
 
     COMlabels = ['', '977', '1557', '1013', '420']
+    DDSName = '2'
 
     def __init__(self, port=8630, host='localhost', alim=1, Today_file='', 
                  enable_print = False #Prints additional information such as the serial data to the terminal or command line

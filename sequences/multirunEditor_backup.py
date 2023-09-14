@@ -136,12 +136,10 @@ class multirun_widget(QWidget):
         self.slm_args = ['f','period','angle','radius','gradient','shift','radial','azimuthal','amplitude','max_mod_depth','radius_scale']
         self.mwg_args = ['freq (MHz)','amp (dBm)','phase (deg)']
         self.column_options = ['Analogue voltage', 'AWG1 chan : seg', 'AWG2 chan : seg',
-            'DDS1 port : profile', 'DDS2 module : profile', 'DDS3 module : profile',
-            'SLM holograms','MWG tones'] # these analogue types require the analogue options 
+            'DDS1 port : profile', 'DDS2 module : profile', 'SLM holograms','MWG tones'] # these analogue types require the analogue options 
         self.col_range_text = ['']*ncols
         self.COM = ['RB1A', 'RB2', 'RB3', 'RB4', 'RB1B'] # DDS COM port connections
         self.COM2 = ['977', '1557', '1013', '420'] # DDS2 module connections
-        self.COM3 = ['Name0','Name1','HFImage','Name3','Name4']
         self.mr_param = copy.deepcopy(self.ui_param) # parameters used for current multirun
         self.mr_vals  = [] # multirun values for the current multirun
         self.mr_queue = [] # list of parameters, sequences, and values to queue up for future multiruns
@@ -227,8 +225,7 @@ class multirun_widget(QWidget):
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
         sht = self.tr.get_esc()[2][2:] # 'Sequence header top'
         options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG1 chan : seg', 
-        'AWG2 chan : seg', 'DDS1 port : profile', 'DDS2 module : profile', 'DDS3 module : profile',
-        'SLM holograms','MWG tones','Other'], 
+        'AWG2 chan : seg', 'DDS1 port : profile', 'DDS2 module : profile', 'SLM holograms','MWG tones','Other'], 
             list(map(str.__add__, [str(i) for i in range(len(sht))],
                     [': '+hc[6][1].text for hc in sht])), # time step names
             ['Fast analogue', 'Slow analogue'],
@@ -555,9 +552,6 @@ class multirun_widget(QWidget):
             if 'DDS2' in newtype:
                 ddsoptions = ['%s : P%s - '%(i+1,j)+self.COM2[i] for i in range(4) for j in range(8)]
                 for i in range(4): ddsoptions.insert(i*9+8, '%s : aux - '%(i+1)+self.COM2[i])
-            elif 'DDS3' in newtype:
-                ddsoptions = ['%s : P%s - '%(i+1,j)+self.COM3[i] for i in range(5) for j in range(8)]
-                for i in range(4): ddsoptions.insert(i*9+8, '%s : aux - '%(i+1)+self.COM3[i])
             else:
                 ddsoptions = ['COM%s : P%s - '%(i+7,j)+self.COM[i] for i in range(5) for j in range(8)]
                 for i in range(5): ddsoptions.insert(i*9+8, 'COM%s : aux - '%(i+7)+self.COM[i])
