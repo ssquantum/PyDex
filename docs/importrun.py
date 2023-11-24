@@ -1,4 +1,5 @@
 import os
+import pathlib
 import sys
 import time
 import numpy as np
@@ -17,8 +18,12 @@ except ImportError:
         QTabWidget, QAction, QMainWindow, QLabel, QInputDialog, QGridLayout,
         QMessageBox, QLineEdit, QFileDialog, QComboBox, QActionGroup, QMenu,
         QVBoxLayout)
+
 # change directory to this Pydex folder location
-os.chdir(os.path.dirname(os.path.dirname(__file__)))
+
+os.chdir(os.path.dirname(os.path.dirname((os.path.abspath(__file__)))))
+sys.path.append(os.getcwd())
+
 import master
 app = QApplication.instance()
 standalone = app is None # false if there is already an app instance

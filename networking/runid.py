@@ -32,7 +32,7 @@ class runnum(QThread):
     n     - the initial run ID number
     m     - the number of images taken per sequence
     k     - the number of images taken already"""
-    im_save = pyqtSignal(list) # send an incoming image to saver
+    im_save = pyqtSignal(object) # send an incoming image to saver
     Dxstate = 'unknown' # current state of DExTer
 
     def __init__(self, camra, saver, check, seq, n=0, m=1, k=0, dev_mode=False):

@@ -500,3 +500,8 @@ For the trigger to work, the sequence must have a software trigger in it. In DEx
 	- The signal triggers a TCP message telling DExTer to continue the sequence. When the message is confirmed, the subsequent images are sent to the Image Analysis instead of the Atom Checker.
 
 	- The timeout gives the duration in seconds to check for atoms before triggering the experiment anyway. The default timeout of 0 waits indefinitely.
+
+
+## Running on local machine
+- Install the conda environment stored in the .yml file in the docs folder folder.
+- Navigate to the main PyDex directory and run master.py
