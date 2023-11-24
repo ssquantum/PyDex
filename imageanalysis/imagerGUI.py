@@ -55,6 +55,7 @@ int_or_empty_string_regexp = QRegularExpression('((^-?[1])|(^[0-9])+$|^$)')
 int_or_empty_string_validator = QRegularExpressionValidator(int_or_empty_string_regexp) # used so that an empty string still triggers editingFinished
 
 counts_plot_roi_offset = 0.2 # the +/- value that the counts plotting can use so that points don't all bunch up
+stylesheet_read_only = 'QLineEdit {background-color: #DDDDDD}'
 
 ####    ####    ####    ####
 
@@ -198,7 +199,6 @@ class ImagerGUI(QMainWindow):
 
     def init_UI(self):
         """Create all of the widget objects required"""
-        stylesheet_read_only = 'QLineEdit {background-color: #DDDDDD}'
 
         self.centre_widget = QWidget()
         self.centre_widget.layout = QVBoxLayout()
@@ -764,10 +764,10 @@ class ThresholdViewer(QMainWindow):
     the 'Show Thresholds' button pressed. Runs in the same thread as the 
     iGUI because it is only a display widget.
     """
+    name = 'Threshold Viewer'
 
     def __init__(self,imagerGUI):
         super().__init__()
-        self.name = 'Threshold Viewer'
         self.setWindowTitle(self.name)
         self.iGUI = imagerGUI
 
@@ -841,6 +841,8 @@ class ThresholdViewer(QMainWindow):
         self.get_data_from_table()
 
     def populate_table_with_data(self):
+        """Get the data from the threshold viewer data table and sends it 
+        back to iGUI to be saved or for the thresholds to be updated."""
         data = self.data
         self.table.blockSignals(True) # don't want signalling to happen whilst we're populating the table
         self.table.clear()

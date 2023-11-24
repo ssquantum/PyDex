@@ -1,36 +1,42 @@
-"""PyDex Atom Checker
-Stefan Spence 23/02/22
+"""
+ALEX: Atom Loading Enhancement for eXperiment
 
- - Display image array with ROIs
- - plot history of counts in ROI
- - compare counts to threshold
- - send signal when all ROIs have atoms
- - user can drag ROI or automatically arrange them
+Similar to MAIA and iGUI ("SIMON"), but this widget handles images that are to
+be used for rearrangement. All processing by this widget is handled in the main
+thread as quick processing is essential for good rearrangement.
+
 """
 import os
 import sys
 import time
 import numpy as np
 import pyqtgraph as pg
+from copy import deepcopy
+
+import logging
+logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', level=logging.DEBUG)
 from collections import OrderedDict
 from PyQt5.QtCore import pyqtSignal, QTimer
-from PyQt5.QtGui import QIcon, QFont, QIntValidator
+from PyQt5.QtGui import QIcon, QFont, QColor
 from PyQt5.QtWidgets import (QMenu, QFileDialog, QMessageBox, QLineEdit, 
         QGridLayout, QWidget, QApplication, QPushButton, QAction, QMainWindow, 
-        QLabel, QTableWidget, QHBoxLayout, QCheckBox)
+        QLabel, QTableWidget, QHBoxLayout, QVBoxLayout, QCheckBox, QFormLayout,
+        QStatusBar,QTableWidgetItem)
 if '.' not in sys.path: sys.path.append('.')
 if '..' not in sys.path: sys.path.append('..')
 from strtypes import intstrlist, listlist, error, warning, info
-from maingui import reset_slot, int_validator, double_validator # single atom image analysis
-from roiHandler import ROI, roi_handler
-
-nat_validator = QIntValidator()    # natural numbers 
-nat_validator.setBottom(1) # > 0
+from maingui import reset_slot # single atom image analysis
+# from roiHandler import ROI, roi_handler
+from multiAtomImageAnalyser import ROI, ROIGroup
+from imagerGUI import (nat_validator, int_validator, non_neg_validator,
+                       stylesheet_read_only, ThresholdViewer)
+from roi_colors import get_group_roi_color
+import resources
 
 ####    ####    ####    ####
 
-class atom_window(QMainWindow):
-    """GUI window displaying ROIs and the counts recorded in them
+class alex(QMainWindow):
+    """GUI window displaying rearrangement ROIs and the counts recorded in them.
 
     Keyword arguments:
     last_im_path -- the directory where images are saved.
@@ -43,22 +49,14 @@ class atom_window(QMainWindow):
     roi_values = pyqtSignal(list) # list of ROIs (x, y, w, h, threshold)
      
     def __init__(self, last_im_path='.', Cs_rois=[[1,1,1,1,True,True]], Rb_rois=[[1,1,1,1,True,True]],
-            image_shape=(512,512), name='', num_images = 1):
+                 image_shape=(512,512), name=''):
         super().__init__()
         self.name = name
         self.setObjectName(name)
-        self.num_images = num_images
         self.last_im_path = last_im_path
-        self.rh = {'Cs':roi_handler(Cs_rois, image_shape, label='Cs'), 
-                    'Rb':roi_handler(Rb_rois, image_shape, label='Rb')}
+
+        self.ihs = [] # list containing image handlers
         self.init_UI() # adjust widgets from main_window
-        self.event_im.connect(self.rh['Cs'].process)
-        self.event_im.connect(self.rh['Rb'].process)
-        self.event_im.connect(self.update_plots)
-        self.checking = False # whether the atom checker is active or not
-        self.timer = QTimer() 
-        self.timer.t0 = 0 # trigger the experiment after the timeout
-        
         
     def make_checkbox(self, r, i, atom):
         """Assign properties to checkbox so that it can be easily associated with an ROI"""
@@ -70,72 +68,24 @@ class atom_window(QMainWindow):
     def init_UI(self):
         """Create all the widgets and position them in the layout"""
         self.centre_widget = QWidget()
-        layout = QGridLayout() # make tabs for each main display 
+        layout = QVBoxLayout() # make tabs for each main display 
         self.centre_widget.setLayout(layout)
         self.setCentralWidget(self.centre_widget)
 
         font = QFont() 
         font.setPixelSize(16) # make text size bigger
 
-        #### menubar at top gives options ####
-        menubar = self.menuBar()
-
-        # file menubar allows you to save/load data
-        file_menu = menubar.addMenu('File')
-        load_im = QAction('Load Image', self) # display a loaded image
-        load_im.triggered.connect(self.load_image)
-        file_menu.addAction(load_im)
-        
-        make_im = QAction('Make average image', self) # from image files (using file browser)
-        make_im.triggered.connect(self.make_ave_im)
-        file_menu.addAction(make_im)
-
-        save_hist = QAction('Save Histograms', self)
-        save_hist.triggered.connect(self.save_roi_hists)
-        file_menu.addAction(save_hist)
-
-        # ROI menu for sending, receiving, and auto-generating ROIs
-        rois_menu = menubar.addMenu('ROIs')
-        self.send_rois_action = QAction('Send ROIs to analysis', self)
-        self.send_rois_action.triggered.connect(self.emit_rois)
-        rois_menu.addAction(self.send_rois_action)
-
-        self.recv_rois_action = QAction('Get ROIs from analysis', self)
-        rois_menu.addAction(self.recv_rois_action) # connected by runid.py
-
-        save_cs_rois_action = QAction('Save Cs ROIs to file', self)
-        save_cs_rois_action.triggered.connect(self.save_cs_rois)
-        rois_menu.addAction(save_cs_rois_action)
-        
-        save_rb_rois_action = QAction('Save Rb ROIs to file', self)
-        save_rb_rois_action.triggered.connect(self.save_rb_rois)
-        rois_menu.addAction(save_rb_rois_action)
-
-        load_cs_rois_action = QAction('Load Cs ROIs from file', self)
-        load_cs_rois_action.triggered.connect(self.load_cs_rois)
-        rois_menu.addAction(load_cs_rois_action)
-        
-        load_rb_rois_action = QAction('Load Rb ROIs from file', self)
-        load_rb_rois_action.triggered.connect(self.load_rb_rois)
-        rois_menu.addAction(load_rb_rois_action)
-
-
-        # get ROI coordinates by fitting to image
-        for i, label in enumerate(['Single ROI', 'Square grid', '2D Gaussian masks']):
-            action = QAction(label, self) 
-            action.triggered.connect(self.make_roi_grid)
-            rois_menu.addAction(action)
-
         pg.setConfigOption('background', 'w') # set graph background default white
         pg.setConfigOption('foreground', 'k') # set graph foreground default black
 
         hbox = QHBoxLayout()
+        layout.addLayout(hbox)
         # toggle to continuously plot images as they come in
         self.hist_toggle = QPushButton('Auto-update histograms', self)
         self.hist_toggle.setCheckable(True)
         self.hist_toggle.setChecked(True)
         self.hist_toggle.clicked[bool].connect(self.set_hist_update)
-        hbox.addWidget(self.hist_toggle )
+        hbox.addWidget(self.hist_toggle)
         
         # toggle whether to update histograms or not
         self.im_show_toggle = QPushButton('Auto-display last image', self)
@@ -148,93 +98,72 @@ class atom_window(QMainWindow):
         self.reset_button.clicked.connect(self.reset_plots)
         hbox.addWidget(self.reset_button)
 
+        self.box_next_image_num = QLineEdit()
+        self.box_next_image_num.setReadOnly(True)
+        self.box_next_image_num.setStyleSheet(stylesheet_read_only)
+        hbox.addWidget(QLabel('next image #:'))
+        hbox.addWidget(self.box_next_image_num)
+
         hbox.addWidget(QLabel('# images:'))
         self.box_num_images = QLineEdit()
         self.box_num_images.setValidator(nat_validator)
-        self.box_num_images.setText(str(self.num_images))
+        self.box_num_images.editingFinished.connect(self.set_num_images)
+        self.box_num_images.setText(str(1))
         hbox.addWidget(self.box_num_images)
-        
 
-        # number of ROIs chosen by user
-        self.rois_edit = {}
-        for atom in ['Cs', 'Rb']:
-            nrois_label = QLabel('# '+atom+' ROIs: ', self)
-            hbox.addWidget(nrois_label)
-            self.rois_edit[atom] = QLineEdit(str(len(self.rh[atom].ROIs)), self)
-            self.rois_edit[atom].name = atom
-            hbox.addWidget(self.rois_edit[atom])
-            self.rois_edit[atom].setValidator(int_validator)
-            
-        layout.addLayout(hbox, 0,0,1,10)
-        
-        #### display image with ROIs ####
-        
-        im_widget = pg.GraphicsLayoutWidget() # containing widget
-        viewbox = im_widget.addViewBox() # plot area to display image
-        self.im_canvas = pg.ImageItem() # the image
-        viewbox.addItem(self.im_canvas)
-        layout.addWidget(im_widget, 1,0,4,5)
-        
-        #### table has all of the values for the ROIs ####
-        self.tables = {'Cs':QTableWidget(len(self.rh['Cs'].ROIs), 7),
-                    'Rb':QTableWidget(len(self.rh['Rb'].ROIs), 7)}
-        layout.addWidget(self.tables['Cs'], 1,5,2,5)
-        layout.addWidget(self.tables['Rb'], 3,5,2,5)
-        
-        self.plots = {} # display plots of counts for each ROI         
-        for atom in ['Cs', 'Rb']:
-            self.tables[atom].setHorizontalHeaderLabels(['x', 'y', 'w', 'h', 'Threshold', 'Auto-thresh', 'Plot'])
-            for i, r in enumerate(self.rh[atom].ROIs):
-                self.make_checkbox(r, i, atom)
-                # line edits with ROI x, y, w, h, threshold, auto update threshold
-                for j, label in enumerate(list(r.edits.values())+[r.threshedit, r.autothresh, r.plottoggle]): 
-                    self.tables[atom].setCellWidget(i, j, label)
-                  
-            # plots  
-            pw = pg.PlotWidget() # main subplot of histogram
-            pw.setTitle(atom)
-            self.plots[atom] = {'plot':pw, 'legend':pw.addLegend(), 
-                'counts':[pw.plot(np.zeros(1000), name=self.rh[atom].ROIs[j].id, 
-                        pen=pg.intColor(j)) for j in range(len(self.rh[atom].ROIs))],
-                'thresh':[pw.addLine(y=1, pen=pg.intColor(j)) for j in range(len(self.rh[atom].ROIs))]}
-            pw.getAxis('bottom').tickFont = font
-            pw.getAxis('left').tickFont = font             
-            
-        hbox = QHBoxLayout()
-        hbox.addWidget(self.plots['Cs']['plot'])
-        hbox.addWidget(self.plots['Rb']['plot'])
-        layout.addLayout(hbox, 5, 0, 2,10)  # allocate space in the grid
-        
-        # update number of ROIs and display them when user inputs
-        self.rois_edit['Cs'].textChanged[str].connect(self.create_new_rois)
-        self.rois_edit['Rb'].textChanged[str].connect(self.create_new_rois)
-                
-        self.display_rois() # put ROIs on the image
+        self.button_show_roi_details = QPushButton('Show Threshold Viewer')
+        self.button_show_roi_details.clicked.connect(self.create_threshold_viewer)
+        hbox.addWidget(self.button_show_roi_details)
 
-        #### extra buttons ####
-        
-        # the user can trigger the experiment early by pressing this button
-        self.trigger_button = QPushButton('Manual trigger experiment', self)
-        self.trigger_button.clicked.connect(self.send_trigger)
-        layout.addWidget(self.trigger_button, 10,0, 1,2)
-        
-        button = QPushButton('Display masks', self) # button to display masks
-        button.clicked.connect(self.show_ROI_masks)
-        button.resize(button.sizeHint())
-        layout.addWidget(button, 10,2, 1,1)
+        self.layout_images = QHBoxLayout()
+        layout.addLayout(self.layout_images)
+        self.set_num_images()
 
-        # maximum duration to wait for
-        timeout_label = QLabel('Timeout (s): ', self)
-        layout.addWidget(timeout_label, 10,5, 1,1)
-        self.timeout_edit = QLineEdit('0', self)
-        self.timeout_edit.setValidator(double_validator)
-        self.timeout_edit.textEdited[str].connect(self.change_timeout)
-        layout.addWidget(self.timeout_edit, 10,6, 1,1)
-        #
-        self.setWindowTitle(self.name+' - Atom Checker -')
+        self.setWindowTitle(self.name+'ALEX: Atom Loading Enhancement for eXperiment')
         self.setWindowIcon(QIcon('docs/atomcheckicon.png'))
 
+    def make_image_handlers(self,num_images):
+        """Called when the number of images is updated to change the layout 
+        as required."""
+
+        for _ in range(num_images,len(self.ihs)): # delete unneeded image handlers
+            ih = self.ihs.pop()
+            ih.setParent(None)
+        for _ in range(len(self.ihs), num_images): # make new image handlers
+            ih = ImageHandler()
+            self.ihs.append(ih)
+            self.layout_images.addWidget(ih)
+
+    def create_threshold_viewer(self):
+        self.tv = RearrangementThresholdViewer(self)
+        self.tv.show()
+
     #### #### user input functions #### ####
+
+    def set_num_images(self):
+        num_images = self.box_num_images.text()
+        try:
+            num_images = int(num_images)
+        except ValueError:
+            logging.error('{} is not a valid number of images.'.format(num_images))
+            self.box_num_images.setText(str(len(self.ihs)))
+            return
+        else:
+            if (num_images > 0) and (num_images != len(self.ihs)):
+                logging.debug('Setting number of images to {}'.format(num_images))
+                self.make_image_handlers(num_images)
+                self.box_num_images.setText(str(len(self.ihs)))
+
+    def recieve_image(self,image,file_id=None,image_num=None):
+        """Recieves an image from the iGUI and adds it to the processing queue.
+        If the file_id and image num are set then these will be added to the
+        queue along with the image and used to set the values for the next 
+        image.
+        """
+        self.queue.append([image,file_id,image_num])
+        self.signal_status_message.emit('Recieved ID {} Im {} and placed in queue'.format(file_id,image_num))
+        self.signal_draw_image.emit(image,image_num)
+        self.advance_image_count(file_id,image_num)
 
     def set_im_show(self, toggle):
         """If the toggle is True, always update the display with the last image."""
@@ -567,13 +496,261 @@ class atom_window(QMainWindow):
             except (ValueError, IndexError, PermissionError) as e:
                 error("AtomChecker couldn't save file %s\n"%file_name+str(e))     
 
-    def load_cs_rois(self, file_name=''):
-        self.load_rois(file_name, 'Cs')
-    
-    def load_rb_rois(self, file_name=''):
-        self.load_rois(file_name, 'Rb')
+    def get_threshold_viewer_data(self):
+        """Extracts the ROI counts lists from the ROI objects contained within
+        the ROI group objects."""
+        thresholds = []
 
+        num_awgs = len(self.ihs[0].awg_keys)
+        max_num_rois = [] # find the max number of rois to display in the TV
+
+        for awg in range(num_awgs):
+            max_num_rois.append(max([ih.roi_groups[awg].get_num_rois() for ih in self.ihs]))
+        print(max_num_rois)
+
+        thresholds = []
+        for group in range(num_awgs):
+            num_rois = max_num_rois[group]
+            group_thresholds = []
+            for roi in range(num_rois):
+                ih_thresholds = []
+                for ih in self.ihs:
+                    try:
+                        ih_thresholds.append(ih.roi_groups[group].rois[roi].get_threshold_data()[0])
+                    except IndexError: # this group:roi doesn't exist so just pad with empty data
+                        ih_thresholds.append([0,False])
+                group_thresholds.append(ih_thresholds)
+            thresholds.append(group_thresholds)
+            
+        copy_im_threshs = [None for _ in self.ihs] # copy_im_threshs not implemented for ALEX
+
+        tv_data = [thresholds,copy_im_threshs]
+        print(thresholds)
+        return tv_data
+
+    def tv_request_data_refresh(self):
+        tv_data = self.get_threshold_viewer_data()
+        try:
+            self.tv.recieve_maia_threshold_data(tv_data)
+        except AttributeError:
+            pass # threshold viewer doesn't exist yet
+
+    def tv_send_data_to_maia(self):
+        pass
 ####    ####    ####    #### 
+
+class ImageHandler(QWidget):
+    """This class is created once for each image to process the image and 
+    generate the ROI string. It also contains the widget objects that are
+    displayed in the image."""
+
+    awg_keys = {1:'Cs', 2:'Rb/RbCs'}
+
+    def __init__(self):
+        super().__init__()
+        self._create_widgets()
+
+    def _create_widgets(self):
+        """Creates the subwidgets for this image handler."""
+        layout = QVBoxLayout()
+
+        self.roi_labels = ['AWG{} ({})'.format(i+1, self.awg_keys[i+1]) 
+                      for i in range(len(self.awg_keys))]
+        self.roi_groups = [ROIGroup(num_images=1) for _ in self.roi_labels]
+        
+        self.box_num_roiss = []
+
+        roi_layout = QFormLayout()
+        layout.addLayout(roi_layout)
+        for label in self.roi_labels:
+            box_num_rois = QLineEdit()
+            box_num_rois.setValidator(non_neg_validator)
+            box_num_rois.editingFinished.connect(self.update_num_rois)
+            print(label,box_num_rois)
+            roi_layout.addRow('# '+label+' ROIs',box_num_rois)
+            self.box_num_roiss.append(box_num_rois)
+        
+        im_widget = pg.GraphicsLayoutWidget() # containing widget
+        viewbox = im_widget.addViewBox() # plot area to display image
+        self.im_canvas = pg.ImageItem() # the image
+        viewbox.addItem(self.im_canvas)
+        layout.addWidget(im_widget)
+
+        self.setLayout(layout)
+
+        self.update_num_rois()
+
+    def update_num_rois(self):
+        """Takes the number of rois from the boxes and updates them to draw 
+        that many rois."""
+        for label, group, box_num in zip(self.roi_labels,self.roi_groups,
+                                         self.box_num_roiss):
+            num_rois = box_num.text()
+            try:
+                num_rois = int(num_rois)
+            except ValueError:
+                logging.error('{} is not a valid number of ROIs.'.format(num_rois))
+                box_num.setText(str(group.get_num_rois()))
+                continue
+            else:
+                if num_rois != group.get_num_rois():
+                    logging.debug('Setting number of ROIs for {}'
+                                  ' rearrangement handler to {}'.format(
+                                  label,num_rois))
+                    group.set_num_rois(num_rois)
+                    box_num.setText(str(num_rois))
+        self.update_roi_coords()
+
+    def update_roi_coords(self, new_roi_coords=None):
+        """Sets new coordinates for the ROIs and updates them on the GUI.
+
+        Parameters
+        ----------
+        roi_coords : list of list of list or None
+            list of the format [[[x,y,w,h],...],...] where ROI coordinates
+            are sorted into their groups. None does not change the ROIs. 
+            Default is None.
+        """
+        if new_roi_coords != None:
+            [group.set_roi_coords(coords) for group,coords in 
+             zip(self.roi_groups,new_roi_coords)]
+        self.draw_rois()
+
+    def set_rois_from_image(self):
+        roi_coords = []
+        for group in self.roi_boxes:
+            group_coords = []
+            for r in group:
+                [x,y] = [int(x) for x in r.pos()]
+                [w,h] = [int(x) for x in r.size()]
+                group_coords.append([x,y,w,h])
+            roi_coords.append(group_coords)
+        self.update_roi_coords(roi_coords)
+
+    def draw_rois(self):
+        """Draws the ROIs on the box."""
+        viewbox = self.im_canvas.getViewBox()
+        for item in viewbox.allChildren(): # remove unused ROIs
+            if ((type(item) == pg.graphicsItems.ROI.ROI or 
+                    type(item) == pg.graphicsItems.TextItem.TextItem)):
+                viewbox.removeItem(item)
+        
+        self.roi_boxes = []
+
+        for group_num, group in enumerate(self.roi_groups):
+            group_boxes = []
+            for roi_num, [x,y,w,h] in enumerate(group.get_roi_coords()):
+                
+                color = get_group_roi_color(roi_num,group_num)
+                roi_box = pg.ROI([x,y],[w,h],translateSnap=True)
+                roi_label = pg.TextItem('{}:{}'.format(
+                                        self.awg_keys[group_num+1],roi_num),
+                                        color, anchor=(0.5,1))
+                font = QFont()
+                font.setPixelSize(16)
+                roi_label.setFont(font)
+                roi_label.setPos(x+w//2,y+h) # in bottom left corner
+                roi_box.setPen(color, width=3)
+                viewbox.addItem(roi_box)
+                viewbox.addItem(roi_label)
+                roi_box.sigRegionChangeFinished.connect(self.set_rois_from_image)
+                group_boxes.append(roi_box)
+            self.roi_boxes.append(group_boxes)
+
+class RearrangementThresholdViewer(ThresholdViewer):
+    """Threshold Viewer for ALEX. Adapted for the one used by the iGUI so 
+    most functions are contained in the imagerGUI Python file."""
+
+    def __init__(self, alex):
+        self.name = 'ALEX Threshold Viewer'
+        super().__init__(alex)
+        self.button_update.setText('Send to ALEX')
+        self.button_show_only_group_zero.setEnabled(False)
+
+    def refresh(self):
+        """Sends a request to ALEX to get the latest information about the ROIs
+         that exist and their current thresholds."""
+        self.status_bar_message('Requesting information update from ALEX')
+        self.iGUI.tv_request_data_refresh()
+
+    def populate_table_with_data(self):
+        """This function is redefined from the base ThresholdViewer class to 
+        allow different ROI groups to have different number of ROIs and to
+        sort thresholds by group instead of by ROI."""
+        data = self.data
+        self.table.blockSignals(True) # don't want signalling to happen whilst we're populating the table
+        self.table.clear()
+
+        self.num_roi_groups = len(data)
+        self.num_rois_per_group = len(data[0])
+        self.num_images = len(data[0][0])
+
+        self.table.setRowCount(np.sum([len(group) for group in data]))
+        self.table.setColumnCount(self.num_images)
+
+        horizontal_headers = ['Image {}'.format(i) for i in range(self.num_images)]
+        self.table.setHorizontalHeaderLabels(horizontal_headers)
+
+        vertical_header_labels = []
+
+        row_number = 0
+        for group_num, group_data in enumerate(data):
+            for roi_num, roi_data in enumerate(group_data):
+                for image_num, threshold_data in enumerate(roi_data):
+                    newVal = QTableWidgetItem(str(threshold_data[0]))
+                    if threshold_data[1]: # autothresh is enabled
+                        newVal.setIcon(self.autothresh_icon)
+                    else:
+                        newVal.setIcon(self.manualthresh_icon)
+                    newVal.setBackground(QColor(get_group_roi_color(roi_num,group_num)))
+                    self.table.setItem(row_number, image_num, newVal)
+                vertical_header_labels.append('AWG{}:{}'.format(group_num+1,roi_num))
+                row_number += 1
+        self.table.setVerticalHeaderLabels(vertical_header_labels)
+
+        self.table.blockSignals(False)
+
+    def get_data_from_table(self):
+        """Get the data from the threshold viewer data table and sends it 
+        back to ALEX to be saved or for the thresholds to be updated.
+        
+        Reimplemented as ALEX orders data in tables differently to the iGUI
+        threshold viewer."""
+        new_data = deepcopy(self.data)
+        
+        self.copy_im_data = [self.table.item(0,image).text() for image in range(self.num_images)]
+
+        for group_num, group in enumerate(self.data):
+            for roi_num, roi in enumerate(group):
+                for image_num, [_,autothresh] in enumerate(roi):
+                    table_index = self.get_table_index(group_num,roi_num)
+                    try:
+                        value = round(float(self.table.item(table_index,image_num).text()))
+                    except ValueError:
+                        self.populate_table_with_data() # ignore the new data if a value is invalid
+                        return
+                    new_data[group][roi][image_num][0] = value
+                    new_data[group][roi][image_num][1] = autothresh
+        self.data = new_data
+        self.populate_table_with_data()
+        self.button_update.setStyleSheet('background-color: #BBCCEE')
+
+    def get_table_index(self, group_num, roi_num):
+        """Redefined from parent class to respect the new ordering in ALEX
+        Threshold Viewer."""
+        raise NotImplementedError('get_table_index not implemented for ALEX '
+                                  'threshold viewer ordering system.')
+
+    def get_roi_group_nums_from_index(self, index):
+        """Redefined from parent class to respect the new ordering in ALEX
+        Threshold Viewer."""
+        roi_labels = []
+        for group_num, group in enumerate(self.data):
+            for roi_num, _ in enumerate(group):
+                roi_labels.append([group_num,roi_num])
+        
+        group_roi_num = roi_labels[index]
+        return group_roi_num[0],group_roi_num[1]
 
 def run():
     """Initiate an app to run the program
@@ -583,7 +760,7 @@ def run():
     if standalone: # if there isn't an instance, make one
         app = QApplication(sys.argv) 
         
-    boss = atom_window()
+    boss = alex()
     boss.showMaximized()
     if standalone: # if an app instance was made, execute it
         sys.exit(app.exec_()) # when the window is closed, the python code also stops
