@@ -33,6 +33,7 @@ from imagerGUI import (nat_validator, int_validator, non_neg_validator,
 from roi_colors import get_group_roi_color
 from helpers import calculate_threshold
 import resources
+from stefan import StefanGUI
 
 ####    ####    ####    ####
 
@@ -59,6 +60,7 @@ class alex(QMainWindow):
         self.ihs = [] # list containing image handlers
         self.init_UI() # adjust widgets from main_window
 
+        self.next_ih_num = 0
         self.file_id = 0 # this is a fallback id if one isn't recieved with the image
         
     def make_checkbox(self, r, i, atom):
@@ -84,17 +86,25 @@ class alex(QMainWindow):
         hbox = QHBoxLayout()
         layout.addLayout(hbox)
         # toggle to continuously plot images as they come in
-        self.hist_toggle = QPushButton('Auto-update histograms', self)
-        self.hist_toggle.setCheckable(True)
-        self.hist_toggle.setChecked(True)
-        self.hist_toggle.clicked[bool].connect(self.set_hist_update)
-        hbox.addWidget(self.hist_toggle)
+        self.button_update = QPushButton('Update histograms', self)
+        self.button_update.clicked.connect(self.update)
+        hbox.addWidget(self.button_update)
+
+        # self.hist_toggle = QPushButton('Auto-update histograms', self)
+        # self.hist_toggle.setCheckable(True)
+        # self.hist_toggle.setChecked(True)
+        # self.hist_toggle.clicked[bool].connect(self.set_hist_update)
+        # hbox.addWidget(self.hist_toggle)
         
         # toggle whether to update histograms or not
         self.im_show_toggle = QPushButton('Auto-display last image', self)
         self.im_show_toggle.setCheckable(True)
         self.im_show_toggle.clicked[bool].connect(self.set_im_show)
         hbox.addWidget(self.im_show_toggle)
+
+        self.button_clear = QPushButton('Clear counts', self)
+        self.button_clear.clicked.connect(self.clear)
+        hbox.addWidget(self.button_clear)
 
         self.box_next_image_num = QLineEdit()
         self.box_next_image_num.setReadOnly(True)
@@ -144,7 +154,13 @@ class alex(QMainWindow):
         self.debug = AlexDebugWindow(self)
         self.debug.show()
 
-    #### #### user input functions #### ####
+    def clear(self):
+        """Clears the current counts data stored in the image handlers."""
+        [[group.clear() for group in ih.roi_groups] for ih in self.ihs]
+
+    def update(self):
+        """Asks the image handlers to update their STEFANs."""
+        [ih.recieve_stefan_data_request() for ih in self.ihs]
 
     def set_num_images(self):
         num_images = self.box_num_images.text()
@@ -236,17 +252,43 @@ class alex(QMainWindow):
                             values = np.fromiter(roi.counts[image].values(), dtype=float)
                             roi.thresholds[image] = calculate_threshold(values)
 
-    def recieve_image(self,image,ih_num=0,file_id=None):
+    def recieve_image(self,image,ih_num=None,file_id=None):
         """Recieves an image from the rest of PyDex processes it as quickly
-        as possible to process rearrangement before displaying it."""
+        as possible to process rearrangement before displaying it. 
+        Non-essential GUI elements will be updated when this process is
+        complete."""
+
+        if ih_num is None:
+            ih_num = self.next_ih_num
+        if ih_num > len(self.ihs):
+            ih_num = 0
         if file_id is None:
             file_id = self.file_id
-            self.file_id += 1
-        self.get_occupancies_from_image()
+        logging.debug('Recieved image for handler {} with file ID {}'.format(
+                      ih_num,file_id))
+        self.get_occupancies_from_image(image,ih_num)
         self.store_counts_in_rois(image,ih_num,file_id)
         self.draw_image(image)
+        
+        self.next_ih_num = (ih_num + 1)%(len(self.ihs))
+        self.file_id = file_id + 1
+        self.box_next_image_num.setText(str(self.next_ih_num))
 
-    def get_occupancies_from_image(self):
+    def get_occupancies_from_image(self,image,ih_num):
+        ih = self.ihs[ih_num]
+        occupancies = []
+        for group_i,group in enumerate(ih.roi_groups):
+            group_occupancy = ''
+            for roi in group.rois:
+                group_occupancy += str(int(image[roi.x:roi.x+roi.w,roi.y:roi.y+roi.h].sum() > roi.thresholds[0]))
+            logging.debug('{} occupancy {}'.format(ih.roi_labels[group_i],
+                                                   group_occupancy))
+            group_occupancy += 'RH'+str(ih_num)
+            occupancies.append(group_occupancy)
+        self.send_tcp_rearrangement_commands(occupancies)
+
+    def send_tcp_rearrangement_commands(self,occupancies):
+        """Sends the rearrangement strings to the AWG code."""
         pass
 
     def store_counts_in_rois(self,image,ih_num,file_id):
@@ -316,9 +358,25 @@ class ImageHandler(QWidget):
         viewbox.addItem(self.im_canvas)
         layout.addWidget(im_widget)
 
+        self._create_stefans()
+
+        for label,stefan in zip(self.roi_labels,self.stefans):
+            layout.addWidget(QLabel('<h3>{}</h3>'.format(label)))
+            layout.addWidget(stefan)
+
         self.setLayout(layout)
 
         self.update_num_rois()
+
+    def _create_stefans(self):
+        """Creates the STEFAN analysers used to plot the counts data for each
+        ROI group. A lot of options are manually set and hidden for use in the
+        ALEX."""
+        self.stefans = [StefanGUI(self,0,False) for _ in self.roi_groups]
+
+        for stefan in self.stefans:
+            stefan.change_mode('counts')
+            stefan.button_group.setChecked(True)
 
     def update_num_rois(self):
         """Takes the number of rois from the boxes and updates them to draw 
@@ -399,6 +457,58 @@ class ImageHandler(QWidget):
 
     def draw_image(self,image):
         self.im_canvas.setImage(image)
+
+    def get_roi_counts(self):
+        """Extracts the ROI counts lists from the ROI objects contained within
+        the ROI group objects. This returns an object sorted the alternative
+        way around compared to MAIA (i.e. by group then ROI) so that STEFAN
+        data is plotted by ROI group."""
+        max_num_rois = max([group.get_num_rois() for group in self.roi_groups])
+        counts = []
+        for roi in range(max_num_rois):
+            roi_counts = {}
+            for group_num, group in enumerate(self.roi_groups):
+                try:
+                    roi_counts[group_num] = group.rois[roi].counts
+                except IndexError:
+                    pass # this group does not have the max num of rois
+            counts.append(roi_counts)
+        return counts
+    
+    def get_roi_thresholds(self):
+        """Extracts the ROI counts lists from the ROI objects contained within
+        the ROI group objects."""
+        max_num_rois = max([group.get_num_rois() for group in self.roi_groups])
+        thresholds = []
+        for roi in range(max_num_rois):
+            roi_thresholds = {}
+            for group_num, group in enumerate(self.roi_groups):
+                try:
+                    roi_thresholds[group_num] = group.rois[roi].get_threshold_data()
+                except IndexError:
+                    pass # this group does not have the max num of rois
+            thresholds.append(roi_thresholds)
+        return thresholds
+
+    def recieve_stefan_data_request(self,*args):
+        """This function is called when the STEFAN requests the data to update
+        the graph."""
+        counts = self.get_roi_counts()
+        thresholds = self.get_roi_thresholds()
+        print(counts)
+        for stefan_i,stefan in enumerate(self.stefans):
+            stefan_counts = []
+            stefan_thresholds = []
+            i=0
+            for count,thresh in zip(counts,thresholds):
+                logging.debug('Appending ROI {} data'.format(i))
+                i+=1
+                try:
+                    stefan_counts.append([count[stefan_i]])
+                    stefan_thresholds.append([thresh[stefan_i]])
+                except KeyError as e:
+                    print(e)
+            stefan.update([stefan_counts,stefan_thresholds,None])
 
 class RearrangementThresholdViewer(ThresholdViewer):
     """Threshold Viewer for ALEX. Adapted for the one used by the iGUI so 
@@ -489,8 +599,6 @@ class RearrangementThresholdViewer(ThresholdViewer):
                 for image in roi:
                     image[1] = value
         self.populate_table_with_data()
-
-        #TODO doesn't seem to be updating in GUI immediately
 
     def get_table_index(self, group_num, roi_num):
         """Redefined from parent class to respect the new ordering in ALEX

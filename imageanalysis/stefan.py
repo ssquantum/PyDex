@@ -57,12 +57,13 @@ class StefanGUI(QMainWindow):
     but the data analysis is performed in the separate Stefan class.
     """
     
-    def __init__(self,imagerGUI,index):
+    def __init__(self,imagerGUI,index,show_options=True):
         super().__init__()
         self.name = 'STEFAN {}'.format(index)
         self.index = index
         self.setWindowTitle(self.name)
         self.iGUI = imagerGUI # the parent class of this object. Used to refer to methods in that class.
+        self.show_options = show_options # show the STEFAN options in the GUI. False when used in ALEX.
 
         self.mode = 'counts'
         self.xmode = 'file_id'
@@ -96,7 +97,9 @@ class StefanGUI(QMainWindow):
         self.button_group = QRadioButton('plot group')
         self.xmode_group.addButton(self.button_group)
         layout_xmode_select.addWidget(self.button_group)
-        self.centre_widget.layout.addLayout(layout_xmode_select)
+
+        if self.show_options:
+            self.centre_widget.layout.addLayout(layout_xmode_select)
 
         layout_mode_select = QHBoxLayout()
         layout_mode_select.addWidget(QLabel('y axis:'))
@@ -108,15 +111,11 @@ class StefanGUI(QMainWindow):
         self.button_occupancy = QRadioButton('plot occupancy')
         self.mode_group.addButton(self.button_occupancy)
         layout_mode_select.addWidget(self.button_occupancy)
-        self.centre_widget.layout.addLayout(layout_mode_select)
+
+        if self.show_options:
+            self.centre_widget.layout.addLayout(layout_mode_select)
 
         layout_graph = QHBoxLayout()
-        # self.graph.setBackground(None)
-        # self.graph.getAxis('left').setTextPen('k')
-        # self.graph.getAxis('bottom').setTextPen('k')
-        # self.graph.getAxis('top').setTextPen('k')
-        # self.graph.enableAutoRange()
-        # self.graph = pg.plot(labels={'left': ('index'), 'bottom': ('counts')})
         self.graph = pg.PlotWidget() # need to use PlotWidget rather than just plot in this version of pyqtgraph
         self.graph.setBackground('w')
         self.graph_legend = self.graph.addLegend()
@@ -130,38 +129,45 @@ class StefanGUI(QMainWindow):
         self.box_image.setText(str(0))
         self.box_image.editingFinished.connect(self.update_image_num)
         self.box_image.returnPressed.connect(self.request_update)
-        layout_graph_options.addRow('Image:', self.box_image)
+        if self.show_options:
+            layout_graph_options.addRow('Image:', self.box_image)
 
         self.box_roi = QLineEdit()
         self.box_roi.setValidator(int_validator)
         self.box_roi.setText(str(0))
         self.box_roi.editingFinished.connect(self.update_roi)
         self.box_roi.returnPressed.connect(self.request_update)
-        layout_graph_options.addRow('ROI:', self.box_roi)
+        if self.show_options:
+            layout_graph_options.addRow('ROI:', self.box_roi)
 
         self.box_post_selection = QLineEdit()
         self.box_post_selection.setText('[11],[xx]')
         self.box_post_selection.setEnabled(False)
         self.box_post_selection.editingFinished.connect(self.update_post_selection)
         self.box_post_selection.returnPressed.connect(self.request_update)
-        layout_graph_options.addRow('Post-selection:', self.box_post_selection)
+        if self.show_options:
+            layout_graph_options.addRow('Post-selection:', self.box_post_selection)
 
         self.box_condition = QLineEdit()
         self.box_condition.setText('[xx],[11]')
         self.box_condition.setEnabled(False)
         self.box_condition.editingFinished.connect(self.update_condition)
         self.box_condition.returnPressed.connect(self.request_update)
-        layout_graph_options.addRow('Condition:', self.box_condition)
+        if self.show_options:
+            layout_graph_options.addRow('Condition:', self.box_condition)
 
         self.stats_label = QLabel()
         layout_graph_options.addRow(self.stats_label)
 
         layout_graph.addLayout(layout_graph_options)
+        
         self.centre_widget.layout.addLayout(layout_graph)
 
         self.button_update = QPushButton('Update')
         self.button_update.clicked.connect(self.request_update)
-        self.centre_widget.layout.addWidget(self.button_update)
+
+        if self.show_options:
+            self.centre_widget.layout.addWidget(self.button_update)
 
         self.button_counts.toggled.connect(self.change_mode)
 
@@ -269,8 +275,6 @@ class StefanGUI(QMainWindow):
         self.change_mode(mode)
         self.xmode = xmode
 
-        print('data:')
-        # print(data)
         self.graph.clear()
         self.graph.scene().removeItem(self.graph_legend)
         self.graph_legend = self.graph.addLegend()
@@ -362,11 +366,9 @@ class StefanWorker(QRunnable):
 
     @pyqtSlot()
     def run(self):
-        print('started analysis')
         self.signals.status_bar.emit('STEFANWorker beginning analysis')
         analysed_data, analysis_string, analysis_mode, analysis_xmode = self.analysis()
         self.signals.return_data.emit(analysed_data,analysis_string,analysis_mode,analysis_xmode)
-        print('finished analysis')
         time.sleep(0.5) # prevents the thread being closed before data has been sent
 
     def analysis(self):
@@ -399,10 +401,8 @@ class StefanWorker(QRunnable):
                     thresholdx = [xmin,xmax]
                     thresholdy = [threshold,threshold]
                     threshold_plotting_data.append([thresholdx,thresholdy])
-                    print(group)
                     loading_prob = (group[1] > threshold).sum()/len(group[1])
                     string += 'Group {} LP = {:.3f}\n'.format(group_num,loading_prob)
-                print('threshold_plotting_data',threshold_plotting_data)
                 data = [counts_data,threshold_plotting_data]
                 self.signals.status_bar.emit('STEFANWorker analysis complete')
             except IndexError as e: # no data has been collected yet
