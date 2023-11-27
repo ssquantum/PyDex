@@ -13,3 +13,12 @@ def calculate_threshold(counts_data):
         except ValueError: # will be triggered if counts_data is empty
             thresh = 1000
     return thresh
+
+def convert_str_to_list(string,raise_exception_if_empty=True):
+    string = str(string)
+    string = string.replace('[','')
+    string = string.replace(']','')
+    if raise_exception_if_empty and (string == ''):
+        raise Exception
+    string = '['+string+']'
+    return eval(string)

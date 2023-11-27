@@ -34,6 +34,7 @@ from copy import deepcopy
 from multiAtomImageAnalyser import MultiAtomImageAnalyser
 from stefan import StefanGUI
 from roi_colors import get_group_roi_color
+from helpers import convert_str_to_list
 import resources
 
 
@@ -105,6 +106,7 @@ class ImagerGUI(QMainWindow):
     signal_set_state = pyqtSignal(dict) # asks MAIA to set the state parameters
     signal_cleanup = pyqtSignal() # connects the close event to the cleanup function if the iGUI is the main window
     signal_add_request_to_queue = pyqtSignal(str) # adds a request to the MAIA queue to be processed with the image queue
+    signal_set_rearr_images = pyqtSignal(list) # sends rearrangement image indicies back to the controller
 
     def __init__(self, num_images=2, results_path='.', hist_id=0, file_id=2000, user_variables=[0], measure_prefix='Measure0'):
         super().__init__()
@@ -115,6 +117,7 @@ class ImagerGUI(QMainWindow):
         self.init_maia_thread()
 
         self.stefans = []
+        self.rearr_images = []
         self.tv = None # ThresholdViewer
 
         self.update_rois()
@@ -129,7 +132,8 @@ class ImagerGUI(QMainWindow):
         self.set_num_roi_groups()
         self.set_num_rois_per_group()
         self.update_emccd_bias(670)
-    
+        self.update_rearr_images()
+
     def closeEvent(self, event):
         """Processing performed when the iGUI window is closed. This calls 
         the events for iGUI cleanup iff the iGUI window is the main 
@@ -305,6 +309,10 @@ class ImagerGUI(QMainWindow):
         self.box_emccd_bias.editingFinished.connect(self.update_emccd_bias)
         layout_image_options.addRow('EMCCD bias',self.box_emccd_bias)
 
+        self.box_rearr_images = QLineEdit()
+        self.box_rearr_images.editingFinished.connect(self.update_rearr_images)
+        layout_image_options.addRow('Rearr. images:',self.box_rearr_images)
+
         self.button_debug = QPushButton('Show Debug Window')
         self.button_debug.clicked.connect(self.create_debug_window)
         layout_image_options.addRow('',self.button_debug)
@@ -349,6 +357,24 @@ class ImagerGUI(QMainWindow):
         already has stored, otherwise it will iterate from the specified 
         values."""
         self.signal_advance_image_count.emit(file_id,image_num)
+
+    def update_rearr_images(self,rearr_images=None):
+        """Updates the rearrangement images and then passes this number back
+        to the PyDex controller so that it know which images to send to 
+        ALEX."""
+        if rearr_images is None:
+            rearr_images = self.box_rearr_images.text()
+        try:
+            rearr_images = convert_str_to_list(rearr_images,raise_exception_if_empty=False)
+            rearr_images = [int(x) for x in rearr_images]
+            rearr_images = list(dict.fromkeys(rearr_images))
+        except:
+            self.box_rearr_images.setText(str(self.rearr_images))
+        else:
+            if self.rearr_images != rearr_images:
+                self.rearr_images = rearr_images
+                self.signal_set_rearr_images.emit(self.rearr_images)
+            self.box_rearr_images.setText(str(self.rearr_images))
     
     @pyqtSlot(str)
     def recieve_results_path(self,results_path):

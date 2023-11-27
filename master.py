@@ -29,7 +29,7 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 import warnings
 warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
 sys.path.append('./imageanalysis')
-from imageanalysis.atomChecker2 import atom_window
+from imageanalysis.atomChecker import alex
 sys.path.append('./andorcamera')
 from andorcamera.cameraHandler import camera # manages Andor camera
 sys.path.append('./saveimages')
@@ -42,6 +42,9 @@ from sequences.sequencePreviewer import Previewer
 sys.path.append('./dds')
 from dds.DDScoms import DDSComWindow
 from strtypes import intstrlist, error, warning, info
+
+import logging
+logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', level=logging.DEBUG)
 
 ####    ####    ####    ####
 
@@ -125,10 +128,9 @@ class Master(QMainWindow):
 
         self.rn = runnum(camera(config_file=self.stats['CameraConfig']), # Andor camera
                          event_handler(self.stats['SaveConfig']), # image saver
-                         atom_window(last_im_path=sv_dirs['Image Storage Path: '],
-                                     Cs_rois=CsROIs, Rb_rois=RbROIs), # check if atoms are in ROIs to trigger experiment
+                         alex(), # check if atoms are in ROIs to trigger experiment
                          Previewer(), # sequence editor
-                         n=startn, m=2, k=0) 
+                         n=startn, m=2, k=0)
 
         # redirect MAIA save state trigger to controller for state saving
         reset_slot(self.rn.iGUI.maia.signal_state,self.rn.iGUI.save_state,False)

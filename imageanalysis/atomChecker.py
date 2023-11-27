@@ -50,12 +50,9 @@ class alex(QMainWindow):
     event_im = pyqtSignal(np.ndarray) # image taken by the camera as np array
     roi_values = pyqtSignal(list) # list of ROIs (x, y, w, h, threshold)
      
-    def __init__(self, last_im_path='.', Cs_rois=[[1,1,1,1,True,True]], Rb_rois=[[1,1,1,1,True,True]],
-                 image_shape=(512,512), name=''):
+    def __init__(self):
         super().__init__()
-        self.name = name
-        self.setObjectName(name)
-        self.last_im_path = last_im_path
+        self.setObjectName('ALEX')
 
         self.ihs = [] # list containing image handlers
         self.init_UI() # adjust widgets from main_window
@@ -131,7 +128,7 @@ class alex(QMainWindow):
         layout.addLayout(self.layout_images)
         self.set_num_images()
 
-        self.setWindowTitle(self.name+'ALEX: Atom Loading Enhancement for eXperiment')
+        self.setWindowTitle('ALEX: Atom Loading Enhancement for eXperiment')
         self.setWindowIcon(QIcon('docs/atomcheckicon.png'))
 
     def make_image_handlers(self,num_images):
@@ -257,11 +254,12 @@ class alex(QMainWindow):
         as possible to process rearrangement before displaying it. 
         Non-essential GUI elements will be updated when this process is
         complete."""
-
         if ih_num is None:
             ih_num = self.next_ih_num
         if ih_num > len(self.ihs):
-            ih_num = 0
+            logging.error('ALEX does not have an image handler with index '
+                          '{}. Ignoring this image.'.format(ih_num))
+            return
         if file_id is None:
             file_id = self.file_id
         logging.debug('Recieved image for handler {} with file ID {}'.format(

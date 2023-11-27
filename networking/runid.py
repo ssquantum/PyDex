@@ -8,6 +8,7 @@ Stefan Spence 11/10/19
 import time
 import os
 import numpy as np
+import logging
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot
 from PyQt5.QtWidgets import QMessageBox
 from networker import PyServer, reset_slot, TCPENUM
@@ -40,7 +41,7 @@ class runnum(QThread):
         self.iGUI = ImagerGUI()  # ImagerGUI managing the Multi-Atom Image Analyser (MAIA)
         self.iGUI.maia.signal_num_images.connect(self.set_m)
         self.iGUI.update_num_images(m) # updating the number of images in the iGUI also sets self._n due to connection above
-        
+        self.iGUI.signal_set_rearr_images.connect(self.set_rearr_images)
 
         self._n = n # # images per run
         self._k = k # # images received
@@ -165,24 +166,21 @@ class runnum(QThread):
                                           # This function will then be retriggered with an int when the MAIA checks.
             return
         self._m = int(newm)
-        if self.rearranging: 
-            self._m += 1
+
+    @pyqtSlot(list)
+    def set_rearr_images(self, rearr_images):
+        """Gets the rearrangement images from the iGUI and updates the list
+        that is used to decide which images are sent to the rearrangement
+        handler."""
+        self.rearr_images = rearr_images
+        logging.debug('Controller: set rearrangement images to {}'.format(rearr_images))
 
     def receive(self, im=0):
         """Update the Dexter file number in all associated modules,
         then send the image array to be saved and analysed."""
-        self.sv.dfn = str(self._n) # Dexter file number
-        imn = self._k % self._m # ID number of image in sequence
-        if self.rearranging: imn -= 1 # for rearranging, the 1st image doesn't go to analysis
-        self.sv.imn = str(imn)
-        self.im_save.emit([im,self._n,imn])
-        if imn < 0:
-            self.check.event_im.emit(im)
-        else:
-            self.iGUI.recieve_image(im,self._n,imn) # the images File ID and image num are specified here when added to the MAIA queue.
-            # for i in self.sw.find(imn): # find the histograms that use this image
-            #     self.sw.mw[i].image_handler.fid = self._n
-            #     self.sw.mw[i].event_im.emit(im, self._k < self._m and not self.check.checking)
+        logging.debug('Controller recieved image outside of a multirun')
+        imn = self.process_image_pre_iGUI(im)
+        self.iGUI.recieve_image(im,self._n,imn) # the images File ID and image num are specified here when added to the MAIA queue.
         self._k += 1 # another image was taken
 
     def unsync_receive(self, im=0):
@@ -198,21 +196,31 @@ class runnum(QThread):
         """Receive an image as part of a multirun.
         Update the Dexter file number in all associated modules,
         then send the image array to be saved and analysed."""
-        
-        self.sv.dfn = str(self._n) # Dexter file number
-        imn = self._k % self._m # ID number of image in sequence
-        if self.rearranging: imn -= 1 # for rearranging, the 1st image doesn't go to analysis
-        print('mr_recieve triggered: k, n, m, imn:',self._k,self._n,self._m,imn)
-        self.sv.imn = str(imn)
-        self.im_save.emit([im,self._n,imn])
-        if imn < 0:
-            self.check.event_im.emit(im)
-        else:
-            if self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) >= self.seq.mr.mr_param['# omitted']:
-                self.iGUI.recieve_image(im,self._n,imn) # the images File ID and image num are specified here when added to the MAIA queue. Pass imn to compensate for rearrangement.
+        logging.debug('Controller recieved image as part of a multirun')
+        imn = self.process_image_pre_iGUI(im)
+        if self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) >= self.seq.mr.mr_param['# omitted']:
+            self.iGUI.recieve_image(im,self._n,imn) # the images File ID and image num are specified here when added to the MAIA queue. Pass imn to compensate for rearrangement.
         self._k += 1 # another image was taken
         if self._k >= self._m: # iterate to the next file ID if all images have been taken
             self.set_n(str(self._n+1))
+
+    def process_image_pre_iGUI(self, im=0):
+        """Helper function that processes the images before sending to the
+        iGUI. This combines two functions that were previously redefined
+        for image processing inside/outside a multirun."""
+        self.sv.dfn = str(self._n) # Dexter file number     
+        imn = self._k % self._m # ID number of image in sequence
+        logging.debug('Image ID numbers are: k = {}, n = {}, m  = {}, imn {}:'.format(
+                self._k,self._n,self._m,imn))
+        if imn in self.rearr_images: # if this image is a rearrangement image then send it to ALEX asap
+            logging.debug('This is a rearrangement image so sending to ALEX.')
+            ih_num = self.rearr_images.index(imn)
+            logging.debug('ALEX image handler ID is {}'.format(ih_num))
+            self.check.recieve_image(im,ih_num,self._n)
+        self.sv.imn = str(imn)
+        logging.debug('Passing image to image saver.')
+        self.im_save.emit([im,self._n,imn])
+        return imn
 
     def check_receive(self, im=0):
         """Receive image for atom checker, don't save but just pass on"""
