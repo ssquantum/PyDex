@@ -89,7 +89,7 @@ class ImagerGUI(QMainWindow):
     signal_send_new_rois = pyqtSignal(object,bool) # new rois to send to coords. bool is whether to lock to group zero
     signal_send_new_num_images = pyqtSignal(object) # send new number of images to the MAIA
     signal_send_maia_image = pyqtSignal(np.ndarray,object,object)
-    signal_send_emccd_bias =pyqtSignal(object) # send EMCCD bias to the MAIA
+    signal_send_emccd_bias =pyqtSignal(object) # send EMCCD bias to the controller and MAIA
     signal_set_num_roi_groups = pyqtSignal(object) # used to set the number of ROI groups
     signal_set_num_rois_per_group = pyqtSignal(object) # used to set the number of ROIs per group
     signal_request_maia_data = pyqtSignal(int) # request all data from MAIA for use in STEFANs

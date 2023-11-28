@@ -28,13 +28,14 @@ class runnum(QThread):
     keyword arguments:
     camra - an instance of ancam.cameraHandler.camera
     saver - an instance of savim.imsaver.event_handler
-    check - an instance of atomChecker.atom_window
+    check - an instance of atomChecker.alex
     seq   - an instance of sequencePreviewer.Previewer
     n     - the initial run ID number
     m     - the number of images taken per sequence
     k     - the number of images taken already"""
     im_save = pyqtSignal(object) # send an incoming image to saver
     Dxstate = 'unknown' # current state of DExTer
+    signal_emccd_bias = pyqtSignal(int) # # sends the EMCCD bias to the iGUI
 
     def __init__(self, camra, saver, check, seq, n=0, m=1, k=0, dev_mode=False):
         super().__init__()
@@ -47,7 +48,6 @@ class runnum(QThread):
         self._k = k # # images received
         self.next_mr = [] # queue of messages for the next multirun
         self.hist_id = 0 # hist id to save the next MR file to
-        self.rearranging = False # whether the first image is being used for rearrangement.
         self.mr_paused = False # whether the current multirun has been paused
         self.cam = camra # Andor camera control
         self.cam.AcquireEnd.connect(self.receive) # receive the most recent image
@@ -61,13 +61,14 @@ class runnum(QThread):
         # self.sw.reset_analyses() # make sure the loaded config settings are applied
         # self.cam.SettingsChanged.connect(self.sw.CCD_stat_edit)
         # self.cam.ROIChanged.connect(self.sw.cam_pic_size_changed) # triggers pic_size_text_edit()
+        
         self.check = check  # atom checker for ROIs, trigger experiment
-        self.check.recv_rois_action.triggered.connect(self.get_rois_from_analysis)
-        # self.get_rois_from_analysis()
-        for rh in self.check.rh.values():
-            self.cam.ROIChanged.connect(rh.cam_pic_size_changed)
-            # self.sw.bias_changed.connect(rh.set_bias)
-            self.iGUI.maia.signal_emccd_bias.connect(rh.set_bias)
+        self.check.signal_rearr_strings.connect(self.send_rearr_msgs)
+        self.iGUI.maia.signal_emccd_bias.connect(self.update_emccd_bias)
+
+        # for rh in self.check.rh.values():
+        #     self.cam.ROIChanged.connect(rh.cam_pic_size_changed)
+        #     
         # self.check.roi_values.connect(self.sw.set_rois)
         self.seq = seq   # sequence editor
         
@@ -157,9 +158,8 @@ class runnum(QThread):
         ----------
         newm : int or None
             The new number of images to set in the run. If None the value from
-            MAIA is requested which will then  retrigger this function with 
-            the updated value. This ensures that the rearranging image is 
-            correctly reapplied.
+            MAIA is requested which will then retrigger this function with 
+            the updated value.
         """
         if newm is None:
             self.iGUI.update_num_images() # ask the iGUI to find out the number of images. 
@@ -174,6 +174,13 @@ class runnum(QThread):
         handler."""
         self.rearr_images = rearr_images
         logging.debug('Controller: set rearrangement images to {}'.format(rearr_images))
+
+    @pyqtSlot(object)
+    def update_emccd_bias(self,emccd_bias):
+        """Sets the EMCCD bias from MAIA that should be subtracted from all 
+        recieved images."""
+        self.emccd_bias = emccd_bias
+        logging.debug('Controller recieved new EMCCD bias of {} from MAIA'.format(self.emccd_bias))
 
     def receive(self, im=0):
         """Update the Dexter file number in all associated modules,
@@ -208,6 +215,7 @@ class runnum(QThread):
         """Helper function that processes the images before sending to the
         iGUI. This combines two functions that were previously redefined
         for image processing inside/outside a multirun."""
+        im = im - self.emccd_bias # don't edit in place because this seemed to cause an issue with images not showing in GUI. Maybe not thread safe?
         self.sv.dfn = str(self._n) # Dexter file number     
         imn = self._k % self._m # ID number of image in sequence
         logging.debug('Image ID numbers are: k = {}, n = {}, m  = {}, imn {}:'.format(
@@ -235,18 +243,12 @@ class runnum(QThread):
     
     #### atom checker ####
 
-    def get_rois_from_analysis(self, atom='Cs'):
-        # self.check.rh[atom].cam_pic_size_changed(self.sw.stats['pic_width'], self.sw.stats['pic_height'])
-        # self.check.rh[atom].resize_rois(self.sw.stats['ROIs'])
-        pass
-
-    def send_rearr_msg(self, msg=''):
-        """Send the command to the AWG for rearranging traps"""
-        self.awgtcp1.priority_messages([(self._n, 'rearrange='+msg+'#'*2000)])
-
-    def send_rearr2_msg(self, msg=''):
-        """Send the command to the 2nd AWG for rearranging traps"""
-        self.awgtcp2.priority_messages([(self._n, 'rearrange='+msg+'#'*2000)])
+    @pyqtSlot(list)
+    def send_rearr_msgs(self,messages):
+        """Function called when ALEX wants to send a rearrangement string to
+        the AWG consoles."""
+        for awgtcp, msg in zip([self.awgtcp1,self.awgtcp2],messages):
+            awgtcp.priority_messages([(self._n, 'rearrange='+msg+'#'*2000)])
         
     def atomcheck_go(self, toggle=True):
         """Disconnect camera images from analysis, start the camera

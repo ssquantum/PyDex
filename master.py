@@ -124,11 +124,11 @@ class Master(QMainWindow):
         self.init_UI(startn)
 
         # initialise the thread controlling run # and emitting images
-        CsROIs, RbROIs = self.get_atomchecker_rois()
+        alex_state = self.get_alex_state()
 
         self.rn = runnum(camera(config_file=self.stats['CameraConfig']), # Andor camera
                          event_handler(self.stats['SaveConfig']), # image saver
-                         alex(), # check if atoms are in ROIs to trigger experiment
+                         alex(alex_state), # check if atoms are in ROIs to trigger experiment
                          Previewer(), # sequence editor
                          n=startn, m=2, k=0)
 
@@ -162,8 +162,7 @@ class Master(QMainWindow):
         self.date_reset = 0 # whether the dates are waiting to be reset or not
         QTimer.singleShot((29*3600 - 3600*t0[3] - 60*t0[4] - t0[5])*1e3, 
             self.reset_dates)
-
-        self.set_rearranging(self.rearr_rois.isChecked()) # setting rearranging forces rn to update rn.rearranging for correct image assignment
+        
         self.restore_state(file_name=state_config)
 
     def idle_state(self):
@@ -187,25 +186,31 @@ class Master(QMainWindow):
             return 0
         d = self.stats['Date']
         self.apply_state()
+        try:
+            self.reset_dates()
+        except AttributeError: # self.rn doesn't exist yet
+            pass
         info('PyDex state loaded from "{}"'.format(file_name))
         if d == time.strftime("%d,%B,%Y"): # restore file number
             return self.stats['File#'] # [Py]DExTer file number
         else: return 0
         
-    def get_atomchecker_rois(self):
-        """Compatability with old states which didn't have Rb and Cs ROIs for atomChecker"""
-        try: 
-            CsROIs, RbROIs = self.stats['AtomCheckerROIs']
-        except ValueError as e: 
-            error("Couldn't load atomChecker ROIs: \n"+str(self.stats['AtomCheckerROIs'])+'\n'+str(e))
-            CsROIs, RbROIs  = [[1,1,1,1,1]],  [[1,1,1,1,1]]
-        return CsROIs, RbROIs
+    def get_alex_state(self):
+        """Compatability with old states which didn't new ALEXROIs in state
+        parameters. The old parameters have to be padded into another list
+        as there is only 1 rearrangement image with these parameters."""
+        try:
+            alex_state = self.stats['ALEX']
+        except KeyError:
+            logging.warning('PyDex state does not have ALEX state defined. '
+                            'Falling back to old loading method.')
+            alex_state = [self.stats['AtomCheckerROIs']]
+        return alex_state
 
     def apply_state(self):
         """Reset the date, camera config, image analysis config, and geometries"""
         try:
             self.reset_dates(savestate=False) # date
-            self.rearr_rois.setChecked(self.stats['Rearrange ROIs'])
             self.set_geometries()
             self.rn.sv.set_dirs(self.stats['SaveConfig']) # date will be reset here
             self.rn.iGUI.set_state(self.stats['MAIAConfig'])
@@ -220,9 +225,7 @@ class Master(QMainWindow):
                     self.status_label.setText('Failed to update camera settings.')
             else: self.reset_camera(self.stats['CameraConfig'])
             self.rn.seq.mr.order_edit.setCurrentText(self.stats['Multirun ordering'])
-            CsROIs, RbROIs = self.get_atomchecker_rois()
-            self.rn.check.set_rois(CsROIs, 'Cs')
-            self.rn.check.set_rois(RbROIs, 'Rb')
+            self.alex.set_state(self.get_alex_state())
         # except AttributeError: pass # haven't made runid yet 
         except Exception as e: print('Could not set state:\n'+str(e))
 
@@ -280,7 +283,7 @@ class Master(QMainWindow):
         menu_items = []
         for window_title in ['SIMON', 'Camera Status', 
             'Image Saver', 'TCP Server', 'Multirun',
-            'Atom Checker', 'Monitor', 'DDS', 'Show all']:
+            'ALEX', 'Monitor', 'DDS', 'Show all']:
             menu_items.append(QAction(window_title, self)) 
             menu_items[-1].triggered.connect(self.show_window)
             show_windows.addAction(menu_items[-1])
@@ -302,12 +305,6 @@ class Master(QMainWindow):
         self.check_rois.setChecked(False)
         # self.check_rois.setEnabled(False) # not functional yet
         sync_menu.addAction(self.check_rois) 
-
-        self.rearr_rois = QAction('Rearrange ROIs', sync_menu, 
-                checkable=True, checked=False)
-        self.rearr_rois.setChecked(self.stats['Rearrange ROIs'])
-        self.rearr_rois.toggled[bool].connect(self.set_rearranging)
-        sync_menu.addAction(self.rearr_rois) 
 
         reset_date = QAction('Reset date', sync_menu, checkable=False)
         reset_date.triggered.connect(self.reset_dates)
@@ -469,7 +466,7 @@ class Master(QMainWindow):
                 self.rn.server.add_message(TCPENUM['TCP read'], 'Sync DExTer run number\n'+'0'*2000) 
             elif reply == QMessageBox.No:
                 self.rn.reset_server(force=False) # restart the server if it stopped
-        elif self.sender().text() == 'Atom Checker':
+        elif self.sender().text() == 'ALEX':
             self.rn.check.showMaximized()
         elif self.sender().text() == 'Monitor':
             self.mon_win.show()
@@ -489,14 +486,7 @@ class Master(QMainWindow):
         """Send a TCP command to the monitor to stop its acquisition."""
         self.mon_win.start_check()
         self.rn.monitor.add_message(self.rn._n, 'stop')
-
-    def set_rearranging(self, toggle=False):
-        """In rearranging mode, the first image is sent to the atom checker"""
-        self.rn.rearranging = toggle
-        reset_slot(self.rn.check.rh['Cs'].rearrange, self.rn.send_rearr_msg, toggle)
-        reset_slot(self.rn.check.rh['Rb'].rearrange, self.rn.send_rearr2_msg, toggle)
-        self.rn.set_m()
-
+        
     def browse_sequence(self, toggle=True):
         """Open the file browser to search for a sequence file, then insert
         the file path into the DExTer sequence file line edit
@@ -842,8 +832,7 @@ class Master(QMainWindow):
         self.stats['SaveConfig'] = self.rn.sv.get_dirs()
         self.stats['MAIAConfig'] = maia_state
 
-        self.stats['Rearrange ROIs'] = self.rearr_rois.isChecked()
-        self.stats['AtomCheckerROIs'] = [self.rn.check.get_rois('Cs'), self.rn.check.get_rois('Rb')]
+        self.stats['ALEX'] = self.rn.check.get_state()
         self.stats['Multirun ordering'] = self.rn.seq.mr.order_edit.currentText()
 
         self.get_geometries()

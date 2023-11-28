@@ -49,8 +49,9 @@ class alex(QMainWindow):
     """
     event_im = pyqtSignal(np.ndarray) # image taken by the camera as np array
     roi_values = pyqtSignal(list) # list of ROIs (x, y, w, h, threshold)
+    signal_rearr_strings = pyqtSignal(list) # list of rearrangement strings to send over TCP
      
-    def __init__(self):
+    def __init__(self,state=None):
         super().__init__()
         self.setObjectName('ALEX')
 
@@ -60,6 +61,9 @@ class alex(QMainWindow):
         self.next_ih_num = 0
         self.file_id = 0 # this is a fallback id if one isn't recieved with the image
         
+        if state is not None:
+            self.set_state(state)
+
     def make_checkbox(self, r, i, atom):
         """Assign properties to checkbox so that it can be easily associated with an ROI"""
         r.plottoggle = QCheckBox(self, checked=True) # plot the line?
@@ -145,6 +149,7 @@ class alex(QMainWindow):
 
     def create_threshold_viewer(self):
         self.tv = RearrangementThresholdViewer(self)
+        self.tv.refresh()
         self.tv.show()
 
     def create_debug_window(self):
@@ -158,6 +163,28 @@ class alex(QMainWindow):
     def update(self):
         """Asks the image handlers to update their STEFANs."""
         [ih.recieve_stefan_data_request() for ih in self.ihs]
+
+    def set_state(self,params):
+        """Sets the ROIs and their thresholds from the state parameters.
+        
+        Parameters
+        ----------
+        params : list of lists
+            List of the ROI coordinates and thresholds for the different 
+            image handlers.
+            
+            Format is [[[ih0group0roi0.x,.y,.w,.h,.thresh,.autothresh],[ih0group0roi1],...],
+                       [[ih0group1roi0],...]],
+                       [[ih1group0roi0],...]],...]
+            """
+        self.box_num_images.setText(str(len(params)))
+        self.set_num_images()
+        for ih, ih_params in zip(self.ihs,params):
+            ih.set_params(ih_params)
+
+    def get_state(self):
+        """Gets the state of the ALEX to be saved in the PyDex state files."""
+        return [ih.get_params() for ih in self.ihs]
 
     def set_num_images(self):
         num_images = self.box_num_images.text()
@@ -228,17 +255,16 @@ class alex(QMainWindow):
         ROIs contained in the image handlers."""
         threshold_data = threshold_viewer_data[0]
         copy_im_threshs = threshold_viewer_data[1]
-        
-        for image_num, ih in self.ihs:
-            for group, group_thresh in zip(ih.roi_groups,threshold_data):
-                group.set_threshold_data(roi[image_num] for roi in group_thresh)
+
+        for image_num, ih in enumerate(self.ihs):
+            thresh_data = [[[roi[image_num]] for roi in group] for group in threshold_data]
+            print(thresh_data)
+            ih.update_roi_threshs(thresh_data)
 
         self.copy_im_threshs = copy_im_threshs # copy_im_threshs not implemented for ALEX
 
         self.calculate_thresholds()
-
-        # Send updated data back to TV.
-        self.recieve_tv_data_request()
+        self.tv.refresh()
     
     def calculate_thresholds(self):
         for ih in self.ihs:
@@ -283,11 +309,7 @@ class alex(QMainWindow):
                                                    group_occupancy))
             group_occupancy += 'RH'+str(ih_num)
             occupancies.append(group_occupancy)
-        self.send_tcp_rearrangement_commands(occupancies)
-
-    def send_tcp_rearrangement_commands(self,occupancies):
-        """Sends the rearrangement strings to the AWG code."""
-        pass
+        self.signal_rearr_strings.emit(occupancies)
 
     def store_counts_in_rois(self,image,ih_num,file_id):
         ih = self.ihs[ih_num]
@@ -302,6 +324,7 @@ class alex(QMainWindow):
         be changed when image ordering is implemented."""
         for ih in self.ihs:
             ih.draw_image(image)
+
 
     #%% Debug functions
     def generate_test_image(self):
@@ -397,6 +420,24 @@ class ImageHandler(QWidget):
                     box_num.setText(str(num_rois))
         self.update_roi_coords()
 
+    def set_params(self,params):
+        """Sets the parameters of the image handler from a state params file.
+        Set Alex.set_state docstring for format."""
+        roi_data = [[roi[:4] for roi in group] for group in params]
+        thresh_data = [[[roi[4:6]] for roi in group] for group in params]
+        self.update_roi_coords(roi_data)
+        self.update_roi_threshs(thresh_data)
+
+    def get_params(self):
+        """Gets the params to be saved to the PyDex state."""
+        params = []
+        for group in self.roi_groups:
+            group_params = []
+            for coords, thresh in zip(group.get_roi_coords(),group.get_threshold_data()):
+                group_params.append(coords + [thresh[0][0]]+[thresh[0][1]])
+            params.append(group_params)
+        return params
+
     def update_roi_coords(self, new_roi_coords=None):
         """Sets new coordinates for the ROIs and updates them on the GUI.
 
@@ -408,9 +449,18 @@ class ImageHandler(QWidget):
             Default is None.
         """
         if new_roi_coords != None:
+            for box_num,coords in zip(self.box_num_roiss, new_roi_coords):
+                box_num.setText(str(len(coords)))
+            self.update_num_rois()
             [group.set_roi_coords(coords) for group,coords in 
              zip(self.roi_groups,new_roi_coords)]
         self.draw_rois()
+
+    def update_roi_threshs(self,roi_threshs):
+        """Sets the new thresholds for the ROIs when loading from a state.
+        It is assumed that the number of ROIs is correct."""
+        [group.set_threshold_data(threshs) for group,threshs in 
+             zip(self.roi_groups,roi_threshs)]
 
     def set_rois_from_image(self):
         roi_coords = []
@@ -638,6 +688,230 @@ class AlexDebugWindow(QMainWindow):
         self.button_test_image = QPushButton('Generate 100 test images')
         self.button_test_image.clicked.connect(self.alex.generate_test_image)
         self.centre_widget.layout.addWidget(self.button_test_image)
+
+        self.button_load_state = QPushButton('Load test state')
+        self.button_load_state.clicked.connect(self.load_test_state)
+        self.centre_widget.layout.addWidget(self.button_load_state)
+
+    def load_test_state(self):
+        true = True
+        params = [[
+        [
+            [
+                4,
+                15,
+                2,
+                2,
+                747,
+                true,
+                true
+            ],
+            [
+                8,
+                15,
+                2,
+                2,
+                776,
+                true,
+                true
+            ],
+            [
+                12,
+                15,
+                2,
+                2,
+                723,
+                true,
+                true
+            ],
+            [
+                15,
+                15,
+                2,
+                2,
+                722,
+                true,
+                true
+            ],
+            [
+                19,
+                15,
+                2,
+                2,
+                845,
+                true,
+                true
+            ],
+            [
+                22,
+                15,
+                2,
+                2,
+                721,
+                true,
+                true
+            ],
+            [
+                26,
+                15,
+                2,
+                2,
+                716,
+                true,
+                true
+            ],
+            [
+                30,
+                15,
+                2,
+                2,
+                780,
+                true,
+                true
+            ],
+            [
+                34,
+                15,
+                2,
+                2,
+                763,
+                true,
+                true
+            ]
+        ],
+        [
+            [
+                5,
+                13,
+                2,
+                2,
+                797,
+                true,
+                true
+            ],
+            [
+                8,
+                13,
+                2,
+                2,
+                892,
+                true,
+                true
+            ],
+            [
+                11,
+                13,
+                2,
+                2,
+                899,
+                true,
+                true
+            ],
+            [
+                13,
+                13,
+                2,
+                2,
+                819,
+                true,
+                true
+            ],
+            [
+                16,
+                13,
+                2,
+                2,
+                935,
+                true,
+                true
+            ],
+            [
+                19,
+                13,
+                2,
+                2,
+                1086,
+                true,
+                true
+            ],
+            [
+                21,
+                13,
+                2,
+                2,
+                964,
+                true,
+                true
+            ],
+            [
+                24,
+                13,
+                2,
+                2,
+                851,
+                true,
+                true
+            ],
+            [
+                26,
+                13,
+                2,
+                2,
+                833,
+                true,
+                true
+            ],
+            [
+                29,
+                13,
+                2,
+                2,
+                941,
+                true,
+                true
+            ],
+            [
+                32,
+                13,
+                2,
+                2,
+                892,
+                true,
+                true
+            ],
+            [
+                34,
+                13,
+                2,
+                2,
+                931,
+                true,
+                true
+            ],
+            [
+                37,
+                13,
+                2,
+                2,
+                914,
+                true,
+                true
+            ],
+            [
+                39,
+                13,
+                2,
+                2,
+                938,
+                true,
+                true
+            ]
+        ]
+        ]]
+        self.alex.set_state(params)
+        params = self.alex.get_state()
+        print(params)
+        self.alex.set_state(params)
 
 def run():
     """Initiate an app to run the program

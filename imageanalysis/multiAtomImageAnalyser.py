@@ -55,7 +55,6 @@ class MultiAtomImageAnalyser(QObject):
     signal_user_variables = pyqtSignal(list) # send the user variables back to the iGUI
     signal_measure_prefix = pyqtSignal(str) # send the measure prefix to the iGUI
     signal_finished_saving = pyqtSignal() # lets the MAIA unlock the multirun queue when it has finished saving data
-    signal_emccd_bias = pyqtSignal(int) # sends the EMCCD bias to the iGUI
     signal_state = pyqtSignal(dict,str) # the state and filename to save it in. Either connects to the iGUI or the rest of PyDex.
 
     queue = deque() # Double-ended queue to handle images. Images are processed when ready.
@@ -72,7 +71,7 @@ class MultiAtomImageAnalyser(QObject):
         self.next_image = 0 # image number to assign the next incoming array to
         self.file_id = 3000 # the file ID to start on. This is iterated once every image cycle.
         self.should_save = False # whether MAIA should save the data on the next iteration of the event loop
-        self.emccd_bias = 0
+        self.emccd_bias = 0 # this is now taken off in the controller but left here for state saving
 
         self.roi_groups = []
         self.num_images = num_images
@@ -290,12 +289,7 @@ class MultiAtomImageAnalyser(QObject):
                     self.clear()
                 return
             [image,file_id,image_num] = next_queue_item
-            # print('image_num',image_num)
-            # print('next image',self.next_image)
             self.signal_status_message.emit('Started processing ID {} Im {}'.format(file_id,image_num))
-            image = image - self.emccd_bias # don't edit in place because this seemed to cause an issue with images not showing in GUI. Maybe not thread safe?
-            # print('image min',np.min(image))
-            # print('image max',np.max(image))
             image_num_too_big = False
             for group in self.roi_groups:
                 for roi in group.rois:
@@ -686,7 +680,6 @@ class ROI():
         
         self.num_images = None
         self.set_num_images(num_images)
-
 
     def get_coords(self):
         """Returns the coordinates of the ROI.
