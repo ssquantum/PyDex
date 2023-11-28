@@ -62,7 +62,6 @@ class MeasureAnalyser():
             post_select_probs_errs = analyser.get_post_selection_probs()
             condition_met_probs_errs = analyser.get_condition_met_probs()
             for group,(ps_prob_err,cm_prob_err) in enumerate(zip(post_select_probs_errs,condition_met_probs_errs)):
-                # print(group,ps_prob_err,cm_prob_err)
                 for key, val in ps_prob_err.items():
                     row['Group {} PS {}'.format(group,key)] = [val]
                 for key, val in cm_prob_err.items():
@@ -239,7 +238,6 @@ class Analyser():
         
         self.ps_counts_df_split_by_roi_group = [self.get_post_selected_dataframe(x,post_selection_column_keys,group_num) for group_num, x in enumerate(self.counts_df_split_by_roi_group)]
         post_select_probs_errs = self.get_post_selection_probs()
-        # print(post_select_probs_errs)
         return post_select_probs_errs
     
     def get_post_selection_probs(self):

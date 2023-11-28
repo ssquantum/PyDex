@@ -415,13 +415,15 @@ class StefanWorker(QRunnable):
             analyser = Analyser(self.data)
             post_select_probs_errs = analyser.apply_post_selection_criteria(self.post_selection)
             condition_probs_errs = analyser.apply_condition_criteria(self.condition)
-            print(analyser.ps_counts_df_split_by_roi_group)
             data[0] = np.array(analyser.get_condition_met_plotting_data())
             for group_num, (post_select_prob_err,condition_prob_err) in enumerate(zip(post_select_probs_errs,condition_probs_errs)):
                 post_select_prob_err_string = analyser.uncert_to_str(post_select_prob_err['probability'],post_select_prob_err['error in probability']) 
                 condition_prob_err_string = analyser.uncert_to_str(condition_prob_err['probability'],condition_prob_err['error in probability']) 
                 string += 'Group {}: PS = {}; CM = {}\n'.format(group_num,post_select_prob_err_string,condition_prob_err_string)
-        
+            avg_condition_met_probs_errs = analyser.get_avg_condition_met_prob()
+            condition_prob_err_string = analyser.uncert_to_str(avg_condition_met_probs_errs['probability'],avg_condition_met_probs_errs['error in probability']) 
+            string += '\nAverage CM = {}\n'.format(condition_prob_err_string)
+
         print(data)
         if self.xmode == 'group':
             # sort data based on whether it is above or below threshold

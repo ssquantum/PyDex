@@ -55,6 +55,7 @@ class MultiAtomImageAnalyser(QObject):
     signal_user_variables = pyqtSignal(list) # send the user variables back to the iGUI
     signal_measure_prefix = pyqtSignal(str) # send the measure prefix to the iGUI
     signal_finished_saving = pyqtSignal() # lets the MAIA unlock the multirun queue when it has finished saving data
+    signal_emccd_bias = pyqtSignal(int) # sends the EMCCD bias to the iGUI and controller when updated
     signal_state = pyqtSignal(dict,str) # the state and filename to save it in. Either connects to the iGUI or the rest of PyDex.
 
     queue = deque() # Double-ended queue to handle images. Images are processed when ready.
