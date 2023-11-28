@@ -175,7 +175,7 @@ class runnum(QThread):
         self.rearr_images = rearr_images
         logging.debug('Controller: set rearrangement images to {}'.format(rearr_images))
 
-    @pyqtSlot(object)
+    @pyqtSlot(int)
     def update_emccd_bias(self,emccd_bias):
         """Sets the EMCCD bias from MAIA that should be subtracted from all 
         recieved images."""

@@ -301,10 +301,14 @@ class alex(QMainWindow):
     def get_occupancies_from_image(self,image,ih_num):
         ih = self.ihs[ih_num]
         occupancies = []
-        for group_i,group in enumerate(ih.roi_groups):
+        invert_occupancies = [b.isChecked() for b in ih.buttons_invert]
+        for group_i,[group,invert] in enumerate(zip(ih.roi_groups,invert_occupancies)):
             group_occupancy = ''
             for roi in group.rois:
-                group_occupancy += str(int(image[roi.x:roi.x+roi.w,roi.y:roi.y+roi.h].sum() > roi.thresholds[0]))
+                occupancy_bit = image[roi.x:roi.x+roi.w,roi.y:roi.y+roi.h].sum() > roi.thresholds[0]
+                if invert:
+                    occupancy_bit = not occupancy_bit
+                group_occupancy += str(int(occupancy_bit))
             logging.debug('{} occupancy {}'.format(ih.roi_labels[group_i],
                                                    group_occupancy))
             group_occupancy += 'RH'+str(ih_num)
@@ -362,16 +366,22 @@ class ImageHandler(QWidget):
         self.roi_groups = [ROIGroup(num_images=1) for _ in self.roi_labels]
         
         self.box_num_roiss = []
+        self.buttons_invert = []
 
-        roi_layout = QFormLayout()
-        layout.addLayout(roi_layout)
+        rois_layout = QVBoxLayout()
+        layout.addLayout(rois_layout)
         for label in self.roi_labels:
+            roi_layout = QHBoxLayout()
             box_num_rois = QLineEdit()
             box_num_rois.setValidator(non_neg_validator)
             box_num_rois.editingFinished.connect(self.update_num_rois)
-            print(label,box_num_rois)
-            roi_layout.addRow('# '+label+' ROIs',box_num_rois)
+            button_invert = QCheckBox('Invert occupancy')
+            roi_layout.addWidget(QLabel('# '+label+' ROIs'))
+            roi_layout.addWidget(box_num_rois)
+            roi_layout.addWidget(button_invert)
+            rois_layout.addLayout(roi_layout)
             self.box_num_roiss.append(box_num_rois)
+            self.buttons_invert.append(button_invert)
         
         im_widget = pg.GraphicsLayoutWidget() # containing widget
         viewbox = im_widget.addViewBox() # plot area to display image
@@ -423,20 +433,27 @@ class ImageHandler(QWidget):
     def set_params(self,params):
         """Sets the parameters of the image handler from a state params file.
         Set Alex.set_state docstring for format."""
-        roi_data = [[roi[:4] for roi in group] for group in params]
-        thresh_data = [[[roi[4:6]] for roi in group] for group in params]
+        roi_data = [[roi[:4] for roi in group] for group in params[0]]
+        thresh_data = [[[roi[4:6]] for roi in group] for group in params[0]]
+
         self.update_roi_coords(roi_data)
         self.update_roi_threshs(thresh_data)
 
+        invert_data = params[1]
+        print('invert_data',invert_data)
+        for button,invert in zip(self.buttons_invert,invert_data):
+            button.setChecked(invert)
+
     def get_params(self):
         """Gets the params to be saved to the PyDex state."""
-        params = []
+        roi_thresh_data = []
         for group in self.roi_groups:
             group_params = []
             for coords, thresh in zip(group.get_roi_coords(),group.get_threshold_data()):
                 group_params.append(coords + [thresh[0][0]]+[thresh[0][1]])
-            params.append(group_params)
-        return params
+            roi_thresh_data.append(group_params)
+        
+        return [roi_thresh_data,[b.isChecked() for b in self.buttons_invert]]
 
     def update_roi_coords(self, new_roi_coords=None):
         """Sets new coordinates for the ROIs and updates them on the GUI.

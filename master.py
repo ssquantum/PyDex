@@ -113,7 +113,9 @@ class Master(QMainWindow):
     def __init__(self, dev_mode=False, state_config='.\\state.pds'):
         super().__init__()
         self.dev_mode = dev_mode
-        self.subwindows = [['rn.seq','SequencesGeometry'],['rn.check','AtomCheckerGeometry']] # [attribute, geometry]
+        self.subwindows = [['rn.seq','SequencesGeometry'],
+                           ['rn.check','ALEXGeometry'],
+                           ['rn.iGUI','SIMONGeometry']] # [attribute, geometry]
         startn = self.restore_state(file_name=state_config) # loads self.stats from the PyDex state file
 
         self.camera_pause = 0 # time in seconds to wait for camera to start acquisition.
@@ -203,8 +205,9 @@ class Master(QMainWindow):
             alex_state = self.stats['ALEX']
         except KeyError:
             logging.warning('PyDex state does not have ALEX state defined. '
-                            'Falling back to old loading method.')
-            alex_state = [self.stats['AtomCheckerROIs']]
+                            'Falling back to AtomChecker state loading.')
+            atom_checker = self.stats['AtomCheckerROIs']
+            alex_state = [[atom_checker,[False for _ in atom_checker]]]
         return alex_state
 
     def apply_state(self):
@@ -225,7 +228,7 @@ class Master(QMainWindow):
                     self.status_label.setText('Failed to update camera settings.')
             else: self.reset_camera(self.stats['CameraConfig'])
             self.rn.seq.mr.order_edit.setCurrentText(self.stats['Multirun ordering'])
-            self.alex.set_state(self.get_alex_state())
+            self.rn.check.set_state(self.get_alex_state())
         # except AttributeError: pass # haven't made runid yet 
         except Exception as e: print('Could not set state:\n'+str(e))
 
@@ -281,9 +284,9 @@ class Master(QMainWindow):
 
         show_windows = menubar.addMenu('Windows')
         menu_items = []
-        for window_title in ['SIMON', 'Camera Status', 
+        for window_title in ['SIMON', 'ALEX', 'Camera Status', 
             'Image Saver', 'TCP Server', 'Multirun',
-            'ALEX', 'Monitor', 'DDS', 'Show all']:
+            'Monitor', 'DDS', 'Show all']:
             menu_items.append(QAction(window_title, self)) 
             menu_items[-1].triggered.connect(self.show_window)
             show_windows.addAction(menu_items[-1])
@@ -467,7 +470,7 @@ class Master(QMainWindow):
             elif reply == QMessageBox.No:
                 self.rn.reset_server(force=False) # restart the server if it stopped
         elif self.sender().text() == 'ALEX':
-            self.rn.check.showMaximized()
+            self.rn.check.show()
         elif self.sender().text() == 'Monitor':
             self.mon_win.show()
         elif self.sender().text() == 'DDS':
@@ -797,7 +800,7 @@ class Master(QMainWindow):
         for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG1', 'AWG2', 'DDS1', 'DDS2', 'DDS3', 'SLM', 'MWG (WFTK)','MWG (Anritsu)'],
                 [self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, self.rn.awgtcp2, 
                     self.rn.ddstcp1, self.rn.ddstcp2, self.rn.ddstcp3, 
-                    self.rn.slmtcp, self.rn.mwgtcp_wftk, self.mwgtcp_anritsu]):
+                    self.rn.slmtcp, self.rn.mwgtcp_wftk, self.rn.mwgtcp_anritsu]):
             print(label, ': %s messages'%len(tcp.get_queue()))
         print("Mutlirun queue length: ", len(self.rn.seq.mr.mr_queue))
         if reset:
@@ -831,8 +834,15 @@ class Master(QMainWindow):
         self.stats['File#'] = self.rn._n
         self.stats['SaveConfig'] = self.rn.sv.get_dirs()
         self.stats['MAIAConfig'] = maia_state
-
         self.stats['ALEX'] = self.rn.check.get_state()
+
+        # clean up old state keys that don't need to be saved
+        for key in ['Rearrange ROIs','AtomCheckerROIs','AtomCheckerGeometry']:
+            try:
+                del self.stats[key]
+            except KeyError:
+                pass
+
         self.stats['Multirun ordering'] = self.rn.seq.mr.order_edit.currentText()
 
         self.get_geometries()
