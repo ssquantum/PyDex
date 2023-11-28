@@ -43,6 +43,7 @@ class runnum(QThread):
         self.iGUI.maia.signal_num_images.connect(self.set_m)
         self.iGUI.update_num_images(m) # updating the number of images in the iGUI also sets self._n due to connection above
         self.iGUI.signal_set_rearr_images.connect(self.set_rearr_images)
+        self.iGUI.update_rearr_images()
 
         self._n = n # # images per run
         self._k = k # # images received
@@ -186,7 +187,7 @@ class runnum(QThread):
         """Update the Dexter file number in all associated modules,
         then send the image array to be saved and analysed."""
         logging.debug('Controller recieved image outside of a multirun')
-        imn = self.process_image_pre_iGUI(im)
+        im, imn = self.process_image_pre_iGUI(im)
         self.iGUI.recieve_image(im,self._n,imn) # the images File ID and image num are specified here when added to the MAIA queue.
         self._k += 1 # another image was taken
 
@@ -204,7 +205,7 @@ class runnum(QThread):
         Update the Dexter file number in all associated modules,
         then send the image array to be saved and analysed."""
         logging.debug('Controller recieved image as part of a multirun')
-        imn = self.process_image_pre_iGUI(im)
+        im, imn = self.process_image_pre_iGUI(im)
         if self.seq.mr.ind % (self.seq.mr.mr_param['# omitted'] + self.seq.mr.mr_param['# in hist']) >= self.seq.mr.mr_param['# omitted']:
             self.iGUI.recieve_image(im,self._n,imn) # the images File ID and image num are specified here when added to the MAIA queue. Pass imn to compensate for rearrangement.
         self._k += 1 # another image was taken
@@ -228,7 +229,7 @@ class runnum(QThread):
         self.sv.imn = str(imn)
         logging.debug('Passing image to image saver.')
         self.im_save.emit([im,self._n,imn])
-        return imn
+        return im, imn
 
     def check_receive(self, im=0):
         """Receive image for atom checker, don't save but just pass on"""

@@ -273,6 +273,7 @@ class ImagerGUI(QMainWindow):
         layout_image = QHBoxLayout()
         im_widget = pg.GraphicsLayoutWidget() # containing widget
         viewbox = im_widget.addViewBox() # plot area to display image
+        viewbox.setAspectLocked()
         self.im_canvas = pg.ImageItem() # the image
         viewbox.addItem(self.im_canvas)
         layout_image.addWidget(im_widget)
@@ -368,13 +369,13 @@ class ImagerGUI(QMainWindow):
             rearr_images = convert_str_to_list(rearr_images,raise_exception_if_empty=False)
             rearr_images = [int(x) for x in rearr_images]
             rearr_images = list(dict.fromkeys(rearr_images))
-        except:
-            self.box_rearr_images.setText(str(self.rearr_images))
-        else:
-            if self.rearr_images != rearr_images:
-                self.rearr_images = rearr_images
-                self.signal_set_rearr_images.emit(self.rearr_images)
-            self.box_rearr_images.setText(str(self.rearr_images))
+        except Exception:
+            rearr_images = self.rearr_images
+
+        if self.rearr_images != rearr_images:
+            self.rearr_images = rearr_images
+        self.signal_set_rearr_images.emit(self.rearr_images)
+        self.box_rearr_images.setText(str(self.rearr_images))
     
     @pyqtSlot(str)
     def recieve_results_path(self,results_path):
@@ -663,6 +664,7 @@ class ImagerGUI(QMainWindow):
         params = {}
         params['draw_image_num'] = self.get_draw_image_num()
         params['lock_roi_groups'] = int(self.button_lock_roi_groups.isChecked())
+        params['rearr_images'] = eval(self.box_rearr_images.text())
         print(params)
         self.signal_get_state.emit(params,filename)
         
@@ -687,6 +689,13 @@ class ImagerGUI(QMainWindow):
         """
         self.box_display_image_num.setText(str(params['draw_image_num']))
         self.button_lock_roi_groups.setChecked(params['lock_roi_groups'])
+
+        try:
+            self.box_rearr_images.setText(str(params['rearr_images']))
+        except:
+            self.box_rearr_images.setText(str([0])) # default to Im0 for rearrangment if not specified (i.e. old state)
+        self.update_rearr_images()
+
         self.signal_set_state.emit(params)
 
     #%% iGUI <-> Stefan methods

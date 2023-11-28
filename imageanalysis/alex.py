@@ -100,6 +100,7 @@ class alex(QMainWindow):
         # toggle whether to update histograms or not
         self.im_show_toggle = QPushButton('Auto-display last image', self)
         self.im_show_toggle.setCheckable(True)
+        self.im_show_toggle.setChecked(True)
         self.im_show_toggle.clicked[bool].connect(self.set_im_show)
         hbox.addWidget(self.im_show_toggle)
 
@@ -292,7 +293,9 @@ class alex(QMainWindow):
                       ih_num,file_id))
         self.get_occupancies_from_image(image,ih_num)
         self.store_counts_in_rois(image,ih_num,file_id)
-        self.draw_image(image)
+
+        if self.im_show_toggle.isChecked():
+            self.ihs[ih_num].draw_image(image)
         
         self.next_ih_num = (ih_num + 1)%(len(self.ihs))
         self.file_id = file_id + 1
@@ -321,14 +324,6 @@ class alex(QMainWindow):
             for roi in group.rois:
                 roi.counts[0][file_id] = image[roi.x:roi.x+roi.w,roi.y:roi.y+roi.h].sum()
         self.calculate_thresholds()
-
-    def draw_image(self,image):
-        """Sends the image to the correct image handler to be drawn.
-        Currently the image is sent to all the image handlers but this should
-        be changed when image ordering is implemented."""
-        for ih in self.ihs:
-            ih.draw_image(image)
-
 
     #%% Debug functions
     def generate_test_image(self):
@@ -385,6 +380,7 @@ class ImageHandler(QWidget):
         
         im_widget = pg.GraphicsLayoutWidget() # containing widget
         viewbox = im_widget.addViewBox() # plot area to display image
+        viewbox.setAspectLocked()
         self.im_canvas = pg.ImageItem() # the image
         viewbox.addItem(self.im_canvas)
         layout.addWidget(im_widget)

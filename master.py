@@ -146,11 +146,11 @@ class Master(QMainWindow):
         self.rn.server.textin.connect(self.respond) # read TCP messages
         self.status_label.setText('Initialising...')
         QTimer.singleShot(0, self.idle_state) # takes a while for other windows to load
-        
-        # self.rn.check.showMaximized()
+
         self.rn.seq.show()
         self.rn.iGUI.show()
-        
+        self.rn.check.show()
+
         self.mon_win = MonitorStatus() # display communication with DAQ monitor
         self.mon_win.start_button.clicked.connect(self.start_monitor)
         self.mon_win.stop_button.clicked.connect(self.stop_monitor)
@@ -216,6 +216,8 @@ class Master(QMainWindow):
             self.reset_dates(savestate=False) # date
             self.set_geometries()
             self.rn.sv.set_dirs(self.stats['SaveConfig']) # date will be reset here
+            print('MAIA config')
+            print(self.stats['MAIAConfig'])
             self.rn.iGUI.set_state(self.stats['MAIAConfig'])
             self.rn.iGUI.clear_data_and_queue()
             if self.rn.cam.initialised > 2: # camera
@@ -238,7 +240,10 @@ class Master(QMainWindow):
             for attribute, geometry_key in self.subwindows:
                 try:
                     reduce(getattr, attribute.split("."), self).setGeometry(*self.stats[geometry_key])
-                except AttributeError: pass
+                except AttributeError: # attribute doesn't exist yet to set geometry
+                    pass
+                except KeyError: # geometry isn't defined in old state file
+                    pass
 
     def get_geometries(self):
         self.stats['ControllerGeometry'] = list(self.geometry().getRect())
