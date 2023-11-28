@@ -1,5 +1,6 @@
 # ignore the following directories
 20*\
+20*/
 imageanalysis\20*
 __pycache__\
 .*/__pycache__/

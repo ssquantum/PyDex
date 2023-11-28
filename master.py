@@ -303,12 +303,6 @@ class Master(QMainWindow):
         self.send_data.toggled[bool].connect(self.set_inflxdb_toggle)
         sync_menu.addAction(self.send_data)
 
-        self.check_rois = QAction('Trigger on atoms loaded', sync_menu, 
-                checkable=True, checked=False)
-        self.check_rois.setChecked(False)
-        # self.check_rois.setEnabled(False) # not functional yet
-        sync_menu.addAction(self.check_rois) 
-
         reset_date = QAction('Reset date', sync_menu, checkable=False)
         reset_date.triggered.connect(self.reset_dates)
         sync_menu.addAction(reset_date)
@@ -586,8 +580,6 @@ class Master(QMainWindow):
                     self.rn.multirun_go(False, stillrunning=True)
             elif 'Cancel multirun' in action_text:
                 if self.rn.seq.mr.multirun:
-                    if self.rn.check.checking:
-                        self.rn.check.rh['Cs'].trigger.emit(1) # send software trigger to end
                     self.rn.multirun_go(False)
                     self.rn.seq.mr.ind = 0
                     self.rn.seq.mr.reset_sequence(self.rn.seq.tr.copy())
@@ -688,10 +680,7 @@ class Master(QMainWindow):
             self.end_run(msg)
         elif 'start acquisition' in msg:
             self.status_label.setText('Running')
-            if self.check_rois.isChecked(): # start experiment when ROIs have atoms
-                reset_slot(self.rn.check.rh['Cs'].trigger, self.trigger_exp_start, True) 
-                self.rn.atomcheck_go() # start camera acuiring
-            elif self.rn.cam.initialised:
+            if self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam() # wait for camera to initialise before running
             else: 
@@ -701,19 +690,13 @@ class Master(QMainWindow):
                 (TCPENUM['TCP read'], 'finished run '+str(self.rn._n)+'\n'+'0'*2000)]) # second message confirms end
         elif 'start measure' in msg:
             reset_slot(self.rn.seq.mr.progress, self.status_label.setText, True)
-            if self.check_rois.isChecked(): # start experiment when ROIs have atoms
-                reset_slot(self.rn.check.rh['Cs'].trigger, self.trigger_exp_start, True) 
-                self.rn.atomcheck_go() # start camera acquiring
-            elif self.rn.cam.initialised:
+            if self.rn.cam.initialised:
                 self.rn.cam.start() # start acquisition
                 self.wait_for_cam()
             else: warning('Run %s started without camera acquisition.'%(self.rn._n))
             if 'restart' not in msg: self.rn.multirun_go(msg) # might be resuming multirun instead of starting a new one
         elif 'multirun run' in msg:
             self.sync_file_id_with_dexter(False)
-            if self.check_rois.isChecked(): # start experiment when ROIs have atoms
-                reset_slot(self.rn.check.rh['Cs'].trigger, self.trigger_exp_start, True) 
-                self.rn.atomcheck_go() # start camera in internal trigger mode
             self.rn.multirun_step(msg)
             # self.rn._k = 0 # reset image per run count
         elif 'save and reset histogram' in msg:
@@ -762,7 +745,6 @@ class Master(QMainWindow):
         only triggers once."""
         self.action_button.setEnabled(True) # allow another command to be sent
          # reset atom checker trigger
-        reset_slot(self.rn.check.rh['Cs'].trigger, self.trigger_exp_start, False)
         if self.rn.trigger.connected:
             reset_slot(self.rn.trigger.textin, self.rn.trigger.clear_queue, True)
             self.rn.trigger.add_message(TCPENUM['TCP read'], 'end connection'*150)
