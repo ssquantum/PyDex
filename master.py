@@ -29,7 +29,7 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 import warnings
 warnings.filterwarnings('ignore') # not interested in RuntimeWarning from mean of empty slice
 sys.path.append('./imageanalysis')
-from imageanalysis.atomChecker import alex
+from imageanalysis.alex import alex
 sys.path.append('./andorcamera')
 from andorcamera.cameraHandler import camera # manages Andor camera
 sys.path.append('./saveimages')
@@ -486,7 +486,7 @@ class Master(QMainWindow):
         """Send a TCP command to the monitor to stop its acquisition."""
         self.mon_win.start_check()
         self.rn.monitor.add_message(self.rn._n, 'stop')
-        
+
     def browse_sequence(self, toggle=True):
         """Open the file browser to search for a sequence file, then insert
         the file path into the DExTer sequence file line edit
