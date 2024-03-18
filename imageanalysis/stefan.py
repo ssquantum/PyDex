@@ -141,7 +141,7 @@ class StefanGUI(QMainWindow):
             layout_graph_options.addRow('ROI:', self.box_roi)
 
         self.box_post_selection = QLineEdit()
-        self.box_post_selection.setText('[11],[xx]')
+        self.box_post_selection.setText('[],[11]')
         self.box_post_selection.setEnabled(False)
         self.box_post_selection.editingFinished.connect(self.update_post_selection)
         self.box_post_selection.returnPressed.connect(self.request_update)
@@ -149,7 +149,7 @@ class StefanGUI(QMainWindow):
             layout_graph_options.addRow('Post-selection:', self.box_post_selection)
 
         self.box_condition = QLineEdit()
-        self.box_condition.setText('[xx],[11]')
+        self.box_condition.setText('[],[],[11]')
         self.box_condition.setEnabled(False)
         self.box_condition.editingFinished.connect(self.update_condition)
         self.box_condition.returnPressed.connect(self.request_update)

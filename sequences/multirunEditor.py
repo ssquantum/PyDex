@@ -69,8 +69,8 @@ class sequenceSaver(QThread):
                         except ValueError: pass
                     self.mrtr.set_routine_name('Multirun ' + self.mr_param['Variable label'] + \
                             ': ' + self.mr_vals[i][0] + ' (%s / %s)'%(i+1, len(self.mr_vals)))
-                    self.mrtr.write_to_file(os.path.join(self.savedir, self.mr_param['measure_prefix'] + '_' + 
-                        str(i + self.mr_param['1st hist ID']) + '.xml'))
+                    # self.mrtr.write_to_file(os.path.join(self.savedir, self.mr_param['measure_prefix'] + '_' +  # 22/04/24 don't save every MR to file
+                    #     str(i + self.mr_param['1st hist ID']) + '.xml'))
                 except IndexError as e:
                     error('Multirun failed to edit sequence at ' + self.mr_param['Variable label']
                         + ' = ' + self.mr_vals[i][0] + '\n' + str(e))
