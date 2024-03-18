@@ -27,6 +27,10 @@ class MainWindow(QMainWindow):
         self.awg2text.setWordWrap(True)
         self.layout.addWidget(self.awg2text)
 
+        self.awg3text = QLabel()
+        self.awg3text.setWordWrap(True)
+        self.layout.addWidget(self.awg3text)
+
         self.mwtext = QLabel()
         self.mwtext.setWordWrap(True)
         self.layout.addWidget(self.mwtext)
@@ -42,6 +46,10 @@ class MainWindow(QMainWindow):
         self.awg2tcp = PyClient(port=8628,name='AWG2',pause=1)
         self.awg2tcp.start()
         self.awg2tcp.textin.connect(self.display_awg2_msg)
+
+        self.awg3tcp = PyClient(port=8628,name='AWG3',pause=1)
+        self.awg3tcp.start()
+        self.awg3tcp.textin.connect(self.display_awg3_msg)
 
         # self.mwtcp = PyClient(port=8631,name='MW',pause=1)
         # self.mwtcp.start()
@@ -63,6 +71,10 @@ class MainWindow(QMainWindow):
     def display_awg2_msg(self,msg=''):
         msg = msg.split('00000000000')[0]
         self.awg2text.setText('Last AWG2 TCP message received: '+msg)
+
+    def display_awg3_msg(self,msg=''):
+        msg = msg.split('00000000000')[0]
+        self.awg3text.setText('Last AWG3 TCP message received: '+msg)
 
     def display_mw_msg(self,msg=''):
         msg = msg.split('00000000000')[0]

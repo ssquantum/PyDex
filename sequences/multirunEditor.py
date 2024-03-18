@@ -136,7 +136,7 @@ class multirun_widget(QWidget):
         self.slm_args = ['f','period','angle','radius','gradient','shift','radial','azimuthal','amplitude','max_mod_depth','radius_scale']
         self.mwg_wftk_args = ['freq (MHz)','amp (dBm)','phase (deg)']
         self.mwg_anritsu_args = ['freq (MHz)','amp (dBm)']
-        self.column_options = ['Analogue voltage', 'AWG1 chan : seg', 'AWG2 chan : seg',
+        self.column_options = ['Analogue voltage', 'AWG1 chan : seg', 'AWG2 chan : seg', 'AWG3 chan : seg',
             'DDS1 port : profile', 'DDS2 module : profile', 'DDS3 module : profile',
             'SLM holograms','MWG (WFTK) tones','MWG (Anritsu) tones'] # these analogue types require the analogue options 
         self.col_range_text = ['']*ncols
@@ -228,7 +228,7 @@ class multirun_widget(QWidget):
         labels = ['Type', 'Time step name', 'Analogue type', 'Analogue channel']
         sht = self.tr.get_esc()[2][2:] # 'Sequence header top'
         options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG1 chan : seg', 
-        'AWG2 chan : seg', 'DDS1 port : profile', 'DDS2 module : profile', 'DDS3 module : profile',
+        'AWG2 chan : seg', 'AWG3 chan : seg', 'DDS1 port : profile', 'DDS2 module : profile', 'DDS3 module : profile',
         'SLM holograms','MWG (WFTK) tones','MWG (Anritsu) tones','Other'], 
             list(map(str.__add__, [str(i) for i in range(len(sht))],
                     [': '+hc[6][1].text for hc in sht])), # time step names
@@ -542,7 +542,7 @@ class multirun_widget(QWidget):
                      -- Analogue voltage: also needs channels
                      -- AWG: takes float values but with a list index."""
         sht = self.tr.get_esc()[2][2:] # 'Sequence header top'
-        if newtype == 'AWG1 chan : seg' or newtype == 'AWG2 chan : seg':
+        if newtype == 'AWG1 chan : seg' or newtype == 'AWG2 chan : seg' or newtype == 'AWG3 chan : seg':
             self.chan_choices['Time step name'].clear()
             self.chan_choices['Time step name'].addItems([str(i)+', '+str(j) for j in range(100) for i in range(2)])
             reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)

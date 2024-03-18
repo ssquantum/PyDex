@@ -97,18 +97,22 @@ class runnum(QThread):
         self.slmtcp.start()
         if not dev_mode:
             self.client = PyClient(host='129.234.190.235', port=8626, name='AWG1 recv') # incoming from AWG
-            self.clien2 = PyClient(host='129.234.190.233', port=8629, name='AWG2 recv') # incoming from AWG2
+            self.clien2 = PyClient(host='129.234.190.233', port=8629, name='AWG2 recv') # incoming from AWG2\
+            self.clien3 = PyClient(host='129.234.190.234', port=8637, name='AWG3 recv') # incoming from AWG2\
             self.clientmwg_wftk = PyClient(host='129.234.190.235', port=8632, name='MW recv (WFTK)') # incoming from MW generator (WFTK) control
             self.clientmwg_anritsu = PyClient(host='129.234.190.235', port=8635, name='MW recv (Anritsu)') # incoming from MW generator (Anritsu) control
         else:
             self.client = PyClient(host='localhost', port=8626, name='AWG1 recv') # incoming from AWG
             self.clien2 = PyClient(host='localhost', port=8629, name='AWG2 recv') # incoming from AWG2
+            self.clien3 = PyClient(host='localhost', port=8637, name='AWG3 recv') # incoming from AWG2
             self.clientmwg_wftk = PyClient(host='localhost', port=8632, name='MW recv (WFTK)') # incoming from MW generator (WFTK) control
             self.clientmwg_anritsu = PyClient(host='localhost', port=8635, name='MW recv (Anritsu)') # incoming from MW generator (Anritsu) control
         self.client.start()
         self.client.textin.connect(self.add_mr_msgs) # msg from AWG starts next multirun step
         self.clien2.start()
         self.clien2.textin.connect(self.add_mr_msgs) # msg from AWG starts next multirun step
+        self.clien3.start()
+        self.clien3.textin.connect(self.add_mr_msgs) # msg from AWG starts next multirun step
         self.clientmwg_wftk.start()
         self.clientmwg_wftk.textin.connect(self.add_mr_msgs) # msg from MW generator control starts next multirun step
         self.clientmwg_anritsu.start()
@@ -116,6 +120,8 @@ class runnum(QThread):
 
         self.awgtcp2 = PyServer(host='', port=8628, name='AWG2') # AWG program runs separately
         self.awgtcp2.start()
+        self.awgtcp3 = PyServer(host='', port=8636, name='AWG3') # AWG program runs separately
+        self.awgtcp3.start()
         self.ddstcp2 = PyServer(host='', port=8630, name='DDS2') # DDS program runs separately
         self.ddstcp2.start()
         self.mwgtcp_wftk = PyServer(host='', port=8631, name='MWG (WFTK)') # MW generator (WFTK) control program runs separately
@@ -125,7 +131,7 @@ class runnum(QThread):
         self.mwgtcp_anritsu = PyServer(host='', port=8634, name='MWG (Anritsu)') # MW generator (Anritsu) control program runs separately
         self.mwgtcp_anritsu.start()
         self.server_list = [self.server, self.trigger, self.monitor, self.awgtcp1, self.ddstcp1, 
-                self.slmtcp, self.seqtcp, self.awgtcp2, self.ddstcp2, self.mwgtcp_wftk, self.ddstcp3,
+                self.slmtcp, self.seqtcp, self.awgtcp2, self.awgtcp3, self.ddstcp2, self.mwgtcp_wftk, self.ddstcp3,
                 self.mwgtcp_anritsu]
         
     def reset_server(self, force=False):
@@ -248,7 +254,7 @@ class runnum(QThread):
     def send_rearr_msgs(self,messages):
         """Function called when ALEX wants to send a rearrangement string to
         the AWG consoles."""
-        for awgtcp, msg in zip([self.awgtcp1,self.awgtcp2],messages):
+        for awgtcp, msg in zip([self.awgtcp1,self.awgtcp2, self.awgtcp3],messages):
             awgtcp.priority_messages([(self._n, 'rearrange='+msg+'#'*2000)])
         
     def atomcheck_go(self, toggle=True):
@@ -282,6 +288,14 @@ class runnum(QThread):
                                 self.seq.mr.mr_param['list index'][col])
                 except Exception as e: error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
             elif 'AWG2' in self.seq.mr.mr_param['Type'][col] and module == 'AWG2':
+                try: # argument: value
+                    for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen AWG channel, segment 
+                        for m in self.seq.mr.mr_param['Analogue channel'][col]:
+                            msg += '[%s, %s, "%s", %s, %s],'%(n%2, n//2, 
+                                self.seq.mr.awg_args[m], self.seq.mr.mr_vals[v][col], 
+                                self.seq.mr.mr_param['list index'][col])
+                except Exception as e: error('Invalid AWG parameter at (%s, %s)\n'%(v,col)+str(e))
+            elif 'AWG3' in self.seq.mr.mr_param['Type'][col] and module == 'AWG3':
                 try: # argument: value
                     for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen AWG channel, segment 
                         for m in self.seq.mr.mr_param['Analogue channel'][col]:
@@ -397,6 +411,7 @@ class runnum(QThread):
             # save AWG, DDS, and SLM params
             self.awgtcp1.priority_messages([[self._n, 'save='+os.path.join(results_path,'AWG1param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.awgtcp2.priority_messages([[self._n, 'save='+os.path.join(results_path,'AWG2param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
+            self.awgtcp3.priority_messages([[self._n, 'save='+os.path.join(results_path,'AWG3param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.ddstcp1.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDS1param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.ddstcp2.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDS2param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.ddstcp3.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDS3param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
@@ -406,7 +421,7 @@ class runnum(QThread):
             mr_queue = []
             #print('make msg')
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
-                module_msgs = {'AWG1':'', 'AWG2':'', 'DDS1':'', 'DDS2':'', 'DDS3':'', 'SLM':'', 
+                module_msgs = {'AWG1':'', 'AWG2':'', 'AWG3':'', 'DDS1':'', 'DDS2':'', 'DDS3':'', 'SLM':'', 
                                'MWG (WFTK)':'', 'MWG (Anritsu)':''}
                 for key in module_msgs.keys():
                     if any(key in x for x in self.seq.mr.mr_param['Type']): # send parameters by TCP
@@ -414,10 +429,13 @@ class runnum(QThread):
                 pausemsg = '0'*2000
                 if module_msgs['AWG1']: pausemsg = 'pause for AWG1' + pausemsg
                 if module_msgs['AWG2']: pausemsg = 'pause for AWG2' + pausemsg
+                if module_msgs['AWG3']: pausemsg = 'pause for AWG3' + pausemsg
                 if module_msgs['MWG (WFTK)']: pausemsg = 'pause for MWG (WFTK)' + pausemsg
                 if module_msgs['MWG (Anritsu)']: pausemsg = 'pause for MWG (Anritsu)' + pausemsg
-                mr_queue += [[TCPENUM['TCP read'], module_msgs['AWG1']+'||||||||'+'0'*2000], # set AWG parameters
+                mr_queue += [
+                    [TCPENUM['TCP read'], module_msgs['AWG1']+'||||||||'+'0'*2000], # set AWG parameters
                     [TCPENUM['TCP read'], module_msgs['AWG2']+'||||||||'+'0'*2000], # set AWG parameters
+                    [TCPENUM['TCP read'], module_msgs['AWG3']+'||||||||'+'0'*2000], # set AWG parameters
                     [TCPENUM['TCP read'], module_msgs['DDS1']+'||||||||'+'0'*2000], # set DDS parameters
                     [TCPENUM['TCP read'], module_msgs['DDS2']+'||||||||'+'0'*2000], # set DDS parameters
                     [TCPENUM['TCP read'], module_msgs['DDS3']+'||||||||'+'0'*2000], # set DDS parameters
@@ -447,6 +465,9 @@ class runnum(QThread):
             if any('AWG2' in x for x in self.seq.mr.mr_param['Type']):
                 self.awgtcp2.add_message(self._n, 'AWG2 load='+os.path.join(self.sv.results_path, # reset AWG parameters
                     self.seq.mr.mr_param['measure_prefix'],'AWG2param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
+            if any('AWG3' in x for x in self.seq.mr.mr_param['Type']):
+                self.awgtcp3.add_message(self._n, 'AWG3 load='+os.path.join(self.sv.results_path, # reset AWG parameters
+                    self.seq.mr.mr_param['measure_prefix'],'AWG3param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
             if any('SLM' in x for x in self.seq.mr.mr_param['Type']):
                 self.slmtcp.add_message(self._n, 'load_all='+os.path.join(self.sv.results_path, # reset SLM parameters
                     self.seq.mr.mr_param['measure_prefix'],'SLMparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
