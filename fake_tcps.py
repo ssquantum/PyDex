@@ -47,7 +47,7 @@ class MainWindow(QMainWindow):
         self.awg2tcp.start()
         self.awg2tcp.textin.connect(self.display_awg2_msg)
 
-        self.awg3tcp = PyClient(port=8628,name='AWG3',pause=1)
+        self.awg3tcp = PyClient(port=8637,name='AWG3',pause=1)
         self.awg3tcp.start()
         self.awg3tcp.textin.connect(self.display_awg3_msg)
 

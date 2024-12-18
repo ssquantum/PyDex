@@ -30,6 +30,14 @@ standalone = app is None # false if there is already an app instance
 if standalone: # if there isn't an instance, make one
     app = QApplication(sys.argv) 
 boss = master.Master()
+
+
+# def quickfix(string):
+#     if 'Waiting for AWG' in string:
+#         boss.rn.add_mr_msgs()
+# 
+# boss.rn.seq.mr.progress[str].connect(quickfix)
+
 boss.show()
 # if standalone: # if an app instance was made, execute it
 #     sys.exit(app.exec_()),,,,

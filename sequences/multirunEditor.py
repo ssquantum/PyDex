@@ -119,7 +119,8 @@ class multirun_widget(QWidget):
             ('Last time step end', r'C:\Users\lab\Desktop\DExTer 1.4\Last Timesteps\Feb2023_817_and_1065.evt'),
             ('# omitted', 5), ('# in hist', 100), ('list index', ['0']*ncols)])
         self.awg_args = ['duration_ms','start_freq_MHz','end_freq_MHz',
-                         'hybridicity','start_amp','end_amp','drop_amp',
+                         'hybridicity','start_amp','end_amp','phase',
+                         'duty_cycle','drop_amp',
                          'drop_time_us','mod_amp','mod_freq_kHz',
                          'index','start_phase','-------',
                          'duration_[ms]','off_time_[us]','freqs_input_[MHz]',
@@ -460,7 +461,7 @@ class multirun_widget(QWidget):
                 shuffle(vals)
         for i in range(self.table.rowCount()): 
             try: # set vals in table cells
-                self.table.item(i, col).setText('%.4f'%vals[i])
+                self.table.item(i, col).setText('%.9f'%vals[i])
             except IndexError: # occurs if invalid range
                 self.table.item(i, col).setText('')
 
@@ -544,7 +545,7 @@ class multirun_widget(QWidget):
         sht = self.tr.get_esc()[2][2:] # 'Sequence header top'
         if newtype == 'AWG1 chan : seg' or newtype == 'AWG2 chan : seg' or newtype == 'AWG3 chan : seg':
             self.chan_choices['Time step name'].clear()
-            self.chan_choices['Time step name'].addItems([str(i)+', '+str(j) for j in range(100) for i in range(2)])
+            self.chan_choices['Time step name'].addItems([str(i)+', '+str(j) for j in range(200) for i in range(2)])
             reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)
             self.chan_choices['Analogue type'].clear()
             self.chan_choices['Analogue type'].addItems(['AWG Parameter'])

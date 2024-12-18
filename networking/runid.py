@@ -98,13 +98,13 @@ class runnum(QThread):
         if not dev_mode:
             self.client = PyClient(host='129.234.190.235', port=8626, name='AWG1 recv') # incoming from AWG
             self.clien2 = PyClient(host='129.234.190.233', port=8629, name='AWG2 recv') # incoming from AWG2\
-            self.clien3 = PyClient(host='129.234.190.234', port=8637, name='AWG3 recv') # incoming from AWG2\
+            self.clien3 = PyClient(host='129.234.190.234', port=8639, name='AWG3 recv') # incoming from AWG2\
             self.clientmwg_wftk = PyClient(host='129.234.190.235', port=8632, name='MW recv (WFTK)') # incoming from MW generator (WFTK) control
             self.clientmwg_anritsu = PyClient(host='129.234.190.235', port=8635, name='MW recv (Anritsu)') # incoming from MW generator (Anritsu) control
         else:
             self.client = PyClient(host='localhost', port=8626, name='AWG1 recv') # incoming from AWG
             self.clien2 = PyClient(host='localhost', port=8629, name='AWG2 recv') # incoming from AWG2
-            self.clien3 = PyClient(host='localhost', port=8637, name='AWG3 recv') # incoming from AWG2
+            self.clien3 = PyClient(host='localhost', port=8639, name='AWG3 recv') # incoming from AWG2
             self.clientmwg_wftk = PyClient(host='localhost', port=8632, name='MW recv (WFTK)') # incoming from MW generator (WFTK) control
             self.clientmwg_anritsu = PyClient(host='localhost', port=8635, name='MW recv (Anritsu)') # incoming from MW generator (Anritsu) control
         self.client.start()
@@ -120,7 +120,7 @@ class runnum(QThread):
 
         self.awgtcp2 = PyServer(host='', port=8628, name='AWG2') # AWG program runs separately
         self.awgtcp2.start()
-        self.awgtcp3 = PyServer(host='', port=8636, name='AWG3') # AWG program runs separately
+        self.awgtcp3 = PyServer(host='', port=8637, name='AWG3') # AWG program runs separately
         self.awgtcp3.start()
         self.ddstcp2 = PyServer(host='', port=8630, name='DDS2') # DDS program runs separately
         self.ddstcp2.start()
