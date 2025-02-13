@@ -29,9 +29,33 @@ class MeasureAnalyser():
     """Class to analyse the results of an entire measurement. Makes different
     instances of the Analyser class and then goes through a measure folder to
     extract relevant information."""
-    def __init__(self, directory=None,ignore_ids=[]):
+    def __init__(self, directory=None,ignore_ids=[],group_by_uv=None):
+        self.grouping_uv = group_by_uv
         if directory is not None:
             self.load_from_directory(directory,ignore_ids)
+        if self.grouping_uv is not None:
+            self.group_by_uv()
+            
+    def group_by_uv(self):
+        grouped_analysers = {}
+        for analyser in self.analysers.values():
+            uv_val = analyser.get_user_variables()[self.grouping_uv]
+            if uv_val not in grouped_analysers:
+                grouped_analysers[uv_val] = []
+            grouped_analysers[uv_val].append(analyser)
+            
+        combined_analysers = {}
+        
+        for uv_val,analysers in grouped_analysers.items():
+            aux_dfs = [a.aux_df for a in analysers]
+            counts_dfs = [a.counts_df for a in analysers]
+                          
+            aux_df = aux_dfs[0]
+            counts_df = pd.concat(counts_dfs)
+            
+            combined_analysers[uv_val] = Analyser((aux_df,counts_df))
+        
+        self.analysers = combined_analysers
     
     def load_from_directory(self,directory,ignore_ids=[]):
         maia_files = [x for x in os.listdir(directory) if x.split('.')[0] == 'MAIA']
@@ -50,33 +74,32 @@ class MeasureAnalyser():
         [x.apply_condition_criteria(criteria_string) for x in self.analysers.values()]
     
     def get_data(self,groups_for_average=None):
-        df = pd.DataFrame()
-        
+        rows = []
         for hist_id,analyser in self.analysers.items():
             # print(hist_id,analyser)
-            row = pd.DataFrame()
-            row['Hist ID'] = [hist_id]
+            # row = pd.DataFrame()
+            row = {}
+            row['Hist ID'] = hist_id
             
             uvs = analyser.get_user_variables()
             for uv_idx, uv_val in enumerate(uvs):
-                row['User variable {}'.format(uv_idx)] = [uv_val]
+                row['User variable {}'.format(uv_idx)] = uv_val
             
             post_select_probs_errs = analyser.get_post_selection_probs()
             condition_met_probs_errs = analyser.get_condition_met_probs()
             for group,(ps_prob_err,cm_prob_err) in enumerate(zip(post_select_probs_errs,condition_met_probs_errs)):
                 # print(group,ps_prob_err,cm_prob_err)
                 for key, val in ps_prob_err.items():
-                    row['Group {} PS {}'.format(group,key)] = [val]
+                    row['Group {} PS {}'.format(group,key)] = val
                 for key, val in cm_prob_err.items():
-                    row['Group {} CM {}'.format(group,key)] = [val]
+                    row['Group {} CM {}'.format(group,key)] = val
             avg_condition_met_probs_errs = analyser.get_avg_condition_met_prob(groups_for_average)
             for key, val in avg_condition_met_probs_errs.items():
-                row['Average CM {}'.format(key)] = [val]
-            df = pd.concat([df,row])
+                row['Average CM {}'.format(key)] = val
+            rows.append(row)
+        df = pd.DataFrame(rows)
         df = df.set_index('Hist ID')
         return df
-        # [[list(x.index),list(x['condition met'].astype(int))] for x in self.ps_counts_df_split_by_roi_group]
-        # df['']
         
     def get_separations(self,**kwargs):
         """Requests that the analysers analyse their counts lists to 
@@ -112,6 +135,8 @@ class Analyser():
     def __init__(self, maia_data):
         if type(maia_data) == list: # data comes directly from MAIA
             self.convert_maia_data_to_df(maia_data)
+        elif type(maia_data) == tuple: # tuple with aux_df and counts_df to populate with
+            self.load_dfs_manually(*maia_data)
         else: # maia_data is a string with a dataframe format
             self.load_dfs_from_file(maia_data)
         self.split_counts_df_by_roi_group()
@@ -177,8 +202,15 @@ class Analyser():
     def load_dfs_from_file(self,filename):
         print(filename)
         self.aux_df = pd.read_csv(filename,nrows=1)
-        # print(self.aux_df)
         self.counts_df = pd.read_csv(filename,skiprows=2,index_col='File ID')
+        self.populate_values_from_dfs()
+    
+    def load_dfs_manually(self,aux_df,counts_df):
+        self.aux_df = aux_df
+        self.counts_df = counts_df
+        self.populate_values_from_dfs()
+    
+    def populate_values_from_dfs(self):
         roi_names = [x[:-7] for x in self.counts_df.columns if ' counts' in x]
         
         roi_groups = set([int(x.split(':')[0].split('ROI')[1]) for x in roi_names])
@@ -416,6 +448,8 @@ class Analyser():
             loerr = LP - conf[0] # 1 sigma confidence below mean
             eLPi = (uperr+loerr)/2
         result = {}
+        result['successes'] = num_successes
+        result['events'] = num_events
         result['probability'] = LP
         result['error in probability'] = eLPi
         result['upper error in probability'] = uperr
@@ -533,7 +567,7 @@ if __name__ == '__main__':
     """
     
     directory = r"Z:\Tweezer\Experimental Results\2023\January\31\Measure1"
-    measure_analyser = MeasureAnalyser(directory,ignore_ids=list(range(10,1000)))
+    measure_analyser = MeasureAnalyser(directory,ignore_ids=list(range(10,1000)),group_by_uv=0)
     analysers = measure_analyser.analysers
     measure_analyser.apply_post_selection_criteria('')
     measure_analyser.apply_condition_criteria('[1x]')
