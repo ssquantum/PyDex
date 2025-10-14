@@ -135,11 +135,12 @@ class multirun_widget(QWidget):
         self.dds_args = ['Freq', 'Phase', 'Amp', 'Start_add', 'End_add', 'Step_rate', 'Sweep_start', 
         'Sweep_end', 'Pos_step', 'Neg_step', 'Pos_step_rate', 'Neg_step_rate']
         self.slm_args = ['f','period','angle','radius','gradient','shift','radial','azimuthal','amplitude','max_mod_depth','radius_scale']
+        self.rfsoc_args = ['freq (MHz)', 'time (us)', 'gain (dac units 1-32765)']
         self.mwg_wftk_args = ['freq (MHz)','amp (dBm)','phase (deg)']
         self.mwg_anritsu_args = ['freq (MHz)','amp (dBm)']
         self.column_options = ['Analogue voltage', 'AWG1 chan : seg', 'AWG2 chan : seg', 'AWG3 chan : seg',
             'DDS1 port : profile', 'DDS2 module : profile', 'DDS3 module : profile',
-            'SLM holograms','MWG (WFTK) tones','MWG (Anritsu) tones'] # these analogue types require the analogue options 
+            'SLM holograms', 'RFSOC pulse','MWG (WFTK) tones','MWG (Anritsu) tones'] # these analogue types require the analogue options 
         self.col_range_text = ['']*ncols
         self.COM = ['RB1A', 'RB2', 'RB3', 'RB4', 'RB1B','',"RB1A'","RB1B'"] # DDS COM port connections
         self.COM2 = ['977', '1557', '1013', '420'] # DDS2 module connections
@@ -230,7 +231,7 @@ class multirun_widget(QWidget):
         sht = self.tr.get_esc()[2][2:] # 'Sequence header top'
         options = [['Time step length', 'Analogue voltage', 'GPIB', 'AWG1 chan : seg', 
         'AWG2 chan : seg', 'AWG3 chan : seg', 'DDS1 port : profile', 'DDS2 module : profile', 'DDS3 module : profile',
-        'SLM holograms','MWG (WFTK) tones','MWG (Anritsu) tones','Other'], 
+        'SLM holograms','RFSOC pulse','MWG (WFTK) tones','MWG (Anritsu) tones','Other'], 
             list(map(str.__add__, [str(i) for i in range(len(sht))],
                     [': '+hc[6][1].text for hc in sht])), # time step names
             ['Fast analogue', 'Slow analogue'],
@@ -580,6 +581,16 @@ class multirun_widget(QWidget):
             self.chan_choices['Analogue channel'].setEnabled(True)
             self.chan_choices['Analogue channel'].clear()
             self.chan_choices['Analogue channel'].addItems(self.slm_args)
+        elif newtype == 'RFSOC pulse':
+            self.chan_choices['Time step name'].clear()
+            rfsocoptions = ['Pulse %s'%(i) for i in range(7)]
+            self.chan_choices['Time step name'].addItems(rfsocoptions)
+            reset_slot(self.chan_choices['Analogue type'].currentTextChanged[str], self.change_mr_anlg_type, False)
+            self.chan_choices['Analogue type'].clear()
+            self.chan_choices['Analogue type'].addItems(['RFSOC Parameter'])
+            self.chan_choices['Analogue channel'].setEnabled(True)
+            self.chan_choices['Analogue channel'].clear()
+            self.chan_choices['Analogue channel'].addItems(self.rfsoc_args)
         elif newtype == 'MWG (WFTK) tones':
             self.chan_choices['Time step name'].clear()
             preferential_coms = [9, 10] # COM ports to put at the top of the list

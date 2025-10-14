@@ -95,6 +95,8 @@ class runnum(QThread):
         self.seqtcp.start()
         self.slmtcp = PyServer(host='', port=8627, name='SLM') # SLM program runs separately
         self.slmtcp.start()
+        self.rfsoctcp = PyServer(host='', port=8636, name='RFSOC') # RFSOC program runs separately
+        self.rfsoctcp.start()
         if not dev_mode:
             self.client = PyClient(host='129.234.190.235', port=8626, name='AWG1 recv') # incoming from AWG
             self.clien2 = PyClient(host='129.234.190.233', port=8629, name='AWG2 recv') # incoming from AWG2\
@@ -131,7 +133,7 @@ class runnum(QThread):
         self.mwgtcp_anritsu = PyServer(host='', port=8634, name='MWG (Anritsu)') # MW generator (Anritsu) control program runs separately
         self.mwgtcp_anritsu.start()
         self.server_list = [self.server, self.trigger, self.monitor, self.awgtcp1, self.ddstcp1, 
-                self.slmtcp, self.seqtcp, self.awgtcp2, self.awgtcp3, self.ddstcp2, self.mwgtcp_wftk, self.ddstcp3,
+                self.slmtcp, self.rfsoctcp, self.seqtcp, self.awgtcp2, self.awgtcp3, self.ddstcp2, self.mwgtcp_wftk, self.ddstcp3,
                 self.mwgtcp_anritsu]
         
     def reset_server(self, force=False):
@@ -338,6 +340,14 @@ class runnum(QThread):
                                 self.seq.mr.slm_args[m], 
                                 self.seq.mr.mr_vals[v][col])
                 except Exception as e: error('Invalid SLM parameter at (%s, %s)\n'%(v,col)+str(e))
+            elif 'RFSOC' in self.seq.mr.mr_param['Type'][col] and module == 'RFSOC':
+                try: # argument: value
+                    for n in self.seq.mr.mr_param['Time step name'][col]: # index of chosen pulse
+                        for m in self.seq.mr.mr_param['Analogue channel'][col]:
+                            msg += '[%s,"%s",%s],'%(n, # [PulseIndex, parameter, value]
+                                self.seq.mr.rfsoc_args[m], 
+                                self.seq.mr.mr_vals[v][col])
+                except Exception as e: error('Invalid RFSOC parameter at (%s, %s)\n'%(v,col)+str(e))
             elif 'MWG (WFTK)' in self.seq.mr.mr_param['Type'][col] and module == 'MWG (WFTK)':
                 try: # argument: value
                     for n in self.seq.mr.mr_param['Time step name'][col]: # COM port for MWG to edit
@@ -416,12 +426,13 @@ class runnum(QThread):
             self.ddstcp2.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDS2param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.ddstcp3.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'DDS3param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.slmtcp.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'SLMparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
+            self.rfsoctcp.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'RFSOCparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.mwgtcp_wftk.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'MWG_WFTK_param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             self.mwgtcp_anritsu.priority_messages([[self._n, 'save_all='+os.path.join(results_path,'MWG_Anritsu_param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt')]])
             mr_queue = []
             #print('make msg')
             for v in range(len(self.seq.mr.mr_vals)): # use different last time step during multirun
-                module_msgs = {'AWG1':'', 'AWG2':'', 'AWG3':'', 'DDS1':'', 'DDS2':'', 'DDS3':'', 'SLM':'', 
+                module_msgs = {'AWG1':'', 'AWG2':'', 'AWG3':'', 'DDS1':'', 'DDS2':'', 'DDS3':'', 'SLM':'', 'RFSOC':'', 
                                'MWG (WFTK)':'', 'MWG (Anritsu)':''}
                 for key in module_msgs.keys():
                     if any(key in x for x in self.seq.mr.mr_param['Type']): # send parameters by TCP
@@ -440,6 +451,7 @@ class runnum(QThread):
                     [TCPENUM['TCP read'], module_msgs['DDS2']+'||||||||'+'0'*2000], # set DDS parameters
                     [TCPENUM['TCP read'], module_msgs['DDS3']+'||||||||'+'0'*2000], # set DDS parameters
                     [TCPENUM['TCP read'], module_msgs['SLM']+'||||||||'+'0'*2000], # set SLM parameters
+                    [TCPENUM['TCP read'], module_msgs['RFSOC']+'||||||||'+'0'*2000], # set RFSOC parameters
                     [TCPENUM['TCP read'], module_msgs['MWG (WFTK)']+'||||||||'+'0'*2000], # set MWG (WFTK) parameters
                     [TCPENUM['TCP read'], module_msgs['MWG (Anritsu)']+'||||||||'+'0'*2000], # set MWG (Anritsu) parameters
                     [TCPENUM['TCP load last time step'], self.seq.mr.mr_param['Last time step run']+'0'*2000],
@@ -471,6 +483,9 @@ class runnum(QThread):
             if any('SLM' in x for x in self.seq.mr.mr_param['Type']):
                 self.slmtcp.add_message(self._n, 'load_all='+os.path.join(self.sv.results_path, # reset SLM parameters
                     self.seq.mr.mr_param['measure_prefix'],'SLMparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
+            if any('RFSOC' in x for x in self.seq.mr.mr_param['Type']):
+                self.rfsoctcp.add_message(self._n, 'load_all='+os.path.join(self.sv.results_path, # reset SLM parameters
+                    self.seq.mr.mr_param['measure_prefix'],'RFSOCparam'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))
             if any('MWG (WFTK)' in x for x in self.seq.mr.mr_param['Type']):
                 self.mwgtcp_wftk.add_message(self._n, 'load_all='+os.path.join(self.sv.results_path, # reset MWG parameters
                     self.seq.mr.mr_param['measure_prefix'],'MWG_WFTK_param'+str(self.seq.mr.mr_param['1st hist ID'])+'.txt'))

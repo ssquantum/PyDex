@@ -442,6 +442,7 @@ class Master(QMainWindow):
             info += 'DDS2 server is running.\n' if self.rn.ddstcp2.isRunning() else 'DDS2 server stopped.\n'
             info += 'DDS3 server is running.\n' if self.rn.ddstcp3.isRunning() else 'DDS3 server stopped.\n'
             info += 'SLM server is running.\n' if self.rn.slmtcp.isRunning() else 'SLM server stopped.\n'
+            info += 'RFSOC server is running.\n' if self.rn.rfsoctcp.isRunning() else 'RFSOC server stopped.\n'
             info += 'MWG (WFTK) server is running.\n' if self.rn.mwgtcp_wftk.isRunning() else 'MWG (WFTK) server stopped.\n'
             info += 'MWG (Anritsu) server is running.\n' if self.rn.mwgtcp_anritsu.isRunning() else 'MWG (Anritsu) server stopped.\n'
             info += 'BareDExTer server is running.\n' if self.rn.seqtcp.isRunning() else 'BareDExTer server stopped.\n'
@@ -730,6 +731,8 @@ class Master(QMainWindow):
             self.rn.ddstcp3.priority_messages([(self.rn._n, msg.replace('DDS3 ', '').split('||||||||')[0])])
         elif 'SLM ' in msg[:10]: # send command to SLM to set new data
             self.rn.slmtcp.priority_messages([(self.rn._n, msg.replace('SLM ', '').split('||||||||')[0])])
+        elif 'RFSOC ' in msg[:10]: # send command to RFSOC to set new data
+            self.rn.rfsoctcp.priority_messages([(self.rn._n, msg.replace('RFSOC ', '').split('||||||||')[0])])
         elif 'MWG (WFTK) ' in msg[:20]: # send command to MW generator (WFTK) to set new data
             self.rn.mwgtcp_wftk.priority_messages([(self.rn._n, msg.replace('MWG (WFTK) ', '').split('||||||||')[0])])
         elif 'MWG (Anritsu) ' in msg[:20]: # send command to MW generator (Anritsu) to set new data
@@ -787,10 +790,10 @@ class Master(QMainWindow):
         #         "image_handler max length: ", max(map(np.size, mw.image_handler.stats.values())),
         #         "\thisto_handler max length: ", max(map(np.size, mw.histo_handler.stats.values())))
         print("TCP Network:")
-        for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG1', 'AWG2', 'AWG3' 'DDS1', 'DDS2', 'DDS3', 'SLM', 'MWG (WFTK)','MWG (Anritsu)'],
+        for label, tcp in zip(['DExTer', 'Digital trigger', 'DAQ', 'AWG1', 'AWG2', 'AWG3' 'DDS1', 'DDS2', 'DDS3', 'SLM', 'RFSOC', 'MWG (WFTK)','MWG (Anritsu)'],
                 [self.rn.server, self.rn.trigger, self.rn.monitor, self.rn.awgtcp1, self.rn.awgtcp2, self.rn.awgtcp3,
                     self.rn.ddstcp1, self.rn.ddstcp2, self.rn.ddstcp3, 
-                    self.rn.slmtcp, self.rn.mwgtcp_wftk, self.rn.mwgtcp_anritsu]):
+                    self.rn.slmtcp, self.rn.rfsoctcp, self.rn.mwgtcp_wftk, self.rn.mwgtcp_anritsu]):
             print(label, ': %s messages'%len(tcp.get_queue()))
         print("Mutlirun queue length: ", len(self.rn.seq.mr.mr_queue))
         if reset:

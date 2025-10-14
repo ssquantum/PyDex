@@ -1,8 +1,8 @@
-n=37775
+n=0
 config_file=Z:/Tweezer/Code/Python 3.5/PyDex/monitor/beforeRestart03-06-25.dat
 trace_file=DAQtrace.csv
 graph_file=DAQgraph.csv
-save_dir=Z:\Tweezer\Experimental Results\2025\September\12\Measure9test
+save_dir=Z:\Tweezer\Experimental Results\2025\September\29\Measure3
 Sample Rate (kS/s)=80.0
 Duration (ms)=200.0
 Trigger Channel=/Dev4/PFI0
